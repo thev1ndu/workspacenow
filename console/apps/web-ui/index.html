@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" class="light" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="WorkspaceNow: build, connect and operate your organization's applications, agents and workflows." />
+    <title>WorkspaceNow</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Ubuntu sets the WorkspaceNow wordmark; only the weights it uses are loaded. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&display=swap" rel="stylesheet" />
+    <script>
+      // Apply the saved appearance before first paint, so the page never flashes. Mirrors useAppearance.
+      (function () {
+        try {
+          var mode = localStorage.getItem("workspacenow-theme");
+          var dark = mode === "light" || mode === "dark" ? mode === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var theme = dark ? "dark" : "light";
+          var palette = localStorage.getItem("workspacenow-palette");
+          document.documentElement.className = theme;
+          document.documentElement.dataset.theme = theme;
+          if (palette && palette !== "blue") document.documentElement.dataset.palette = palette;
+        } catch (e) {}
+      })();
+    </script>
+    <script src="/config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

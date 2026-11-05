@@ -1,0 +1,64 @@
+/* React Flow drawn with the console's theme tokens, so the canvas follows light, dark and every palette. */
+.workflow-canvas .react-flow {
+  --xy-background-color: transparent;
+  --xy-background-pattern-color: var(--separator);
+  --xy-edge-stroke: var(--muted);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-connectionline-stroke: var(--accent);
+  --xy-edge-label-background-color: var(--surface);
+  --xy-edge-label-color: var(--muted);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--surface-secondary);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-border-color: var(--separator);
+  --xy-minimap-background-color: var(--surface);
+  --xy-minimap-mask-background-color: color-mix(in oklab, var(--background) 60%, transparent);
+  --xy-minimap-node-background-color: var(--default);
+  --xy-attribution-background-color: transparent;
+}
+.workflow-canvas .react-flow__edge-textbg {
+  rx: 4px;
+}
+/* The path a run took. */
+.workflow-canvas .react-flow__edge.edge-taken .react-flow__edge-path {
+  stroke: var(--success);
+  stroke-width: 2;
+}
+
+/* Connection dots: small at rest, easy to grab on hover. */
+.workflow-canvas .react-flow__handle {
+  transition: transform 120ms ease;
+}
+.workflow-canvas .react-flow__node:hover .react-flow__handle,
+.workflow-canvas .react-flow__handle.connectingfrom,
+.workflow-canvas .react-flow__handle.connectingto {
+  transform: translate(-50%, 50%) scale(1.6);
+}
+.workflow-canvas .react-flow__handle-top {
+  transform: translate(-50%, -50%);
+}
+.workflow-canvas .react-flow__node:hover .react-flow__handle-top {
+  transform: translate(-50%, -50%) scale(1.6);
+}
+.workflow-canvas .react-flow__handle-right {
+  transform: translate(50%, -50%);
+}
+.workflow-canvas .react-flow__node:hover .react-flow__handle-right {
+  transform: translate(50%, -50%) scale(1.6);
+}
+.workflow-canvas .react-flow__edge-path {
+  stroke-width: 1.5;
+}
+.workflow-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 2.5;
+}
+.workflow-canvas .react-flow__edge-text {
+  font-size: 11px;
+  font-weight: 500;
+}
+.workflow-canvas .react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  overflow: hidden;
+}

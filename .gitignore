@@ -1,0 +1,37 @@
+# Secrets and local configuration: real .env files hold keys and local URLs (see each
+# component's .env.example); the .example templates stay tracked.
+.env
+.env.local
+.env.*.local
+
+# Python (wsn-ai-service)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Go (wsn-service)
+bin/
+vendor/
+*.out
+
+# Node / pnpm (console; console/.gitignore repeats these for standalone checkouts)
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Editors, OS, logs
+.idea/
+.vscode/
+*.swp
+.DS_Store
+*.log
+nohup.out

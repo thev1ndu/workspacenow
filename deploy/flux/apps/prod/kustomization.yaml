@@ -6,17 +6,17 @@ resources:
 images:
   - { name: ghcr.io/thev1ndu/wsn-service, newTag: "0.1.0" }
   - { name: ghcr.io/thev1ndu/wsn-ai-service, newTag: "0.1.0" }
-  - { name: ghcr.io/thev1ndu/wsn-console, newTag: "0.1.0" }
+  - { name: ghcr.io/thev1ndu/console, newTag: "0.1.0" }
 replicas:
   - { name: wsn-service, count: 3 }
   - { name: wsn-service-worker, count: 3 }
   - { name: wsn-ai-service, count: 3 }
-  - { name: wsn-console, count: 2 }
+  - { name: console, count: 2 }
 patches:
   - target: { kind: ConfigMap, name: wsn-service }
     patch: |
       - { op: replace, path: /data/CORS_ALLOWED_ORIGINS, value: https://workspacenow.example.com }
-  - target: { kind: ConfigMap, name: wsn-console }
+  - target: { kind: ConfigMap, name: console }
     patch: |
       - op: replace
         path: /data/config.js

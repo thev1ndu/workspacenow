@@ -14,7 +14,7 @@ spec:
     - matches: [{ path: { type: PathPrefix, value: /mcp } }]
       backendRefs: [{ name: wsn-ai-service, port: 8090 }]
     - matches: [{ path: { type: PathPrefix, value: / } }]
-      backendRefs: [{ name: wsn-console, port: 8080 }]
+      backendRefs: [{ name: console, port: 8080 }]
 ---
 # The ai-service is reached only by wsn-service and the gateway (for /mcp).
 apiVersion: networking.k8s.io/v1
@@ -31,6 +31,20 @@ spec:
         - podSelector: { matchLabels: { app.kubernetes.io/name: wsn-service-worker } }
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: gateway-system } }
       ports: [{ port: 8090 }]
+---
+# The console serves static files and is reached only by the gateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: console
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: console }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: gateway-system } }
+      ports: [{ port: 8080 }]
 ---
 # The internal API (tool calls with run grants) accepts only the ai-service; the public API is open to the gateway.
 apiVersion: networking.k8s.io/v1

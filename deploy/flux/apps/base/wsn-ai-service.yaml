@@ -27,6 +27,8 @@ spec:
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: MISTRAL_API_KEY } }
             - name: AI_SERVICE_TOKEN
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: AI_SERVICE_TOKEN } }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
@@ -36,7 +38,9 @@ spec:
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits: { memory: 768Mi }
-          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+      volumes:
+        - { name: tmp, emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service

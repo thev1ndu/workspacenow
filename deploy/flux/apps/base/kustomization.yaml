@@ -14,5 +14,5 @@ images:
     newName: ghcr.io/thev1ndu/wsn-service
   - name: wsn-ai-service
     newName: ghcr.io/thev1ndu/wsn-ai-service
-  - name: wsn-console
-    newName: ghcr.io/thev1ndu/wsn-console
+  - name: console
+    newName: ghcr.io/thev1ndu/console

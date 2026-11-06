@@ -33,6 +33,11 @@ class AgentRuntime:
         self._llm = llm
         self._platform = platform
 
+    async def _stream_step(self, run_id: str, step: ThoughtStep | ToolStep) -> None:
+        # Sends the step to wsn-service the moment it happens (camelCase on the wire, like the run result);
+        # wsn-service republishes it as an AgentRun.Step event. The final result travels in the /v1/runs response.
+        await self._platform.stream_run_step(run_id, step.model_dump(by_alias=True, mode="json"))
+
     async def run(self, req: RunRequest) -> RunResult:
         started = time.monotonic()
         tools = [function_tool(t.name, t.description, t.input_schema) for t in req.tools]
@@ -54,7 +59,9 @@ class AgentRuntime:
                 answer = completion.content.strip()
                 break
             if completion.content.strip():
-                steps.append(ThoughtStep(text=completion.content.strip()))
+                thought = ThoughtStep(text=completion.content.strip())
+                steps.append(thought)
+                await self._stream_step(req.run_id, thought)
             messages.append(
                 {
                     "role": "assistant",
@@ -87,7 +94,9 @@ class AgentRuntime:
                         reason=outcome.reason,
                     )
                 calls_made += 1
-                steps.append(ToolStep(call=result))
+                step = ToolStep(call=result)
+                steps.append(step)
+                await self._stream_step(req.run_id, step)
                 messages.append(
                     {"role": "tool", "name": call.name, "tool_call_id": call.id, "content": _tool_content(result)}
                 )

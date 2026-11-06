@@ -50,7 +50,7 @@ spec:
           env:
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }
-          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
 ---
 apiVersion: apps/v1
 kind: Deployment

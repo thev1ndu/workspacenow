@@ -103,13 +103,13 @@ Every setting is an environment variable; `.env.example` lists them with local d
 
 ## Build
 
-The image is built with Cloud Native Buildpacks (`project.toml`, Paketo Go):
+The image is built from the multi-stage `Dockerfile` (static Go binary on distroless, running as the non-root distroless user):
 
 ```sh
-pack build wsn-service --builder paketobuildpacks/builder-jammy-base
+docker build -t wsn-service --build-arg VERSION=dev wsn-service
 ```
 
-CI does the same and pushes to `ghcr.io/thev1ndu/wsn-service`; see `../.github/workflows/images.yaml`.
+CI does the same with docker buildx (linux/amd64 + arm64) and pushes to `ghcr.io/thev1ndu/wsn-service`; see `../.github/workflows/images.yaml`.
 
 ## Status
 

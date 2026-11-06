@@ -73,6 +73,35 @@ def test_message_with_an_empty_body_names_the_status_code() -> None:
 
 
 @respx.mock
+async def test_stream_run_step_posts_the_step_with_the_service_token() -> None:
+    route = respx.post(f"{INTERNAL}/internal/v1/runs/run-9/steps").mock(return_value=httpx.Response(204))
+    c = client()
+    ok = await c.stream_run_step("run-9", {"kind": "thought", "text": "thinking"})
+    await c.close()
+
+    assert ok is True
+    request = route.calls.last.request
+    assert request.headers["Authorization"] == "Bearer service-token"
+    assert json.loads(request.content) == {"kind": "thought", "text": "thinking"}
+
+
+@respx.mock
+async def test_stream_run_step_refused_by_the_platform_is_not_an_error() -> None:
+    respx.post(f"{INTERNAL}/internal/v1/runs/run-9/steps").mock(
+        return_value=httpx.Response(409, json={"message": "unknown run"})
+    )
+    ok = await client().stream_run_step("run-9", {"kind": "thought", "text": "x"})
+    assert ok is False
+
+
+@respx.mock
+async def test_stream_run_step_with_the_platform_down_is_not_an_error() -> None:
+    respx.post(f"{INTERNAL}/internal/v1/runs/run-9/steps").mock(side_effect=httpx.ConnectError("refused"))
+    ok = await client().stream_run_step("run-9", {"kind": "thought", "text": "x"})
+    assert ok is False
+
+
+@respx.mock
 async def test_tool_catalogue_keeps_only_workspacenow_tools() -> None:
     route = respx.get(f"{INTERNAL}/internal/v1/mcp/tools").mock(
         return_value=httpx.Response(

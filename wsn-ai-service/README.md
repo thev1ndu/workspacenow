@@ -16,6 +16,15 @@ It never decides what an agent may do. Every tool call goes back to `wsn-service
 
 The `/v1` routes require `Authorization: Bearer $AI_SERVICE_TOKEN`; only wsn-service holds that token, and a NetworkPolicy keeps everything else out.
 
+## Calls to wsn-service
+
+| Call | When |
+|---|---|
+| `POST /internal/v1/tools/invoke` (with the run's grant) | Each tool call the model proposes |
+| `POST /internal/v1/runs/{runId}/steps` (with the service token) | Each run step **as it happens** — one camelCase `AgentRunStep` in the body; wsn-service republishes it as an `AgentRun.Step` event. Step streaming never fails a run: if wsn-service is unreachable or refuses the step, the run continues and the final `RunResult` still travels in the `POST /v1/runs` response (wsn-service emits `AgentRun.Completed` from it) |
+| `POST /internal/v1/mcp/invoke` (service token + `X-Forwarded-Authorization`) | Each MCP tool call, as the MCP client's user |
+| `GET /internal/v1/mcp/tools` | Periodically, to mirror wsn-service's tool catalogue on `/mcp` |
+
 ## Develop
 
 ```sh
@@ -23,10 +32,22 @@ python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 cp .env.example .env            # set MISTRAL_API_KEY and AI_SERVICE_TOKEN
 python -m wsn_ai_service.app    # serves on :8090
-pytest
+pytest                          # unit tests; 100% line coverage of src is gated in CI
 ruff check . && ruff format --check . && mypy src
+```
+
+Live smoke test against the real Mistral API (opt in; skipped without the key, and run in CI only when the `MISTRAL_API_KEY` secret is set — see `.github/workflows/wsn-ai-service.yaml`):
+
+```sh
+MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... pytest tests/test_live_smoke.py -v
+# or against a running service:
+curl -H "Authorization: Bearer $AI_SERVICE_TOKEN" -d @run.json localhost:8090/v1/runs
 ```
 
 ## Build
 
-The image is built with Cloud Native Buildpacks (`project.toml`, Paketo Python): `pack build wsn-ai-service --builder paketobuildpacks/builder-jammy-base`.
+The image is built from the multi-stage `Dockerfile` (venv on `python:3.12-slim`, running as the non-root `ai` user):
+
+```sh
+docker build -t wsn-ai-service --build-arg VERSION=0.1.0 wsn-ai-service
+```

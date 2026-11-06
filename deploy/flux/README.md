@@ -30,7 +30,7 @@ OpenBao needs Kubernetes auth roles named `external-secrets` (read `secret/data/
 
 ## Images
 
-`.github/workflows/images.yaml` builds `wsn-service`, `wsn-ai-service` and `wsn-console` with Cloud Native Buildpacks (`project.toml` in each component) and pushes them to `ghcr.io/thev1ndu`. Pushes to `main` are tagged `main-<sha>-<run>`; `v*` tags publish the release version.
+`.github/workflows/images.yaml` builds `wsn-service`, `wsn-ai-service` and `console` from each component's `Dockerfile` with docker buildx (multi-stage, non-root runtime user, read-only-rootfs compatible) and pushes them to `ghcr.io/thev1ndu`. Pushes to `main` are tagged `main-<sha>-<run>`; `v*` tags publish the release version.
 
 ## Check locally
 

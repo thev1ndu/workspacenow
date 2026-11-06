@@ -1,4 +1,8 @@
+import json
+
+import httpx
 import pytest
+import respx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -6,13 +10,21 @@ from pydantic import SecretStr
 import wsn_ai_service.app as app_module
 from wsn_ai_service.app import create_app
 from wsn_ai_service.config import Settings, get_settings
-from wsn_ai_service.llm import Completion
+from wsn_ai_service.llm import Completion, RequestedCall
 from wsn_ai_service.models import DiscoveredTool, DiscoverResult
 
 
 class OneAnswer:
     async def complete(self, *args: object, **kwargs: object) -> Completion:
         return Completion("Hello from Mistral.", tokens=12)
+
+
+class ScriptedModel:
+    def __init__(self, *completions: Completion) -> None:
+        self.completions = list(completions)
+
+    async def complete(self, *args: object, **kwargs: object) -> Completion:
+        return self.completions.pop(0)
 
 
 class PlanAnswer:
@@ -53,6 +65,42 @@ def test_run_answers_in_camel_case() -> None:
 def test_health_is_open() -> None:
     with client() as c:
         assert c.get("/healthz").json() == {"status": "ok"}
+
+
+@respx.mock
+def test_run_streams_each_step_to_wsn_service_as_it_happens() -> None:
+    internal = "http://localhost:8081"
+    respx.get(f"{internal}/internal/v1/mcp/tools").mock(return_value=httpx.Response(200, json={"items": []}))
+    respx.post(f"{internal}/internal/v1/tools/invoke").mock(
+        return_value=httpx.Response(200, json={"outcome": "allowed", "output": {"ok": True}})
+    )
+    steps_route = respx.post(f"{internal}/internal/v1/runs/run-1/steps").mock(return_value=httpx.Response(204))
+    llm = ScriptedModel(
+        Completion("Checking stock.", [RequestedCall("c1", "get_items", {"a": 1})], tokens=5),
+        Completion("All done.", tokens=3),
+    )
+    run = {**RUN, "tools": [{"name": "get_items", "description": "d", "inputSchema": {"type": "object"}}]}
+
+    with client(llm) as c:
+        r = c.post("/v1/runs", json=run, headers={"Authorization": "Bearer secret"})
+
+    assert r.status_code == 200
+    assert r.json()["answer"] == "All done."
+    bodies = [json.loads(call.request.content) for call in steps_route.calls]
+    assert bodies == [
+        {"kind": "thought", "text": "Checking stock."},
+        {
+            "kind": "tool",
+            "call": {
+                "tool": "get_items",
+                "input": {"a": 1},
+                "outcome": "allowed",
+                "output": {"ok": True},
+                "reason": None,
+            },
+        },
+    ]
+    assert all(call.request.headers["Authorization"] == "Bearer secret" for call in steps_route.calls)
 
 
 def test_unknown_v1_routes_answer_501_in_the_platform_error_shape() -> None:

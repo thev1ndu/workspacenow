@@ -1,9 +1,12 @@
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from .models import Outcome
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,6 +46,25 @@ class PlatformClient:
             return ToolOutcome("error", reason=_message(response))
         payload = response.json()
         return ToolOutcome(payload.get("outcome", "error"), payload.get("output"), payload.get("reason"))
+
+    async def stream_run_step(self, run_id: str, step: dict[str, Any]) -> bool:
+        # Reports one AgentRunStep to wsn-service as it happens, so it can emit the AgentRun.Step event.
+        # Progress reporting never fails the run: any problem is logged and reported as False.
+        try:
+            response = await self._internal.post(
+                f"/internal/v1/runs/{run_id}/steps",
+                headers={"Authorization": f"Bearer {self._service_token}"},
+                json=step,
+            )
+        except httpx.HTTPError as exc:
+            log.warning("could not stream a step of run %s: %s", run_id, exc)
+            return False
+        if response.status_code >= 400:
+            log.warning(
+                "wsn-service answered %s for a step of run %s: %s", response.status_code, run_id, _message(response)
+            )
+            return False
+        return True
 
     async def tool_catalogue(self) -> list[dict[str, Any]]:
         response = await self._internal.get(

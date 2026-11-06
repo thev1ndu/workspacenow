@@ -53,3 +53,6 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "live: opt-in smoke tests against the real Mistral API; skip unless MISTRAL_API_KEY is set",
+]

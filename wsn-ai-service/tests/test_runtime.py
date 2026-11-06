@@ -24,10 +24,16 @@ class FakePlatform:
     def __init__(self, outcomes: dict[str, ToolOutcome]) -> None:
         self.outcomes = outcomes
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
+        self.streamed: list[tuple[str, dict[str, Any]]] = []
+        self.stream_ok = True
 
     async def invoke_with_grant(self, grant: str, tool: str, arguments: dict[str, Any]) -> ToolOutcome:
         self.calls.append((grant, tool, arguments))
         return self.outcomes[tool]
+
+    async def stream_run_step(self, run_id: str, step: dict[str, Any]) -> bool:
+        self.streamed.append((run_id, step))
+        return self.stream_ok
 
 
 def request(max_calls: int = 5) -> RunRequest:
@@ -59,6 +65,45 @@ async def test_tool_calls_go_through_the_platform_with_the_grant() -> None:
     assert result.tokens == 65
     assert [s.kind for s in result.steps] == ["thought", "tool"]
     assert llm.sent[1][-1]["role"] == "tool"
+
+
+async def test_every_step_is_streamed_to_the_platform_as_it_happens() -> None:
+    llm = ScriptedModel(
+        Completion("Checking stock.", [RequestedCall("c1", "get_low_stock_items", {})], tokens=40),
+        Completion("All good.", tokens=25),
+    )
+    platform = FakePlatform({"get_low_stock_items": ToolOutcome("allowed", [{"productName": "Oil"}])})
+
+    result = await AgentRuntime(llm, platform).run(request())  # type: ignore[arg-type]
+
+    assert [run_id for run_id, _ in platform.streamed] == ["run-1", "run-1"]
+    assert platform.streamed[0][1] == {"kind": "thought", "text": "Checking stock."}
+    assert platform.streamed[1][1] == {
+        "kind": "tool",
+        "call": {
+            "tool": "get_low_stock_items",
+            "input": {},
+            "outcome": "allowed",
+            "output": [{"productName": "Oil"}],
+            "reason": None,
+        },
+    }
+    assert len(result.steps) == 2  # the streamed steps are exactly the result's steps
+
+
+async def test_a_failing_step_stream_never_fails_the_run() -> None:
+    llm = ScriptedModel(
+        Completion("Looking.", [RequestedCall("c1", "get_low_stock_items", {})], tokens=1),
+        Completion("Done.", tokens=1),
+    )
+    platform = FakePlatform({"get_low_stock_items": ToolOutcome("allowed", [])})
+    platform.stream_ok = False
+
+    result = await AgentRuntime(llm, platform).run(request())  # type: ignore[arg-type]
+
+    assert result.status == "completed"
+    assert result.answer == "Done."
+    assert len(platform.streamed) == 2  # it kept trying to report
 
 
 async def test_a_denied_call_is_a_step_not_a_failure() -> None:

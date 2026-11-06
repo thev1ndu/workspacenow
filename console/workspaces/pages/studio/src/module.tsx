@@ -1,4 +1,4 @@
-import { LayoutHeaderCellsLarge } from "@workspacenow/icons";
+import { PencilRuler } from "@workspacenow/icons";
 import { routes } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
 import { ApplicationDetailPage } from "./ApplicationDetailPage";
@@ -11,7 +11,7 @@ export const studioWorkspace: WorkspaceModule = {
   key: "studio",
   title: "Studio",
   description: "Build, preview and release business applications from shared entities, with AI-assisted design.",
-  icon: <LayoutHeaderCellsLarge className="size-4" />,
+  icon: <PencilRuler className="size-4" />,
   basePath: routes.studio.root,
   navigation: [
     { label: "Overview", href: routes.studio.root, end: true },

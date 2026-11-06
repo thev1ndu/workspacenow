@@ -30,7 +30,8 @@ export function ApplicationView({ app }: { app: Application }) {
   if (!page) return <NoDataFound message="This application has no pages yet." />;
 
   return (
-    <div className="grid gap-6">
+    // A single shrinkable column, so wide content scrolls inside its own box instead of widening the page on phones.
+    <div className="grid grid-cols-1 gap-6">
       {app.lifecycle === "draft" && (
         <Alert>
           <Alert.Indicator />
@@ -43,6 +44,7 @@ export function ApplicationView({ app }: { app: Application }) {
       <Tabs
         variant="secondary"
         align="start"
+        className="min-w-0"
         selectedKey={page.id}
         onSelectionChange={(key) =>
           setParams(
@@ -54,7 +56,7 @@ export function ApplicationView({ app }: { app: Application }) {
           )
         }
       >
-        <Tabs.ListContainer className="self-start overflow-x-auto">
+        <Tabs.ListContainer className="max-w-full self-start overflow-x-auto">
           <Tabs.List aria-label={`${app.name} pages`}>
             {app.pages.map((p) => {
               const Icon = PAGE_ICON[p.kind];

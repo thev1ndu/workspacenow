@@ -4,6 +4,9 @@ import {
   DashedLineCircleIcon,
   DatabaseIcon,
   DollarCircleIcon,
+  DragDropIcon,
+  Home01Icon,
+  PencilRulerIcon,
   File01Icon,
   HierarchySquare02Icon,
   Hold01Icon,
@@ -39,7 +42,6 @@ import { Delete02 as HiDelete02 } from "./animated/delete-02";
 import { Download04 as HiDownload04 } from "./animated/download-04";
 import { Flash as HiFlash } from "./animated/flash";
 import { Globe02 as HiGlobe02 } from "./animated/globe-02";
-import { Home03 as HiHome03 } from "./animated/home-03";
 import { Hourglass as HiHourglass } from "./animated/hourglass";
 import { Key01 as HiKey01 } from "./animated/key-01";
 import { Layers01 as HiLayers01 } from "./animated/layers-01";
@@ -124,10 +126,12 @@ export const Gear = animated(HiSettings02, "Gear");
 export const Globe = animated(HiGlobe02, "Globe");
 export const Hand = still(Hold01Icon, "Hand");
 export const Hourglass = animated(HiHourglass, "Hourglass");
-export const House = animated(HiHome03, "House");
+export const House = still(Home01Icon, "House");
 export const Key = animated(HiKey01, "Key");
 export const Layers = animated(HiLayers01, "Layers");
 export const LayoutCells = still(Table01Icon, "LayoutCells");
+export const DotsNine = still(DragDropIcon, "DotsNine");
+export const PencilRuler = still(PencilRulerIcon, "PencilRuler");
 export const LayoutHeaderCellsLarge = animated(HiLayoutDashboard, "LayoutHeaderCellsLarge");
 export const LayoutSideContentLeft = animated(HiPanelLeft, "LayoutSideContentLeft");
 export const ListTimeline = still(TimelineIcon, "ListTimeline");

@@ -39,15 +39,17 @@ export function ModelsPage() {
                           <Table.Row key={p.id} id={p.id}>
                             <Table.Cell className="font-medium whitespace-nowrap">{p.name}</Table.Cell>
                             <Table.Cell>
-                              <Chip size="sm" variant="secondary">
+                              <Chip size="sm" variant="secondary" className="whitespace-nowrap">
                                 {p.kind === "hosted" ? "Hosted" : "Self-hosted"}
                               </Chip>
                             </Table.Cell>
-                            <Table.Cell className="font-mono text-xs">{p.endpoint}</Table.Cell>
+                            <Table.Cell className="max-w-60 truncate font-mono text-xs" title={p.endpoint}>
+                              {p.endpoint}
+                            </Table.Cell>
                             <Table.Cell>
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex max-w-80 flex-wrap gap-1">
                                 {p.models.map((m) => (
-                                  <Chip key={m} size="sm" variant="secondary" className="font-mono">
+                                  <Chip key={m} size="sm" variant="secondary" className="font-mono whitespace-nowrap">
                                     {m}
                                   </Chip>
                                 ))}

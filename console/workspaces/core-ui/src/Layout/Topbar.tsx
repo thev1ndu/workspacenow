@@ -1,5 +1,5 @@
 import { Badge, Breadcrumbs, Button, Kbd } from "@heroui/react";
-import { Bars, CircleCheck, LayoutHeaderCellsLarge, Magnifier, SparklesFill } from "@workspacenow/icons";
+import { Bars, CircleCheck, DotsNine, Magnifier, SparklesFill } from "@workspacenow/icons";
 import { useLocation } from "react-router-dom";
 import { useListApprovals } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -48,7 +48,7 @@ export function Topbar({
       </Button>
 
       <LinkButton size="sm" variant="ghost" href={routes.catalog}>
-        <LayoutHeaderCellsLarge className="size-4" aria-hidden />
+        <DotsNine className="size-4" aria-hidden />
         <span className="sr-only sm:not-sr-only">Applications</span>
       </LinkButton>
 

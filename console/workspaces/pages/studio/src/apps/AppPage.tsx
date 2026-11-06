@@ -25,7 +25,7 @@ export function AppPage() {
             <span className="min-w-0">
               <span className="block truncate">{app.name}</span>
               <span className="mt-1 flex flex-wrap items-center gap-2 text-sm font-normal tracking-normal text-muted">
-                {departmentName(app.ownerDepartmentId)} · v{app.version}
+                {departmentName(app.ownerDepartmentId)} / v{app.version}
                 <StatusChip status={app.lifecycle} />
               </span>
             </span>

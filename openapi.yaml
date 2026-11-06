@@ -1,0 +1,1817 @@
+openapi: 3.1.0
+info:
+  title: WorkspaceNow Platform API
+  version: 1.0.0
+  description: |
+    Every endpoint the WorkspaceNow console calls. Taken from the console's API client
+    (`console/workspaces/libs/api-client`) and the in-browser reference implementation
+    (`console/workspaces/libs/mock-server/src/router.ts`), which define the contract today.
+    See APIs.md for the narrative guide: authentication, authorization, errors and service boundaries.
+
+    Conventions:
+    - All paths are under `/api/v1`. Bodies are JSON.
+    - Collections return `{ items, total }`.
+    - Successful `POST` returns `201`; every other success returns `200`.
+    - Errors return `ErrorBody` with the HTTP status repeated in `status`.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Session
+    description: Who is signed in and what they may do.
+  - name: Overview
+    description: Home dashboard, resource registry, search and analytics.
+  - name: Control
+    description: Organization, identity, access and environments.
+  - name: Studio
+    description: Applications, releases, deployments and pins.
+  - name: Data
+    description: Entities, records and database connections.
+  - name: Business Operations
+    description: The governed operations every entry point invokes.
+  - name: Connect
+    description: APIs, API operations, MCP tools and servers, integrations.
+  - name: AI
+    description: Model providers, agents, agent runs and Sidekick.
+  - name: Flow
+    description: Workflows, executions and approvals.
+  - name: Observability
+    description: Events, audit, traces and health.
+  - name: Demo
+    description: Demo-only endpoints; not part of a production installation.
+
+paths:
+  # Session
+  /session:
+    get:
+      tags: [Session]
+      operationId: getSession
+      summary: The signed-in user, their roles and effective permissions
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /personas:
+    get:
+      tags: [Session]
+      operationId: listPersonas
+      summary: Users offered on the demo sign-in screen
+      description: Public. Demo only; a production installation signs in through the identity provider instead.
+      security: []
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UserList" } } } }
+
+  # Overview
+  /overview:
+    get:
+      tags: [Overview]
+      operationId: getOverview
+      summary: Counts for the home dashboard
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/OverviewStats" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /resources:
+    get:
+      tags: [Overview]
+      operationId: listResources
+      summary: Every governed resource across workspaces
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ResourceSummaryList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /search:
+    get:
+      tags: [Overview]
+      operationId: search
+      summary: Global search, best match first
+      description: Results are filtered to what the caller may read; records are matched through their entity's read permission.
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 30 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SearchHitList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /analytics/activity:
+    get:
+      tags: [Overview]
+      operationId: getActivity
+      summary: Daily API calls, agent tool calls, workflow steps and denials
+      parameters:
+        - { name: days, in: query, schema: { type: integer, default: 14 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ActivityPointList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /analytics/tokens:
+    get:
+      tags: [Overview]
+      operationId: getTokenUsage
+      summary: Daily model token usage, one numeric key per model
+      parameters:
+        - { name: days, in: query, schema: { type: integer, default: 14 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TokenUsagePointList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /analytics/entry-points:
+    get:
+      tags: [Overview]
+      operationId: getEntryPointBreakdown
+      summary: Allowed, denied and failed actions per entry point
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntryPointBreakdownList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # Control
+  /organization:
+    get:
+      tags: [Control]
+      operationId: getOrganization
+      summary: The organization and its identity provider
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Organization" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /departments:
+    get:
+      tags: [Control]
+      operationId: listDepartments
+      summary: Departments
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DepartmentList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /teams:
+    get:
+      tags: [Control]
+      operationId: listTeams
+      summary: Teams
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TeamList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /users:
+    get:
+      tags: [Control]
+      operationId: listUsers
+      summary: Users with the role names their groups grant
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UserWithRolesList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /roles:
+    get:
+      tags: [Control]
+      operationId: listRoles
+      summary: Roles and their permissions
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/RoleList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /group-mappings:
+    get:
+      tags: [Control]
+      operationId: listGroupMappings
+      summary: Identity-provider group to role mappings
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/GroupRoleMappingList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    put:
+      tags: [Control]
+      operationId: updateGroupMappings
+      summary: Replace all group to role mappings
+      description: "Requires `control.manage`. Every `roleId` must exist. Audited as `access.update`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mappings]
+              properties:
+                mappings: { type: array, items: { $ref: "#/components/schemas/GroupRoleMapping" } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/GroupRoleMappingList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /environments:
+    get:
+      tags: [Control]
+      operationId: listEnvironments
+      summary: Deployment environments
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EnvironmentList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # Studio
+  /applications:
+    get:
+      tags: [Studio]
+      operationId: listApplications
+      summary: Applications
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApplicationList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Studio]
+      operationId: applyApplicationPlan
+      summary: Create an application from a reviewed plan
+      description: "Requires `studio.manage`. Creates the plan's entities, CRUD business operations, API and pages. The plan is checked with the same rules the editor shows (see APIs.md)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan: { $ref: "#/components/schemas/ApplicationPlan" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /applications/plan:
+    post:
+      tags: [Studio]
+      operationId: planApplication
+      summary: Draft an application plan from a description (Application Architect agent)
+      description: "Requires `studio.manage`. Nothing is created; the plan is returned for review. Audited as `application.plan` by the agent on behalf of the user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string, minLength: 8 }
+      responses:
+        "201": { description: Plan drafted, content: { application/json: { schema: { $ref: "#/components/schemas/ApplicationPlan" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /applications/{appId}:
+    parameters: [{ $ref: "#/components/parameters/appId" }]
+    get:
+      tags: [Studio]
+      operationId: getApplication
+      summary: One application
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Studio]
+      operationId: updateApplication
+      summary: Apply an edited plan to an existing application
+      description: "Requires `studio.manage`. Changes must be additive for entities that already hold records (see APIs.md, plan change rules)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan]
+              properties:
+                plan: { $ref: "#/components/schemas/ApplicationPlan" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /applications/{appId}/releases:
+    parameters: [{ $ref: "#/components/parameters/appId" }]
+    get:
+      tags: [Studio]
+      operationId: listReleases
+      summary: An application's releases, newest first
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ReleaseList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Studio]
+      operationId: createRelease
+      summary: Cut a release of the current version
+      description: "Requires `studio.manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes: { type: string }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Release" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /deployments:
+    get:
+      tags: [Studio]
+      operationId: listDeployments
+      summary: Deployments, newest first
+      parameters:
+        - { name: applicationId, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DeploymentList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Studio]
+      operationId: createDeployment
+      summary: Deploy a release to an environment
+      description: |
+        Requires `studio.manage`, or `deployment.promote` for an environment with `requiresApproval`.
+        A release must be deployed to the previous environment (development, then staging, then production) first,
+        otherwise `409 INVALID_STATE`. The previous active deployment in that environment becomes `superseded`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [applicationId, environment, version]
+              properties:
+                applicationId: { type: string }
+                environment: { $ref: "#/components/schemas/EnvironmentKey" }
+                version: { type: string }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Deployment" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /me/pinned-applications:
+    get:
+      tags: [Studio]
+      operationId: listPinnedApplications
+      summary: Ids of the applications the caller pinned, in pin order
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/IdList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /me/pinned-applications/{appId}:
+    parameters: [{ $ref: "#/components/parameters/appId" }]
+    put:
+      tags: [Studio]
+      operationId: pinApplication
+      summary: Pin an application (idempotent)
+      responses:
+        "200": { description: The caller's pins after the change, content: { application/json: { schema: { $ref: "#/components/schemas/IdList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Studio]
+      operationId: unpinApplication
+      summary: Unpin an application (idempotent)
+      responses:
+        "200": { description: The caller's pins after the change, content: { application/json: { schema: { $ref: "#/components/schemas/IdList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # Data
+  /entities:
+    get:
+      tags: [Data]
+      operationId: listEntities
+      summary: Entities
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Data]
+      operationId: createEntity
+      summary: Create an entity
+      description: "Requires `data.manage`. `name` is PascalCase and unique; at least one field. Starts as `draft`, version 1, publishing `<Name>.Created` and `<Name>.Updated`."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateEntityBody" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    get:
+      tags: [Data]
+      operationId: getEntity
+      summary: One entity by name
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Data]
+      operationId: updateEntity
+      summary: Change an entity's fields, description or permissions
+      description: "Requires `data.manage`. External entities are read-only (`409 INVALID_STATE`). Bumps `version`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fields: { type: array, items: { $ref: "#/components/schemas/EntityField" } }
+                description: { type: string }
+                readPermission: { $ref: "#/components/schemas/Permission" }
+                writePermission: { $ref: "#/components/schemas/Permission" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /entities/{entityName}/records:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    get:
+      tags: [Data]
+      operationId: listRecords
+      summary: Records of an entity
+      description: "Runs business operation `<Entity>.list`; requires the entity's `readPermission`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecordList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Data]
+      operationId: createRecord
+      summary: Create a record
+      description: "Runs `<Entity>.create`; requires the entity's `writePermission`. External entities are read-only."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecordInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecord" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}/records/{recordId}:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+      - { name: recordId, in: path, required: true, schema: { type: string } }
+    patch:
+      tags: [Data]
+      operationId: updateRecord
+      summary: Update a record's values
+      description: "Runs `<Entity>.update`; requires the entity's `writePermission`."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecordInput" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecord" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [Data]
+      operationId: deleteRecord
+      summary: Delete a record
+      description: "Runs `<Entity>.delete`; requires the entity's `writePermission`. Refused with `409 CONFLICT` while other records reference it or an approval for it is pending."
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, deleted]
+                properties:
+                  id: { type: string }
+                  deleted: { const: true }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /connections:
+    get:
+      tags: [Data]
+      operationId: listConnections
+      summary: Database connections
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatabaseConnectionList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # Business Operations
+  /business-operations:
+    get:
+      tags: [Business Operations]
+      operationId: listBusinessOperations
+      summary: Every registered business operation
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/BusinessOperationDescriptorList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /business-operations/invoke:
+    post:
+      tags: [Business Operations]
+      operationId: invokeBusinessOperation
+      summary: Invoke a business operation by name
+      description: "Checks the operation's `permission` against the caller, runs it, and audits it under a new trace."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/InvokeOperationRequest" } } }
+      responses:
+        "201": { description: Ran, content: { application/json: { schema: { $ref: "#/components/schemas/OperationResult" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  # Connect
+  /apis:
+    get:
+      tags: [Connect]
+      operationId: listApis
+      summary: Published APIs
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApiList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /apis/{apiId}:
+    parameters:
+      - { name: apiId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Connect]
+      operationId: getApi
+      summary: One API
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Api" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api-operations:
+    get:
+      tags: [Connect]
+      operationId: listApiOperations
+      summary: API endpoints and the business operations behind them
+      parameters:
+        - { name: apiId, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApiOperationList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /api-operations/{operationId}/mcp:
+    parameters: [{ $ref: "#/components/parameters/operationId" }]
+    patch:
+      tags: [Connect]
+      operationId: updateMcpExposure
+      summary: Expose or withdraw an API operation as an MCP tool
+      description: "Requires `connect.manage`. Tool names are snake_case and unique among enabled tools; the default derives from the business operation name."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+                toolName: { type: string, pattern: "^[a-z][a-z0-9_]*$" }
+                description: { type: string }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApiOperation" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /api-operations/{operationId}/invoke:
+    parameters: [{ $ref: "#/components/parameters/operationId" }]
+    post:
+      tags: [Connect]
+      operationId: invokeApiOperation
+      summary: Try an API operation (entry point `api`)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: Ran, content: { application/json: { schema: { $ref: "#/components/schemas/OperationResult" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /mcp/tools:
+    get:
+      tags: [Connect]
+      operationId: listMcpTools
+      summary: MCP tools from WorkspaceNow operations and external servers
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/McpToolList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /mcp/servers:
+    get:
+      tags: [Connect]
+      operationId: listMcpServers
+      summary: Managed and registered external MCP servers
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/McpServerList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Connect]
+      operationId: registerMcpServer
+      summary: Register an external MCP server and discover its tools
+      description: "Requires `connect.manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties:
+                name: { type: string, minLength: 1 }
+                url: { type: string, pattern: "^https?://" }
+                auth: { type: string, enum: [oauth2, api-key, none], default: oauth2 }
+      responses:
+        "201": { description: Registered, content: { application/json: { schema: { $ref: "#/components/schemas/McpServer" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /integrations:
+    get:
+      tags: [Connect]
+      operationId: listIntegrations
+      summary: Outbound integrations
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/IntegrationList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /integrations/{integrationId}/test:
+    parameters:
+      - { name: integrationId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Connect]
+      operationId: testIntegration
+      summary: Test an integration's connection
+      description: "Requires `connect.manage`. Updates `status` and `lastTestedAt`; a failed test still returns 201 with `status: failing`."
+      responses:
+        "201": { description: Tested, content: { application/json: { schema: { $ref: "#/components/schemas/Integration" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # AI
+  /model-providers:
+    get:
+      tags: [AI]
+      operationId: listModelProviders
+      summary: Model gateway providers and their usage this month
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ModelProviderList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /agents:
+    get:
+      tags: [AI]
+      operationId: listAgents
+      summary: Agents
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AgentList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /agents/{agentId}:
+    parameters: [{ $ref: "#/components/parameters/agentId" }]
+    get:
+      tags: [AI]
+      operationId: getAgent
+      summary: One agent
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Agent" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [AI]
+      operationId: updateAgent
+      summary: Change an agent's tools, permissions, instructions, model or status
+      description: "Requires `ai.manage`. Every tool must be a known MCP tool. Bumps `version`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tools: { type: array, items: { type: string } }
+                permissions: { type: array, items: { $ref: "#/components/schemas/Permission" } }
+                instructions: { type: string }
+                model: { type: string }
+                status: { type: string, enum: [active, disabled] }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Agent" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /agents/{agentId}/runs:
+    parameters: [{ $ref: "#/components/parameters/agentId" }]
+    post:
+      tags: [AI]
+      operationId: runAgent
+      summary: Run an agent with a prompt
+      description: "Runs on behalf of the caller. An agent with `actsAsCaller` holds only the permissions both it and the caller hold. Denied tool calls are recorded in the run's steps, not raised as errors."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PromptBody" } } }
+      responses:
+        "201": { description: Run finished, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRun" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /agent-runs:
+    get:
+      tags: [AI]
+      operationId: listAgentRuns
+      summary: Agent runs, newest first
+      parameters:
+        - { name: agentId, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRunList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /agent-runs/{runId}:
+    parameters:
+      - { name: runId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [AI]
+      operationId: getAgentRun
+      summary: One agent run with its steps
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRun" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /sidekick/runs:
+    post:
+      tags: [AI]
+      operationId: runSidekick
+      summary: Ask Sidekick, the console assistant
+      description: |
+        Runs agent `agent-sidekick` as the caller, holding only permissions both hold. Callers with no role get `403`.
+        With `applicationId`, Sidekick is confined to the MCP tools that application's APIs expose: any other tool call
+        is denied with reason "<tool> is outside <app>", and the answer says so. An unknown `applicationId` returns `404`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string, minLength: 1 }
+                applicationId: { type: string, description: Confine the run to this application's tools }
+      responses:
+        "201": { description: Run finished, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRun" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  # Flow
+  /workflows:
+    get:
+      tags: [Flow]
+      operationId: listWorkflows
+      summary: Workflows
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Flow]
+      operationId: createWorkflow
+      summary: Create a workflow from a definition
+      description: "Requires `flow.manage`. The definition is validated (see APIs.md); a workflow cannot be given permissions the caller does not hold (`403`)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [definition]
+              properties:
+                definition: { $ref: "#/components/schemas/WorkflowDefinition" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Workflow" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /workflows/{workflowId}:
+    parameters: [{ $ref: "#/components/parameters/workflowId" }]
+    get:
+      tags: [Flow]
+      operationId: getWorkflow
+      summary: One workflow
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Workflow" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Flow]
+      operationId: updateWorkflow
+      summary: Save a new definition, or pause and resume
+      description: "Requires `flow.manage`. Send `definition` to save a new version, or `status` to pause or resume. Bumps `version`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [definition]
+                  properties:
+                    definition: { $ref: "#/components/schemas/WorkflowDefinition" }
+                - type: object
+                  required: [status]
+                  properties:
+                    status: { type: string, enum: [active, paused] }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Workflow" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /workflows/{workflowId}/executions:
+    parameters: [{ $ref: "#/components/parameters/workflowId" }]
+    post:
+      tags: [Flow]
+      operationId: startWorkflow
+      summary: Start a workflow by hand
+      description: "Requires `flow.manage`. The workflow must be `active` (`409 INVALID_STATE` otherwise). `input` seeds the run's context."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: Started, content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowExecution" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /executions:
+    get:
+      tags: [Flow]
+      operationId: listExecutions
+      summary: Workflow executions, newest first
+      parameters:
+        - { name: workflowId, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowExecutionList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /executions/{executionId}:
+    parameters:
+      - { name: executionId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Flow]
+      operationId: getExecution
+      summary: One execution with its step states
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowExecution" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /approvals:
+    get:
+      tags: [Flow]
+      operationId: listApprovals
+      summary: Approvals, newest first
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApprovalList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /approvals/{approvalId}/decision:
+    parameters:
+      - { name: approvalId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Flow]
+      operationId: decideApproval
+      summary: Approve or reject a pending approval
+      description: "Requires the approval's own `permission`. Only `pending` approvals can be decided (`409 INVALID_STATE`). Resumes the waiting execution."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approved, rejected] }
+                comment: { type: string }
+      responses:
+        "201": { description: Decided, content: { application/json: { schema: { $ref: "#/components/schemas/Approval" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  # Observability
+  /events:
+    get:
+      tags: [Observability]
+      operationId: listEvents
+      summary: Platform events, newest first
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformEventList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /audit:
+    get:
+      tags: [Observability]
+      operationId: listAudit
+      summary: Audit records, newest first
+      description: "Requires `audit.read`. `q` matches action, resource, actor name and detail, case-insensitive."
+      parameters:
+        - { name: actorKind, in: query, schema: { $ref: "#/components/schemas/ActorKind" } }
+        - { name: outcome, in: query, schema: { type: string, enum: [allowed, denied, failed] } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AuditRecordList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /traces:
+    get:
+      tags: [Observability]
+      operationId: listTraces
+      summary: Traces built from audit records, newest first
+      description: "Requires `audit.read`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TraceSummaryList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /traces/{traceId}:
+    parameters:
+      - { name: traceId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Observability]
+      operationId: getTrace
+      summary: One trace with its audit records and events
+      description: "Requires `audit.read`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Trace" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /health:
+    get:
+      tags: [Observability]
+      operationId: listHealth
+      summary: Health signals for applications, APIs, MCP servers, integrations, databases and workflows
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/HealthSignalList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  # Demo
+  /demo/reset:
+    post:
+      tags: [Demo]
+      operationId: resetDemo
+      summary: Restore the demo data
+      description: Public. Demo only; must not exist in a production installation.
+      security: []
+      responses:
+        "200":
+          description: Reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reset: { const: true }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        An access token from the organization's OIDC identity provider (see `Organization.identityProvider`).
+        The demo uses `demo.<userId>`.
+
+  parameters:
+    appId: { name: appId, in: path, required: true, schema: { type: string } }
+    entityName: { name: entityName, in: path, required: true, description: PascalCase entity name, schema: { type: string } }
+    operationId: { name: operationId, in: path, required: true, description: API operation id, schema: { type: string } }
+    agentId: { name: agentId, in: path, required: true, schema: { type: string } }
+    workflowId: { name: workflowId, in: path, required: true, schema: { type: string } }
+
+  responses:
+    Unauthenticated:
+      description: No valid token (`UNAUTHENTICATED`)
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+    Forbidden:
+      description: The caller lacks the required permission (`FORBIDDEN`); audited as denied
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+    NotFound:
+      description: Unknown resource (`NOT_FOUND`)
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+    Conflict:
+      description: Duplicate or in-use resource (`CONFLICT`), or the resource is in the wrong state (`INVALID_STATE`)
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+    ValidationFailed:
+      description: The request body breaks a rule (`VALIDATION_FAILED`); `message` names up to three problems
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+
+  schemas:
+    # Envelopes and shared
+    ErrorBody:
+      type: object
+      required: [status, code, message]
+      properties:
+        status: { type: integer }
+        code: { type: string, enum: [UNAUTHENTICATED, FORBIDDEN, NOT_FOUND, VALIDATION_FAILED, CONFLICT, INVALID_STATE] }
+        message: { type: string }
+        traceId: { type: string, description: Set when the failure was audited }
+    IsoDate: { type: string, format: date-time }
+    LifecycleState: { type: string, enum: [draft, preview, released, archived] }
+    EnvironmentKey: { type: string, enum: [development, staging, production] }
+    WorkspaceKey: { type: string, enum: [studio, connect, data, ai, flow, control] }
+    EntryPoint: { type: string, enum: [studio, api, mcp, agent, workflow, control, system] }
+    ActorKind: { type: string, enum: [user, agent, workflow, system] }
+    Permission:
+      type: string
+      enum:
+        - studio.manage
+        - connect.manage
+        - data.manage
+        - ai.manage
+        - flow.manage
+        - control.manage
+        - inventory.read
+        - inventory.write
+        - supplier.read
+        - supplier.write
+        - procurement.read
+        - procurement.request
+        - procurement.approve
+        - procurement.order
+        - deployment.promote
+        - audit.read
+    Actor:
+      type: object
+      required: [kind, id, name]
+      properties:
+        kind: { $ref: "#/components/schemas/ActorKind" }
+        id: { type: string }
+        name: { type: string }
+        onBehalfOf: { type: string, description: For agents running on behalf of a user or workflow }
+    IdList:
+      type: object
+      required: [items, total]
+      properties:
+        items: { type: array, items: { type: string } }
+        total: { type: integer }
+
+    # Session and overview
+    Session:
+      type: object
+      required: [actor, permissions, roles]
+      properties:
+        actor: { $ref: "#/components/schemas/Actor" }
+        permissions: { type: array, items: { type: string } }
+        roles: { type: array, items: { type: string }, description: Role names }
+    OverviewStats:
+      type: object
+      required: [applications, entities, records, apis, mcpTools, agents, workflows, pendingApprovals, auditToday, deniedToday]
+      properties:
+        applications: { type: integer }
+        entities: { type: integer }
+        records: { type: integer }
+        apis: { type: integer }
+        mcpTools: { type: integer }
+        agents: { type: integer }
+        workflows: { type: integer }
+        pendingApprovals: { type: integer }
+        auditToday: { type: integer }
+        deniedToday: { type: integer }
+    ResourceType: { type: string, enum: [application, entity, api, mcp-server, integration, agent, workflow] }
+    ResourceSummary:
+      type: object
+      required: [id, type, name, workspace, owner, lifecycle, updatedAt]
+      properties:
+        id: { type: string }
+        type: { $ref: "#/components/schemas/ResourceType" }
+        name: { type: string }
+        workspace: { $ref: "#/components/schemas/WorkspaceKey" }
+        owner: { type: string }
+        lifecycle: { type: string }
+        updatedAt: { type: string, description: ISO date, or empty when unknown }
+    SearchHit:
+      type: object
+      required: [type, id, title, subtitle]
+      properties:
+        type: { type: string, enum: [application, entity, api, mcp-server, integration, agent, workflow, record, user] }
+        id: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+        entity: { type: string, description: For records }
+        appId: { type: string, description: For records, the application page that lists it }
+        pageId: { type: string }
+    ActivityPoint:
+      type: object
+      required: [date, apiCalls, agentToolCalls, workflowSteps, denied]
+      properties:
+        date: { type: string, format: date }
+        apiCalls: { type: integer }
+        agentToolCalls: { type: integer }
+        workflowSteps: { type: integer }
+        denied: { type: integer }
+    TokenUsagePoint:
+      type: object
+      required: [date]
+      properties:
+        date: { type: string, format: date }
+      additionalProperties: { type: number, description: Tokens for the model named by the key }
+    EntryPointBreakdown:
+      type: object
+      required: [entryPoint, allowed, denied, failed]
+      properties:
+        entryPoint: { type: string }
+        allowed: { type: integer }
+        denied: { type: integer }
+        failed: { type: integer }
+
+    # Control
+    Organization:
+      type: object
+      required: [id, name, installationName, identityProvider]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        installationName: { type: string }
+        identityProvider: { $ref: "#/components/schemas/IdentityProviderConfig" }
+    IdentityProviderConfig:
+      type: object
+      required: [issuer, clientId, type, scopes, groupsClaim]
+      properties:
+        issuer: { type: string }
+        clientId: { type: string }
+        type: { type: string, enum: [keycloak, entra-id, okta, oidc] }
+        scopes: { type: array, items: { type: string } }
+        groupsClaim: { type: string }
+    Department:
+      type: object
+      required: [id, name, description]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+    Team:
+      type: object
+      required: [id, name, departmentId]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        departmentId: { type: string }
+    User:
+      type: object
+      required: [id, name, email, title, departmentId, groups]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        title: { type: string }
+        departmentId: { type: string }
+        teamId: { type: string }
+        groups: { type: array, items: { type: string }, description: Group claims asserted by the identity provider }
+    UserWithRoles:
+      allOf:
+        - { $ref: "#/components/schemas/User" }
+        - type: object
+          required: [roles]
+          properties:
+            roles: { type: array, items: { type: string } }
+    Role:
+      type: object
+      required: [id, name, description, permissions]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        permissions: { type: array, items: { $ref: "#/components/schemas/Permission" } }
+    GroupRoleMapping:
+      type: object
+      required: [group, roleId]
+      properties:
+        group: { type: string }
+        roleId: { type: string }
+    Environment:
+      type: object
+      required: [key, name, description, requiresApproval, resourceLimits]
+      properties:
+        key: { $ref: "#/components/schemas/EnvironmentKey" }
+        name: { type: string }
+        description: { type: string }
+        requiresApproval: { type: boolean }
+        resourceLimits:
+          type: object
+          required: [cpu, memory]
+          properties:
+            cpu: { type: string }
+            memory: { type: string }
+
+    # Studio
+    Application:
+      type: object
+      required: [id, name, slug, description, ownerDepartmentId, lifecycle, version, entityNames, pages, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        ownerDepartmentId: { type: string }
+        lifecycle: { $ref: "#/components/schemas/LifecycleState" }
+        version: { type: string, description: "Semantic version, e.g. 1.2.0" }
+        entityNames: { type: array, items: { type: string } }
+        pages: { type: array, items: { $ref: "#/components/schemas/AppPage" } }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        updatedAt: { $ref: "#/components/schemas/IsoDate" }
+    AppPage:
+      type: object
+      required: [id, title, kind]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        kind: { type: string, enum: [list, form, dashboard, scan, pos], description: "`pos` is the seeded store till; not offered in the builder" }
+        entity: { type: string }
+        scan: { $ref: "#/components/schemas/ScanConfig" }
+    ScanConfig:
+      type: object
+      required: [matchField]
+      properties:
+        matchField: { type: string, description: "Field the QR code holds, or `id`" }
+        onScan:
+          type: object
+          required: [field, value]
+          properties:
+            field: { type: string }
+            value: { type: string }
+    PlannedEntity:
+      type: object
+      required: [name, label, description, fields, relationships]
+      properties:
+        name: { type: string, pattern: "^[A-Z][A-Za-z0-9]*$" }
+        label: { type: string }
+        description: { type: string }
+        fields: { type: array, items: { $ref: "#/components/schemas/EntityField" } }
+        relationships: { type: array, items: { $ref: "#/components/schemas/EntityRelationship" } }
+    PlannedPage:
+      type: object
+      required: [title, kind]
+      properties:
+        id: { type: string, description: Kept when editing an existing application so links still work }
+        title: { type: string }
+        kind: { type: string, enum: [list, form, dashboard, scan, pos] }
+        entity: { type: string }
+        scan: { $ref: "#/components/schemas/ScanConfig" }
+    ApplicationPlan:
+      type: object
+      required: [prompt, name, description, ownerDepartmentId, entities, pages, operations, workflows, permissions]
+      properties:
+        prompt: { type: string }
+        name: { type: string }
+        description: { type: string }
+        ownerDepartmentId: { type: string }
+        entities: { type: array, items: { $ref: "#/components/schemas/PlannedEntity" } }
+        pages: { type: array, items: { $ref: "#/components/schemas/PlannedPage" } }
+        operations: { type: array, items: { type: string }, description: "e.g. PurchaseRequest.create" }
+        workflows: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string } }
+    Release:
+      type: object
+      required: [id, applicationId, version, notes, createdAt, createdBy]
+      properties:
+        id: { type: string }
+        applicationId: { type: string }
+        version: { type: string }
+        notes: { type: string }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        createdBy: { type: string }
+    Deployment:
+      type: object
+      required: [id, applicationId, environment, version, status, deployedAt, deployedBy]
+      properties:
+        id: { type: string }
+        applicationId: { type: string }
+        environment: { $ref: "#/components/schemas/EnvironmentKey" }
+        version: { type: string }
+        status: { type: string, enum: [active, superseded] }
+        deployedAt: { $ref: "#/components/schemas/IsoDate" }
+        deployedBy: { type: string }
+
+    # Data
+    FieldType: { type: string, enum: [string, text, number, integer, boolean, date, enum, reference] }
+    FieldValue:
+      type: [string, number, boolean, "null"]
+    EntityField:
+      type: object
+      required: [name, label, type]
+      properties:
+        name: { type: string, pattern: "^[a-z][A-Za-z0-9]*$" }
+        label: { type: string }
+        type: { $ref: "#/components/schemas/FieldType" }
+        required: { type: boolean }
+        unique: { type: boolean }
+        enumValues: { type: array, items: { type: string }, description: "Required when type is enum" }
+        reference: { type: string, description: "Target entity name when type is reference" }
+        defaultValue: { type: [string, number, boolean] }
+    EntityRelationship:
+      type: object
+      required: [name, kind, target]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [one-to-one, one-to-many, many-to-one, many-to-many] }
+        target: { type: string }
+        via: { type: string }
+    Entity:
+      type: object
+      required: [id, name, label, description, scope, fields, relationships, events, readPermission, writePermission, version, lifecycle, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        label: { type: string }
+        description: { type: string }
+        scope: { type: string, enum: [application, organization, external] }
+        ownerApplicationId: { type: string }
+        fields: { type: array, items: { $ref: "#/components/schemas/EntityField" } }
+        relationships: { type: array, items: { $ref: "#/components/schemas/EntityRelationship" } }
+        events: { type: array, items: { type: string }, description: "Domain events, e.g. Stock.LowStockReached" }
+        readPermission: { $ref: "#/components/schemas/Permission" }
+        writePermission: { $ref: "#/components/schemas/Permission" }
+        version: { type: integer }
+        lifecycle: { $ref: "#/components/schemas/LifecycleState" }
+        updatedAt: { $ref: "#/components/schemas/IsoDate" }
+    CreateEntityBody:
+      type: object
+      required: [name, fields]
+      properties:
+        name: { type: string, pattern: "^[A-Z][A-Za-z0-9]*$" }
+        label: { type: string, description: Defaults to name }
+        description: { type: string }
+        scope: { type: string, enum: [application, organization, external], default: organization }
+        ownerApplicationId: { type: string }
+        fields: { type: array, minItems: 1, items: { $ref: "#/components/schemas/EntityField" } }
+    RecordInput:
+      type: object
+      required: [values]
+      properties:
+        values: { type: object, additionalProperties: { $ref: "#/components/schemas/FieldValue" } }
+    EntityRecord:
+      type: object
+      required: [id, entity, values, createdAt, updatedAt, createdBy]
+      properties:
+        id: { type: string }
+        entity: { type: string }
+        values: { type: object, additionalProperties: { $ref: "#/components/schemas/FieldValue" } }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        updatedAt: { $ref: "#/components/schemas/IsoDate" }
+        createdBy: { type: string }
+    DatabaseConnection:
+      type: object
+      required: [id, name, engine, host, managed, status, environment]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        engine: { type: string, enum: [postgresql, mysql, sqlserver, oracle, mongodb, redis] }
+        host: { type: string }
+        managed: { type: boolean }
+        status: { type: string, enum: [connected, degraded, disconnected] }
+        environment: { $ref: "#/components/schemas/EnvironmentKey" }
+
+    # Business Operations
+    BusinessOperationDescriptor:
+      type: object
+      required: [name, summary, permission, kind]
+      properties:
+        name: { type: string, description: "e.g. procurement.createPurchaseRequest, Product.list" }
+        summary: { type: string }
+        permission: { type: string }
+        entity: { type: string }
+        kind: { type: string, enum: [read, write] }
+    InvokeOperationRequest:
+      type: object
+      required: [operation, input, entryPoint]
+      properties:
+        operation: { type: string }
+        input: { type: object, additionalProperties: true }
+        entryPoint: { $ref: "#/components/schemas/EntryPoint" }
+    OperationResult:
+      type: object
+      required: [traceId, output]
+      properties:
+        traceId: { type: string }
+        output: { description: Whatever the operation returns }
+
+    # Connect
+    HttpMethod: { type: string, enum: [GET, POST, PATCH, PUT, DELETE] }
+    Api:
+      type: object
+      required: [id, name, basePath, applicationId, version, lifecycle, description]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        basePath: { type: string }
+        applicationId: { type: string }
+        version: { type: string }
+        lifecycle: { $ref: "#/components/schemas/LifecycleState" }
+        description: { type: string }
+    ApiOperation:
+      type: object
+      required: [id, apiId, method, path, summary, businessOperation, permission, rateLimitPerMinute]
+      properties:
+        id: { type: string }
+        apiId: { type: string }
+        method: { $ref: "#/components/schemas/HttpMethod" }
+        path: { type: string }
+        summary: { type: string }
+        businessOperation: { type: string, description: The business operation this endpoint invokes }
+        permission: { $ref: "#/components/schemas/Permission" }
+        rateLimitPerMinute: { type: integer }
+        mcp: { $ref: "#/components/schemas/McpToolExposure" }
+    McpToolExposure:
+      type: object
+      required: [toolName, description, enabled]
+      properties:
+        toolName: { type: string }
+        description: { type: string }
+        enabled: { type: boolean }
+    JsonSchema:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string }
+        properties:
+          type: object
+          additionalProperties:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string }
+              description: { type: string }
+              enum: { type: array, items: { type: string } }
+        required: { type: array, items: { type: string } }
+        items: { $ref: "#/components/schemas/JsonSchema" }
+    McpTool:
+      type: object
+      required: [name, description, source, serverId, inputSchema, outputSchema, version]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        source: { type: string, enum: [workspacenow, external] }
+        serverId: { type: string }
+        operationId: { type: string }
+        businessOperation: { type: string }
+        permission: { $ref: "#/components/schemas/Permission" }
+        inputSchema: { $ref: "#/components/schemas/JsonSchema" }
+        outputSchema: { $ref: "#/components/schemas/JsonSchema" }
+        version: { type: string }
+    McpServer:
+      type: object
+      required: [id, name, url, kind, auth, status, tools, registeredAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        url: { type: string }
+        kind: { type: string, enum: [managed, external] }
+        auth: { type: string, enum: [oauth2, api-key, none] }
+        status: { type: string, enum: [healthy, degraded, unreachable] }
+        tools:
+          type: array
+          items:
+            type: object
+            required: [name, description]
+            properties:
+              name: { type: string }
+              description: { type: string }
+        registeredAt: { $ref: "#/components/schemas/IsoDate" }
+    Integration:
+      type: object
+      required: [id, name, kind, target, status, retryPolicy, timeoutMs, secretRef]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [rest, soap, webhook, database, message-broker, saas] }
+        target: { type: string }
+        status: { type: string, enum: [connected, failing, untested] }
+        retryPolicy: { type: string }
+        timeoutMs: { type: integer }
+        secretRef: { type: string, description: Reference to a secret; never the secret itself }
+        lastTestedAt: { $ref: "#/components/schemas/IsoDate" }
+
+    # AI
+    ModelProvider:
+      type: object
+      required: [id, name, kind, endpoint, models, status, tokensThisMonth, costThisMonthUsd]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [hosted, self-hosted] }
+        endpoint: { type: string }
+        models: { type: array, items: { type: string } }
+        status: { type: string, enum: [healthy, degraded] }
+        tokensThisMonth: { type: integer }
+        costThisMonthUsd: { type: number }
+    Agent:
+      type: object
+      required: [id, name, description, kind, ownerDepartmentId, model, instructions, tools, permissions, maxToolCallsPerRun, version, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [platform, business] }
+        ownerDepartmentId: { type: string }
+        model: { type: string }
+        instructions: { type: string }
+        tools: { type: array, items: { type: string }, description: MCP tool names this agent may call }
+        permissions: { type: array, items: { $ref: "#/components/schemas/Permission" }, description: "Held by the agent's own service identity" }
+        maxToolCallsPerRun: { type: integer }
+        actsAsCaller: { type: boolean, description: "Runs only as a signed-in user, with permissions both hold" }
+        version: { type: integer }
+        status: { type: string, enum: [active, draft, disabled] }
+    PromptBody:
+      type: object
+      required: [prompt]
+      properties:
+        prompt: { type: string, minLength: 1 }
+    ToolCall:
+      type: object
+      required: [tool, input, outcome]
+      properties:
+        tool: { type: string }
+        input: { type: object, additionalProperties: true }
+        outcome: { type: string, enum: [allowed, denied, error] }
+        output: {}
+        reason: { type: string }
+    AgentRunStep:
+      oneOf:
+        - type: object
+          required: [kind, text]
+          properties:
+            kind: { const: thought }
+            text: { type: string }
+        - type: object
+          required: [kind, call]
+          properties:
+            kind: { const: tool }
+            call: { $ref: "#/components/schemas/ToolCall" }
+    AgentRun:
+      type: object
+      required: [id, agentId, traceId, prompt, trigger, status, steps, answer, startedAt, durationMs, tokens]
+      properties:
+        id: { type: string }
+        agentId: { type: string }
+        traceId: { type: string }
+        prompt: { type: string }
+        trigger: { type: string, enum: [manual, workflow] }
+        applicationId: { type: string, description: "Set when the run was confined to one application's tools" }
+        status: { type: string, enum: [completed, failed] }
+        steps: { type: array, items: { $ref: "#/components/schemas/AgentRunStep" } }
+        answer: { type: string }
+        startedAt: { $ref: "#/components/schemas/IsoDate" }
+        durationMs: { type: integer }
+        tokens: { type: integer }
+
+    # Flow
+    CanvasPosition:
+      type: object
+      required: [x, y]
+      properties:
+        x: { type: number }
+        y: { type: number }
+    WorkflowTrigger:
+      oneOf:
+        - type: object
+          required: [kind, event]
+          properties:
+            kind: { const: entity-event }
+            event: { type: string, description: "e.g. Stock.LowStockReached" }
+        - type: object
+          required: [kind, cron]
+          properties:
+            kind: { const: schedule }
+            cron: { type: string, description: Five-field cron expression }
+        - type: object
+          required: [kind]
+          properties:
+            kind: { const: manual }
+    StepBase:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        next:
+          type: [string, "null"]
+          description: Following step; omitted means the next step in the list, null ends the workflow
+        position: { $ref: "#/components/schemas/CanvasPosition" }
+    WorkflowStep:
+      oneOf:
+        - allOf:
+            - { $ref: "#/components/schemas/StepBase" }
+            - type: object
+              required: [kind, agentId, prompt]
+              properties:
+                kind: { const: agent }
+                agentId: { type: string }
+                prompt: { type: string }
+        - allOf:
+            - { $ref: "#/components/schemas/StepBase" }
+            - type: object
+              required: [kind, permission, description]
+              properties:
+                kind: { const: approval }
+                permission: { $ref: "#/components/schemas/Permission" }
+                description: { type: string }
+                onReject: { type: [string, "null"], description: Step to take on rejection; the run ends when unset }
+        - allOf:
+            - { $ref: "#/components/schemas/StepBase" }
+            - type: object
+              required: [kind, businessOperation]
+              properties:
+                kind: { const: operation }
+                businessOperation: { type: string }
+        - allOf:
+            - { $ref: "#/components/schemas/StepBase" }
+            - type: object
+              required: [kind, channel, message]
+              properties:
+                kind: { const: notify }
+                channel: { type: string }
+                message: { type: string }
+        - allOf:
+            - { $ref: "#/components/schemas/StepBase" }
+            - type: object
+              required: [kind, field, operator, value, then, otherwise]
+              properties:
+                kind: { const: condition }
+                field: { type: string, description: "Dotted path into the run context, e.g. order.total" }
+                operator: { type: string, enum: [eq, neq, gt, gte, lt, lte, contains, exists] }
+                value: { type: string }
+                then: { type: [string, "null"] }
+                otherwise: { type: [string, "null"] }
+        - allOf:
+            - { $ref: "#/components/schemas/StepBase" }
+            - type: object
+              required: [kind, minutes]
+              properties:
+                kind: { const: wait }
+                minutes: { type: number, exclusiveMinimum: 0 }
+    WorkflowDefinition:
+      type: object
+      required: [name, description, trigger, steps]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        trigger: { $ref: "#/components/schemas/WorkflowTrigger" }
+        steps: { type: array, items: { $ref: "#/components/schemas/WorkflowStep" } }
+        start: { type: [string, "null"], description: First step; the first in steps when unset }
+        triggerPosition: { $ref: "#/components/schemas/CanvasPosition" }
+        applicationId: { type: string }
+    Workflow:
+      allOf:
+        - { $ref: "#/components/schemas/WorkflowDefinition" }
+        - type: object
+          required: [id, permissions, version, status]
+          properties:
+            id: { type: string }
+            permissions: { type: array, items: { $ref: "#/components/schemas/Permission" }, description: "Held by the workflow's own service identity" }
+            version: { type: integer }
+            status: { type: string, enum: [active, paused] }
+    ExecutionStep:
+      type: object
+      required: [stepId, status]
+      properties:
+        stepId: { type: string }
+        status: { type: string, enum: [pending, running, waiting, completed, failed, skipped] }
+        startedAt: { $ref: "#/components/schemas/IsoDate" }
+        endedAt: { $ref: "#/components/schemas/IsoDate" }
+        detail: { type: string }
+    WorkflowExecution:
+      type: object
+      required: [id, workflowId, traceId, status, context, steps, startedAt]
+      properties:
+        id: { type: string }
+        workflowId: { type: string }
+        traceId: { type: string }
+        status: { type: string, enum: [running, waiting, completed, failed] }
+        context: { type: object, additionalProperties: true }
+        steps: { type: array, items: { $ref: "#/components/schemas/ExecutionStep" } }
+        startedAt: { $ref: "#/components/schemas/IsoDate" }
+        endedAt: { $ref: "#/components/schemas/IsoDate" }
+    Approval:
+      type: object
+      required: [id, executionId, workflowId, stepId, traceId, title, summary, permission, status, requestedAt]
+      properties:
+        id: { type: string }
+        executionId: { type: string }
+        workflowId: { type: string }
+        stepId: { type: string }
+        traceId: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        permission: { $ref: "#/components/schemas/Permission" }
+        subject:
+          type: object
+          required: [entity, recordId]
+          properties:
+            entity: { type: string }
+            recordId: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        requestedAt: { $ref: "#/components/schemas/IsoDate" }
+        decidedAt: { $ref: "#/components/schemas/IsoDate" }
+        decidedBy: { type: string }
+        comment: { type: string }
+
+    # Observability
+    PlatformEvent:
+      type: object
+      required: [id, type, source, traceId, payload, time]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        source: { type: string }
+        traceId: { type: string }
+        payload: { type: object, additionalProperties: true }
+        time: { $ref: "#/components/schemas/IsoDate" }
+    AuditRecord:
+      type: object
+      required: [id, traceId, time, actor, entryPoint, action, resource, outcome]
+      properties:
+        id: { type: string }
+        traceId: { type: string }
+        time: { $ref: "#/components/schemas/IsoDate" }
+        actor: { $ref: "#/components/schemas/Actor" }
+        entryPoint: { $ref: "#/components/schemas/EntryPoint" }
+        action: { type: string, description: "e.g. entity.create, approval.approve" }
+        resource: { type: string, description: "e.g. entity/Product, application/app-inventory" }
+        outcome: { type: string, enum: [allowed, denied, failed] }
+        detail: { type: string }
+    TraceSummary:
+      type: object
+      required: [traceId, title, startedAt, endedAt, spanCount, denied, actors]
+      properties:
+        traceId: { type: string }
+        title: { type: string }
+        startedAt: { $ref: "#/components/schemas/IsoDate" }
+        endedAt: { $ref: "#/components/schemas/IsoDate" }
+        spanCount: { type: integer }
+        denied: { type: integer }
+        actors: { type: array, items: { type: string } }
+    Trace:
+      allOf:
+        - { $ref: "#/components/schemas/TraceSummary" }
+        - type: object
+          required: [audit, events]
+          properties:
+            audit: { type: array, items: { $ref: "#/components/schemas/AuditRecord" } }
+            events: { type: array, items: { $ref: "#/components/schemas/PlatformEvent" } }
+    HealthSignal:
+      type: object
+      required: [resource, kind, status, detail]
+      properties:
+        resource: { type: string }
+        kind: { type: string, enum: [application, api, mcp, agent, workflow, integration, database] }
+        status: { type: string, enum: [healthy, degraded, down] }
+        detail: { type: string }
+
+    # Collections: { items, total }
+    UserList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/User" } }, total: { type: integer } } }
+    UserWithRolesList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/UserWithRoles" } }, total: { type: integer } } }
+    ResourceSummaryList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ResourceSummary" } }, total: { type: integer } } }
+    SearchHitList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/SearchHit" } }, total: { type: integer } } }
+    ActivityPointList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ActivityPoint" } }, total: { type: integer } } }
+    TokenUsagePointList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/TokenUsagePoint" } }, total: { type: integer } } }
+    EntryPointBreakdownList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/EntryPointBreakdown" } }, total: { type: integer } } }
+    DepartmentList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Department" } }, total: { type: integer } } }
+    TeamList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Team" } }, total: { type: integer } } }
+    RoleList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Role" } }, total: { type: integer } } }
+    GroupRoleMappingList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/GroupRoleMapping" } }, total: { type: integer } } }
+    EnvironmentList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Environment" } }, total: { type: integer } } }
+    ApplicationList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Application" } }, total: { type: integer } } }
+    ReleaseList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Release" } }, total: { type: integer } } }
+    DeploymentList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Deployment" } }, total: { type: integer } } }
+    EntityList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Entity" } }, total: { type: integer } } }
+    EntityRecordList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/EntityRecord" } }, total: { type: integer } } }
+    DatabaseConnectionList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/DatabaseConnection" } }, total: { type: integer } } }
+    BusinessOperationDescriptorList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/BusinessOperationDescriptor" } }, total: { type: integer } } }
+    ApiList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Api" } }, total: { type: integer } } }
+    ApiOperationList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ApiOperation" } }, total: { type: integer } } }
+    McpToolList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/McpTool" } }, total: { type: integer } } }
+    McpServerList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/McpServer" } }, total: { type: integer } } }
+    IntegrationList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Integration" } }, total: { type: integer } } }
+    ModelProviderList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ModelProvider" } }, total: { type: integer } } }
+    AgentList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Agent" } }, total: { type: integer } } }
+    AgentRunList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/AgentRun" } }, total: { type: integer } } }
+    WorkflowList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Workflow" } }, total: { type: integer } } }
+    WorkflowExecutionList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/WorkflowExecution" } }, total: { type: integer } } }
+    ApprovalList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Approval" } }, total: { type: integer } } }
+    PlatformEventList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/PlatformEvent" } }, total: { type: integer } } }
+    AuditRecordList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/AuditRecord" } }, total: { type: integer } } }
+    TraceSummaryList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/TraceSummary" } }, total: { type: integer } } }
+    HealthSignalList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/HealthSignal" } }, total: { type: integer } } }

@@ -3,9 +3,9 @@ import { Header, Kbd, ListBox, Modal, SearchField, Spinner } from "@heroui/react
 import {
   BranchesRight,
   Database,
+  DotsNine,
   FaceRobot,
   House,
-  LayoutHeaderCellsLarge,
   Link as LinkIcon,
   Person,
   PlugConnection,
@@ -40,7 +40,7 @@ const GROUPS: Array<{ type: SearchHit["type"]; label: string }> = [
 ];
 
 const HIT_ICON: Record<SearchHit["type"], ReactNode> = {
-  application: <LayoutHeaderCellsLarge />,
+  application: <DotsNine />,
   record: <TextAlignLeft />,
   user: <Person />,
   entity: <Database />,

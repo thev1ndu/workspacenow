@@ -1,0 +1,246 @@
+# Operators and shared services WorkspaceNow runs on; their instances live in infrastructure/configs.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workspacenow
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openbao
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio-operator
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: temporal
+---
+# Sources
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: cnpg
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://cloudnative-pg.github.io/charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: external-secrets
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://charts.external-secrets.io
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: openbao
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://openbao.github.io/openbao-helm
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: nats
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://nats-io.github.io/k8s/helm/charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: valkey
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://valkey.io/valkey-helm
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: minio-operator
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://operator.min.io
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: temporal
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://go.temporal.io/helm-charts
+---
+# PostgreSQL operator
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudnative-pg
+  namespace: cnpg-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: cloudnative-pg
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: cnpg, namespace: flux-system }
+  install: { crds: Create }
+  upgrade: { crds: CreateReplace }
+---
+# Syncs platform secrets from OpenBao into Kubernetes Secrets.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-secrets
+  namespace: external-secrets
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: external-secrets
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: external-secrets, namespace: flux-system }
+  install: { crds: Create }
+  upgrade: { crds: CreateReplace }
+  values:
+    installCRDs: true
+---
+# Secrets manager: integration credentials and platform secrets; wsn-service keeps only their paths.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: openbao
+  namespace: openbao
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: openbao
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: openbao, namespace: flux-system }
+  values:
+    injector: { enabled: false }
+    server:
+      ha:
+        enabled: true
+        replicas: 3
+        raft: { enabled: true }
+      dataStorage: { size: 10Gi }
+---
+# Event infrastructure: JetStream carries the outbox events to workflows and live updates.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nats
+  namespace: workspacenow
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: nats
+      version: "1.x"
+      sourceRef: { kind: HelmRepository, name: nats, namespace: flux-system }
+  values:
+    config:
+      cluster: { enabled: true, replicas: 3 }
+      jetstream:
+        enabled: true
+        fileStore:
+          pvc: { size: 20Gi }
+---
+# Sessions, caching, rate limits and run-grant counters (Redis protocol).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: valkey
+  namespace: workspacenow
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: valkey
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: valkey, namespace: flux-system }
+  values:
+    dataStorage: { enabled: true, requestedSize: 5Gi }
+---
+# Object storage operator for documents and release artifacts.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: minio-operator
+  namespace: minio-operator
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: operator
+      version: "7.x"
+      sourceRef: { kind: HelmRepository, name: minio-operator, namespace: flux-system }
+  install: { crds: Create }
+  upgrade: { crds: CreateReplace }
+---
+# Durable workflow execution, persisted in the CloudNativePG cluster from infrastructure/configs.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: temporal
+  namespace: temporal
+spec:
+  interval: 1h
+  timeout: 15m
+  chart:
+    spec:
+      chart: temporal
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: temporal, namespace: flux-system }
+  values:
+    cassandra: { enabled: false }
+    mysql: { enabled: false }
+    postgresql: { enabled: false }
+    elasticsearch: { enabled: false }
+    prometheus: { enabled: false }
+    grafana: { enabled: false }
+    server:
+      config:
+        persistence:
+          default:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal
+              user: temporal
+              existingSecret: temporal-db
+          visibility:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal_visibility
+              user: temporal
+              existingSecret: temporal-db

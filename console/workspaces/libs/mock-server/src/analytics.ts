@@ -54,7 +54,7 @@ export function tokenSeries(platform: Platform, days: number): TokenUsagePoint[]
       const live = platform.state.agentRuns
         .filter((r) => r.startedAt.slice(0, 10) === key && platform.state.agents.find((a) => a.id === r.agentId)?.model === model)
         .reduce((sum, r) => sum + r.tokens, 0);
-      const base = model.includes("opus") ? 9000 : model.includes("haiku") ? 6000 : 22000;
+      const base = model.includes("large") ? 9000 : model.includes("small") ? 6000 : 22000;
       point[model.replace(/[^a-z0-9]/gi, "_")] = Math.round(base * (0.6 + noise(`${model}${key}`) * 0.8) * weekday) + live;
     }
     return point;

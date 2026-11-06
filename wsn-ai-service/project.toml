@@ -1,0 +1,12 @@
+# Cloud Native Buildpacks descriptor: pack build wsn-ai-service --builder paketobuildpacks/builder-jammy-base
+[_]
+schema-version = "0.2"
+id = "workspacenow.wsn-ai-service"
+name = "wsn-ai-service"
+
+[io.buildpacks]
+exclude = [".venv", "tests", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".env"]
+
+[[io.buildpacks.build.env]]
+name = "BP_CPYTHON_VERSION"
+value = "3.12.*"

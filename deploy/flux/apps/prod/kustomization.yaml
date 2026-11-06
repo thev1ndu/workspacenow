@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+# Production pins a release that already ran in staging.
+images:
+  - { name: ghcr.io/thev1ndu/wsn-service, newTag: "0.1.0" }
+  - { name: ghcr.io/thev1ndu/wsn-ai-service, newTag: "0.1.0" }
+  - { name: ghcr.io/thev1ndu/wsn-console, newTag: "0.1.0" }
+replicas:
+  - { name: wsn-service, count: 3 }
+  - { name: wsn-service-worker, count: 3 }
+  - { name: wsn-ai-service, count: 3 }
+  - { name: wsn-console, count: 2 }
+patches:
+  - target: { kind: ConfigMap, name: wsn-service }
+    patch: |
+      - { op: replace, path: /data/CORS_ALLOWED_ORIGINS, value: https://workspacenow.example.com }
+  - target: { kind: ConfigMap, name: wsn-console }
+    patch: |
+      - op: replace
+        path: /data/config.js
+        value: |
+          window.__RUNTIME_CONFIG__ = { organizationName: "WorkspaceNow", installationName: "WorkspaceNow", version: "0.1.0", mockLatencyMs: 0, apiBaseUrl: "https://workspacenow.example.com" };

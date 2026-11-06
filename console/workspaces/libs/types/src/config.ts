@@ -3,6 +3,8 @@ export interface RuntimeConfig {
   installationName: string;
   version: string;
   mockLatencyMs: number;
+  // Platform API origin; empty runs the in-browser demo platform.
+  apiBaseUrl: string;
 }
 
 declare global {
@@ -16,6 +18,7 @@ const defaults: RuntimeConfig = {
   installationName: "WorkspaceNow",
   version: "dev",
   mockLatencyMs: 0,
+  apiBaseUrl: "",
 };
 
 /** Load-time runtime config injected by public/config.js before React mounts. */

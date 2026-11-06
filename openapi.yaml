@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: WorkspaceNow Platform API
   version: 1.0.0
@@ -482,7 +482,7 @@ paths:
                 required: [id, deleted]
                 properties:
                   id: { type: string }
-                  deleted: { const: true }
+                  deleted: { type: boolean, enum: [true] }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -921,6 +921,24 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformEventList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+  /events/stream:
+    get:
+      tags: [Observability]
+      operationId: streamEvents
+      summary: Live platform events as server-sent events
+      description: |
+        A text/event-stream of PlatformEvent JSON, one SSE message per event with the event id as the SSE id.
+        Events about an entity reach only callers holding its read permission. Send Last-Event-ID to resume.
+        Agent run progress arrives as AgentRun.Step and AgentRun.Completed events.
+      parameters:
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Event stream; stays open, with a comment heartbeat every 20 seconds
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
   /audit:
     get:
       tags: [Observability]
@@ -983,7 +1001,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  reset: { const: true }
+                  reset: { type: boolean, enum: [true] }
 
 components:
   securitySchemes:
@@ -1308,7 +1326,8 @@ components:
     # Data
     FieldType: { type: string, enum: [string, text, number, integer, boolean, date, enum, reference] }
     FieldValue:
-      type: [string, number, boolean, "null"]
+      nullable: true
+      oneOf: [{ type: string }, { type: number }, { type: boolean }]
     EntityField:
       type: object
       required: [name, label, type]
@@ -1320,7 +1339,7 @@ components:
         unique: { type: boolean }
         enumValues: { type: array, items: { type: string }, description: "Required when type is enum" }
         reference: { type: string, description: "Target entity name when type is reference" }
-        defaultValue: { type: [string, number, boolean] }
+        defaultValue: { oneOf: [{ type: string }, { type: number }, { type: boolean }] }
     EntityRelationship:
       type: object
       required: [name, kind, target]
@@ -1553,12 +1572,12 @@ components:
         - type: object
           required: [kind, text]
           properties:
-            kind: { const: thought }
+            kind: { type: string, enum: [thought] }
             text: { type: string }
         - type: object
           required: [kind, call]
           properties:
-            kind: { const: tool }
+            kind: { type: string, enum: [tool] }
             call: { $ref: "#/components/schemas/ToolCall" }
     AgentRun:
       type: object
@@ -1589,17 +1608,17 @@ components:
         - type: object
           required: [kind, event]
           properties:
-            kind: { const: entity-event }
+            kind: { type: string, enum: [entity-event] }
             event: { type: string, description: "e.g. Stock.LowStockReached" }
         - type: object
           required: [kind, cron]
           properties:
-            kind: { const: schedule }
+            kind: { type: string, enum: [schedule] }
             cron: { type: string, description: Five-field cron expression }
         - type: object
           required: [kind]
           properties:
-            kind: { const: manual }
+            kind: { type: string, enum: [manual] }
     StepBase:
       type: object
       required: [id, name]
@@ -1607,7 +1626,8 @@ components:
         id: { type: string }
         name: { type: string }
         next:
-          type: [string, "null"]
+          type: string
+          nullable: true
           description: Following step; omitted means the next step in the list, null ends the workflow
         position: { $ref: "#/components/schemas/CanvasPosition" }
     WorkflowStep:
@@ -1617,7 +1637,7 @@ components:
             - type: object
               required: [kind, agentId, prompt]
               properties:
-                kind: { const: agent }
+                kind: { type: string, enum: [agent] }
                 agentId: { type: string }
                 prompt: { type: string }
         - allOf:
@@ -1625,23 +1645,23 @@ components:
             - type: object
               required: [kind, permission, description]
               properties:
-                kind: { const: approval }
+                kind: { type: string, enum: [approval] }
                 permission: { $ref: "#/components/schemas/Permission" }
                 description: { type: string }
-                onReject: { type: [string, "null"], description: Step to take on rejection; the run ends when unset }
+                onReject: { type: string, nullable: true, description: Step to take on rejection; the run ends when unset }
         - allOf:
             - { $ref: "#/components/schemas/StepBase" }
             - type: object
               required: [kind, businessOperation]
               properties:
-                kind: { const: operation }
+                kind: { type: string, enum: [operation] }
                 businessOperation: { type: string }
         - allOf:
             - { $ref: "#/components/schemas/StepBase" }
             - type: object
               required: [kind, channel, message]
               properties:
-                kind: { const: notify }
+                kind: { type: string, enum: [notify] }
                 channel: { type: string }
                 message: { type: string }
         - allOf:
@@ -1649,19 +1669,19 @@ components:
             - type: object
               required: [kind, field, operator, value, then, otherwise]
               properties:
-                kind: { const: condition }
+                kind: { type: string, enum: [condition] }
                 field: { type: string, description: "Dotted path into the run context, e.g. order.total" }
                 operator: { type: string, enum: [eq, neq, gt, gte, lt, lte, contains, exists] }
                 value: { type: string }
-                then: { type: [string, "null"] }
-                otherwise: { type: [string, "null"] }
+                then: { type: string, nullable: true }
+                otherwise: { type: string, nullable: true }
         - allOf:
             - { $ref: "#/components/schemas/StepBase" }
             - type: object
               required: [kind, minutes]
               properties:
-                kind: { const: wait }
-                minutes: { type: number, exclusiveMinimum: 0 }
+                kind: { type: string, enum: [wait] }
+                minutes: { type: number, minimum: 0, exclusiveMinimum: true }
     WorkflowDefinition:
       type: object
       required: [name, description, trigger, steps]
@@ -1670,7 +1690,7 @@ components:
         description: { type: string }
         trigger: { $ref: "#/components/schemas/WorkflowTrigger" }
         steps: { type: array, items: { $ref: "#/components/schemas/WorkflowStep" } }
-        start: { type: [string, "null"], description: First step; the first in steps when unset }
+        start: { type: string, nullable: true, description: First step; the first in steps when unset }
         triggerPosition: { $ref: "#/components/schemas/CanvasPosition" }
         applicationId: { type: string }
     Workflow:

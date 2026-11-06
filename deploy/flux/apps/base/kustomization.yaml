@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: workspacenow
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: workspacenow
+resources:
+  - wsn-service.yaml
+  - wsn-ai-service.yaml
+  - console.yaml
+  - network.yaml
+images:
+  - name: wsn-service
+    newName: ghcr.io/thev1ndu/wsn-service
+  - name: wsn-ai-service
+    newName: ghcr.io/thev1ndu/wsn-ai-service
+  - name: wsn-console
+    newName: ghcr.io/thev1ndu/wsn-console

@@ -59,7 +59,7 @@ export interface PlatformState {
   pins: Record<string, string[]>;
 }
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 const STORAGE_KEY = "workspacenow-demo-state";
 

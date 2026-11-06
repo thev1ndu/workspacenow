@@ -1,0 +1,51 @@
+# One hostname for the whole product: the API, the managed MCP server and the console.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: workspacenow
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: gateway-system
+  hostnames: ["workspacenow.example.com"]
+  rules:
+    - matches: [{ path: { type: PathPrefix, value: /api/ } }]
+      backendRefs: [{ name: wsn-service, port: 8080 }]
+    - matches: [{ path: { type: PathPrefix, value: /mcp } }]
+      backendRefs: [{ name: wsn-ai-service, port: 8090 }]
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      backendRefs: [{ name: wsn-console, port: 8080 }]
+---
+# The ai-service is reached only by wsn-service and the gateway (for /mcp).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wsn-ai-service
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: wsn-ai-service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: wsn-service } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: wsn-service-worker } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: gateway-system } }
+      ports: [{ port: 8090 }]
+---
+# The internal API (tool calls with run grants) accepts only the ai-service; the public API is open to the gateway.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wsn-service
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: wsn-service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: wsn-ai-service } }
+      ports: [{ port: 8081 }]
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: gateway-system } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: wsn-ai-service } }
+      ports: [{ port: 8080 }]

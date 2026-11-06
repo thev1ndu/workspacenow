@@ -469,8 +469,7 @@ export function createSeedState(at: Date): PlatformState {
       { id: "int-webhook", name: "Delivery confirmation webhook", kind: "webhook", target: "/hooks/deliveries", status: "untested", retryPolicy: "None", timeoutMs: 3000, secretRef: "vault://integrations/delivery-hmac" },
     ],
     modelProviders: [
-      { id: "mp-anthropic", name: "Anthropic (customer key)", kind: "hosted", endpoint: "https://api.anthropic.com", models: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"], status: "healthy", tokensThisMonth: 1_284_000, costThisMonthUsd: 18.4 },
-      { id: "mp-vllm", name: "On-prem vLLM", kind: "self-hosted", endpoint: "http://vllm.ai.northwind.internal:8000/v1", models: ["llama-3.3-70b-instruct"], status: "healthy", tokensThisMonth: 402_000, costThisMonthUsd: 0 },
+      { id: "mp-mistral", name: "Mistral (La Plateforme)", kind: "hosted", endpoint: "https://api.mistral.ai/v1", models: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"], status: "healthy", tokensThisMonth: 1_284_000, costThisMonthUsd: 18.4 },
     ],
     agents: [
       {
@@ -479,7 +478,7 @@ export function createSeedState(at: Date): PlatformState {
         description: "Everyday assistant in the console. Acts as the signed-in user, never beyond their own permissions.",
         kind: "platform",
         ownerDepartmentId: "dep-it",
-        model: "claude-sonnet-5-5",
+        model: "mistral-medium-latest",
         instructions:
           "You help Northwind staff get work done from anywhere in the console. Answer questions and carry out requests with the tools you have. You act as the user: if they are not allowed to do something, say so and point them to who can.",
         tools: ["get_low_stock_items", "list_suppliers", "list_purchase_requests", "create_purchase_request", "approve_purchase_request", "search_policies", "track_shipment"],
@@ -495,7 +494,7 @@ export function createSeedState(at: Date): PlatformState {
         description: "Prepares replenishment purchase requests from low-stock signals.",
         kind: "business",
         ownerDepartmentId: "dep-procurement",
-        model: "claude-sonnet-5-5",
+        model: "mistral-medium-latest",
         instructions:
           "You help Northwind's procurement team keep stores stocked. Read low-stock items and suppliers, follow procurement policy, and submit purchase requests. Never approve requests or issue orders; humans approve.",
         tools: ["get_low_stock_items", "list_suppliers", "list_purchase_requests", "create_purchase_request", "search_policies"],
@@ -510,7 +509,7 @@ export function createSeedState(at: Date): PlatformState {
         description: "Answers questions about stock levels for store managers.",
         kind: "business",
         ownerDepartmentId: "dep-stores",
-        model: "claude-haiku-5-5",
+        model: "mistral-small-latest",
         instructions: "Answer stock questions using inventory tools only. You cannot change stock.",
         tools: ["get_low_stock_items"],
         permissions: ["inventory.read"],
@@ -533,7 +532,7 @@ export function createSeedState(at: Date): PlatformState {
         description,
         kind: "platform" as const,
         ownerDepartmentId: "dep-it",
-        model: "claude-opus-5-5",
+        model: "mistral-large-latest",
         instructions: `Built-in platform agent. ${description} Proposes changes to the Application Blueprint for a human to approve.`,
         tools: [],
         permissions: [],

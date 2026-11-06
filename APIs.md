@@ -2,7 +2,7 @@
 
 Every endpoint the WorkspaceNow console calls, in one place. This is the contract a backend must serve for the console to work unchanged.
 
-- **Machine-readable spec:** [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1, 72 endpoints, every request and response schema). Load it into Swagger UI, Redocly or a code generator.
+- **Machine-readable spec:** [`openapi.yaml`](openapi.yaml) (OpenAPI 3.0.3, 73 endpoints, every request and response schema). Load it into Swagger UI, Redocly or a code generator.
 - **Where the contract comes from:** the console's API client (`console/workspaces/libs/api-client/src/apis`), the shared types (`console/workspaces/libs/types/src`) and the in-browser reference implementation (`console/workspaces/libs/mock-server/src`). When this document and that code disagree, the code is right; update this file.
 - **Terms** (Business Operation, Entry Point, Service Identity, Trace and so on) are defined in [`CONTEXT.md`](CONTEXT.md).
 
@@ -16,6 +16,10 @@ Every endpoint the WorkspaceNow console calls, in one place. This is the contrac
 | Success codes | `201` for every `POST` (including actions such as invoke, test and decide), `200` for everything else |
 | Identifiers | Opaque strings (`app-inventory`, `wf-replenish`). Entities are addressed by their PascalCase **name** (`PurchaseRequest`), not their id. |
 | Trailing slashes | Ignored |
+
+### Live updates (server-sent events)
+
+The console keeps one `GET /events/stream` connection open and refreshes the data on screen whenever the platform publishes an event, so every page stays live without polling. It reads the stream with `fetch` because `EventSource` cannot send an `Authorization` header, and tokens never go in URLs. Each message is one `PlatformEvent` with the event id as the SSE id; a heartbeat comment arrives every 20 seconds.
 
 ### Switching the console to a real backend
 
@@ -247,6 +251,7 @@ Executions are durable and must survive restarts.
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
 | GET | `/events?limit=50` | Platform events, newest first | signed in |
+| GET | `/events/stream` | Live platform events as server-sent events (`text/event-stream`); resume with `Last-Event-ID`. Entity events reach only callers holding the entity's read permission. | signed in |
 | GET | `/audit?actorKind=&outcome=&q=` | Audit records, newest first; `q` searches action, resource, actor and detail | `audit.read` |
 | GET | `/traces` | Trace summaries built from audit records, newest first | `audit.read` |
 | GET | `/traces/{traceId}` | One trace with its audit records and events | `audit.read` |

@@ -43,8 +43,10 @@ export function ModelsPage() {
                                 {p.kind === "hosted" ? "Hosted" : "Self-hosted"}
                               </Chip>
                             </Table.Cell>
-                            <Table.Cell className="max-w-60 truncate font-mono text-xs" title={p.endpoint}>
-                              {p.endpoint}
+                            <Table.Cell className="font-mono text-xs">
+                              <span className="block max-w-60 truncate" title={p.endpoint}>
+                                {p.endpoint}
+                              </span>
                             </Table.Cell>
                             <Table.Cell>
                               <div className="flex max-w-80 flex-wrap gap-1">

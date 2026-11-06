@@ -5,3 +5,4 @@ export * from "./connect";
 export * from "./ai";
 export * from "./flow";
 export * from "./audit";
+export * from "./stream";

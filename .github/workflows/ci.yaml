@@ -1,0 +1,112 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      service: ${{ steps.filter.outputs.service }}
+      ai: ${{ steps.filter.outputs.ai }}
+      console: ${{ steps.filter.outputs.console }}
+      deploy: ${{ steps.filter.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            service: ['wsn-service/**', 'openapi.yaml']
+            ai: ['wsn-ai-service/**']
+            console: ['console/**']
+            deploy: ['deploy/**']
+
+  wsn-service:
+    needs: changes
+    if: needs.changes.outputs.service == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wsn-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: wsn-service/go.mod
+          cache-dependency-path: wsn-service/go.sum
+      - name: Generated code is current
+        run: |
+          go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0 -config api/oapi-codegen.yaml ../openapi.yaml
+          sh scripts/gen-unimplemented.sh
+          git diff --exit-code -- internal/oapi api/unimplemented_gen.go
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -covermode=atomic ./...
+      - run: go build ./...
+
+  wsn-ai-service:
+    needs: changes
+    if: needs.changes.outputs.ai == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wsn-ai-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: wsn-ai-service/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: ruff check . && ruff format --check .
+      - run: mypy src
+      - run: pytest --cov=src
+
+  console:
+    needs: changes
+    if: needs.changes.outputs.console == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: console/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: console/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm --filter @workspacenow/mock-server test
+      - run: pnpm build
+
+  deploy:
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fluxcd/flux2/action@main
+      - name: Render every Flux overlay
+        run: |
+          for dir in deploy/flux/infrastructure/controllers deploy/flux/infrastructure/configs deploy/flux/apps/dev deploy/flux/apps/staging deploy/flux/apps/prod; do
+            echo "::group::$dir"
+            kubectl kustomize "$dir" > /dev/null
+            echo "::endgroup::"
+          done

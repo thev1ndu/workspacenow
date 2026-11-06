@@ -67,6 +67,12 @@ export function operationInputSchema(platform: Platform, businessOperation: stri
 }
 
 /** Tools generated from API operations whose MCP exposure is enabled, plus external servers' tools. */
+/** The MCP tools an application exposes through its own APIs. */
+export function applicationToolNames(platform: Platform, applicationId: string): Set<string> {
+  const apiIds = new Set(platform.state.apis.filter((a) => a.applicationId === applicationId).map((a) => a.id));
+  return new Set(platform.state.operations.filter((op) => apiIds.has(op.apiId) && op.mcp?.enabled).map((op) => op.mcp!.toolName));
+}
+
 export function listMcpTools(platform: Platform): McpTool[] {
   const generated = platform.state.operations
     .filter((op) => op.mcp?.enabled)

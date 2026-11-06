@@ -3,7 +3,7 @@ import { Link, Separator } from "@heroui/react";
 import { ChevronRight, CircleCheck, CircleExclamation, Pulse } from "@workspacenow/icons";
 import { useListApprovals, useListExecutions, useListHealth, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { NoDataFound, SectionCard, StatusChip, formatRelative } from "@workspacenow/views";
+import { NoDataFound, SectionCard, StatusChip, formatRelative, ListSkeleton, Loading } from "@workspacenow/views";
 
 const MAX_ITEMS = 6;
 
@@ -64,7 +64,9 @@ export function NeedsAttentionCard() {
       flush
     >
       {loading ? (
-        <p className="px-5 py-4 text-sm text-muted">Loading…</p>
+        <Loading>
+          <ListSkeleton />
+        </Loading>
       ) : items.length === 0 ? (
         <NoDataFound message="All clear: no pending approvals, failed executions or unhealthy resources." />
       ) : (

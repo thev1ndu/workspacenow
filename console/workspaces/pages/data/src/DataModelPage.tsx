@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Button, Chip } from "@heroui/react";
+import { Button, Chip, Skeleton } from "@heroui/react";
 import { ArrowRight, ArrowRotateLeft } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes, type Entity } from "@workspacenow/types";
-import { PageLayout, QueryState, SectionCard, TextLink } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, TextLink, SectionCardSkeleton, DetailSkeleton } from "@workspacenow/views";
 import { ScopeChip } from "./subComponents/ScopeChip";
 import { NODE_HEIGHT, bendThrough, curveEdges, edgeId, layoutRelationships, type Point } from "./subComponents/relationshipLayout";
 
@@ -219,7 +219,21 @@ export function DataModelPage() {
   const entities = useListEntities();
   return (
     <PageLayout title="Data model" description="How the organization's entities relate. Dashed boxes are owned by external systems.">
-      <QueryState query={entities}>
+      <QueryState query={entities} skeleton={
+        <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
+          <SectionCardSkeleton>
+            <Skeleton className="h-[28rem] rounded-xl" />
+          </SectionCardSkeleton>
+          <div className="grid content-start gap-4">
+            <SectionCardSkeleton>
+              <DetailSkeleton items={2} columns={1} />
+            </SectionCardSkeleton>
+            <SectionCardSkeleton>
+              <DetailSkeleton items={2} columns={1} />
+            </SectionCardSkeleton>
+          </div>
+        </div>
+      }>
         {(data) => (
           <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
             <SectionCard title="Relationship graph" subtitle="Click an entity to open it">

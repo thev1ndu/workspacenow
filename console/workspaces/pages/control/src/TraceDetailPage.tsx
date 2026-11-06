@@ -2,7 +2,7 @@ import { Chip, Table } from "@heroui/react";
 import { useParams } from "react-router-dom";
 import { useGetTrace } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
-import { ActorLabel, DetailList, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, formatDateTime } from "@workspacenow/views";
+import { ActorLabel, DetailList, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, formatDateTime, PageSkeleton } from "@workspacenow/views";
 import { formatOffset, formatSpan } from "./utils";
 
 export function TraceDetailPage() {
@@ -16,7 +16,7 @@ export function TraceDetailPage() {
       backHref={routes.control.traces}
       backLabel="Traces"
     >
-      <QueryState query={trace}>
+      <QueryState query={trace} skeleton={<PageSkeleton />}>
         {(data) => (
           <div className="grid gap-6">
             <SectionCard>

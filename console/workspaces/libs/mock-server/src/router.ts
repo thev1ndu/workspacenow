@@ -419,10 +419,12 @@ route("POST", "/sidekick/runs", ({ platform, userId, ctx, body }) => {
     platform.audit(c, "sidekick.run", "agent/agent-sidekick", "denied", "User holds no role");
     fail(403, "FORBIDDEN", "Sidekick is available to users who hold a role");
   }
+  const applicationId = body.applicationId === undefined ? undefined : String(body.applicationId);
   return runAgent(platform, "agent-sidekick", prompt, {
     trigger: "manual",
     onBehalfOf: user.name,
     delegatedFrom: platform.permissionsForUser(userId),
+    applicationId,
   });
 });
 route("GET", "/agent-runs", ({ platform, query }) => {

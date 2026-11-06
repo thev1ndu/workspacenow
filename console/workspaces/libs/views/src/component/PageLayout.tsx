@@ -1,8 +1,9 @@
 import { useEffect, type ReactNode } from "react";
-import { Link } from "@heroui/react";
+import { Link, Skeleton } from "@heroui/react";
 import { ArrowLeft } from "@workspacenow/icons";
 import { globalConfig } from "@workspacenow/types";
-import { LoadingSkeleton } from "./QueryState";
+import { Loading } from "./QueryState";
+import { PageSkeleton } from "./Skeletons";
 
 export interface PageLayoutProps {
   title: ReactNode;
@@ -34,13 +35,28 @@ export function PageLayout({ title, documentTitle, description, backHref, backLa
         )}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-            {description && <div className="mt-1.5 text-sm text-muted">{description}</div>}
+            {isLoading ? (
+              <div className="grid gap-2.5 py-1">
+                <Skeleton className="h-6 w-56 rounded-md" />
+                <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+                {description && <div className="mt-1.5 text-sm text-muted">{description}</div>}
+              </>
+            )}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </div>
       </header>
-      {isLoading ? <LoadingSkeleton /> : children}
+      {isLoading ? (
+        <Loading>
+          <PageSkeleton />
+        </Loading>
+      ) : (
+        children
+      )}
     </div>
   );
 }

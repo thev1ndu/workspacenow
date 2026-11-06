@@ -406,6 +406,25 @@ describe("sidekick", () => {
     const call = run.steps.find((s) => s.kind === "tool");
     expect(call?.kind === "tool" && call.call.outcome).toBe("denied");
   });
+
+  it("stays within one application's tools when scoped to it", () => {
+    const platform = createDemoPlatform();
+    const inApp = post(platform, "/sidekick/runs", { prompt: "Which items are low on stock?", applicationId: "app-inventory" }, "u-ruwan").body as AgentRun;
+    const stock = inApp.steps.find((s) => s.kind === "tool");
+    expect(inApp.applicationId).toBe("app-inventory");
+    expect(stock?.kind === "tool" && stock.call.outcome).toBe("allowed");
+
+    const outside = post(platform, "/sidekick/runs", { prompt: "Approve the pending purchase request", applicationId: "app-inventory" }, "u-ruwan").body as AgentRun;
+    const refused = outside.steps.find((s) => s.kind === "tool");
+    expect(refused?.kind === "tool" && refused.call.outcome).toBe("denied");
+    expect(refused?.kind === "tool" && refused.call.reason).toContain("outside Inventory Management");
+    expect(outside.answer).toContain("outside Inventory Management");
+  });
+
+  it("rejects an unknown application", () => {
+    const platform = createDemoPlatform();
+    expect(post(platform, "/sidekick/runs", { prompt: "Which items are low on stock?", applicationId: "app-missing" }, "u-ruwan").status).toBe(404);
+  });
 });
 
 describe("global search", () => {

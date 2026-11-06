@@ -1,7 +1,8 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { OverviewPage } from "@workspacenow/overview";
-import { AppPage } from "@workspacenow/studio";
+import { AppPage, CatalogPage } from "@workspacenow/studio";
 import { routes } from "@workspacenow/types";
+import { AppShell } from "../Layout/AppShell";
 import { Layout } from "../Layout/Layout";
 import { LoginPage } from "../pages/LoginPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
@@ -18,10 +19,17 @@ const router = createBrowserRouter([
         element: <Protected />,
         children: [
           {
+            // Apps run full screen, outside the console.
+            element: <AppShell />,
+            children: [
+              { path: routes.catalog, element: <CatalogPage /> },
+              { path: routes.app, element: <AppPage /> },
+            ],
+          },
+          {
             element: <Layout />,
             children: [
               { index: true, element: <OverviewPage workspaces={workspaces} /> },
-              { path: routes.app, element: <AppPage /> },
               ...workspaces.map((workspace) => ({ path: workspace.basePath, children: workspace.routes })),
               { path: "*", element: <NotFoundPage /> },
             ],

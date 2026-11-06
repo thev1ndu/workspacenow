@@ -362,6 +362,8 @@ export interface AgentRun {
   traceId: Id;
   prompt: string;
   trigger: "manual" | "workflow";
+  /** Set when the run was confined to one application's tools. */
+  applicationId?: Id;
   status: "completed" | "failed";
   steps: AgentRunStep[];
   answer: string;

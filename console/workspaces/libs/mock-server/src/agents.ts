@@ -1,5 +1,5 @@
 import { ApiError, type Agent, type AgentRun, type AgentRunStep, type Permission, type ToolCall } from "@workspacenow/types";
-import { callExternalTool, listMcpTools } from "./mcp";
+import { applicationToolNames, callExternalTool, listMcpTools } from "./mcp";
 import type { LowStockItem } from "./operations";
 import { fail, type ExecutionContext, type Platform } from "./platform";
 
@@ -11,6 +11,8 @@ export interface AgentRunOptions {
   context?: Record<string, unknown>;
   /** The caller's permissions when the agent acts as them; it then holds only what both hold. */
   delegatedFrom?: Iterable<Permission>;
+  /** Confines the run to one application: only the tools its own APIs expose may be called. */
+  applicationId?: string;
 }
 
 /**
@@ -68,10 +70,23 @@ export function runAgent(platform: Platform, agentId: string, prompt: string, op
   if (agent.status !== "active") fail(409, "INVALID_STATE", `${agent.name} is ${agent.status}`);
   if (agent.actsAsCaller && !options.delegatedFrom) fail(409, "INVALID_STATE", `${agent.name} runs only on behalf of a signed-in user`);
   const ctx = agentContext(platform, agent, options);
+  const app = options.applicationId ? platform.state.applications.find((a) => a.id === options.applicationId) : undefined;
+  if (options.applicationId && !app) fail(404, "NOT_FOUND", `Application ${options.applicationId} not found`);
+  const scope = app ? applicationToolNames(platform, app.id) : undefined;
+  const tools = agent.tools.filter((t) => !scope || scope.has(t));
+  let outsideApp = false;
   const started = platform.now();
   const steps: AgentRunStep[] = [];
   const think = (text: string) => steps.push({ kind: "thought", text });
   const call = (tool: string, input: Record<string, unknown>) => {
+    if (app && !scope!.has(tool)) {
+      const reason = `${tool} is outside ${app.name}`;
+      const outside: ToolCall = { tool, input, outcome: "denied", reason };
+      platform.audit(ctx, `mcp.${tool}`, `application/${app.id}`, "denied", reason);
+      steps.push({ kind: "tool", call: outside });
+      outsideApp = true;
+      return outside;
+    }
     if (steps.filter((s) => s.kind === "tool").length >= agent.maxToolCallsPerRun) {
       const reason = `Execution limit of ${agent.maxToolCallsPerRun} tool calls reached`;
       const limited: ToolCall = { tool, input, outcome: "denied", reason };
@@ -97,7 +112,7 @@ export function runAgent(platform: Platform, agentId: string, prompt: string, op
         ? `Approved ${pending?.id}.`
         : `I am not permitted to approve purchase requests (${result.reason}). A Procurement Manager has to approve them in Flow → Approvals.`;
   } else if (includesAny(text, ["low stock", "low-stock", "replenish", "reorder", "purchase request", "prepare"])) {
-    answer = replenish(agent, options, think, call);
+    answer = replenish(tools, options, think, call);
   } else if (includesAny(text, ["policy", "policies", "limit"])) {
     think("This is a policy question, so I will search the company knowledge base.");
     const result = call("search_policies", { query: prompt });
@@ -126,8 +141,15 @@ export function runAgent(platform: Platform, agentId: string, prompt: string, op
           ? "No items are at or below their reorder level."
           : `Low stock: ${items.map((i) => `${i.productName} at ${i.store} (${i.quantity}/${i.reorderLevel})`).join("; ")}.`;
   } else {
-    answer = `I am ${agent.name}. ${agent.description} I can use: ${agent.tools.join(", ")}.`;
+    answer = app
+      ? tools.length
+        ? `I am ${agent.name}, helping with ${app.name} only. I can use: ${tools.join(", ")}.`
+        : `I am ${agent.name}, helping with ${app.name} only, but ${app.name} exposes no tools I can use yet.`
+      : `I am ${agent.name}. ${agent.description} I can use: ${agent.tools.join(", ")}.`;
   }
+
+  // A refusal for scope is about where the user asked, not who they are, so say that instead.
+  if (app && outsideApp) answer = `That is outside ${app.name}, so I can't do it here. Ask Sidekick in the WorkspaceNow console, or open the app that owns it.`;
 
   const durationMs = 600 + steps.length * 450;
   const run: AgentRun = {
@@ -136,6 +158,7 @@ export function runAgent(platform: Platform, agentId: string, prompt: string, op
     traceId: ctx.traceId,
     prompt,
     trigger: options.trigger,
+    applicationId: app?.id,
     status: steps.some((s) => s.kind === "tool" && s.call.outcome === "error") ? "failed" : "completed",
     steps,
     answer,
@@ -153,7 +176,7 @@ export function runAgent(platform: Platform, agentId: string, prompt: string, op
 }
 
 function replenish(
-  agent: Agent,
+  tools: string[],
   options: AgentRunOptions,
   think: (text: string) => void,
   call: (tool: string, input: Record<string, unknown>) => ToolCall,
@@ -169,7 +192,7 @@ function replenish(
     return "Every low-stock item already has an open purchase request, so there is nothing new to prepare.";
   }
   think("Checking procurement policy for the order quantity rule.");
-  if (agent.tools.includes("search_policies")) call("search_policies", { query: "replenishment quantity" });
+  if (tools.includes("search_policies")) call("search_policies", { query: "replenishment quantity" });
   think(`Looking up suppliers for ${candidates.length} item(s).`);
   const supplierResult = call("list_suppliers", {});
   if (supplierResult.outcome !== "allowed") return `I could not read suppliers: ${supplierResult.reason}.`;

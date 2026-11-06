@@ -3,7 +3,7 @@ import { Link, Separator } from "@heroui/react";
 import { ChevronRight, CircleDashed, LayoutHeaderCellsLarge, Rocket } from "@workspacenow/icons";
 import { useListApplications } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, formatRelative } from "@workspacenow/views";
+import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, formatRelative, MetricGridSkeleton, SectionCardSkeleton, ListSkeleton, DetailSkeleton } from "@workspacenow/views";
 import { useDepartmentName } from "./subComponents/useDepartmentName";
 import { AppIcon } from "./apps/AppIcon";
 
@@ -21,7 +21,19 @@ export function StudioOverviewPage() {
         </LinkButton>
       }
     >
-      <QueryState query={applications}>
+      <QueryState query={applications} skeleton={
+        <div className="grid gap-6">
+          <MetricGridSkeleton columns={3} />
+          <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
+            <SectionCardSkeleton flush>
+              <ListSkeleton rows={4} />
+            </SectionCardSkeleton>
+            <SectionCardSkeleton>
+              <DetailSkeleton items={3} columns={1} />
+            </SectionCardSkeleton>
+          </div>
+        </div>
+      }>
         {(data) => {
           const recent = [...data.items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6);
           return (

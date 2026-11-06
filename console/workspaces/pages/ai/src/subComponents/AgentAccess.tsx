@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Alert, Button, Checkbox, CheckboxGroup, Description } from "@heroui/react";
 import { useListMcpTools, useUpdateAgent } from "@workspacenow/api-client";
 import type { Agent, Permission } from "@workspacenow/types";
-import { QueryState, SectionCard } from "@workspacenow/views";
+import { QueryState, SectionCard, ListSkeleton } from "@workspacenow/views";
 
 const PERMISSIONS: Permission[] = [
   "inventory.read",
@@ -48,7 +48,7 @@ export function AgentAccess({ agent }: { agent: Agent }) {
       </Alert>
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <SectionCard title="Assigned MCP tools" subtitle="Tool-level authorization">
-          <QueryState query={allTools}>
+          <QueryState query={allTools} skeleton={<ListSkeleton rows={5} />}>
             {(data) => (
               <CheckboxGroup aria-label="Assigned MCP tools" value={tools} onChange={setTools} className="grid gap-3">
                 {data.items.map((tool) => (

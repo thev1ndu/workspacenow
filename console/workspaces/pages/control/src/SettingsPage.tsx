@@ -4,7 +4,7 @@ import { ArrowRotateLeft } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useOrganization, useResetDemo } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
-import { DetailList, PageLayout, QueryState, SectionCard } from "@workspacenow/views";
+import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from "@workspacenow/views";
 
 const DEPENDENCIES = [
   { name: "PostgreSQL", role: "Entity persistence and platform metadata" },
@@ -24,7 +24,7 @@ export function SettingsPage() {
     <PageLayout title="Settings" description="Installation details and the deployment model.">
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <SectionCard title="Installation">
-          <QueryState query={organization}>
+          <QueryState query={organization} skeleton={<DetailSkeleton items={5} columns={2} />}>
             {(org) => (
               <DetailList
                 columns={2}

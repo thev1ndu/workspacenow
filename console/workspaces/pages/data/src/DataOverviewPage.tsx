@@ -3,7 +3,7 @@ import { ArrowUpRightFromSquare, Database, Layers, Persons } from "@workspacenow
 import { EvilPieChart, type ChartConfig } from "@workspacenow/charts";
 import { useListApplications, useListConnections, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
+import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, TextLink, MetricGridSkeleton, SectionCardSkeleton, TableSkeleton, DonutSkeleton, DetailSkeleton } from "@workspacenow/views";
 import { ScopeChip } from "./subComponents/ScopeChip";
 
 type ScopeSlice = { scope: string; count: number };
@@ -30,7 +30,19 @@ export function DataOverviewPage() {
         </LinkButton>
       }
     >
-      <QueryState query={entities}>
+      <QueryState query={entities} skeleton={
+        <div className="grid gap-6">
+          <MetricGridSkeleton />
+          <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
+            <SectionCardSkeleton flush>
+              <TableSkeleton />
+            </SectionCardSkeleton>
+            <SectionCardSkeleton>
+              <DonutSkeleton />
+            </SectionCardSkeleton>
+          </div>
+        </div>
+      }>
         {(data) => {
           const count = (scope: string) => data.items.filter((e) => e.scope === scope).length;
           const slices: ScopeSlice[] = (["application", "organization", "external"] as const)
@@ -98,7 +110,11 @@ export function DataOverviewPage() {
                 </SectionCard>
               </div>
 
-              <QueryState query={connections}>
+              <QueryState query={connections} skeleton={
+                  <SectionCardSkeleton>
+                    <DetailSkeleton items={2} columns={1} />
+                  </SectionCardSkeleton>
+                }>
                 {(conns) => {
                   const unhealthy = conns.items.filter((c) => c.status !== "connected");
                   return (

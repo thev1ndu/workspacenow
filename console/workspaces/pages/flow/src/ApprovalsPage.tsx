@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Chip, Tabs } from "@heroui/react";
 import type { Approval } from "@workspacenow/types";
 import { useListApprovals } from "@workspacenow/api-client";
-import { NoDataFound, PageLayout, QueryState } from "@workspacenow/views";
+import { NoDataFound, PageLayout, QueryState, CardGridSkeleton } from "@workspacenow/views";
 import { ApprovalCard } from "./subComponents/ApprovalCard";
 
 type Filter = "pending" | "decided";
@@ -45,10 +45,10 @@ export function ApprovalsPage() {
           </Tabs.List>
         </Tabs.ListContainer>
         <Tabs.Panel id="pending">
-          <QueryState query={approvals}>{(data) => <ApprovalList items={data.items} filter="pending" />}</QueryState>
+          <QueryState query={approvals} skeleton={<CardGridSkeleton count={2} className="lg:grid-cols-2" />}>{(data) => <ApprovalList items={data.items} filter="pending" />}</QueryState>
         </Tabs.Panel>
         <Tabs.Panel id="decided">
-          <QueryState query={approvals}>{(data) => <ApprovalList items={data.items} filter="decided" />}</QueryState>
+          <QueryState query={approvals} skeleton={<CardGridSkeleton count={2} className="lg:grid-cols-2" />}>{(data) => <ApprovalList items={data.items} filter="decided" />}</QueryState>
         </Tabs.Panel>
       </Tabs>
     </PageLayout>

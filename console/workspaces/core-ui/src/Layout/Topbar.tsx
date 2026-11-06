@@ -1,5 +1,5 @@
 import { Badge, Breadcrumbs, Button, Kbd } from "@heroui/react";
-import { Bars, CircleCheck, Magnifier, SparklesFill } from "@workspacenow/icons";
+import { Bars, CircleCheck, LayoutHeaderCellsLarge, Magnifier, SparklesFill } from "@workspacenow/icons";
 import { useLocation } from "react-router-dom";
 import { useListApprovals } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -46,6 +46,11 @@ export function Topbar({
       <Button isIconOnly variant="ghost" size="sm" className="md:hidden" aria-label="Search" onPress={onOpenSearch}>
         <Magnifier className="size-4" />
       </Button>
+
+      <LinkButton size="sm" variant="ghost" href={routes.catalog}>
+        <LayoutHeaderCellsLarge className="size-4" aria-hidden />
+        <span className="sr-only sm:not-sr-only">Applications</span>
+      </LinkButton>
 
       {sidekick && (
         <Button size="sm" variant={sidekick.open ? "secondary" : "ghost"} aria-pressed={sidekick.open} onPress={sidekick.onToggle}>

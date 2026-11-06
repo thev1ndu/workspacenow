@@ -1,6 +1,6 @@
 import { Alert, Chip } from "@heroui/react";
 import { useOrganization } from "@workspacenow/api-client";
-import { DetailList, PageLayout, QueryState, SectionCard } from "@workspacenow/views";
+import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from "@workspacenow/views";
 import { GroupMappingEditor } from "./subComponents/GroupMappingEditor";
 import { RoleMatrix } from "./subComponents/RoleMatrix";
 
@@ -22,7 +22,7 @@ export function AccessPage() {
                   </Alert.Description>
                 </Alert.Content>
               </Alert>
-              <QueryState query={organization}>
+              <QueryState query={organization} skeleton={<DetailSkeleton items={5} columns={2} />}>
                 {(org) => (
                   <DetailList
                     columns={2}

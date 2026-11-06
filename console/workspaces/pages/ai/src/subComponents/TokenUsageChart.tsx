@@ -1,6 +1,6 @@
 import { EvilAreaChart, type ChartConfig } from "@workspacenow/charts";
 import { useTokenUsage } from "@workspacenow/api-client";
-import { NoDataFound, QueryState, SectionCard } from "@workspacenow/views";
+import { NoDataFound, QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
 
 const PALETTE = ["var(--accent)", "var(--success)", "var(--warning)", "var(--danger)", "var(--muted)"];
 
@@ -11,7 +11,7 @@ export function TokenUsageChart() {
   const usage = useTokenUsage({ days: 14 });
   return (
     <SectionCard title="Token usage" subtitle="Tokens per day by model, last 14 days">
-      <QueryState query={usage}>
+      <QueryState query={usage} skeleton={<ChartSkeleton />}>
         {(data) => {
           const keys = Object.keys(data.items[0] ?? {}).filter((k) => k !== "date");
           if (keys.length === 0) return <NoDataFound message="No model usage yet." />;

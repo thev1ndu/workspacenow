@@ -1,6 +1,6 @@
 import { EvilBarChart, type ChartConfig } from "@workspacenow/charts";
 import { useActivity } from "@workspacenow/api-client";
-import { QueryState, SectionCard } from "@workspacenow/views";
+import { QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
 
 const config = {
   apiCalls: { label: "API and app calls", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } },
@@ -14,7 +14,7 @@ export function ActivityChart() {
   const activity = useActivity({ days: 14 });
   return (
     <SectionCard title="Traffic" subtitle="Calls through APIs and MCP tools per day, last 14 days">
-      <QueryState query={activity}>
+      <QueryState query={activity} skeleton={<ChartSkeleton />}>
         {(data) => (
           <EvilBarChart config={config} data={data.items} className="aspect-auto h-56 flex-none" barRadius={3}>
             <EvilBarChart.Grid vertical={false} />

@@ -1,6 +1,6 @@
 import { EvilBarChart, type ChartConfig } from "@workspacenow/charts";
 import { useActivity } from "@workspacenow/api-client";
-import { QueryState, SectionCard } from "@workspacenow/views";
+import { QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
 
 const config = {
   apiCalls: { label: "API and app calls", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } },
@@ -15,7 +15,7 @@ export function ActivityChart() {
   const activity = useActivity({ days: 14 });
   return (
     <SectionCard title="Platform activity" subtitle="Governed operations per day, last 14 days">
-      <QueryState query={activity}>
+      <QueryState query={activity} skeleton={<ChartSkeleton className="h-64" />}>
         {(data) => (
           <EvilBarChart config={config} data={data.items} className="aspect-auto h-64 flex-none" stackType="stacked" barRadius={3}>
             <EvilBarChart.Grid vertical={false} />

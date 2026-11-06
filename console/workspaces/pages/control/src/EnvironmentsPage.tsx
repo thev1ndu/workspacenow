@@ -2,7 +2,7 @@ import { Card, Chip, Table } from "@heroui/react";
 import { ShieldCheck } from "@workspacenow/icons";
 import { useListApplications, useListDeployments, useListEnvironments } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, formatDateTime } from "@workspacenow/views";
+import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, formatDateTime, CardGridSkeleton } from "@workspacenow/views";
 
 export function EnvironmentsPage() {
   const environments = useListEnvironments();
@@ -14,7 +14,7 @@ export function EnvironmentsPage() {
   return (
     <PageLayout title="Environments and deployments" description="Deployment environments of applications. They isolate configuration, not tenants.">
       <div className="grid gap-6">
-        <QueryState query={environments}>
+        <QueryState query={environments} skeleton={<CardGridSkeleton count={3} className="md:grid-cols-3" />}>
           {(data) => (
             <div className="grid gap-3 md:grid-cols-3">
               {data.items.map((env) => (

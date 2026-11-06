@@ -5,6 +5,7 @@ export * from "./component/Metric";
 export * from "./component/DetailList";
 export * from "./component/NoDataFound";
 export * from "./component/QueryState";
+export * from "./component/Skeletons";
 export * from "./component/FormElements";
 export * from "./component/JsonView";
 export * from "./component/ActorLabel";

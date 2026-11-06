@@ -9,7 +9,7 @@ import {
   useOrganization,
 } from "@workspacenow/api-client";
 import { globalConfig, routes } from "@workspacenow/types";
-import { DetailList, LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip } from "@workspacenow/views";
+import { DetailList, LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, DetailSkeleton } from "@workspacenow/views";
 import { AuditTable } from "./subComponents/AuditTable";
 import { EntryPointOutcomesChart } from "./subComponents/EntryPointOutcomesChart";
 import { HealthChart } from "./subComponents/HealthChart";
@@ -50,7 +50,7 @@ export function ControlOverview() {
         </MetricGrid>
 
         <SectionCard title="Installation">
-          <QueryState query={organization}>
+          <QueryState query={organization} skeleton={<DetailSkeleton items={5} />}>
             {(org) => (
               <DetailList
                 columns={4}

@@ -3,7 +3,7 @@ import { BranchesRight, CircleCheck, CircleExclamation, Hourglass, Play } from "
 import { EvilAreaChart, type ChartConfig } from "@workspacenow/charts";
 import { useActivity, useListApprovals, useListExecutions, useListWorkflows } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
-import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard } from "@workspacenow/views";
+import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
 import { ExecutionsTable } from "./subComponents/ExecutionsTable";
 
 const activityConfig = {
@@ -48,7 +48,7 @@ export function FlowOverview() {
         </Alert>
 
         <SectionCard title="Workflow activity" subtitle="Steps executed and actions denied per day, last 14 days">
-          <QueryState query={activity}>
+          <QueryState query={activity} skeleton={<ChartSkeleton />}>
             {(data) => (
               <EvilAreaChart config={activityConfig} data={data.items} className="aspect-auto h-56 flex-none" curveType="monotone">
                 <EvilAreaChart.Grid />

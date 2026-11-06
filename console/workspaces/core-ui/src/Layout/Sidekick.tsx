@@ -2,17 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Spinner, TextField } from "@heroui/react";
 import { ArrowUp, CircleCheck, CircleXmark, SparklesFill, Xmark } from "@workspacenow/icons";
 import { useAuthHooks } from "@workspacenow/auth";
-import { useRunSidekick, useSession } from "@workspacenow/api-client";
-import { buildPath, routes, type AgentRun, type Permission } from "@workspacenow/types";
+import { useListApiOperations, useListApis, useRunSidekick, useSession } from "@workspacenow/api-client";
+import { buildPath, routes, type AgentRun, type Application, type Permission } from "@workspacenow/types";
 import { TextLink } from "@workspacenow/views";
 
-const SUGGESTIONS: Array<{ prompt: string; needs?: Permission }> = [
-  { prompt: "Which items are low on stock?", needs: "inventory.read" },
-  { prompt: "Prepare purchase requests for low-stock items", needs: "procurement.request" },
-  { prompt: "Approve the pending purchase request", needs: "procurement.approve" },
-  { prompt: "Which suppliers do we use?", needs: "supplier.read" },
-  { prompt: "What is the replenishment policy?" },
+// Each suggestion names the tool it relies on, so an app-scoped Sidekick offers only what that app can do.
+const SUGGESTIONS: Array<{ prompt: string; tool: string; needs?: Permission }> = [
+  { prompt: "Which items are low on stock?", tool: "get_low_stock_items", needs: "inventory.read" },
+  { prompt: "Prepare purchase requests for low-stock items", tool: "create_purchase_request", needs: "procurement.request" },
+  { prompt: "Approve the pending purchase request", tool: "approve_purchase_request", needs: "procurement.approve" },
+  { prompt: "Which suppliers do we use?", tool: "list_suppliers", needs: "supplier.read" },
+  { prompt: "What is the replenishment policy?", tool: "search_policies" },
 ];
+
+/** The MCP tools an application exposes through its own APIs; the platform confines a scoped Sidekick to these. */
+function useApplicationTools(applicationId: string): Set<string> | undefined {
+  const apis = useListApis();
+  const operations = useListApiOperations();
+  if (!apis.data || !operations.data) return undefined;
+  const apiIds = new Set(apis.data.items.filter((a) => a.applicationId === applicationId).map((a) => a.id));
+  return new Set(operations.data.items.filter((op) => apiIds.has(op.apiId) && op.mcp?.enabled).map((op) => op.mcp!.toolName));
+}
 
 interface Turn {
   id: number;
@@ -54,17 +64,18 @@ function SidekickReply({ run }: { run: AgentRun }) {
 
 /**
  * The console's assistant. It works as the signed-in user: the platform gives it only the
- * permissions both it and the user hold, and audits every action on the user's behalf.
+ * permissions both it and the user hold, and audits every action on the user's behalf. Inside an
+ * app, `scope` confines it to that app: the platform refuses any tool the app does not expose.
  */
-export function Sidekick({ onClose }: { onClose: () => void }) {
+export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { app: Pick<Application, "id" | "name">; tools?: Set<string> } }) {
   const { userInfo } = useAuthHooks();
   const { data: session } = useSession();
-  const sidekick = useRunSidekick();
+  const sidekick = useRunSidekick(scope?.app.id);
   const [prompt, setPrompt] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const end = useRef<HTMLDivElement>(null);
   const permissions = session?.permissions ?? [];
-  const suggestions = SUGGESTIONS.filter((s) => !s.needs || permissions.includes(s.needs));
+  const suggestions = SUGGESTIONS.filter((s) => (!s.needs || permissions.includes(s.needs)) && (!scope || scope.tools?.has(s.tool)));
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -87,7 +98,10 @@ export function Sidekick({ onClose }: { onClose: () => void }) {
     <section aria-label="Sidekick" className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-separator pr-2 pl-4">
         <SparklesFill className="size-4 text-accent" aria-hidden />
-        <h2 className="flex-1 text-sm font-semibold">Sidekick</h2>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
+          Sidekick
+          {scope && <span className="font-normal text-muted"> / {scope.app.name}</span>}
+        </h2>
         {turns.length > 0 && (
           <Button size="sm" variant="ghost" isDisabled={sidekick.isPending} onPress={() => setTurns([])}>
             New chat
@@ -104,7 +118,8 @@ export function Sidekick({ onClose }: { onClose: () => void }) {
             <div>
               <p className="text-base font-semibold">Hi {userInfo?.name.split(" ")[0]}, what can I do for you?</p>
               <p className="mt-1 text-sm text-muted">
-                I work as you{session?.roles.length ? ` (${session.roles.join(", ")})` : ""}, so I can only do what you are allowed to.
+                {scope && `I help with ${scope.app.name} only. `}I work as you{session?.roles.length ? ` (${session.roles.join(", ")})` : ""}, so I can
+                only do what you are allowed to.
               </p>
             </div>
             <div className="grid gap-1.5">
@@ -148,7 +163,7 @@ export function Sidekick({ onClose }: { onClose: () => void }) {
         }}
       >
         <TextField className="flex-1" aria-label="Ask Sidekick" value={prompt} onChange={setPrompt}>
-          <Input variant="secondary" placeholder="Ask Sidekick to find or do something" />
+          <Input variant="secondary" placeholder={scope ? `Ask about ${scope.app.name}` : "Ask Sidekick to find or do something"} />
         </TextField>
         <Button type="submit" isIconOnly aria-label="Send" isDisabled={!prompt.trim() || sidekick.isPending}>
           <ArrowUp className="size-4" />
@@ -156,4 +171,10 @@ export function Sidekick({ onClose }: { onClose: () => void }) {
       </Form>
     </section>
   );
+}
+
+/** Sidekick confined to one application, for the full-screen app shell. */
+export function AppSidekick({ app, onClose }: { app: Pick<Application, "id" | "name">; onClose: () => void }) {
+  const tools = useApplicationTools(app.id);
+  return <Sidekick onClose={onClose} scope={{ app, tools }} />;
 }

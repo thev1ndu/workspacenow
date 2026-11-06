@@ -3,7 +3,7 @@ import { Alert, Button, Input, ListBox, Select, Separator, TextField } from "@he
 import { Plus, TrashBin } from "@workspacenow/icons";
 import { useCan, useListGroupMappings, useListRoles, useUpdateGroupMappings } from "@workspacenow/api-client";
 import type { GroupRoleMapping } from "@workspacenow/types";
-import { QueryState, SectionCard } from "@workspacenow/views";
+import { QueryState, SectionCard, TableSkeleton } from "@workspacenow/views";
 
 /** Edits which identity-provider group grants which WorkspaceNow role. */
 export function GroupMappingEditor() {
@@ -54,7 +54,7 @@ export function GroupMappingEditor() {
           </Alert>
         </div>
       )}
-      <QueryState query={roles}>
+      <QueryState query={roles} skeleton={<TableSkeleton rows={4} columns={2} />}>
         {(roleList) => (
           <div className="px-5 py-3">
             <div className="grid grid-cols-[1fr_1fr_2rem] gap-3 pb-2 text-xs font-medium text-muted">

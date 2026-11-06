@@ -1,7 +1,7 @@
 import { Chip, Link, Table } from "@heroui/react";
 import { useListApiOperations, useListApis, useListEntities, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes, type Application } from "@workspacenow/types";
-import { DetailList, LinkButton, NoDataFound, QueryState, SectionCard, StatusChip, TextLink, formatDateTime } from "@workspacenow/views";
+import { DetailList, LinkButton, NoDataFound, QueryState, SectionCard, StatusChip, TextLink, formatDateTime, SectionCardSkeleton, TableSkeleton } from "@workspacenow/views";
 import { useDepartmentName } from "./useDepartmentName";
 
 const SCOPE_LABEL = { application: "Application-scoped", organization: "Organization-shared", external: "External" };
@@ -119,7 +119,11 @@ export function AppApisTab({ app }: { app: Application }) {
   const operations = useListApiOperations();
   const appApis = apis.data?.items.filter((a) => a.applicationId === app.id) ?? [];
   return (
-    <QueryState query={apis}>
+    <QueryState query={apis} skeleton={
+        <SectionCardSkeleton flush>
+          <TableSkeleton rows={3} />
+        </SectionCardSkeleton>
+      }>
       {() =>
         appApis.length === 0 ? (
           <SectionCard>

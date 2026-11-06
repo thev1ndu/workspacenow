@@ -39,12 +39,15 @@ export function useRunAgent() {
   });
 }
 
-/** Asks Sidekick, which acts as the signed-in user with no more than their permissions. */
-export function useRunSidekick() {
+/**
+ * Asks Sidekick, which acts as the signed-in user with no more than their permissions. With an
+ * `applicationId` the platform also confines it to that application's own tools.
+ */
+export function useRunSidekick(applicationId?: string) {
   const { getToken } = useAuthHooks();
   return useApiMutation({
     showSuccess: false,
-    mutationFn: (prompt: string) => api.runSidekick({ prompt }, getToken),
+    mutationFn: (prompt: string) => api.runSidekick({ prompt, applicationId }, getToken),
   });
 }
 

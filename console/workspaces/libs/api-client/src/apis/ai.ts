@@ -33,6 +33,6 @@ export async function getAgentRun(params: { runId: string }, getToken: GetToken)
   return httpGET<AgentRun>(`${SERVICE_BASE}/agent-runs/${enc(params.runId)}`, { token: await getToken() });
 }
 
-export async function runSidekick(body: { prompt: string }, getToken: GetToken) {
+export async function runSidekick(body: { prompt: string; applicationId?: string }, getToken: GetToken) {
   return httpPOST<AgentRun>(`${SERVICE_BASE}/sidekick/runs`, { token: await getToken(), body });
 }

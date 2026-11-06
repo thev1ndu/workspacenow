@@ -3,7 +3,7 @@ import { Button, Card, Modal, Table, Tooltip } from "@heroui/react";
 import { Lock, Plus, Rocket } from "@workspacenow/icons";
 import { useCreateDeployment, useCreateRelease, useListDeployments, useListEnvironments, useListReleases } from "@workspacenow/api-client";
 import type { Application, EnvironmentKey } from "@workspacenow/types";
-import { NoDataFound, QueryState, SectionCard, StatusChip, TextInput, formatDateTime, formatRelative } from "@workspacenow/views";
+import { NoDataFound, QueryState, SectionCard, StatusChip, TextInput, formatDateTime, formatRelative, CardGridSkeleton } from "@workspacenow/views";
 
 export function ReleasesTab({ app }: { app: Application }) {
   const releases = useListReleases({ appId: app.id });
@@ -103,7 +103,7 @@ export function DeploymentsTab({ app }: { app: Application }) {
 
   return (
     <div className="grid gap-6">
-      <QueryState query={environments}>
+      <QueryState query={environments} skeleton={<CardGridSkeleton count={3} className="md:grid-cols-3" />}>
         {(envs) => (
           <div className="grid gap-4 md:grid-cols-3">
             {ORDER.map((key, i) => {

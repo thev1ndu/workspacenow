@@ -3,7 +3,7 @@ import { Alert, Button, Modal } from "@heroui/react";
 import { Minus, Plus, Printer, TrashBin } from "@workspacenow/icons";
 import { useInvokeBusinessOperation, useListRecords } from "@workspacenow/api-client";
 import type { EntityRecord, OperationResult } from "@workspacenow/types";
-import { NoDataFound, QueryState, SectionCard, SelectInput, TextInput, errorMessage, formatCurrency } from "@workspacenow/views";
+import { NoDataFound, QueryState, SectionCard, SelectInput, TextInput, errorMessage, formatCurrency, CardGridSkeleton } from "@workspacenow/views";
 import { Receipt, printReceipt, type ReceiptLine } from "./Receipt";
 
 const STORE_KEY = "workspacenow-till-store";
@@ -153,7 +153,7 @@ export function TillPage() {
       >
         <div className="grid gap-4">
           <TextInput label="Search" value={search} onChange={setSearch} placeholder="Name or SKU" />
-          <QueryState query={products}>
+          <QueryState query={products} skeleton={<CardGridSkeleton count={6} className="sm:grid-cols-2 xl:grid-cols-3" />}>
             {(data) => {
               const shown = data.items.filter((p) => !term || String(p.values.name).toLowerCase().includes(term) || String(p.values.sku).toLowerCase().includes(term));
               if (shown.length === 0) return <NoDataFound message="No products match." />;

@@ -2,7 +2,9 @@
 
 export const routes = {
   home: "/",
-  /** An application as its users run it, outside Studio. */
+  /** Every application its users can open, outside the console. */
+  catalog: "/catalog",
+  /** An application as its users run it, full screen outside the console. */
   app: "/apps/:appId",
   studio: {
     root: "/studio",

@@ -1,7 +1,7 @@
 import { Table } from "@heroui/react";
 import { useListAgents } from "@workspacenow/api-client";
 import { buildPath, routes, type Agent } from "@workspacenow/types";
-import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
+import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, SectionCardSkeleton, TableSkeleton } from "@workspacenow/views";
 
 function AgentTable({ agents, label }: { agents: Agent[]; label: string }) {
   if (agents.length === 0) return <NoDataFound message="No agents." />;
@@ -41,7 +41,16 @@ export function AgentsPage() {
   const agents = useListAgents();
   return (
     <PageLayout title="Agents" description="Business agents built by teams, and the platform's built-in agents.">
-      <QueryState query={agents}>
+      <QueryState query={agents} skeleton={
+          <div className="grid gap-6">
+            <SectionCardSkeleton flush>
+              <TableSkeleton rows={2} columns={5} />
+            </SectionCardSkeleton>
+            <SectionCardSkeleton flush>
+              <TableSkeleton rows={6} columns={5} />
+            </SectionCardSkeleton>
+          </div>
+        }>
         {(data) => (
           <div className="grid gap-6">
             <SectionCard title="Business agents" subtitle="Act on business data through assigned MCP tools." flush>

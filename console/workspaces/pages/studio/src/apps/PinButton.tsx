@@ -9,6 +9,12 @@ export function usePinnedApplicationIds(): string[] {
 }
 
 /** Pins an application to the user's Home and sidebar, or unpins it. */
+/** Applications with the user's pinned ones first, in pin order, then the rest by name. */
+export function pinnedFirst<T extends Pick<Application, "id" | "name">>(apps: T[], pinnedIds: string[]): T[] {
+  const rank = (id: string) => (pinnedIds.includes(id) ? pinnedIds.indexOf(id) : pinnedIds.length);
+  return [...apps].sort((a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name));
+}
+
 export function PinButton({ app, variant = "ghost" }: { app: Pick<Application, "id" | "name">; variant?: "ghost" | "secondary" }) {
   const pinned = usePinnedApplicationIds().includes(app.id);
   const setPinned = useSetApplicationPinned();

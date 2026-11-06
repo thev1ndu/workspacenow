@@ -35,6 +35,8 @@ export function AppPage() {
         )
       }
       documentTitle={app?.name}
+      backHref={routes.catalog}
+      backLabel="Applications"
       isLoading={application.isLoading}
       actions={
         app && (

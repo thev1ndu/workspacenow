@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"go.temporal.io/api/serviceerror"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.temporal.io/api/serviceerror"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 )

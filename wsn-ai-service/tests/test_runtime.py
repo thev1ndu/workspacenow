@@ -88,6 +88,41 @@ async def test_the_tool_call_limit_is_enforced_locally_too() -> None:
     assert result.steps[1].call.outcome == "denied"  # type: ignore[union-attr]
 
 
+async def test_application_scope_lands_in_the_system_prompt() -> None:
+    llm = ScriptedModel(Completion("ok"))
+    req = request()
+    req.application_name = "Inventory Management"
+
+    await AgentRuntime(llm, FakePlatform({})).run(req)  # type: ignore[arg-type]
+
+    assert "You help only with Inventory Management" in llm.sent[0][0]["content"]
+
+
+async def test_workflow_context_lands_in_the_user_prompt() -> None:
+    llm = ScriptedModel(Completion("ok"))
+    req = request()
+    req.context = {"saleId": "s-1"}
+
+    await AgentRuntime(llm, FakePlatform({})).run(req)  # type: ignore[arg-type]
+
+    user = llm.sent[0][1]["content"]
+    assert "Context from the workflow" in user and "s-1" in user
+
+
+async def test_a_run_that_never_answers_gets_the_tool_limit_message() -> None:
+    llm = ScriptedModel(
+        Completion("", [RequestedCall("c1", "get_low_stock_items", {})]),
+        Completion("", [RequestedCall("c2", "get_low_stock_items", {})]),
+    )
+    platform = FakePlatform({"get_low_stock_items": ToolOutcome("allowed", [])})
+
+    result = await AgentRuntime(llm, platform).run(request(max_calls=0))  # type: ignore[arg-type]
+
+    assert result.answer == "I stopped before finishing because I reached my tool call limit."
+    assert result.status == "completed"
+    assert len(platform.calls) == 0  # the local limit of zero denies before any call leaves
+
+
 async def test_planner_returns_the_console_plan_shape() -> None:
     llm = ScriptedModel(
         Completion(

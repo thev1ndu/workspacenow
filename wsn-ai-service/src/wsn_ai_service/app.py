@@ -110,5 +110,5 @@ def main() -> None:
     uvicorn.run(create_app(settings), host="0.0.0.0", port=settings.port, log_level=settings.log_level.lower())
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

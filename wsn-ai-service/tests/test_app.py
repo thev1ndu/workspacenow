@@ -1,9 +1,13 @@
+import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
+import wsn_ai_service.app as app_module
 from wsn_ai_service.app import create_app
-from wsn_ai_service.config import Settings
+from wsn_ai_service.config import Settings, get_settings
 from wsn_ai_service.llm import Completion
+from wsn_ai_service.models import DiscoveredTool, DiscoverResult
 
 
 class OneAnswer:
@@ -11,9 +15,15 @@ class OneAnswer:
         return Completion("Hello from Mistral.", tokens=12)
 
 
-def client() -> TestClient:
+class PlanAnswer:
+    async def complete(self, *args: object, **kwargs: object) -> Completion:
+        plan = '{"name":"Leave Tracker","description":"d","ownerDepartmentId":"dep-hr","entities":[],"pages":[]}'
+        return Completion(plan, tokens=9)
+
+
+def client(llm: object = None) -> TestClient:
     settings = Settings(ai_service_token=SecretStr("secret"), mcp_tool_refresh_seconds=3600)
-    return TestClient(create_app(settings, llm=OneAnswer()))  # type: ignore[arg-type]
+    return TestClient(create_app(settings, llm=llm or OneAnswer()))  # type: ignore[arg-type]
 
 
 RUN = {
@@ -51,3 +61,58 @@ def test_unknown_v1_routes_answer_501_in_the_platform_error_shape() -> None:
         assert r.status_code == 501
         assert r.json() == {"status": 501, "code": "INVALID_STATE", "message": "GET /v1/agents is not available yet"}
         assert c.get("/v1/agents").json()["code"] == "UNAUTHENTICATED"
+
+
+def test_plan_returns_the_architect_plan() -> None:
+    with client(PlanAnswer()) as c:
+        r = c.post("/v1/plans", json={"prompt": "Track leave"}, headers={"Authorization": "Bearer secret"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Leave Tracker"
+    assert body["operations"] == [] and body["workflows"] == [] and body["permissions"] == []
+
+
+def test_plan_answers_502_when_the_model_returns_garbage() -> None:
+    with client() as c:  # OneAnswer answers with plain text, which is not a plan
+        r = c.post("/v1/plans", json={"prompt": "x"}, headers={"Authorization": "Bearer secret"})
+    assert r.status_code == 502
+    assert "unusable plan" in r.json()["message"]
+
+
+def test_discover_returns_the_external_servers_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_discover(req: object) -> DiscoverResult:
+        return DiscoverResult(tools=[DiscoveredTool(name="get_items", description="d")])
+
+    monkeypatch.setattr(app_module, "discover", fake_discover)
+    with client() as c:
+        r = c.post(
+            "/v1/mcp/discover", json={"url": "http://mcp.example/mcp"}, headers={"Authorization": "Bearer secret"}
+        )
+    assert r.status_code == 200
+    assert r.json()["tools"] == [{"name": "get_items", "description": "d"}]
+
+
+def test_discover_answers_502_when_the_server_cannot_be_listed(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def boom(req: object) -> DiscoverResult:
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(app_module, "discover", boom)
+    with client() as c:
+        r = c.post(
+            "/v1/mcp/discover", json={"url": "http://mcp.example/mcp"}, headers={"Authorization": "Bearer secret"}
+        )
+    assert r.status_code == 502
+    assert "Could not list tools at http://mcp.example/mcp" in r.json()["message"]
+
+
+def test_get_settings_reads_the_environment() -> None:
+    get_settings.cache_clear()
+    assert get_settings().port == 8090
+
+
+def test_main_builds_the_app_and_runs_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(app_module.uvicorn, "run", lambda *a, **k: calls.update(app=a[0], kwargs=k))
+    app_module.main()
+    assert isinstance(calls["app"], FastAPI)
+    assert calls["kwargs"] == {"host": "0.0.0.0", "port": 8090, "log_level": "info"}

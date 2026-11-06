@@ -71,7 +71,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check . && ruff format --check .
       - run: mypy src
-      - run: pytest --cov=src
+      - run: pytest --cov=src --cov-fail-under=100
 
   console:
     needs: changes

@@ -13,7 +13,9 @@ type Handler struct{ svc Service }
 
 func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 
-func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) { httpx.ListFrom(w, r, h.svc.Workflows) }
+func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.Workflows)
+}
 
 func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request, id string) {
 	reply(w, r, http.StatusOK)(h.svc.Workflow(r.Context(), id))

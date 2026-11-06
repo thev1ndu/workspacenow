@@ -8,12 +8,15 @@ images:
     newTag: main # {"$imagepolicy": "flux-system:wsn-service:tag"}
   - name: ghcr.io/thev1ndu/wsn-ai-service
     newTag: main # {"$imagepolicy": "flux-system:wsn-ai-service:tag"}
+  - name: ghcr.io/thev1ndu/wsn-observer
+    newTag: main # {"$imagepolicy": "flux-system:wsn-observer:tag"}
   - name: ghcr.io/thev1ndu/console
     newTag: main # {"$imagepolicy": "flux-system:console:tag"}
 replicas:
   - { name: wsn-service, count: 1 }
   - { name: wsn-service-worker, count: 1 }
   - { name: wsn-ai-service, count: 1 }
+  - { name: wsn-observer, count: 1 }
   - { name: console, count: 1 }
 patches:
   - target: { kind: ConfigMap, name: wsn-service }

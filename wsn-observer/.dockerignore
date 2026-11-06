@@ -1,0 +1,6 @@
+.git
+bin
+.env
+**/__pycache__
+*.out
+*.log

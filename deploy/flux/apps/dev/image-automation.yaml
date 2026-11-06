@@ -20,6 +20,15 @@ spec:
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
+  name: wsn-observer
+  namespace: flux-system
+spec:
+  image: ghcr.io/thev1ndu/wsn-observer
+  interval: 5m
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
   name: console
   namespace: flux-system
 spec:
@@ -43,6 +52,16 @@ metadata:
   namespace: flux-system
 spec:
   imageRepositoryRef: { name: wsn-ai-service }
+  filterTags: { pattern: '^main-[a-f0-9]+-(?P<run>[0-9]+)$', extract: '$run' }
+  policy: { numerical: { order: asc } }
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: wsn-observer
+  namespace: flux-system
+spec:
+  imageRepositoryRef: { name: wsn-observer }
   filterTags: { pattern: '^main-[a-f0-9]+-(?P<run>[0-9]+)$', extract: '$run' }
   policy: { numerical: { order: asc } }
 ---

@@ -22,6 +22,7 @@ Before the apps can start, put these secrets in OpenBao (KV v2 at `secret/`):
 |---|---|
 | `workspacenow/mistral` | `apiKey` |
 | `workspacenow/ai-service` | `token` |
+| `workspacenow/observer` | `token` (optional shared bearer for the wsn-observer APIs) |
 | `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed) |
 | `workspacenow/object-storage` | `accessKey`, `secretKey` |
 | `workspacenow/temporal-db` | `password` |
@@ -30,7 +31,7 @@ OpenBao needs Kubernetes auth roles named `external-secrets` (read `secret/data/
 
 ## Images
 
-`.github/workflows/images.yaml` builds `wsn-service`, `wsn-ai-service` and `console` from each component's `Dockerfile` with docker buildx (multi-stage, non-root runtime user, read-only-rootfs compatible) and pushes them to `ghcr.io/thev1ndu`. Pushes to `main` are tagged `main-<sha>-<run>`; `v*` tags publish the release version.
+`.github/workflows/images.yaml` builds `wsn-service`, `wsn-ai-service`, `wsn-observer` and `console` from each component's `Dockerfile` with docker buildx (multi-stage, non-root runtime user, read-only-rootfs compatible) and pushes them to `ghcr.io/thev1ndu`. Pushes to `main` are tagged `main-<sha>-<run>`; `v*` tags publish the release version.
 
 ## Check locally
 

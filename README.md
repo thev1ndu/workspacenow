@@ -24,6 +24,7 @@ The console calls wsn-service over `/api/v1` (REST plus server-sent events); MCP
 - **wsn-service** owns every rule. Each business operation runs authorization, the handler, the audit record and its events in one Postgres transaction; events leave through an outbox to NATS JetStream, which drives workflows and the console's live updates.
 - **wsn-ai-service** never decides what an agent may do. For each run, wsn-service signs a short-lived grant naming the permissions and tools allowed; every tool call goes back to wsn-service with that grant to be checked, run and audited. Run steps stream back to wsn-service as they happen, which republishes them as `AgentRun.Step` events on the console's live stream.
 - **Workflows** run on Temporal, so executions survive restarts and can wait days for an approval.
+- **wsn-observer** collects the services' telemetry (OTLP traces, logs, metrics) into bounded memory and answers the observability queries; a NetworkPolicy lets only the platform pods and the gateway reach it.
 
 | Concern | Tool |
 |---|---|
@@ -42,6 +43,7 @@ The console calls wsn-service over `/api/v1` (REST plus server-sent events); MCP
 | [`console/`](console) | The web console (React, Vite, HeroUI, TanStack Query). Runs on an in-browser demo platform until `apiBaseUrl` points at wsn-service. |
 | [`wsn-service/`](wsn-service) | The platform service in Go. See its [README](wsn-service/README.md). |
 | [`wsn-ai-service/`](wsn-ai-service) | The AI service in Python (FastAPI, FastMCP, the Mistral SDK): governed agent runs, the Application Architect planner, external MCP discovery and the managed MCP server on `/mcp`. See [wsn-ai-service](#wsn-ai-service) below and its [README](wsn-ai-service/README.md). |
+| [`wsn-observer/`](wsn-observer) | The telemetry observer in Go: ingests OTLP traces, logs and metrics from the services and serves the query API behind `/observer/`. See its [README](wsn-observer/README.md). |
 | [`deploy/compose/`](deploy/compose) | Local infrastructure for development. |
 | [`deploy/flux/`](deploy/flux) | GitOps deployment with Flux: infrastructure operators, then the apps, per environment. See its [README](deploy/flux/README.md). |
 | [`.github/workflows/`](.github/workflows) | CI: `wsn-ai-service.yaml` gates the Python service at 100% line coverage (plus an opt-in live Mistral smoke test); `ci.yaml` covers Go, the console and Flux rendering; `images.yaml` builds each component's `Dockerfile` with docker buildx. |
@@ -112,5 +114,6 @@ Demo mode signs you in as one of the Northwind Retail personas (store manager, p
 | wsn-service: workflows on Temporal | Written; compiles once `go mod tidy` fetches the Temporal dependencies; `-worker` mode still to wire. |
 | wsn-service: AI endpoints, observability endpoints | Not started; these routes answer 501. |
 | wsn-ai-service | Complete: agent runtime, planner, discovery, managed MCP server and per-step streaming to wsn-service; 100% line coverage gated in `.github/workflows/wsn-ai-service.yaml`, live Mistral smoke test opt-in. Tested in isolation; still waits on wsn-service's internal endpoints and run grants to be called for real. |
+| wsn-observer | New: OTLP ingest (`/v1/traces|/v1/logs|/v1/metrics`) and query API (`/api/v1/traces|/trace|/logs|/metrics|/overview`) in Go, unit tested with `-race`; own CI job, image and Flux manifests (non-root distroless image, NetworkPolicy-limited). Services do not emit OTLP to it yet. |
 | CI, Docker images, Flux | Written; manifests render with kustomize; images build from Dockerfiles with non-root users; not yet run on GitHub or a cluster. |
 | Integration and end-to-end tests | Not started. |

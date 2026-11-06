@@ -7,6 +7,7 @@ labels:
 resources:
   - wsn-service.yaml
   - wsn-ai-service.yaml
+  - wsn-observer.yaml
   - console.yaml
   - network.yaml
 images:
@@ -14,5 +15,7 @@ images:
     newName: ghcr.io/thev1ndu/wsn-service
   - name: wsn-ai-service
     newName: ghcr.io/thev1ndu/wsn-ai-service
+  - name: wsn-observer
+    newName: ghcr.io/thev1ndu/wsn-observer
   - name: console
     newName: ghcr.io/thev1ndu/console

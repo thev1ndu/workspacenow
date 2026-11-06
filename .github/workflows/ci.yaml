@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       service: ${{ steps.filter.outputs.service }}
+      observer: ${{ steps.filter.outputs.observer }}
       console: ${{ steps.filter.outputs.console }}
       deploy: ${{ steps.filter.outputs.deploy }}
     steps:
@@ -26,6 +27,7 @@ jobs:
         with:
           filters: |
             service: ['wsn-service/**', 'openapi.yaml']
+            observer: ['wsn-observer/**']
             console: ['console/**']
             deploy: ['deploy/**']
             # wsn-ai-service/** is covered by .github/workflows/wsn-ai-service.yaml
@@ -48,6 +50,24 @@ jobs:
           go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0 -config api/oapi-codegen.yaml ../openapi.yaml
           sh scripts/gen-unimplemented.sh
           git diff --exit-code -- internal/oapi api/unimplemented_gen.go
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -covermode=atomic ./...
+      - run: go build ./...
+
+  wsn-observer:
+    needs: changes
+    if: needs.changes.outputs.observer == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wsn-observer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: wsn-observer/go.mod
+          cache-dependency-path: wsn-observer/go.mod
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test -race -covermode=atomic ./...

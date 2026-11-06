@@ -26,6 +26,8 @@ jobs:
             path: wsn-service
           - image: wsn-ai-service
             path: wsn-ai-service
+          - image: wsn-observer
+            path: wsn-observer
           - image: console
             path: console
     steps:

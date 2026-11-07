@@ -6,7 +6,7 @@ info:
     Every endpoint the WorkspaceNow console calls. Taken from the console's API client
     (`console/workspaces/libs/api-client`) and the in-browser reference implementation
     (`console/workspaces/libs/mock-server/src/router.ts`), which define the contract today.
-    See APIs.md for the narrative guide: authentication, authorization, errors and service boundaries.
+    See docs/APIs.md for the narrative guide: authentication, authorization, errors and service boundaries.
 
     Conventions:
     - All paths are under `/api/v1`. Bodies are JSON.
@@ -210,7 +210,7 @@ paths:
       tags: [Studio]
       operationId: applyApplicationPlan
       summary: Create an application from a reviewed plan
-      description: "Requires `studio.manage`. Creates the plan's entities, CRUD business operations, API and pages. The plan is checked with the same rules the editor shows (see APIs.md)."
+      description: "Requires `studio.manage`. Creates the plan's entities, CRUD business operations, API and pages. The plan is checked with the same rules the editor shows (see docs/APIs.md)."
       requestBody:
         required: true
         content:
@@ -282,7 +282,7 @@ paths:
       tags: [Studio]
       operationId: updateApplication
       summary: Apply an edited plan to an existing application
-      description: "Requires `studio.manage`. Changes must be additive for entities that already hold records (see APIs.md, plan change rules)."
+      description: "Requires `studio.manage`. Changes must be additive for entities that already hold records (see docs/APIs.md, plan change rules)."
       requestBody:
         required: true
         content:
@@ -1297,7 +1297,7 @@ paths:
       tags: [Flow]
       operationId: createWorkflow
       summary: Create a workflow from a definition
-      description: "Requires `flow.manage`. The definition is validated (see APIs.md); a workflow cannot be given permissions the caller does not hold (`403`)."
+      description: "Requires `flow.manage`. The definition is validated (see docs/APIs.md); a workflow cannot be given permissions the caller does not hold (`403`)."
       requestBody:
         required: true
         content:

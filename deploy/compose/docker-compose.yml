@@ -206,7 +206,7 @@ services:
     image: ghcr.io/thev1ndu/console:${IMAGE_TAG:-main}
     build: ../../console
     ports: ["8088:8080"]
-    volumes: ["../../console-config.js:/usr/share/nginx/html/config.js:ro"]
+    volumes: ["./console-config.js:/usr/share/nginx/html/config.js:ro"]
     depends_on:
       wsn-service: { condition: service_started }
 

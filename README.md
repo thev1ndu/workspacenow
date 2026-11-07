@@ -2,7 +2,7 @@
 
 A self-hosted, entity-driven platform on which one organization builds, connects and runs its own business applications, APIs, agents and workflows. One installation serves one organization, and every action, whether a person clicks it, an API calls it, an agent proposes it or a workflow runs it, goes through the same governed business operation, so authorization, validation and audit never diverge.
 
-Terms (Organization, Entity, Business Operation, Entry Point, Service Identity, Trace and so on) are defined in [CONTEXT.md](CONTEXT.md).
+Terms (Organization, Entity, Business Operation, Entry Point, Service Identity, Trace and so on) are defined in [docs/CONTEXT.md](docs/CONTEXT.md).
 
 ## What it does
 
@@ -44,11 +44,11 @@ The console calls wsn-service over `/api/v1` (REST plus server-sent events); MCP
 | [`wsn-service/`](wsn-service) | The platform service in Go. See its [README](wsn-service/README.md). |
 | [`wsn-ai-service/`](wsn-ai-service) | The AI service in Python (FastAPI, FastMCP, the Mistral SDK): governed agent runs, the Application Architect planner, external MCP discovery and the managed MCP server on `/mcp`. See [wsn-ai-service](#wsn-ai-service) below and its [README](wsn-ai-service/README.md). |
 | [`wsn-observer/`](wsn-observer) | The telemetry observer in Go: ingests OTLP traces, logs and metrics from the services and serves the query API behind `/observer/`. See its [README](wsn-observer/README.md). |
-| [`deploy/compose/`](deploy/compose) | Local infrastructure for development. |
-| [`deploy/flux/`](deploy/flux) | GitOps deployment with Flux: infrastructure operators, then the apps, per environment. See its [README](deploy/flux/README.md). |
-| [`.github/workflows/`](.github/workflows) | CI: `wsn-ai-service.yaml` gates the Python service at 100% line coverage (plus an opt-in live Mistral smoke test); `ci.yaml` covers Go, the console and Flux rendering; `images.yaml` builds each component's `Dockerfile` with docker buildx. |
-| [`APIs.md`](APIs.md), [`openapi.yaml`](openapi.yaml) | The API contract between the console and wsn-service (73 endpoints). |
-| [`CONTEXT.md`](CONTEXT.md) | The domain glossary. |
+| [`deploy/`](deploy) | Deployment: `deploy/compose/` for local development (including `console-config.js`, mounted into the console container), `deploy/flux/` for GitOps with Flux (infrastructure operators, then the apps, per environment — see its [README](deploy/flux/README.md)), `deploy/e2e/` for the smoke suite CI runs against the live stack. |
+| [`.github/`](.github) | `workflows/`: `ci.yaml` covers Go, the console, Flux rendering and the compose e2e; `images.yaml` builds each component's `Dockerfile` with docker buildx, only after green CI. `dependabot.yml` keeps actions, Docker base images, Go, npm and pip dependencies current. |
+| [`openapi.yaml`](openapi.yaml) | The API contract between the console and wsn-service (93 paths / 119 operations) — the source of truth for generated code. |
+| [`docs/`](docs) | `CONTEXT.md` (domain glossary), `APIs.md` (narrative API guide), `FEATURES.md` (feature inventory), `ROADMAP.md`, `T0D0.md` (task list with test steps), `COVERAGE.md` (per-package test coverage). |
+| `agent-manager/` | Read-only reference checkout; not part of the build. |
 
 ## wsn-ai-service
 
@@ -73,7 +73,7 @@ Calls it makes to wsn-service's internal API:
 | `POST /internal/v1/mcp/invoke` (service token + `X-Forwarded-Authorization`) | Each MCP tool call, as the MCP client's user |
 | `GET /internal/v1/mcp/tools` | Periodically, to keep `/mcp` in sync with wsn-service's catalogue |
 
-Testing: `cd wsn-ai-service && pip install -e ".[dev]" && ruff check . && ruff format --check . && mypy src && pytest --cov=src --cov-fail-under=100`. The 100% line coverage of `src` is gated in CI by the dedicated pipeline [`.github/workflows/wsn-ai-service.yaml`](.github/workflows/wsn-ai-service.yaml). A live smoke test against the real Mistral API is opt-in — `MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... pytest tests/test_live_smoke.py -v` — and CI runs it only when the `MISTRAL_API_KEY` secret is configured. Details in [wsn-ai-service/README.md](wsn-ai-service/README.md).
+Testing: `cd wsn-ai-service && pip install -e ".[dev]" && ruff check . && ruff format --check . && mypy src && pytest --cov=src --cov-fail-under=100`. The 100% line coverage of `src` is gated in CI by the `wsn-ai-service` job in [`ci.yaml`](.github/workflows/ci.yaml). A live smoke test against the real Mistral API is opt-in — `MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... pytest tests/test_live_smoke.py -v` — and CI runs it only when the `MISTRAL_API_KEY` secret is configured. Details in [wsn-ai-service/README.md](wsn-ai-service/README.md).
 
 ## Run locally
 
@@ -105,7 +105,7 @@ python -m wsn_ai_service.app
 cd console && pnpm install && pnpm dev
 ```
 
-To point the console at the backend when running it by hand, set `apiBaseUrl: "http://localhost:8080"` in `console/apps/web-ui/public/config.js` (the compose stack mounts the ready-made `console-config.js` from the repo root instead). With it empty, the console runs entirely in the browser on the demo platform, which needs nothing else.
+To point the console at the backend when running it by hand, set `apiBaseUrl: "http://localhost:8080"` in `console/apps/web-ui/public/config.js` (the compose stack mounts the ready-made `deploy/compose/console-config.js` instead). With it empty, the console runs entirely in the browser on the demo platform, which needs nothing else.
 
 Demo mode signs you in as one of the Northwind Retail personas (store manager, procurement officer, procurement manager, auditor, developer, administrator), each with different permissions.
 
@@ -114,7 +114,7 @@ Demo mode signs you in as one of the Northwind Retail personas (store manager, p
 - **Images:** `.github/workflows/images.yaml` builds `wsn-service`, `wsn-ai-service` and `console` from each component's multi-stage `Dockerfile` (linux/amd64 + arm64) and pushes them to `ghcr.io/thev1ndu`. Every image runs as a non-root user on a read-only-rootfs-compatible runtime (distroless for wsn-service, a dedicated user on python-slim for wsn-ai-service, unprivileged nginx for the console). Builds from `main` are tagged `main-<sha>-<run>`; `v*` tags publish the version.
 - **Deployment:** Flux applies `deploy/flux/clusters/<env>`: infrastructure controllers, then their instances, then the apps. Dev follows `main` through image automation; staging and production pin release tags.
 
-See [ROADMAP.md](ROADMAP.md) for current state and what's next, [FEATURES.md](FEATURES.md) for the full use-case/feature inventory, [T0D0.md](T0D0.md) for tasks and test steps.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for current state and what's next, [docs/FEATURES.md](docs/FEATURES.md) for the full use-case/feature inventory, [docs/T0D0.md](docs/T0D0.md) for tasks and test steps.
 
 ## Status
 
@@ -124,7 +124,7 @@ See [ROADMAP.md](ROADMAP.md) for current state and what's next, [FEATURES.md](FE
 | wsn-service: identity, data, business operations, connect, studio, event stream | Written, compiles, unit tested; not yet run against real infrastructure. |
 | wsn-service: workflows on Temporal | Written; compiles once `go mod tidy` fetches the Temporal dependencies; `-worker` mode still to wire. |
 | wsn-service: AI endpoints, observability endpoints | Not started; these routes answer 501. |
-| wsn-ai-service | Complete: agent runtime, planner, discovery, managed MCP server and per-step streaming to wsn-service; 100% line coverage gated in `.github/workflows/wsn-ai-service.yaml`, live Mistral smoke test opt-in. Tested in isolation; still waits on wsn-service's internal endpoints and run grants to be called for real. |
+| wsn-ai-service | Complete: agent runtime, planner, discovery, managed MCP server and per-step streaming to wsn-service; 100% line coverage gated in the `wsn-ai-service` job of `.github/workflows/ci.yaml`, live Mistral smoke test opt-in. Tested in isolation; still waits on wsn-service's internal endpoints and run grants to be called for real. |
 | wsn-observer | New: OTLP ingest (`/v1/traces|/v1/logs|/v1/metrics`) and query API (`/api/v1/traces|/trace|/logs|/metrics|/overview`) in Go, unit tested with `-race`; own CI job, image and Flux manifests (non-root distroless image, NetworkPolicy-limited). Services do not emit OTLP to it yet. |
 | CI, Docker images, Flux | Written; manifests render with kustomize; images build from Dockerfiles with non-root users; not yet run on GitHub or a cluster. |
 | Integration and end-to-end tests | Not started. |

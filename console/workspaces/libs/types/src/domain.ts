@@ -1,5 +1,5 @@
 // WorkspaceNow domain model shared by the console and the platform runtime.
-// Terms follow WorkspaceNow/CONTEXT.md.
+// Terms follow WorkspaceNow/docs/CONTEXT.
 
 export type Id = string;
 export type IsoDate = string;

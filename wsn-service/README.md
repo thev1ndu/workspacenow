@@ -1,6 +1,6 @@
 # wsn-service
 
-The WorkspaceNow platform service, in Go. It serves the API the console calls (`/api/v1`, defined in [`../openapi.yaml`](../openapi.yaml) and [`../APIs.md`](../APIs.md)), owns every business rule, and runs workflows on Temporal. One binary runs in several roles, each deployed separately.
+The WorkspaceNow platform service, in Go. It serves the API the console calls (`/api/v1`, defined in [`../openapi.yaml`](../openapi.yaml) and [`../docs/APIs.md`](../docs/APIs.md)), owns every business rule, and runs workflows on Temporal. One binary runs in several roles, each deployed separately.
 
 ## Roles
 

@@ -6,7 +6,7 @@ Go platform API (stdlib `net/http` + oapi-codegen, gorm/Postgres, NATS, Valkey, 
 
 | Need | Location |
 |---|---|
-| API contract (source of truth) | `../openapi.yaml`, `../APIs.md` |
+| API contract (source of truth) | `../openapi.yaml`, `../docs/APIs.md` |
 | oapi-codegen config | `api/oapi-codegen.yaml` |
 | Generated server interface/types | `internal/oapi/gen.go` — never hand-edit |
 | Route mounting, 501 fallback | `api/server.go` (`Modules`, embedded handlers + generated `api/unimplemented_gen.go`) |
@@ -57,4 +57,4 @@ Go platform API (stdlib `net/http` + oapi-codegen, gorm/Postgres, NATS, Valkey, 
 - [ ] `go build ./... && go vet ./... && go test -race ./...` green.
 - [ ] `gofmt -l` clean; `make lint` (golangci-lint) clean if available.
 - [ ] `sh scripts/gen-unimplemented.sh` rerun; fallback shrinks as modules claim operations.
-- [ ] `../T0D0.md` / `../COVERAGE.md` updated if behavior moved.
+- [ ] `../docs/T0D0.md` / `../docs/COVERAGE.md` updated if behavior moved.

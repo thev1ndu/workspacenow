@@ -11,15 +11,15 @@ One platform, four components. `agent-manager/` is a read-only reference checkou
 
 Shared sources of truth and plumbing:
 
-- **API contract**: `openapi.yaml` + `APIs.md` at the root. Never hand-edit generated code — `wsn-service/internal/oapi/gen.go` comes from `make -C wsn-service generate`.
-- **Roadmap / current state**: `ROADMAP.md`. **Status/task list**: `T0D0.md` (what's done, blockers, how to test). **Feature inventory (use cases)**: `FEATURES.md`. **Coverage numbers**: `COVERAGE.md`. Update when you change behavior.
+- **API contract**: `openapi.yaml` + `docs/APIs.md` at the root. Never hand-edit generated code — `wsn-service/internal/oapi/gen.go` comes from `make -C wsn-service generate`.
+- **Roadmap / current state**: `docs/ROADMAP.md`. **Status/task list**: `docs/T0D0.md` (what's done, blockers, how to test). **Feature inventory (use cases)**: `docs/FEATURES.md`. **Coverage numbers**: `docs/COVERAGE.md`. Update when you change behavior.
 - **Local stack** (from the repo root): `make setup` then `make up` / `make down` — compose in `deploy/compose/docker-compose.yml` (Postgres, Valkey, NATS, Temporal, RustFS, OpenBao + the four apps behind the `app` profile); variables come from the root `.env` (see `.env.example`).
 - **Deploy**: `deploy/compose` (local), `deploy/flux` (K8s, renders only), `.github/workflows` (CI, never run yet). Images build per-component with docker buildx to `ghcr.io/thev1ndu`.
 - **Telemetry**: wsn-service and wsn-ai-service export OTLP (spans/logs/metrics) to wsn-observer (`WSN_OBSERVER_URL`); the observer stores segment files under `WSN_OBSERVER_DATA_DIR` (PVC in K8s).
 
 ## Golden path: add or change an API endpoint
 
-1. Edit `openapi.yaml` (+ `APIs.md` if semantics change).
+1. Edit `openapi.yaml` (+ `docs/APIs.md` if semantics change).
 2. `make -C wsn-service generate` — regenerates `internal/oapi/gen.go`, the 501 fallback `api/unimplemented_gen.go` (emits only operations no module serves), and moq mocks.
 3. Implement the handler in the right module under `wsn-service/internal/<area>/`, register it in `api/server.go` (`Modules`) and wire deps in `app/app.go`.
 4. Regenerate the fallback again if needed; build fails loudly if a handler is missing.
@@ -33,6 +33,6 @@ Follow `console/AGENTS.md`: transport only via `libs/api-client` apis+hooks, rou
 ## Done checklist (any change)
 
 - [ ] The owning component's AGENTS.md checklist passes.
-- [ ] `T0D0.md` / `COVERAGE.md` updated if behavior or coverage moved.
+- [ ] `docs/T0D0.md` / `docs/COVERAGE.md` updated if behavior or coverage moved.
 - [ ] Generated files regenerated and committed, never hand-edited.
 - [ ] Nothing under `agent-manager/` touched.

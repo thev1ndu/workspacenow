@@ -61,4 +61,4 @@ process and query again — records must survive (they are files).
 
 - [ ] `make check && go vet ./... && go test -race ./...` green.
 - [ ] Storage rules above still hold (no DB dep crept into `go.mod`).
-- [ ] README + `../T0D0.md` / `../COVERAGE.md` updated if behavior moved.
+- [ ] README + `../docs/T0D0.md` / `../docs/COVERAGE.md` updated if behavior moved.

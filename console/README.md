@@ -1,7 +1,7 @@
 # WorkspaceNow console
 
 The WorkspaceNow Shell and its six Workspaces (Studio, Connect, Data, AI, Flow, Control), with a fully working
-demonstration of the Retail Operations scenario from `../PROPOSAL.md`. Vocabulary follows `../CONTEXT.md`.
+demonstration of the Retail Operations scenario from `../PROPOSAL.md`. Vocabulary follows `../docs/CONTEXT.md`.
 
 The demo needs no backend. `@workspacenow/mock-server` is an in-browser platform runtime that serves the
 installation's REST API: Entity Runtime, Business Operations, MCP tools, agent runs, durable-style workflows,

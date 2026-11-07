@@ -44,6 +44,11 @@ services:
     command: ["valkey-server", "--replicaof", "valkey", "6379"]
     depends_on: [valkey]
 
+  # HA overlay adds the standby observer's volume to the base volume-init.
+  volume-init:
+    command: ["sh", "-c", "chmod -R a+rwX /temporal /observer /observer-standby"]
+    volumes: ["observer-standby:/observer-standby"]
+
   wsn-observer:
     environment:
       WSN_OBSERVER_REPLICA_URL: http://wsn-observer-standby:9098

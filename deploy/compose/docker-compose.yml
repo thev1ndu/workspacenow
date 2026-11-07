@@ -66,8 +66,8 @@ services:
   # and need write access to their data dirs, so relax the permissions once at boot.
   volume-init:
     image: alpine:3.21
-    command: ["sh", "-c", "chmod -R a+rwX /temporal /observer /observer-standby"]
-    volumes: ["temporal:/temporal", "observer:/observer", "observer-standby:/observer-standby"]
+    command: ["sh", "-c", "chmod -R a+rwX /temporal /observer"]
+    volumes: ["temporal:/temporal", "observer:/observer"]
 
   # Temporal's development server: a single process with an in-memory or sqlite store and the web UI on :8233.
   temporal:

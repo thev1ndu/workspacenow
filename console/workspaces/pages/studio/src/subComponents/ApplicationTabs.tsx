@@ -18,6 +18,16 @@ export function AppOverviewTab({ app }: { app: Application }) {
             { label: "Lifecycle", value: <StatusChip status={app.lifecycle} /> },
             { label: "Version", value: <span className="tabular-nums">v{app.version}</span> },
             { label: "Slug", value: <code className="text-xs">{app.slug}</code> },
+            {
+              label: "SLO",
+              value: app.slo?.enabled ? (
+                <span className="tabular-nums">
+                  {`${(app.slo.targetSuccess * 100).toFixed(1)}% success · p95 ≤ ${app.slo.targetP95Ms} ms · ${app.slo.windowMinutes} min window`}
+                </span>
+              ) : (
+                <span className="text-muted">Disabled</span>
+              ),
+            },
             { label: "Created", value: formatDateTime(app.createdAt) },
             { label: "Updated", value: formatDateTime(app.updatedAt) },
             {

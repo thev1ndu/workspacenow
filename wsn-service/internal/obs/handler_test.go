@@ -11,6 +11,7 @@ import (
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/studio"
 )
 
 type fakeSvc struct {
@@ -98,14 +99,17 @@ func (f *fakeSvc) AckFire(context.Context, kernel.ExecutionContext, string, stri
 	return nil, nil
 }
 func (f *fakeSvc) EvaluateAlerts(context.Context, time.Time) ([]AlertFire, error) { return nil, nil }
-func (f *fakeSvc) SLOs(context.Context) ([]SLO, error)                            { return nil, nil }
+func (f *fakeSvc) SLOs(context.Context, string) ([]SLO, error)                    { return nil, nil }
 func (f *fakeSvc) CreateSLO(context.Context, kernel.ExecutionContext, SLO) (*SLO, error) {
 	return nil, nil
 }
 func (f *fakeSvc) SLOStatusByID(context.Context, string) (map[string]any, error) { return nil, nil }
 func (f *fakeSvc) RecordSLOCall(context.Context, string, time.Duration, bool)    {}
-func (f *fakeSvc) Status(context.Context) map[string]any                         { return nil }
-func (f *fakeSvc) Backups(context.Context) ([]BackupRecord, error)               { return nil, nil }
+func (f *fakeSvc) SyncAppSLOs(context.Context, kernel.ExecutionContext, string, []string, *studio.AppSLO) error {
+	return nil
+}
+func (f *fakeSvc) Status(context.Context) map[string]any           { return nil }
+func (f *fakeSvc) Backups(context.Context) ([]BackupRecord, error) { return nil, nil }
 
 func TestListAuditDeniedWithoutPermission(t *testing.T) {
 	auditor := &fakeAuditor{}

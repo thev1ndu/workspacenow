@@ -183,3 +183,19 @@ async def test_planner_returns_the_console_plan_shape() -> None:
     assert plan["entities"][0]["relationships"] == []
     assert plan["prompt"] == "Track leave"
     assert "fix it" in llm.sent[0][1]["content"]
+    # A plan without an SLO gets the disabled default; an Architect-proposed SLO is kept.
+    assert plan["slo"] == {"enabled": False, "targetSuccess": 0.99, "targetP95Ms": 500, "windowMinutes": 10080}
+
+
+async def test_planner_edit_keeps_an_architect_proposed_slo() -> None:
+    llm = ScriptedModel(
+        Completion(
+            '{"name":"Leave Tracker","description":"d","ownerDepartmentId":"dep-hr","entities":[],'
+            '"pages":[],"slo":{"enabled":true,"targetSuccess":0.999,"targetP95Ms":250,"windowMinutes":1440}}'
+        )
+    )
+    models = __import__("wsn_ai_service.models", fromlist=["PlanEditRequest"])
+    plan = await Planner(llm, "mistral-large-latest").edit(  # type: ignore[arg-type]
+        models.PlanEditRequest(prompt="make it 99.9% reliable within 250ms", current={"name": "Leave Tracker"})
+    )
+    assert plan["slo"] == {"enabled": True, "targetSuccess": 0.999, "targetP95Ms": 250, "windowMinutes": 1440}

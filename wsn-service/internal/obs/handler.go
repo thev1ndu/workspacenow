@@ -201,7 +201,13 @@ func (h *Handler) AckAlertFire(w http.ResponseWriter, r *http.Request, ruleId, f
 	httpx.OK(w, out)
 }
 
-func (h *Handler) ListSLOs(w http.ResponseWriter, r *http.Request) { httpx.ListFrom(w, r, h.svc.SLOs) }
+func (h *Handler) ListSLOs(w http.ResponseWriter, r *http.Request, params oapi.ListSLOsParams) {
+	applicationID := ""
+	if params.ApplicationId != nil {
+		applicationID = *params.ApplicationId
+	}
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]SLO, error) { return h.svc.SLOs(ctx, applicationID) })
+}
 
 func (h *Handler) CreateSLO(w http.ResponseWriter, r *http.Request) {
 	var slo SLO

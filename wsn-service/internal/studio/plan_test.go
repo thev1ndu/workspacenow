@@ -65,6 +65,18 @@ func TestValidatePlanChangesKeepsRecordsValid(t *testing.T) {
 	}, validatePlanChanges(saved, p))
 }
 
+func TestValidatePlanChecksSloTargets(t *testing.T) {
+	p := validPlan()
+	p.SLO = &AppSLO{Enabled: true, TargetSuccess: 0.999, TargetP95Ms: 500, WindowMinutes: 10080}
+	assert.Empty(t, validatePlan(p, nil))
+
+	p.SLO = &AppSLO{Enabled: false, TargetSuccess: 0, TargetP95Ms: 0, WindowMinutes: 0}
+	assert.Empty(t, validatePlan(p, nil)) // disabled: targets are not checked
+
+	p.SLO = &AppSLO{Enabled: true, TargetSuccess: 1.5, TargetP95Ms: 0, WindowMinutes: 0}
+	assert.Equal(t, []string{"SLO: the success target must be between 0 and 1 (e.g. 0.999)"}, validatePlan(p, nil))
+}
+
 func TestBumpAndSlug(t *testing.T) {
 	assert.Equal(t, "1.3.0", bump("1.2.0"))
 	assert.Equal(t, "leave-tracker", slugify("  Leave Tracker! "))
@@ -77,6 +89,7 @@ func TestPlanFromAppRebuildsTheEditableBlueprint(t *testing.T) {
 		Description: "Stock and products", OwnerDepartmentID: "dep-store",
 		EntityNames: []string{"Product"},
 		Pages:       []Page{{ID: "page-1", Title: "Products", Kind: "list", Entity: "Product"}},
+		SLO:         &AppSLO{Enabled: true, TargetSuccess: 0.999, TargetP95Ms: 300, WindowMinutes: 1440},
 	}
 	saved := []data.Entity{{
 		Name: "Product", Label: "Product", Description: "A product",
@@ -90,4 +103,5 @@ func TestPlanFromAppRebuildsTheEditableBlueprint(t *testing.T) {
 		Name: "Product", Label: "Product", Description: "A product",
 		Fields: []data.Field{{Name: "sku", Label: "SKU", Type: data.FieldString, Required: true}},
 	}}, p.Entities)
+	assert.Equal(t, &AppSLO{Enabled: true, TargetSuccess: 0.999, TargetP95Ms: 300, WindowMinutes: 1440}, p.SLO)
 }

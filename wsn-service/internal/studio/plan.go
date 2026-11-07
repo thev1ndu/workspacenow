@@ -134,6 +134,16 @@ func validatePlan(plan Plan, existing []string) []string {
 			p = append(p, scanProblems(where, page.Scan, plan.Entities[j])...)
 		}
 	}
+	if plan.SLO != nil && plan.SLO.Enabled {
+		switch {
+		case plan.SLO.TargetSuccess <= 0 || plan.SLO.TargetSuccess > 1:
+			p = append(p, "SLO: the success target must be between 0 and 1 (e.g. 0.999)")
+		case plan.SLO.TargetP95Ms <= 0:
+			p = append(p, "SLO: the p95 target must be a positive number of milliseconds")
+		case plan.SLO.WindowMinutes <= 0:
+			p = append(p, "SLO: the window must be a positive number of minutes")
+		}
+	}
 	return p
 }
 

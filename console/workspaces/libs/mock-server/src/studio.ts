@@ -6,7 +6,7 @@ import type {
   EnvironmentKey,
   Release,
 } from "@workspacenow/types";
-import { ownedEntities, planFromApplication, planOperations, validatePlan, validatePlanChanges } from "@workspacenow/types";
+import { DEFAULT_SLO, ownedEntities, planFromApplication, planOperations, validatePlan, validatePlanChanges } from "@workspacenow/types";
 import { fail, type ExecutionContext, type Platform } from "./platform";
 
 type PlannedEntity = ApplicationPlan["entities"][number];
@@ -162,6 +162,7 @@ export function planApplication(prompt: string): ApplicationPlan {
       operations: planOperations(template.entities),
       workflows: template.workflows,
       permissions: ["studio.manage to edit", "data.manage to change entities", "control.manage to grant access"],
+      slo: { ...DEFAULT_SLO },
     };
   }
   const words = text.match(/[a-z]+/g)?.filter((w) => w.length > 3 && !["build", "create", "application", "with", "that", "manage", "management", "track"].includes(w)) ?? [];
@@ -190,7 +191,26 @@ export function planApplication(prompt: string): ApplicationPlan {
     operations: planOperations([entity]),
     workflows: [],
     permissions: ["studio.manage to edit"],
+    slo: { ...DEFAULT_SLO },
   };
+}
+
+/** Keeps the SLO records tagged with the app in step with its plan: one per operation while enabled. */
+function syncAppSlos(platform: Platform, appId: string, operations: string[], slo: ApplicationPlan["slo"]): void {
+  platform.state.slos = platform.state.slos.filter((s) => s.applicationId !== appId);
+  if (!slo?.enabled) return;
+  const now = platform.now();
+  for (const operation of operations) {
+    platform.state.slos.push({
+      id: platform.nextId("slo"),
+      operation,
+      applicationId: appId,
+      targetSuccess: slo.targetSuccess,
+      targetP95Ms: slo.targetP95Ms,
+      windowMinutes: slo.windowMinutes,
+      createdAt: now,
+    });
+  }
 }
 
 function slugify(name: string): string {
@@ -304,6 +324,7 @@ export function applyPlan(platform: Platform, ctx: ExecutionContext, plan: Appli
     version: "0.1.0",
     entityNames: plan.entities.map((e) => e.name),
     pages: plan.pages.map((p) => ({ title: p.title, kind: p.kind, entity: p.entity, scan: p.scan, id: platform.nextId("page") })),
+    slo: plan.slo ? { ...plan.slo } : undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -313,6 +334,7 @@ export function applyPlan(platform: Platform, ctx: ExecutionContext, plan: Appli
     addEntity(platform, app, e, now);
     addCrudOperations(platform, api.id, e);
   }
+  syncAppSlos(platform, app.id, planOperations(plan.entities), plan.slo);
   platform.audit(ctx, "application.create", `application/${app.id}`, "allowed", plan.prompt ? `From prompt: ${plan.prompt}` : "Built in the visual editor");
   platform.publish(ctx, "Application.Created", `application:${app.slug}`, { applicationId: app.id });
   return app;
@@ -360,7 +382,9 @@ export function updateApplication(platform: Platform, ctx: ExecutionContext, app
     scan: p.scan,
     id: p.id && app.pages.some((existing) => existing.id === p.id) ? p.id : platform.nextId("page"),
   }));
+  app.slo = plan.slo ? { ...plan.slo } : undefined;
   app.updatedAt = now;
+  syncAppSlos(platform, app.id, planOperations(plan.entities), plan.slo);
   platform.audit(ctx, "application.update", `application/${app.id}`, "allowed", "Edited in the visual editor");
   platform.publish(ctx, "Application.Updated", `application:${app.slug}`, { applicationId: app.id });
   return app;

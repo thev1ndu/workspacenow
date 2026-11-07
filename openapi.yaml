@@ -1458,6 +1458,8 @@ paths:
       tags: [Control]
       operationId: listSLOs
       summary: SLOs per business operation
+      parameters:
+        - { name: applicationId, in: query, schema: { type: string }, description: "Only SLOs covering this application's operations (per-app SLO)" }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SloList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -1768,6 +1770,7 @@ components:
         version: { type: string, description: "Semantic version, e.g. 1.2.0" }
         entityNames: { type: array, items: { type: string } }
         pages: { type: array, items: { $ref: "#/components/schemas/AppPage" } }
+        slo: { $ref: "#/components/schemas/AppSlo", description: "Per-application SLO switch and targets; when enabled, applying the plan tracks one SLO per generated operation" }
         createdAt: { $ref: "#/components/schemas/IsoDate" }
         updatedAt: { $ref: "#/components/schemas/IsoDate" }
     AppPage:
@@ -1821,6 +1824,7 @@ components:
         operations: { type: array, items: { type: string }, description: "e.g. PurchaseRequest.create" }
         workflows: { type: array, items: { type: string } }
         permissions: { type: array, items: { type: string } }
+        slo: { $ref: "#/components/schemas/AppSlo", description: "Per-application SLO: the Architect sets enabled=true with targets when the request asks for reliability guarantees" }
     Release:
       type: object
       required: [id, applicationId, version, notes, createdAt, createdBy]
@@ -2569,6 +2573,7 @@ components:
       properties:
         id: { type: string }
         operation: { type: string }
+        applicationId: { type: string, description: "Set when the SLO was defined for an application; one per generated operation" }
         targetSuccess: { type: number, description: "0..1 required success rate" }
         targetP95Ms: { type: integer }
         windowMinutes: { type: integer }
@@ -2578,9 +2583,18 @@ components:
       required: [operation, targetSuccess, targetP95Ms, windowMinutes]
       properties:
         operation: { type: string }
+        applicationId: { type: string }
         targetSuccess: { type: number }
         targetP95Ms: { type: integer }
         windowMinutes: { type: integer }
+    AppSlo:
+      type: object
+      required: [enabled, targetSuccess, targetP95Ms, windowMinutes]
+      properties:
+        enabled: { type: boolean, description: "Whether the application's operations get SLOs tracked" }
+        targetSuccess: { type: number, description: "0..1 required success rate, e.g. 0.999" }
+        targetP95Ms: { type: integer, description: "Required p95 latency in milliseconds" }
+        windowMinutes: { type: integer, description: "Rolling evaluation window in minutes" }
     SloList:
       type: object
       required: [items, totalCount]

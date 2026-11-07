@@ -3,7 +3,7 @@ import { Button, Chip, Tabs } from "@heroui/react";
 import { Check, PencilToSquare, Sparkles, Xmark } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useApplyApplicationPlan, useCan, useListEntities, usePlanApplication } from "@workspacenow/api-client";
-import { buildPath, routes, validatePlan, type ApplicationPlan } from "@workspacenow/types";
+import { DEFAULT_SLO, buildPath, routes, validatePlan, type ApplicationPlan } from "@workspacenow/types";
 import { PageLayout, SectionCard, TextInput, errorMessage } from "@workspacenow/views";
 import { Notice } from "./subComponents/Notice";
 import { PlanEditor, blankPlan } from "./subComponents/PlanEditor";
@@ -73,7 +73,7 @@ export function BuilderPage() {
                   <Button
                     isDisabled={!prompt.trim()}
                     isPending={planApplication.isPending}
-                    onPress={() => planApplication.mutate(prompt, { onSuccess: (result) => setPlan(result) })}
+                    onPress={() => planApplication.mutate(prompt, { onSuccess: (result) => setPlan({ ...result, slo: result.slo ?? { ...DEFAULT_SLO } }) })}
                   >
                     {planApplication.isPending ? "Planning…" : "Generate plan"}
                   </Button>

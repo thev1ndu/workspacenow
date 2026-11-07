@@ -1,4 +1,4 @@
-import type { Application, ApplicationPlan, Entity, EntityField, ScanConfig } from "./domain";
+import type { AppSlo, Application, ApplicationPlan, Entity, EntityField, ScanConfig } from "./domain";
 
 type PlannedEntity = ApplicationPlan["entities"][number];
 
@@ -20,6 +20,9 @@ export function toFieldName(label: string): string {
   const pascal = toEntityName(label);
   return pascal.charAt(0).toLowerCase() + pascal.slice(1);
 }
+
+/** The SLO configuration a plan gets when neither the Architect nor the editor sets one: off. */
+export const DEFAULT_SLO: AppSlo = { enabled: false, targetSuccess: 0.99, targetP95Ms: 500, windowMinutes: 10080 };
 
 /** The CRUD operations an entity gets when a plan is applied. */
 export function planOperations(entities: Array<Pick<PlannedEntity, "name">>): string[] {
@@ -84,6 +87,11 @@ export function validatePlan(plan: ApplicationPlan, existingEntityNames: string[
     if (!page.entity || !planned.includes(page.entity)) problems.push(`${where}: choose one of this plan's entities`);
     else if (page.kind === "scan") problems.push(...scanProblems(where, page.scan, plan.entities.find((e) => e.name === page.entity)!));
   });
+  if (plan.slo?.enabled) {
+    if (!(plan.slo.targetSuccess > 0 && plan.slo.targetSuccess <= 1)) problems.push("SLO: the success target must be between 0 and 1 (e.g. 0.999)");
+    if (!(plan.slo.targetP95Ms > 0)) problems.push("SLO: the p95 target must be a positive number of milliseconds");
+    if (!(plan.slo.windowMinutes > 0)) problems.push("SLO: the window must be a positive number of minutes");
+  }
   return problems;
 }
 
@@ -106,6 +114,7 @@ export function planFromApplication(app: Application, entities: Entity[]): Appli
     operations: planOperations(owned),
     workflows: [],
     permissions: [],
+    slo: app.slo ? structuredClone(app.slo) : { ...DEFAULT_SLO },
   };
 }
 

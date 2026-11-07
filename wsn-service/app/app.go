@@ -191,16 +191,16 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	if err != nil {
 		return err
 	}
-	studioSvc := studio.NewService(db, auditor, publisher, runtime, artifacts, aiClient)
-	hub := stream.NewHub(db, runtime)
-	g.Go(func() error { return runHub(hub) })
-
 	obsClient := observer.NewClient(cfg.Observer.URL, cfg.Observer.Token)
 	obsSvc := obs.NewService(obs.Deps{
 		DB: db, Cache: c, NATS: nc, Observer: obsClient, ServiceName: cfg.Observer.ServiceName,
 		AIHealthURL: cfg.AI.ServiceURL + "/healthz", Connect: connectSvc, Runtime: runtime, Identity: identitySvc,
 		Publisher: publisher, Auditor: auditor,
 	})
+	studioSvc := studio.NewService(db, auditor, publisher, runtime, artifacts, aiClient, obsSvc)
+	hub := stream.NewHub(db, runtime)
+	g.Go(func() error { return runHub(hub) })
+
 	engine.SetOnInvoke(func(op string, d time.Duration, failed bool) {
 		obsSvc.RecordSLOCall(ctx, op, d, failed)
 	})

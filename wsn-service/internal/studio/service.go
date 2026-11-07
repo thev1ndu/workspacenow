@@ -66,6 +66,11 @@ type Service interface {
 	Unpin(ctx context.Context, userID, appID string) ([]string, error)
 }
 
+// SLOManager keeps an application's SLO records in step with its plan; implemented by the obs service.
+type SLOManager interface {
+	SyncAppSLOs(ctx context.Context, ec kernel.ExecutionContext, appID string, operations []string, slo *AppSLO) error
+}
+
 type service struct {
 	db          *gorm.DB
 	auditor     kernel.Auditor
@@ -73,6 +78,7 @@ type service struct {
 	rt          data.Runtime
 	artifacts   objectstore.Store
 	planner     Planner
+	slos        SLOManager
 	apps        *docstore.Collection[Application]
 	releases    *docstore.Collection[Release]
 	deployments *docstore.Collection[Deployment]
@@ -83,9 +89,9 @@ type service struct {
 	operations  *docstore.Collection[connect.Operation]
 }
 
-func NewService(db *gorm.DB, auditor kernel.Auditor, events kernel.Publisher, rt data.Runtime, artifacts objectstore.Store, planner Planner) Service {
+func NewService(db *gorm.DB, auditor kernel.Auditor, events kernel.Publisher, rt data.Runtime, artifacts objectstore.Store, planner Planner, slos SLOManager) Service {
 	return &service{
-		db: db, auditor: auditor, events: events, rt: rt, artifacts: artifacts, planner: planner,
+		db: db, auditor: auditor, events: events, rt: rt, artifacts: artifacts, planner: planner, slos: slos,
 		apps:        docstore.NewCollection(db, "applications", func(a *Application) string { return a.ID }),
 		releases:    docstore.NewCollection(db, "releases", func(r *Release) string { return r.ID }),
 		deployments: docstore.NewCollection(db, "deployments", func(d *Deployment) string { return d.ID }),
@@ -227,6 +233,7 @@ func planFromApp(app *Application, saved []data.Entity) Plan {
 		Description:       app.Description,
 		OwnerDepartmentID: app.OwnerDepartmentID,
 		Pages:             app.Pages,
+		SLO:               app.SLO,
 	}
 	for _, e := range saved {
 		p.Entities = append(p.Entities, PlannedEntity{
@@ -267,6 +274,7 @@ func (s *service) Apply(ctx context.Context, ec kernel.ExecutionContext, plan Pl
 			p.ID = kernel.NewID("page")
 			app.Pages = append(app.Pages, p)
 		}
+		app.SLO = plan.SLO
 		if err := s.apps.Put(ctx, app); err != nil {
 			return err
 		}
@@ -278,6 +286,9 @@ func (s *service) Apply(ctx context.Context, ec kernel.ExecutionContext, plan Pl
 			if err := s.addEntity(ctx, app, api, e, now); err != nil {
 				return err
 			}
+		}
+		if err := s.syncSLOs(ctx, ec, app.ID, plan); err != nil {
+			return err
 		}
 		detail := "Built in the visual editor"
 		if plan.Prompt != "" {
@@ -364,7 +375,11 @@ func (s *service) Update(ctx context.Context, ec kernel.ExecutionContext, id str
 			pages = append(pages, p)
 		}
 		app.Pages, app.UpdatedAt = pages, now
+		app.SLO = plan.SLO
 		if err := s.apps.Put(ctx, app); err != nil {
+			return err
+		}
+		if err := s.syncSLOs(ctx, ec, app.ID, plan); err != nil {
 			return err
 		}
 		if err := s.auditor.Record(ctx, ec, "application.update", "application/"+app.ID, kernel.OutcomeAllowed, "Edited in the visual editor"); err != nil {
@@ -374,6 +389,14 @@ func (s *service) Update(ctx context.Context, ec kernel.ExecutionContext, id str
 		return err
 	})
 	return app, err
+}
+
+// syncSLOs applies the plan's SLO switch: one SLO per generated operation while enabled, none otherwise.
+func (s *service) syncSLOs(ctx context.Context, ec kernel.ExecutionContext, appID string, plan Plan) error {
+	if s.slos == nil {
+		return nil
+	}
+	return s.slos.SyncAppSLOs(ctx, ec, appID, planOperations(plan.Entities), plan.SLO)
 }
 
 func sameEntity(e data.Entity, p PlannedEntity) bool {

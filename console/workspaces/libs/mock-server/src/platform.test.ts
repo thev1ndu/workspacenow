@@ -307,6 +307,28 @@ describe("studio", () => {
     expect(platform.state.audit.find((a) => a.resource === `application/${app.id}`)?.detail).toBe("Built in the visual editor");
   });
 
+  it("tracks per-app SLOs when the plan enables them and drops them when disabled", () => {
+    const platform = createDemoPlatform();
+    const ctx = platform.userContext("u-sahan", "studio");
+    const plan = planApplication("Create a customer support application to track customer tickets by priority and status.");
+    plan.slo = { enabled: true, targetSuccess: 0.999, targetP95Ms: 400, windowMinutes: 1440 };
+    const app = applyPlan(platform, ctx, plan);
+    const appSlos = platform.state.slos.filter((s) => s.applicationId === app.id);
+    expect(appSlos.length).toBe(plan.entities.length * 4); // one per generated CRUD operation
+    expect(appSlos.every((s) => s.targetSuccess === 0.999 && s.targetP95Ms === 400 && s.windowMinutes === 1440)).toBe(true);
+    expect(appSlos.map((s) => s.operation)).toContain("Customer.list");
+    // The list endpoint filters by application.
+    const filtered = get(platform, `/slos?applicationId=${app.id}`).body as { items: Slo[] };
+    expect(filtered.items.length).toBe(appSlos.length);
+    expect((get(platform, "/slos").body as { items: Slo[] }).items.length).toBe(appSlos.length); // nothing else was seeded
+    // Disabling the SLO in an edit removes the app's SLOs again.
+    const revised = planFromApplication(app, platform.state.entities);
+    revised.slo = { enabled: false, targetSuccess: 0.999, targetP95Ms: 400, windowMinutes: 1440 };
+    const updated = updateApplication(platform, ctx, app.id, revised);
+    expect(updated.slo?.enabled).toBe(false);
+    expect(platform.state.slos.filter((s) => s.applicationId === app.id)).toHaveLength(0);
+  });
+
   it("refuses an edited plan that is not valid", () => {
     const platform = createDemoPlatform();
     const plan = planApplication("Build an asset tracking application");

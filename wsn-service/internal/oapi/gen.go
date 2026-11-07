@@ -1916,6 +1916,21 @@ type AppPage struct {
 // AppPageKind `pos` is the seeded store till; not offered in the builder
 type AppPageKind string
 
+// AppSlo defines model for AppSlo.
+type AppSlo struct {
+	// Enabled Whether the application's operations get SLOs tracked
+	Enabled bool `json:"enabled"`
+
+	// TargetP95Ms Required p95 latency in milliseconds
+	TargetP95Ms int `json:"targetP95Ms"`
+
+	// TargetSuccess 0..1 required success rate, e.g. 0.999
+	TargetSuccess float32 `json:"targetSuccess"`
+
+	// WindowMinutes Rolling evaluation window in minutes
+	WindowMinutes int `json:"windowMinutes"`
+}
+
 // Application defines model for Application.
 type Application struct {
 	CreatedAt         IsoDate        `json:"createdAt"`
@@ -1926,6 +1941,7 @@ type Application struct {
 	Name              string         `json:"name"`
 	OwnerDepartmentId string         `json:"ownerDepartmentId"`
 	Pages             []AppPage      `json:"pages"`
+	Slo               *AppSlo        `json:"slo,omitempty"`
 	Slug              string         `json:"slug"`
 	UpdatedAt         IsoDate        `json:"updatedAt"`
 
@@ -1951,6 +1967,7 @@ type ApplicationPlan struct {
 	Pages             []PlannedPage `json:"pages"`
 	Permissions       []string      `json:"permissions"`
 	Prompt            string        `json:"prompt"`
+	Slo               *AppSlo       `json:"slo,omitempty"`
 	Workflows         []string      `json:"workflows"`
 }
 
@@ -2739,10 +2756,12 @@ type RowFilterOp string
 
 // SLO defines model for SLO.
 type SLO struct {
-	CreatedAt   IsoDate `json:"createdAt"`
-	Id          string  `json:"id"`
-	Operation   string  `json:"operation"`
-	TargetP95Ms int     `json:"targetP95Ms"`
+	// ApplicationId Set when the SLO was defined for an application; one per generated operation
+	ApplicationId *string `json:"applicationId,omitempty"`
+	CreatedAt     IsoDate `json:"createdAt"`
+	Id            string  `json:"id"`
+	Operation     string  `json:"operation"`
+	TargetP95Ms   int     `json:"targetP95Ms"`
 
 	// TargetSuccess 0..1 required success rate
 	TargetSuccess float32 `json:"targetSuccess"`
@@ -2833,6 +2852,7 @@ type Session struct {
 
 // SloInput defines model for SloInput.
 type SloInput struct {
+	ApplicationId *string `json:"applicationId,omitempty"`
 	Operation     string  `json:"operation"`
 	TargetP95Ms   int     `json:"targetP95Ms"`
 	TargetSuccess float32 `json:"targetSuccess"`
@@ -3467,6 +3487,12 @@ type RunSidekickJSONBody struct {
 	// ApplicationId Confine the run to this application's tools
 	ApplicationId *string `json:"applicationId,omitempty"`
 	Prompt        string  `json:"prompt"`
+}
+
+// ListSLOsParams defines parameters for ListSLOs.
+type ListSLOsParams struct {
+	// ApplicationId Only SLOs covering this application's operations (per-app SLO)
+	ApplicationId *string `form:"applicationId,omitempty" json:"applicationId,omitempty"`
 }
 
 // ListTracesParams defines parameters for ListTraces.
@@ -4441,7 +4467,7 @@ type ServerInterface interface {
 	RunSidekick(w http.ResponseWriter, r *http.Request)
 	// SLOs per business operation
 	// (GET /slos)
-	ListSLOs(w http.ResponseWriter, r *http.Request)
+	ListSLOs(w http.ResponseWriter, r *http.Request, params ListSLOsParams)
 	// Define an SLO for a business operation
 	// (POST /slos)
 	CreateSLO(w http.ResponseWriter, r *http.Request)
@@ -7168,14 +7194,27 @@ func (siw *ServerInterfaceWrapper) RunSidekick(w http.ResponseWriter, r *http.Re
 // ListSLOs operation middleware
 func (siw *ServerInterfaceWrapper) ListSLOs(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSLOsParams
+
+	// ------------- Optional query parameter "applicationId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "applicationId", r.URL.Query(), &params.ApplicationId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "applicationId", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListSLOs(w, r)
+		siw.Handler.ListSLOs(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

@@ -54,17 +54,37 @@ func PendingIDs(applied, all []string) []string {
 }
 
 // dataPlatformDepth adds soft deletes, record history and entity version snapshots.
+// Every step is guarded so the migration is idempotent: 001 already creates records with
+// deleted_at/deleted_by (they are fields on the Record model), and a database that ran an
+// earlier build of 002 must not fail on a second pass either.
 func dataPlatformDepth(tx *gorm.DB) error {
-	if err := tx.Migrator().AddColumn(&models.Record{}, "DeletedAt"); err != nil {
-		return fmt.Errorf("records.deleted_at: %w", err)
+	m := tx.Migrator()
+	if !m.HasColumn(&models.Record{}, "DeletedAt") {
+		if err := m.AddColumn(&models.Record{}, "DeletedAt"); err != nil {
+			return fmt.Errorf("records.deleted_at: %w", err)
+		}
 	}
-	if err := tx.Migrator().AddColumn(&models.Record{}, "DeletedBy"); err != nil {
-		return fmt.Errorf("records.deleted_by: %w", err)
+	if !m.HasColumn(&models.Record{}, "DeletedBy") {
+		if err := m.AddColumn(&models.Record{}, "DeletedBy"); err != nil {
+			return fmt.Errorf("records.deleted_by: %w", err)
+		}
 	}
-	if err := tx.Migrator().CreateIndex(&models.Record{}, "records_deleted"); err != nil {
-		return err
+	if !m.HasIndex(&models.Record{}, "records_deleted") {
+		if err := m.CreateIndex(&models.Record{}, "records_deleted"); err != nil {
+			return fmt.Errorf("records_deleted index: %w", err)
+		}
 	}
-	return tx.Migrator().CreateTable(&models.RecordHistory{}, &models.EntityVersion{})
+	if !m.HasTable(&models.RecordHistory{}) {
+		if err := m.CreateTable(&models.RecordHistory{}); err != nil {
+			return fmt.Errorf("record_history: %w", err)
+		}
+	}
+	if !m.HasTable(&models.EntityVersion{}) {
+		if err := m.CreateTable(&models.EntityVersion{}); err != nil {
+			return fmt.Errorf("entity_versions: %w", err)
+		}
+	}
+	return nil
 }
 
 func initialSchema(tx *gorm.DB) error {

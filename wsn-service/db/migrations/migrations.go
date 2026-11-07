@@ -25,11 +25,11 @@ var all = []*gormigrate.Migration{
 	{ID: "002_data_platform_depth", Migrate: dataPlatformDepth},
 }
 
-// Pending returns the IDs of migrations not yet recorded in schema_migrations.
+// Pending returns the IDs of migrations not yet recorded in migration_history (gormigrate's table).
 func Pending(db *gorm.DB) ([]string, error) {
 	var applied []string
-	if err := db.Raw("SELECT id FROM schema_migrations ORDER BY id").Scan(&applied).Error; err != nil {
-		return nil, fmt.Errorf("read schema_migrations: %w", err)
+	if err := db.Raw("SELECT id FROM migration_history ORDER BY id").Scan(&applied).Error; err != nil {
+		return nil, fmt.Errorf("read migration_history: %w", err)
 	}
 	ids := make([]string, 0, len(all))
 	for _, m := range all {

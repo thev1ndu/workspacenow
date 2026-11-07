@@ -62,12 +62,21 @@ services:
     ports: ["4222:4222", "8222:8222"]
     volumes: ["nats:/data"]
 
+  # Named volumes are root-owned on first use; temporal and wsn-observer run as non-root
+  # and need write access to their data dirs, so relax the permissions once at boot.
+  volume-init:
+    image: alpine:3.21
+    command: ["sh", "-c", "chmod -R a+rwX /temporal /observer /observer-standby"]
+    volumes: ["temporal:/temporal", "observer:/observer", "observer-standby:/observer-standby"]
+
   # Temporal's development server: a single process with an in-memory or sqlite store and the web UI on :8233.
   temporal:
     image: temporalio/temporal:1.4.1
     command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
     ports: ["7233:7233", "8233:8233"]
     volumes: ["temporal:/data"]
+    depends_on:
+      volume-init: { condition: service_completed_successfully }
 
   # S3-compatible object storage. MinIO's public images now require a login on both Docker Hub
   # and quay.io, so the local stack runs RustFS — a drop-in MinIO-compatible server on the same
@@ -113,6 +122,8 @@ services:
       WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
     ports: ["9098:9098"]
     volumes: ["observer:/data"]
+    depends_on:
+      volume-init: { condition: service_completed_successfully }
 
   wsn-service-migrate:
     profiles: ["app"]

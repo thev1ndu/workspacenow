@@ -31,7 +31,7 @@ const router = createBrowserRouter([
           {
             element: <Layout />,
             children: [
-              { index: true, element: <OverviewPage workspaces={workspaces} /> },
+              { index: true, element: <OverviewPage /> },
               ...workspaces.map((workspace) => ({ path: workspace.basePath, children: workspace.routes })),
               { path: "*", element: <NotFoundPage /> },
             ],

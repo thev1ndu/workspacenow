@@ -69,21 +69,31 @@ services:
     ports: ["7233:7233", "8233:8233"]
     volumes: ["temporal:/data"]
 
+  # S3-compatible object storage. MinIO's public images now require a login on both Docker Hub
+  # and quay.io, so the local stack runs RustFS — a drop-in MinIO-compatible server on the same
+  # ports (9000 API / 9001 console). Production (Flux) runs the real MinIO operator; the S3 API
+  # and the path-style client in wsn-service are identical either way.
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
-    command: ["server", "/data", "--console-address", ":9001"]
+    image: rustfs/rustfs:1.0.4
+    command: ["server", "/data"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-workspacenow}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
+      RUSTFS_ACCESS_KEY: ${MINIO_ROOT_USER:-workspacenow}
+      RUSTFS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
     ports: ["9000:9000", "9001:9001"]
     volumes: ["minio:/data"]
 
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+    image: amazon/aws-cli:2.39.6
     depends_on: [minio]
-    entrypoint: >
-      /bin/sh -c "until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-workspacenow} ${MINIO_ROOT_PASSWORD:-workspacenow-secret}; do sleep 1; done;
-      mc mb --ignore-existing local/workspacenow"
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-workspacenow}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until aws --endpoint-url http://minio:9000 s3api list-buckets >/dev/null 2>&1; do sleep 1; done;
+        aws --endpoint-url http://minio:9000 s3api create-bucket --bucket ${S3_BUCKET:-workspacenow} || true
 
   # OpenBao in dev mode: root token "root", KV v2 at secret/. Integration credentials live here.
   openbao:

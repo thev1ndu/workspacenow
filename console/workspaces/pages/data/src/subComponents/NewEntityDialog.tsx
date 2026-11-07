@@ -54,7 +54,7 @@ export function FieldRowEditor({
           required
           value={row.type}
           onChange={(type) => onChange({ ...row, type: type as FieldType })}
-          options={FIELD_TYPES.map((t) => ({ value: t, label: t }))}
+          options={FIELD_TYPES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
         />
         {onRemove ? (
           <Button isIconOnly variant="ghost" aria-label="Remove field" onPress={onRemove}>

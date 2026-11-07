@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Alert, Chip, Tabs } from "@heroui/react";
 import { useSearchParams } from "react-router-dom";
-import { useListRecords } from "@workspacenow/api-client";
+import { useListRecords, useSession } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
 import { NoDataFound } from "@workspacenow/views";
 import { PreviewPageRenderer } from "../subComponents/PreviewPageRenderer";
@@ -22,7 +23,35 @@ function TabCount({ entityName }: { entityName: string }) {
  */
 export function ApplicationView({ app }: { app: Application }) {
   const [params, setParams] = useSearchParams();
-  const page = app.pages.find((p) => p.id === params.get("page")) ?? app.pages[0];
+  const { data: session } = useSession();
+  // Tab order is the user's own: drag tabs to rearrange, persisted per user and app.
+  const storageKey = `wsn:app-tabs:${session?.actor.id ?? "anon"}:${app.id}`;
+  const [order, setOrder] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? "[]") as string[];
+      const known = new Set(app.pages.map((p) => p.id));
+      const kept = saved.filter((id) => known.has(id));
+      return [...kept, ...app.pages.map((p) => p.id).filter((id) => !kept.includes(id))];
+    } catch {
+      return app.pages.map((p) => p.id);
+    }
+  });
+  const [dragId, setDragId] = useState<string>();
+  const moveTab = (dragged: string, onto: string) => {
+    if (dragged === onto) return;
+    setOrder((prev) => {
+      const next = prev.filter((id) => id !== dragged);
+      next.splice(next.indexOf(onto), 0, dragged);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        /* private mode: order just lives for this session */
+      }
+      return next;
+    });
+  };
+  const ordered = order.map((id) => app.pages.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
+  const page = ordered.find((p) => p.id === params.get("page")) ?? ordered[0];
 
   if (!page) return <NoDataFound message="This application has no pages yet." />;
 
@@ -55,8 +84,27 @@ export function ApplicationView({ app }: { app: Application }) {
       >
         <Tabs.ListContainer className="max-w-full self-start overflow-x-auto">
           <Tabs.List aria-label={`${app.name} pages`}>
-            {app.pages.map((p) => (
-              <Tabs.Tab key={p.id} id={p.id}>
+            {ordered.map((p) => (
+              <Tabs.Tab
+                key={p.id}
+                id={p.id}
+                draggable
+                onDragStart={(e) => {
+                  setDragId(p.id);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  if (dragId && dragId !== p.id) e.preventDefault(); // allow the drop
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragId) moveTab(dragId, p.id);
+                  setDragId(undefined);
+                }}
+                onDragEnd={() => setDragId(undefined)}
+                className={dragId === p.id ? "opacity-50" : "cursor-grab active:cursor-grabbing"}
+                title="Drag to reorder"
+              >
                 {p.title}
                 {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}
                 <Tabs.Indicator />

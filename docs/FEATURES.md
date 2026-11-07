@@ -2,7 +2,7 @@
 
 Status as of 2026-11-07. Legend: ✅ implemented + unit tested · 🟡 partial · ⬜ not started.
 **Nothing has been verified against live infrastructure yet** — all ✅ means unit-tested code; the
-compose stack (`make setup && make up`) is the first live run. `T0D0.md` is the task list with test
+compose stack (`make setup && make up`) is the first live run. `TODO.md` is the task list with test
 steps; `COVERAGE.md` has per-package test coverage numbers.
 
 Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers in wsn-service

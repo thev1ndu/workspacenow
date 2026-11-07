@@ -1,7 +1,7 @@
 # ROADMAP.md — WorkspaceNow: current state and what's next
 
 Status as of 2026-11-07. See [FEATURES.md](FEATURES.md) for the full feature inventory with per-item
-status, [T0D0.md](T0D0.md) for the task list with test steps, [COVERAGE.md](COVERAGE.md) for test
+status, [TODO.md](TODO.md) for the task list with test steps, [COVERAGE.md](COVERAGE.md) for test
 coverage numbers, and [APIs.md](APIs.md) / `openapi.yaml` for the 119-operation contract.
 
 ## Current state (what the platform can do today)

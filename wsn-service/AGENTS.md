@@ -57,4 +57,4 @@ Go platform API (stdlib `net/http` + oapi-codegen, gorm/Postgres, NATS, Valkey, 
 - [ ] `go build ./... && go vet ./... && go test -race ./...` green.
 - [ ] `gofmt -l` clean; `make lint` (golangci-lint) clean if available.
 - [ ] `sh scripts/gen-unimplemented.sh` rerun; fallback shrinks as modules claim operations.
-- [ ] `../docs/T0D0.md` / `../docs/COVERAGE.md` updated if behavior moved.
+- [ ] `../docs/TODO.md` / `../docs/COVERAGE.md` updated if behavior moved.

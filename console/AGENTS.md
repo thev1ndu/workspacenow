@@ -44,4 +44,4 @@ and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package 
 
 - [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test` pass (`pnpm build` too if the shell changed).
 - [ ] Mock-server mirrors any contract change; its tests cover the new behavior.
-- [ ] `../docs/T0D0.md` / `../docs/COVERAGE.md` updated if behavior moved.
+- [ ] `../docs/TODO.md` / `../docs/COVERAGE.md` updated if behavior moved.

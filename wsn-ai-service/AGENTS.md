@@ -46,4 +46,4 @@ streams run steps back to wsn-service's internal API.
 
 - [ ] The three commands above pass; coverage still 100%.
 - [ ] Wire models still match `wsn-service/internal/oapi/gen.go` (run `make -C ../wsn-service generate` if the contract changed).
-- [ ] `../docs/T0D0.md` / `../docs/COVERAGE.md` updated if behavior moved.
+- [ ] `../docs/TODO.md` / `../docs/COVERAGE.md` updated if behavior moved.

@@ -150,7 +150,7 @@ Calls it makes to wsn-service's internal API:
 | [`openapi.yaml`](openapi.yaml) | The API contract between the console and wsn-service (93 paths / 119 operations) — the source of truth for generated code. |
 | [`deploy/`](deploy) | `deploy/compose/` local development (incl. `console-config.js`, mounted into the console container), `deploy/flux/` GitOps per environment (see its [README](deploy/flux/README.md)), `deploy/e2e/` the smoke suite CI runs against the live stack. |
 | [`.github/`](.github) | `workflows/`: `ci.yaml` covers Go, the console, the AI service, Flux rendering and the compose e2e; `images.yaml` builds each component's `Dockerfile` with docker buildx, only after green CI. `dependabot.yml` keeps actions, Docker base images, Go, npm and pip dependencies current. |
-| [`docs/`](docs) | `CONTEXT.md` (domain glossary), `APIs.md` (narrative API guide), `FEATURES.md` (feature inventory), `ROADMAP.md`, `T0D0.md` (task list with test steps), `COVERAGE.md` (per-package test coverage). |
+| [`docs/`](docs) | `CONTEXT.md` (domain glossary), `APIs.md` (narrative API guide), `FEATURES.md` (feature inventory), `ROADMAP.md`, `TODO.md` (task list with test steps), `COVERAGE.md` (per-package test coverage). |
 | `agent-manager/` | Read-only reference checkout; not part of the build. |
 
 ## Build and images
@@ -160,7 +160,7 @@ Calls it makes to wsn-service's internal API:
 ## Documentation and support
 
 - [docs/APIs.md](docs/APIs.md) — the narrative API guide; [openapi.yaml](openapi.yaml) — the machine-readable contract.
-- [docs/FEATURES.md](docs/FEATURES.md) — full feature inventory with per-area status; [docs/ROADMAP.md](docs/ROADMAP.md) — what's next; [docs/T0D0.md](docs/T0D0.md) — tasks and manual test steps; [docs/COVERAGE.md](docs/COVERAGE.md) — test coverage per package.
+- [docs/FEATURES.md](docs/FEATURES.md) — full feature inventory with per-area status; [docs/ROADMAP.md](docs/ROADMAP.md) — what's next; [docs/TODO.md](docs/TODO.md) — tasks and manual test steps; [docs/COVERAGE.md](docs/COVERAGE.md) — test coverage per package.
 - Questions and issues: [github.com/thev1ndu/workspacenow/issues](https://github.com/thev1ndu/workspacenow/issues).
 
 ## Status

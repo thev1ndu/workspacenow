@@ -2,7 +2,7 @@
 
 Status as of 2026-11-07. "Coverage" means unit-test line/statement coverage unless noted; "verified"
 means run against real infrastructure, which nothing beyond unit tests has yet. Reproduce the numbers
-with the commands in each section. `T0D0.md` tracks the same work as a task list with test steps.
+with the commands in each section. `TODO.md` tracks the same work as a task list with test steps.
 
 | Service | Language | Unit tests | Coverage | CI gate | Verified against real infra |
 |---|---|---|---|---|---|
@@ -126,7 +126,7 @@ Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspac
 - Flux: controllers, configs, apps per environment, image automation for dev, NetworkPolicy for the observer, PVC for its data — `kubectl kustomize` renders, never applied; hostnames/Gateway names are placeholders (`workspacenow.example.com`)
 - OpenBao roles/secrets for a real cluster documented in `deploy/flux/README.md`, not done
 
-### Blockers (from T0D0.md)
+### Blockers (from TODO.md)
 1. `cd wsn-service && go mod tidy` — done (go.mod/go.sum committed; build/vet/test pass)
 2. Start Docker (Rancher Desktop) — `docker info` succeeds
 3. `make -C wsn-service deps` — compose healthy (watch the `temporalio/temporal` image tag)

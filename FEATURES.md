@@ -45,7 +45,8 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ Rate limiting per operation (429)
 - ✅ MCP servers registry + tool catalogue (`/mcp/servers`, `/mcp/tools`); register external MCP servers
 - ✅ Managed MCP server on wsn-ai-service (`/mcp`) mirroring the platform tool catalogue
-- ✅ Integrations registry + connectivity test (`/integrations/{id}/test`) with failure reasons audited
+- ✅ Integrations registry: CRUD (`/integrations`) + connectivity test (`/integrations/{id}/test`) with failure reasons audited; credentials are OpenBao `secretRef`s only — the platform never stores secrets
+- ✅ **OpenBao secrets access**: `GET /secrets?prefix=` lists references (`connect.manage`); `GET /secrets/read?path=` returns values to `control.manage` only, audited as `secret.read`, never logged/stored; console Integrations page has a create/edit dialog with a secret picker and a values viewer
 - ✅ AI-side external MCP discovery (`/v1/mcp/discover`)
 - ✅ **Outbound webhooks with signing + replay**: `/webhooks` CRUD, deliveries log, `X-WSN-Signature: t=...,v1=<hmac-sha256>`, backoff retries, `POST .../deliveries/{id}/replay`, `POST .../test`; dispatcher runs in the server role
 - ✅ **OAuth2 client flows**: `integration.auth` (client credentials / refresh_token), token fetched and cached in Valkey, used by integration tests
@@ -91,7 +92,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ OTLP export from wsn-service and wsn-ai-service to **wsn-observer**: per-request spans, request metrics, all logs; shared `X-Trace-Id`
 - ✅ wsn-observer: OTLP ingest (traces/logs/metrics) + GET and POST query APIs, stored as append-only JSONL WAL segment files (no DB, no in-memory payload) with byte retention; Dockerfile, CI, Flux + PVC
 - ✅ Console control workspace: overview, organization, access (roles/mappings), audit, traces + trace detail, environments, settings, **alerts** (rules CRUD incl. SLO burn-rate source, fires + ack, SLO table)
-- ✅ **Alerting on audit/event patterns and SLO burn rates**: `/alerts` CRUD (source audit|event|slo, action, outcome, threshold, window, webhook), fires + ack, evaluator in the server role fires once per window crossing, calls the webhook (signed) and emits `Alert.Fired`; console control workspace has an Alerts page (rules, fires, SLOs, backups)
+- ✅ **Alerting on audit/event patterns and SLO burn rates**: `/alerts` CRUD (source audit|event|slo, action, outcome, threshold, window, webhook), fires + ack, evaluator in the server role fires once per window crossing, calls the webhook (signed) and emits `Alert.Fired`; console control workspace has an Alerts and SLOs page (rules incl. custom webhookUrl, fires, SLOs)
 - ✅ **SLOs per business operation**: `/slos` CRUD + `/slos/{id}/status` — per-minute Valkey counters recorded by an engine OnInvoke hook; success rate + histogram p95 vs targets, `breached` flag
 - ✅ **Status page**: public `GET /status` (no auth) — healthy/degraded/down rollup, version, uptime, components
 - ✅ **Backup/DR**: `-backup` role pg_dumps to S3 (`backups/`) and records each run in the `backups` table (read it straight from the DB — no API); `-restore` role drills a restore; Flux `backup-cronjob.yaml` nightly; PITR via CloudNativePG WAL archiving (infrastructure layer); observer **WAL segment replication** to a standby (`WSN_OBSERVER_REPLICA_URL` + `POST /v1/segments` ingest, idempotent import)
@@ -105,7 +106,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 
 ## 9. Console webapp
 - ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces
-- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 39 tests, 83.87% coverage gated in CI) when unset
+- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 40 tests, coverage gated in CI) when unset
 - ✅ SSE live updates (above), server-side search + pagination on runs/traces/audit/records, KPI dashboard with deep-linked cards, charts
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container
 - ✅ **Theming beyond default**: `useAppearance` — light/dark/system mode + accent palettes, persisted, applied pre-paint; Preferences dialog

@@ -22,6 +22,8 @@ var ErrNotFound = errors.New("secret not found")
 // Reader reads a secret's key/value data from a path in the KV v2 mount.
 type Reader interface {
 	Read(ctx context.Context, path string) (map[string]string, error)
+	// List returns the full references (mount/key) of secrets under prefix, without values.
+	List(ctx context.Context, prefix string) ([]string, error)
 }
 
 // serviceAccountToken is where Kubernetes mounts the pod's service account token.
@@ -74,6 +76,48 @@ func (b *openBao) Read(ctx context.Context, path string) (map[string]string, err
 	out := make(map[string]string, len(body.Data.Data))
 	for k, v := range body.Data.Data {
 		out[k] = fmt.Sprint(v)
+	}
+	return out, nil
+}
+
+// List implements KV v2 metadata LIST: full references like "<mount>/integrations/delivery-hmac".
+func (b *openBao) List(ctx context.Context, prefix string) ([]string, error) {
+	token, err := b.login(ctx)
+	if err != nil {
+		return nil, err
+	}
+	prefix = strings.TrimPrefix(prefix, b.cfg.Mount+"/")
+	prefix = strings.TrimPrefix(prefix, "vault://")
+	req, err := http.NewRequestWithContext(ctx, "LIST", fmt.Sprintf("%s/v1/%s/metadata/%s", strings.TrimRight(b.cfg.Addr, "/"), b.cfg.Mount, strings.TrimPrefix(prefix, "/")), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Vault-Token", token)
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("list secrets: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotFound {
+		return []string{}, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list secrets: status %d", resp.StatusCode)
+	}
+	var body struct {
+		Data struct {
+			Keys []string `json:"keys"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("decode secret list: %w", err)
+	}
+	out := make([]string, 0, len(body.Data.Keys))
+	for _, k := range body.Data.Keys {
+		if strings.HasSuffix(k, "/") {
+			continue // subfolder; drill in with a more specific prefix
+		}
+		out = append(out, b.cfg.Mount+"/"+strings.TrimPrefix(prefix, "/")+k)
 	}
 	return out, nil
 }

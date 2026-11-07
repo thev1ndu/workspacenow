@@ -4,5 +4,25 @@
 
 package api
 
+import (
+	"net/http"
+
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
+)
+
 // unimplemented answers every operation no module serves with 501.
 type unimplemented struct{}
+
+func (unimplemented) CreateIntegration(w http.ResponseWriter, r *http.Request) { notImplemented(w, r) }
+
+func (unimplemented) UpdateIntegration(w http.ResponseWriter, r *http.Request, integrationId string) {
+	notImplemented(w, r)
+}
+
+func (unimplemented) ListSecrets(w http.ResponseWriter, r *http.Request, params oapi.ListSecretsParams) {
+	notImplemented(w, r)
+}
+
+func (unimplemented) ReadSecret(w http.ResponseWriter, r *http.Request, params oapi.ReadSecretParams) {
+	notImplemented(w, r)
+}

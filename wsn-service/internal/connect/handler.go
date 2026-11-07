@@ -119,6 +119,56 @@ func (h *Handler) TestIntegration(w http.ResponseWriter, r *http.Request, id str
 	httpx.Created(w, in)
 }
 
+func (h *Handler) CreateIntegration(w http.ResponseWriter, r *http.Request) {
+	var in Integration
+	if err := httpx.Decode(r, &in); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.CreateIntegration(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), in)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, out)
+}
+
+func (h *Handler) UpdateIntegration(w http.ResponseWriter, r *http.Request, id string) {
+	var in Integration
+	if err := httpx.Decode(r, &in); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.UpdateIntegration(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), id, in)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
+func (h *Handler) ListSecrets(w http.ResponseWriter, r *http.Request, params oapi.ListSecretsParams) {
+	prefix := ""
+	if params.Prefix != nil {
+		prefix = *params.Prefix
+	}
+	out, err := h.svc.ListSecrets(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), prefix)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, out, len(out))
+}
+
+func (h *Handler) ReadSecret(w http.ResponseWriter, r *http.Request, params oapi.ReadSecretParams) {
+	out, err := h.svc.ReadSecret(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), params.Path)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, map[string]any{"path": params.Path, "values": out})
+}
+
 /* ---- webhooks ---- */
 
 func (h *Handler) ListWebhooks(w http.ResponseWriter, r *http.Request) {

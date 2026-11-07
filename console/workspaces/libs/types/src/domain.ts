@@ -427,6 +427,7 @@ export interface McpServer {
   registeredAt: IsoDate;
 }
 
+export type IntegrationInput = Omit<Integration, "id" | "status" | "lastTestedAt">;
 export interface Integration {
   id: Id;
   name: string;
@@ -685,6 +686,8 @@ export interface AlertRule {
   threshold: number;
   windowMinutes: number;
   webhookId?: Id;
+  /** Custom URL notified directly when the rule fires (alternative to webhookId; unsigned). */
+  webhookUrl?: string;
   /** The SLO this rule watches when source is "slo". */
   sloId?: Id;
   active: boolean;

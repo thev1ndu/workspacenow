@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"time"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/config"
@@ -27,7 +28,8 @@ type AlertRule struct {
 	Threshold     int       `json:"threshold"`
 	WindowMinutes int       `json:"windowMinutes"`
 	WebhookID     string    `json:"webhookId,omitempty"`
-	SLOID         string    `json:"sloId,omitempty"` // set when Source == "slo"
+	WebhookURL    string    `json:"webhookUrl,omitempty"` // custom URL notified directly (unsigned)
+	SLOID         string    `json:"sloId,omitempty"`      // set when Source == "slo"
 	Active        bool      `json:"active"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
@@ -165,6 +167,9 @@ func (s *service) notify(ctx context.Context, rule *AlertRule, fire *AlertFire) 
 				}
 			}
 		}
+	} else if rule.WebhookURL != "" {
+		// Custom URL: delivered directly, unsigned (no secret is stored for ad-hoc URLs).
+		_, _ = connect.DeliverOnce(ctx, s.hc, &connect.Webhook{URL: rule.WebhookURL, Active: true}, "Alert.Fired", payload)
 	}
 	_, _ = s.publisher.Publish(ctx, kernel.ExecutionContext{Actor: kernel.Actor{Kind: kernel.ActorSystem, ID: "alerts", Name: "Alerting"}, TraceID: fire.ID}, "Alert.Fired", "alert/"+rule.ID, map[string]any{"fireId": fire.ID, "count": fire.Count})
 }
@@ -319,6 +324,12 @@ func (s *service) validateRule(ctx context.Context, r *AlertRule) error {
 	if r.Name == "" || r.Threshold <= 0 || r.WindowMinutes <= 0 || (r.Source != "slo" && r.Action == "") {
 		return kernel.Invalid("An alert needs a name, an action or event type, a threshold and a window in minutes")
 	}
+	if r.WebhookURL != "" {
+		u, err := url.Parse(r.WebhookURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return kernel.Invalid("webhookUrl must be an absolute http(s) URL")
+		}
+	}
 	switch r.Source {
 	case "", "audit", "event":
 		return nil
@@ -372,8 +383,8 @@ func (s *service) UpdateAlertRule(ctx context.Context, ec kernel.ExecutionContex
 	if err := s.validateRule(ctx, &r); err != nil {
 		return nil, err
 	}
-	cur.Name, cur.Source, cur.Action, cur.Outcome, cur.Threshold, cur.WindowMinutes, cur.WebhookID, cur.SLOID, cur.Active, cur.UpdatedAt =
-		r.Name, r.Source, r.Action, r.Outcome, r.Threshold, r.WindowMinutes, r.WebhookID, r.SLOID, r.Active, time.Now().UTC()
+	cur.Name, cur.Source, cur.Action, cur.Outcome, cur.Threshold, cur.WindowMinutes, cur.WebhookID, cur.WebhookURL, cur.SLOID, cur.Active, cur.UpdatedAt =
+		r.Name, r.Source, r.Action, r.Outcome, r.Threshold, r.WindowMinutes, r.WebhookID, r.WebhookURL, r.SLOID, r.Active, time.Now().UTC()
 	if err := s.alertRules.Put(ctx, cur); err != nil {
 		return nil, err
 	}

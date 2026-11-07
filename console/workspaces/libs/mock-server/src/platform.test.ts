@@ -499,6 +499,31 @@ describe("ops: alerts, slos, status", () => {
     expect(["healthy", "degraded", "down"]).toContain((status.body as { status: string }).status);
   });
 
+  it("lists and reads OpenBao secrets, manages integrations, takes a custom alert webhook URL", () => {
+    const platform = createDemoPlatform();
+    // secrets: list + read (read needs control.manage, audited)
+    const paths = get(platform, "/secrets?prefix=vault://integrations/").body as { items: string[] };
+    expect(paths.items.length).toBe(3);
+    const values = get(platform, "/secrets/read?path=vault://integrations/erp-db").body as { path: string; values: Record<string, string> };
+    expect(values.values.username).toBe("erp_ro");
+    expect(get(platform, "/secrets/read?path=vault://nope").status).toBe(404);
+    expect(platform.state.audit.some((a) => a.action === "secret.read")).toBe(true);
+    // integrations: create validates the secretRef, test flips status
+    const bad = post(platform, "/integrations", { name: "X", kind: "rest", target: "https://x.example.com", retryPolicy: "None", timeoutMs: 1000, secretRef: "vault://missing" });
+    expect(bad.status).toBe(422);
+    const created = post(platform, "/integrations", { name: "Payment GW", kind: "rest", target: "https://pay.example.com", retryPolicy: "Exponential backoff", timeoutMs: 3000, secretRef: "vault://integrations/slack-ops" });
+    expect(created.status).toBe(201);
+    const int = (created.body as { id: string }).id;
+    const updated = send(platform, "PUT", `/integrations/${int}`, "u-amaya", { name: "Payment GW v2", kind: "rest", target: "https://pay2.example.com", retryPolicy: "None", timeoutMs: 2000, secretRef: "vault://integrations/slack-ops" });
+    expect((updated.body as { name: string }).name).toBe("Payment GW v2");
+    expect((post(platform, `/integrations/${int}/test`, {}).body as { status: string }).status).toBe("connected");
+    // alerts: custom webhook URL accepted when valid, rejected when not
+    const ok = post(platform, "/alerts", { name: "Custom URL", source: "event", action: "Stock.LowStockReached", threshold: 1, windowMinutes: 60, webhookUrl: "https://hooks.example.com/custom" });
+    expect(ok.status).toBe(201);
+    expect((ok.body as { webhookUrl: string }).webhookUrl).toBe("https://hooks.example.com/custom");
+    expect(post(platform, "/alerts", { name: "Bad URL", source: "event", action: "Stock.LowStockReached", threshold: 1, windowMinutes: 60, webhookUrl: "notaurl" }).status).toBe(422);
+  });
+
   it("fires an SLO burn-rate alert and serves log metrics per day and level", () => {
     const platform = createDemoPlatform();
     // one denied call on the operation inside the window: burn rate = (1-0)/(1-0.5) x100 = 200

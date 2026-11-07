@@ -1,6 +1,7 @@
 package obs
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -42,6 +43,21 @@ func TestBurnRatePer100(t *testing.T) {
 	assert.Equal(t, 600, burnRatePer100(0.94, 0.99, 1000)) // 6% errors on a 1% budget = 6x
 	// 100% target: any error burns infinitely fast
 	assert.Greater(t, burnRatePer100(0.999, 1.0, 1000), 999)
+}
+
+func TestValidateRuleChecksWebhookURL(t *testing.T) {
+	s := &service{}
+	base := func() *AlertRule {
+		return &AlertRule{Name: "r", Source: "audit", Action: "a.b", Threshold: 1, WindowMinutes: 5}
+	}
+	r := base()
+	assert.NoError(t, s.validateRule(context.Background(), r))
+	r.WebhookURL = "https://hooks.example.com/x"
+	assert.NoError(t, s.validateRule(context.Background(), r))
+	for _, bad := range []string{"notaurl", "ftp://x", "https://"} {
+		r.WebhookURL = bad
+		assert.Error(t, s.validateRule(context.Background(), r), bad)
+	}
 }
 
 func TestPendingIDs(t *testing.T) {

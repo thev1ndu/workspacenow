@@ -527,6 +527,47 @@ route("POST", "/mcp/servers", ({ platform, ctx, body }) => {
   return server;
 });
 route("GET", "/integrations", ({ platform }) => list(platform.state.integrations));
+const INTEGRATION_KINDS = ["rest", "soap", "webhook", "database", "message-broker", "saas"];
+route("POST", "/integrations", ({ platform, ctx, body }) => {
+  const c = ctx("connect");
+  platform.requirePermission(c, "connect.manage", "integration.create", "integration");
+  const input = body as IntegrationInput;
+  if (!input.name?.trim() || !input.target?.trim() || !(input.timeoutMs > 0)) fail(422, "VALIDATION_FAILED", "An integration needs a name, a target and a positive timeout (ms)");
+  if (!INTEGRATION_KINDS.includes(input.kind)) fail(422, "VALIDATION_FAILED", "kind must be rest, soap, webhook, database, message-broker or saas");
+  if (input.secretRef && !platform.state.secrets[input.secretRef]) fail(422, "VALIDATION_FAILED", `Credential ${input.secretRef} is not readable`);
+  const now = platform.now();
+  const integration: Integration = { ...input, id: platform.nextId("int"), status: "untested", name: input.name.trim(), target: input.target.trim(), auth: input.auth, lastTestedAt: undefined };
+  platform.state.integrations.push(integration);
+  platform.audit(c, "integration.create", `integration/${integration.id}`, "allowed", integration.name);
+  return integration;
+});
+route("PUT", "/integrations/:id", ({ platform, ctx, params, body }) => {
+  const c = ctx("connect");
+  const integration = find(platform.state.integrations, params.id, "Integration");
+  platform.requirePermission(c, "connect.manage", "integration.update", `integration/${params.id}`);
+  const input = body as IntegrationInput;
+  if (!input.name?.trim() || !input.target?.trim() || !(input.timeoutMs > 0)) fail(422, "VALIDATION_FAILED", "An integration needs a name, a target and a positive timeout (ms)");
+  if (input.secretRef && !platform.state.secrets[input.secretRef]) fail(422, "VALIDATION_FAILED", `Credential ${input.secretRef} is not readable`);
+  Object.assign(integration, input, { name: input.name.trim(), target: input.target.trim() });
+  platform.audit(c, "integration.update", `integration/${params.id}`, "allowed", integration.name);
+  return integration;
+});
+route("GET", "/secrets", ({ platform, ctx, query }) => {
+  const c = ctx("connect");
+  platform.requirePermission(c, "connect.manage", "secret.list", "secrets");
+  const prefix = query.get("prefix") ?? "";
+  const items = Object.keys(platform.state.secrets).filter((k) => k.startsWith(prefix));
+  return { items, totalCount: items.length };
+});
+route("GET", "/secrets/read", ({ platform, ctx, query }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "secret.read", `secret/${query.get("path")}`);
+  const path = query.get("path") ?? "";
+  const values = platform.state.secrets[path];
+  if (!values) fail(404, "NOT_FOUND", `No secret at ${path}`);
+  platform.audit(c, "secret.read", `secret/${path}`, "allowed", `read ${path}`);
+  return { path, values };
+});
 route("POST", "/integrations/:id/test", ({ platform, ctx, params }) => {
   const c = ctx("control");
   const integration = find(platform.state.integrations, params.id, "Integration");
@@ -798,6 +839,7 @@ route("POST", "/alerts", ({ platform, ctx, body }) => {
     if (!input.sloId && !input.action?.trim()) fail(422, "VALIDATION_FAILED", "An SLO alert needs an sloId or the operation name");
     if (input.sloId && !platform.state.slos.some((x) => x.id === input.sloId)) fail(422, "VALIDATION_FAILED", `SLO ${input.sloId} does not exist`);
   }
+  if (input.webhookUrl && !/^https?:\/\/.+/.test(input.webhookUrl)) fail(422, "VALIDATION_FAILED", "webhookUrl must be an absolute http(s) URL");
   const now = platform.now();
   const rule: AlertRule = { ...input, id: platform.nextId("alr"), source, active: input.active ?? true, name: input.name.trim(), action: (input.action ?? "").trim(), createdAt: now, updatedAt: now };
   platform.state.alertRules.push(rule);

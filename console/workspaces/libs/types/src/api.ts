@@ -81,6 +81,12 @@ export type TokenUsagePoint = {
   [model: string]: number | string;
 };
 
+/** One OpenBao secret's values, returned by GET /secrets/read (sensitive). */
+export type SecretValues = {
+  path: string;
+  values: Record<string, string>;
+};
+
 /** One day of log volume per severity level, for the log-metrics chart. */
 export type LogMetricPoint = {
   date: string;

@@ -785,27 +785,6 @@ func (e IdentityProviderConfigType) Valid() bool {
 	}
 }
 
-// Defines values for IntegrationAuthType.
-const (
-	IntegrationAuthTypeBearer IntegrationAuthType = "bearer"
-	IntegrationAuthTypeNone   IntegrationAuthType = "none"
-	IntegrationAuthTypeOauth2 IntegrationAuthType = "oauth2"
-)
-
-// Valid indicates whether the value is a known member of the IntegrationAuthType enum.
-func (e IntegrationAuthType) Valid() bool {
-	switch e {
-	case IntegrationAuthTypeBearer:
-		return true
-	case IntegrationAuthTypeNone:
-		return true
-	case IntegrationAuthTypeOauth2:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for IntegrationKind.
 const (
 	IntegrationKindDatabase      IntegrationKind = "database"
@@ -851,6 +830,57 @@ func (e IntegrationStatus) Valid() bool {
 	case Failing:
 		return true
 	case Untested:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IntegrationAuthType.
+const (
+	IntegrationAuthTypeBearer IntegrationAuthType = "bearer"
+	IntegrationAuthTypeNone   IntegrationAuthType = "none"
+	IntegrationAuthTypeOauth2 IntegrationAuthType = "oauth2"
+)
+
+// Valid indicates whether the value is a known member of the IntegrationAuthType enum.
+func (e IntegrationAuthType) Valid() bool {
+	switch e {
+	case IntegrationAuthTypeBearer:
+		return true
+	case IntegrationAuthTypeNone:
+		return true
+	case IntegrationAuthTypeOauth2:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IntegrationInputKind.
+const (
+	IntegrationInputKindDatabase      IntegrationInputKind = "database"
+	IntegrationInputKindMessageBroker IntegrationInputKind = "message-broker"
+	IntegrationInputKindRest          IntegrationInputKind = "rest"
+	IntegrationInputKindSaas          IntegrationInputKind = "saas"
+	IntegrationInputKindSoap          IntegrationInputKind = "soap"
+	IntegrationInputKindWebhook       IntegrationInputKind = "webhook"
+)
+
+// Valid indicates whether the value is a known member of the IntegrationInputKind enum.
+func (e IntegrationInputKind) Valid() bool {
+	switch e {
+	case IntegrationInputKindDatabase:
+		return true
+	case IntegrationInputKindMessageBroker:
+		return true
+	case IntegrationInputKindRest:
+		return true
+	case IntegrationInputKindSaas:
+		return true
+	case IntegrationInputKindSoap:
+		return true
+	case IntegrationInputKindWebhook:
 		return true
 	default:
 		return false
@@ -1774,8 +1804,11 @@ type AlertRule struct {
 	Threshold int     `json:"threshold"`
 	UpdatedAt IsoDate `json:"updatedAt"`
 
-	// WebhookId Webhook to call when the rule fires (the only alert channel for now)
-	WebhookId     *string `json:"webhookId,omitempty"`
+	// WebhookId Registered webhook to call when the rule fires
+	WebhookId *string `json:"webhookId,omitempty"`
+
+	// WebhookUrl Custom URL to POST to when the rule fires (alternative to webhookId; unsigned)
+	WebhookUrl    *string `json:"webhookUrl,omitempty"`
 	WindowMinutes int     `json:"windowMinutes"`
 }
 
@@ -1790,11 +1823,14 @@ type AlertRuleInput struct {
 	Outcome *string `json:"outcome,omitempty"`
 
 	// SloId Required when source is `slo`
-	SloId         *string               `json:"sloId,omitempty"`
-	Source        *AlertRuleInputSource `json:"source,omitempty"`
-	Threshold     int                   `json:"threshold"`
-	WebhookId     *string               `json:"webhookId,omitempty"`
-	WindowMinutes int                   `json:"windowMinutes"`
+	SloId     *string               `json:"sloId,omitempty"`
+	Source    *AlertRuleInputSource `json:"source,omitempty"`
+	Threshold int                   `json:"threshold"`
+	WebhookId *string               `json:"webhookId,omitempty"`
+
+	// WebhookUrl Custom URL to notify directly (alternative to webhookId)
+	WebhookUrl    *string `json:"webhookUrl,omitempty"`
+	WindowMinutes int     `json:"windowMinutes"`
 }
 
 // AlertRuleInputSource defines model for AlertRuleInput.Source.
@@ -2379,23 +2415,12 @@ type IdentityProviderConfigType string
 // Integration defines model for Integration.
 type Integration struct {
 	// Auth How the integration authenticates to its target
-	Auth *struct {
-		ClientId *string `json:"clientId,omitempty"`
-
-		// ClientSecretRef OpenBao ref holding the client secret
-		ClientSecretRef *string   `json:"clientSecretRef,omitempty"`
-		Scopes          *[]string `json:"scopes,omitempty"`
-		Token           *string   `json:"token,omitempty"`
-
-		// TokenUrl OAuth2 token endpoint (client credentials or refresh_token)
-		TokenUrl *string              `json:"tokenUrl,omitempty"`
-		Type     *IntegrationAuthType `json:"type,omitempty"`
-	} `json:"auth,omitempty"`
-	Id           string          `json:"id"`
-	Kind         IntegrationKind `json:"kind"`
-	LastTestedAt *IsoDate        `json:"lastTestedAt,omitempty"`
-	Name         string          `json:"name"`
-	RetryPolicy  string          `json:"retryPolicy"`
+	Auth         *IntegrationAuth `json:"auth,omitempty"`
+	Id           string           `json:"id"`
+	Kind         IntegrationKind  `json:"kind"`
+	LastTestedAt *IsoDate         `json:"lastTestedAt,omitempty"`
+	Name         string           `json:"name"`
+	RetryPolicy  string           `json:"retryPolicy"`
 
 	// SecretRef Reference to a secret; never the secret itself
 	SecretRef string            `json:"secretRef"`
@@ -2404,14 +2429,45 @@ type Integration struct {
 	TimeoutMs int               `json:"timeoutMs"`
 }
 
-// IntegrationAuthType defines model for Integration.Auth.Type.
-type IntegrationAuthType string
-
 // IntegrationKind defines model for Integration.Kind.
 type IntegrationKind string
 
 // IntegrationStatus defines model for Integration.Status.
 type IntegrationStatus string
+
+// IntegrationAuth How the integration authenticates to its target
+type IntegrationAuth struct {
+	ClientId *string `json:"clientId,omitempty"`
+
+	// ClientSecretRef OpenBao ref holding the client secret
+	ClientSecretRef *string   `json:"clientSecretRef,omitempty"`
+	Scopes          *[]string `json:"scopes,omitempty"`
+	Token           *string   `json:"token,omitempty"`
+
+	// TokenUrl OAuth2 token endpoint (client credentials or refresh_token)
+	TokenUrl *string              `json:"tokenUrl,omitempty"`
+	Type     *IntegrationAuthType `json:"type,omitempty"`
+}
+
+// IntegrationAuthType defines model for IntegrationAuth.Type.
+type IntegrationAuthType string
+
+// IntegrationInput defines model for IntegrationInput.
+type IntegrationInput struct {
+	// Auth How the integration authenticates to its target
+	Auth        *IntegrationAuth     `json:"auth,omitempty"`
+	Kind        IntegrationInputKind `json:"kind"`
+	Name        string               `json:"name"`
+	RetryPolicy string               `json:"retryPolicy"`
+
+	// SecretRef OpenBao reference, e.g. vault://integrations/delivery-hmac; never the secret itself
+	SecretRef string `json:"secretRef"`
+	Target    string `json:"target"`
+	TimeoutMs int    `json:"timeoutMs"`
+}
+
+// IntegrationInputKind defines model for IntegrationInput.Kind.
+type IntegrationInputKind string
 
 // IntegrationList defines model for IntegrationList.
 type IntegrationList struct {
@@ -2810,6 +2866,19 @@ type SearchHitType string
 type SearchHitList struct {
 	Items []SearchHit `json:"items"`
 	Total int         `json:"total"`
+}
+
+// SecretPathList defines model for SecretPathList.
+type SecretPathList struct {
+	// Items Full secret references, e.g. vault://integrations/delivery-hmac
+	Items      []string `json:"items"`
+	TotalCount int      `json:"totalCount"`
+}
+
+// SecretValues defines model for SecretValues.
+type SecretValues struct {
+	Path   string            `json:"path"`
+	Values map[string]string `json:"values"`
 }
 
 // Session defines model for Session.
@@ -3457,6 +3526,16 @@ type SearchParams struct {
 	Limit *int   `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListSecretsParams defines parameters for ListSecrets.
+type ListSecretsParams struct {
+	Prefix *string `form:"prefix,omitempty" json:"prefix,omitempty"`
+}
+
+// ReadSecretParams defines parameters for ReadSecret.
+type ReadSecretParams struct {
+	Path string `form:"path" json:"path"`
+}
+
 // RunSidekickJSONBody defines parameters for RunSidekick.
 type RunSidekickJSONBody struct {
 	// ApplicationId Confine the run to this application's tools
@@ -3579,6 +3658,12 @@ type ExecuteGraphQLJSONRequestBody ExecuteGraphQLJSONBody
 
 // UpdateGroupMappingsJSONRequestBody defines body for UpdateGroupMappings for application/json ContentType.
 type UpdateGroupMappingsJSONRequestBody UpdateGroupMappingsJSONBody
+
+// CreateIntegrationJSONRequestBody defines body for CreateIntegration for application/json ContentType.
+type CreateIntegrationJSONRequestBody = IntegrationInput
+
+// UpdateIntegrationJSONRequestBody defines body for UpdateIntegration for application/json ContentType.
+type UpdateIntegrationJSONRequestBody = IntegrationInput
 
 // RegisterMcpServerJSONRequestBody defines body for RegisterMcpServer for application/json ContentType.
 type RegisterMcpServerJSONRequestBody RegisterMcpServerJSONBody
@@ -4383,6 +4468,12 @@ type ServerInterface interface {
 	// Outbound integrations
 	// (GET /integrations)
 	ListIntegrations(w http.ResponseWriter, r *http.Request)
+	// Register an outbound integration
+	// (POST /integrations)
+	CreateIntegration(w http.ResponseWriter, r *http.Request)
+	// Change an integration (target, policies, credential reference)
+	// (PUT /integrations/{integrationId})
+	UpdateIntegration(w http.ResponseWriter, r *http.Request, integrationId string)
 	// Test an integration's connection
 	// (POST /integrations/{integrationId}/test)
 	TestIntegration(w http.ResponseWriter, r *http.Request, integrationId string)
@@ -4428,6 +4519,12 @@ type ServerInterface interface {
 	// Global search, best match first
 	// (GET /search)
 	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
+	// Secret paths in the OpenBao KV mount (never values)
+	// (GET /secrets)
+	ListSecrets(w http.ResponseWriter, r *http.Request, params ListSecretsParams)
+	// Read a secret's values from OpenBao (sensitive)
+	// (GET /secrets/read)
+	ReadSecret(w http.ResponseWriter, r *http.Request, params ReadSecretParams)
 	// The signed-in user, their roles and effective permissions
 	// (GET /session)
 	GetSession(w http.ResponseWriter, r *http.Request)
@@ -6778,6 +6875,57 @@ func (siw *ServerInterfaceWrapper) ListIntegrations(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// CreateIntegration operation middleware
+func (siw *ServerInterfaceWrapper) CreateIntegration(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateIntegration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateIntegration operation middleware
+func (siw *ServerInterfaceWrapper) UpdateIntegration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "integrationId" -------------
+	var integrationId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "integrationId", r.PathValue("integrationId"), &integrationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "integrationId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateIntegration(w, r, integrationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // TestIntegration operation middleware
 func (siw *ServerInterfaceWrapper) TestIntegration(w http.ResponseWriter, r *http.Request) {
 
@@ -7124,6 +7272,79 @@ func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Search(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSecrets operation middleware
+func (siw *ServerInterfaceWrapper) ListSecrets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSecretsParams
+
+	// ------------- Optional query parameter "prefix" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "prefix", r.URL.Query(), &params.Prefix, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "prefix", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSecrets(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadSecret operation middleware
+func (siw *ServerInterfaceWrapper) ReadSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadSecretParams
+
+	// ------------- Required query parameter "path" -------------
+
+	if paramValue := r.URL.Query().Get("path"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "path"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "path", r.URL.Query(), &params.Path, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadSecret(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7914,6 +8135,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PUT "+options.BaseURL+"/group-mappings", wrapper.UpdateGroupMappings)
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.ListHealth)
 	m.HandleFunc("GET "+options.BaseURL+"/integrations", wrapper.ListIntegrations)
+	m.HandleFunc("POST "+options.BaseURL+"/integrations", wrapper.CreateIntegration)
+	m.HandleFunc("PUT "+options.BaseURL+"/integrations/{integrationId}", wrapper.UpdateIntegration)
 	m.HandleFunc("POST "+options.BaseURL+"/integrations/{integrationId}/test", wrapper.TestIntegration)
 	m.HandleFunc("GET "+options.BaseURL+"/mcp/servers", wrapper.ListMcpServers)
 	m.HandleFunc("POST "+options.BaseURL+"/mcp/servers", wrapper.RegisterMcpServer)
@@ -7929,6 +8152,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/resources", wrapper.ListResources)
 	m.HandleFunc("GET "+options.BaseURL+"/roles", wrapper.ListRoles)
 	m.HandleFunc("GET "+options.BaseURL+"/search", wrapper.Search)
+	m.HandleFunc("GET "+options.BaseURL+"/secrets", wrapper.ListSecrets)
+	m.HandleFunc("GET "+options.BaseURL+"/secrets/read", wrapper.ReadSecret)
 	m.HandleFunc("GET "+options.BaseURL+"/session", wrapper.GetSession)
 	m.HandleFunc("POST "+options.BaseURL+"/sidekick/runs", wrapper.RunSidekick)
 	m.HandleFunc("GET "+options.BaseURL+"/slos", wrapper.ListSLOs)

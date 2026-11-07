@@ -19,6 +19,7 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
   const [threshold, setThreshold] = useState(String(rule?.threshold ?? 5));
   const [windowMinutes, setWindowMinutes] = useState(String(rule?.windowMinutes ?? 60));
   const [webhookId, setWebhookId] = useState(rule?.webhookId ?? "");
+  const [webhookUrl, setWebhookUrl] = useState(rule?.webhookUrl ?? "");
   const [sloId, setSloId] = useState(rule?.sloId ?? "");
   const [active, setActive] = useState(rule?.active ?? true);
   const webhooks = useListWebhooks();
@@ -35,6 +36,7 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
   if (!(windowN > 0)) problems.push("Window must be at least 1 minute");
   if (source !== "slo" && !action.trim()) problems.push("The action or event type to match is required");
   if (source === "slo" && !sloId && !action.trim()) problems.push("Pick an SLO or enter the operation name");
+  if (webhookUrl.trim() && !/^https?:\/\/.+/.test(webhookUrl.trim())) problems.push("Custom webhook URL must be an absolute http(s) URL");
 
   const body: AlertRuleInput = {
     name: name.trim(),
@@ -44,6 +46,7 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
     threshold: Math.trunc(thresholdN),
     windowMinutes: Math.trunc(windowN),
     webhookId: webhookId || undefined,
+    webhookUrl: webhookUrl.trim() || undefined,
     sloId: source === "slo" ? sloId || undefined : undefined,
     active,
   };
@@ -98,10 +101,17 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
               <TextInput label="Window (minutes)" type="number" required value={windowMinutes} onChange={setWindowMinutes} placeholder="60" />
             </div>
             <SelectInput
-              label="Notify via webhook"
+              label="Notify via registered webhook"
               value={webhookId}
               onChange={setWebhookId}
-              options={[{ value: "", label: "No webhook (event only)" }, ...(webhooks.data?.items ?? []).map((w) => ({ value: w.id, label: w.name }))]}
+              options={[{ value: "", label: "None" }, ...(webhooks.data?.items ?? []).map((w) => ({ value: w.id, label: w.name }))]}
+            />
+            <TextInput
+              label="…or custom webhook URL"
+              value={webhookUrl}
+              onChange={setWebhookUrl}
+              placeholder="https://hooks.example.com/alerts (POSTed unsigned when the rule fires)"
+              error={webhookUrl.trim() && !/^https?:\/\/.+/.test(webhookUrl.trim()) ? "Must be an absolute http(s) URL" : undefined}
             />
             <Checkbox isSelected={active} onChange={setActive}>
               <Checkbox.Content>

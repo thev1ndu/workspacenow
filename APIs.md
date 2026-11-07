@@ -200,6 +200,9 @@ Operations are registered two ways:
 | GET | `/mcp/servers` | Managed and external MCP servers | signed in |
 | POST | `/mcp/servers` | Register an external server `{ name, url, auth }` and discover its tools | `connect.manage` |
 | GET | `/integrations` | Outbound integrations; `secretRef` points to a secret and never holds the secret | signed in |
+| POST | `/integrations`, PUT `/integrations/{id}` | Register / change an integration; `secretRef` must be a readable OpenBao path | `connect.manage` |
+| GET | `/secrets?prefix=` | Secret paths in the OpenBao KV mount (never values) | `connect.manage` |
+| GET | `/secrets/read?path=` | Read one secret's values (sensitive; audited as `secret.read`, never stored/logged) | `control.manage` |
 | POST | `/integrations/{id}/test` | Test the connection. Updates `status` and `lastTestedAt`; a failed test still returns `201` with `status: failing`. | `connect.manage` |
 
 | GET/POST | `/webhooks`, PUT/DELETE `/webhooks/{id}` | Outbound subscriptions; deliveries POSTed signed (`X-WSN-Signature`), retried with backoff | `connect.manage` |
@@ -275,7 +278,7 @@ Executions are durable and must survive restarts.
 | GET | `/health` | Health of applications, APIs, MCP servers, integrations, databases and active workflows | signed in |
 
 | GET | `/status` | Public status page (no auth): JSON rollup + components; `Accept: text/html` renders the HTML skin | public |
-| GET/POST | `/alerts`, PUT/DELETE `/alerts/{id}` | Alert rules over audit/event patterns (threshold + window + webhook — the only channel for now); `source: "slo"` + `sloId` alerts on the SLO burn rate ×100 (e.g. threshold 600 = 6× the error budget) | `control.manage` |
+| GET/POST | `/alerts`, PUT/DELETE `/alerts/{id}` | Alert rules over audit/event patterns or SLO burn rate (`source: "slo"` + `sloId`, threshold = burn ×100); notify via a registered `webhookId` or a custom `webhookUrl` (unsigned) | `control.manage` |
 | GET | `/alerts/{id}/fires`, POST `.../fires/{fireId}/ack` | Fires and acknowledgements | signed in / `control.manage` |
 | GET/POST | `/slos`, GET `/slos/{id}/status` | SLOs per business operation; measured success rate + p95 vs targets | signed in / `control.manage` |
 

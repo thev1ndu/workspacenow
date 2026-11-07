@@ -56,6 +56,8 @@ export interface PlatformState {
   operations: ApiOperation[];
   mcpServers: McpServer[];
   integrations: Integration[];
+  /** Fake OpenBao KV content: full reference -> key/value data (demo only, never real secrets). */
+  secrets: Record<string, Record<string, string>>;
   modelProviders: ModelProvider[];
   agents: Agent[];
   agentRuns: AgentRun[];
@@ -77,7 +79,7 @@ export interface PlatformState {
   pins: Record<string, string[]>;
 }
 
-export const SCHEMA_VERSION = 5; // v5: seed also carries a webhook, alert rule + fire, SLO and backup record
+export const SCHEMA_VERSION = 6; // v6: seed carries an OpenBao-style secrets map (and no backup record)
 
 const STORAGE_KEY = "workspacenow-demo-state";
 

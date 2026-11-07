@@ -6,7 +6,7 @@ import type {
   PortalCatalogEntry,
   Webhook,
   WebhookDelivery,
-  WebhookInput, Api, ApiOperation, Integration, ListResponse, McpServer, McpTool, OperationResult } from "@workspacenow/types";
+  WebhookInput, Api, ApiOperation, Integration, IntegrationInput, ListResponse, McpServer, McpTool, OperationResult, SecretValues } from "@workspacenow/types";
 import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, httpPUT, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listApis(getToken: GetToken) {
@@ -113,6 +113,25 @@ export async function registerMcpServer(
 
 export async function listIntegrations(getToken: GetToken) {
   return httpGET<ListResponse<Integration>>(`${SERVICE_BASE}/integrations`, { token: await getToken() });
+}
+
+export async function createIntegration(body: IntegrationInput, getToken: GetToken) {
+  return httpPOST<Integration>(`${SERVICE_BASE}/integrations`, { token: await getToken(), body });
+}
+
+export async function updateIntegration(params: { integrationId: string }, body: IntegrationInput, getToken: GetToken) {
+  return httpPUT<Integration>(`${SERVICE_BASE}/integrations/${enc(params.integrationId)}`, { token: await getToken(), body });
+}
+
+export async function listSecrets(query: { prefix?: string }, getToken: GetToken) {
+  return httpGET<{ items: string[]; totalCount: number }>(`${SERVICE_BASE}/secrets`, {
+    token: await getToken(),
+    searchParams: { prefix: query.prefix },
+  });
+}
+
+export async function readSecret(query: { path: string }, getToken: GetToken) {
+  return httpGET<SecretValues>(`${SERVICE_BASE}/secrets/read`, { token: await getToken(), searchParams: { path: query.path } });
 }
 
 export async function testIntegration(params: { integrationId: string }, getToken: GetToken) {

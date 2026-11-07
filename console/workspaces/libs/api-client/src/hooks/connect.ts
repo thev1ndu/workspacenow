@@ -1,5 +1,5 @@
 import { useAuthHooks } from "@workspacenow/auth";
-import type { McpServer } from "@workspacenow/types";
+import type { IntegrationInput, McpServer } from "@workspacenow/types";
 import * as api from "../apis/connect";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
 
@@ -61,6 +61,36 @@ export function useRegisterMcpServer() {
 export function useListIntegrations() {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["integrations"], queryFn: () => api.listIntegrations(getToken) });
+}
+
+export function useCreateIntegration() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "create", target: "integration" },
+    mutationFn: (body: IntegrationInput) => api.createIntegration(body, getToken),
+  });
+}
+
+export function useUpdateIntegration() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "update", target: "integration" },
+    mutationFn: ({ integrationId, body }: { integrationId: string; body: IntegrationInput }) => api.updateIntegration({ integrationId }, body, getToken),
+  });
+}
+
+export function useListSecrets(prefix?: string) {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["secrets", prefix ?? ""], queryFn: () => api.listSecrets({ prefix }, getToken) });
+}
+
+export function useReadSecret() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "read", target: "secret" },
+    showSuccess: false,
+    mutationFn: (path: string) => api.readSecret({ path }, getToken),
+  });
 }
 
 export function useTestIntegration() {

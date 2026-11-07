@@ -461,6 +461,11 @@ export function createSeedState(at: Date): PlatformState {
       { id: "mcp-knowledge", name: "Company Knowledge Base", url: "https://kb.northwind.lk/mcp", kind: "external", auth: "oauth2", status: "healthy", tools: [{ name: "search_policies", description: "Search company policies and procedures." }], registeredAt: day(-20) },
       { id: "mcp-logistics", name: "Logistics Tracker", url: "https://mcp.shiplk.com/v1", kind: "external", auth: "api-key", status: "degraded", tools: [{ name: "track_shipment", description: "Track a shipment by id." }, { name: "estimate_delivery", description: "Estimate delivery days for a route." }], registeredAt: day(-15) },
     ],
+    secrets: {
+      "vault://integrations/delivery-hmac": { secret: "demo-hmac-not-real" },
+      "vault://integrations/slack-ops": { url: "https://hooks.example.com/ops", token: "demo-token-not-real" },
+      "vault://integrations/erp-db": { username: "erp_ro", password: "demo-not-real" },
+    },
     integrations: [
       { id: "int-pos", name: "POS sales stream", kind: "message-broker", target: "nats://pos-events.northwind.internal/sales", status: "connected", retryPolicy: "Exponential, 5 attempts", timeoutMs: 2000, secretRef: "vault://integrations/pos-nats", lastTestedAt: day(-1) },
       { id: "int-edi", name: "Supplier EDI gateway", kind: "rest", target: "https://edi.northwind.lk/api/orders", status: "connected", retryPolicy: "Exponential, 3 attempts", timeoutMs: 5000, secretRef: "vault://integrations/edi", lastTestedAt: day(-2) },

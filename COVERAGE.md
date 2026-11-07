@@ -9,7 +9,7 @@ with the commands in each section. `T0D0.md` tracks the same work as a task list
 | `wsn-observer` | Go | pass (`-race`) | 38.5–100% per package (below) | `go test -race ./...` in `ci.yaml` | no |
 | `wsn-service` | Go | **all pass** (`-race` clean; the old `TestGrantExpired` bug is fixed) | 0–88.4% per package (below) | `go build/vet/test` in `ci.yaml` | no |
 | `wsn-ai-service` | Python | 63 passed, 1 skipped (live smoke) | **100% of `src`** (512 statements) | `--cov-fail-under=100`, ruff, mypy strict | unit tests only; live smoke opt-in via `MISTRAL_API_KEY` |
-| `console` | TypeScript | mock-server: 39 passed | not instrumented (no coverage provider installed) | typecheck + eslint + mock-server tests | demo platform in browser; real backend never connected |
+| `console` | TypeScript | mock-server: 40 passed | not instrumented (no coverage provider installed) | typecheck + eslint + mock-server tests | demo platform in browser; real backend never connected |
 | deploy / CI / Flux | YAML | — | — | render-only checks | never run on GitHub / never applied to a cluster |
 
 `agent-manager/` is a reference checkout of WSO2 Agent Manager (gitignored); it is not part of this repo.
@@ -71,7 +71,7 @@ Reproduce: `cd wsn-service && go test -race -cover ./...`
 ### TODO / what's happening
 - [ ] Run end to end against live infra: compose + wsn-ai-service with `MISTRAL_API_KEY` — Sidekick "Which items are low on stock?", permission denial as Nimal, app-scope denial, "Plan with AI", and the flagship sale → `Stock.LowStockReached` → `wf-low-stock` → approval → purchase order under one trace (`-worker` role)
 - [x] Temporal workflow tests with the Go SDK `testsuite` (`internal/flow/temporal_test.go`: happy path, approval approved/rejected, condition branch)
-- [ ] Hardening: integration tests (`//go:build integration`) porting the mock's 39 scenarios, response validation against `openapi.yaml`, moq mocks, OpenBao against compose, idempotent event-triggered starts
+- [ ] Hardening: integration tests (`//go:build integration`) porting the mock's 40 scenarios, response validation against `openapi.yaml`, moq mocks, OpenBao against compose, idempotent event-triggered starts
 - [x] golangci-lint: `.golangci.yaml` in wsn-service, `golangci-lint v2.14.0 run ./...` = 0 issues
 
 ---
@@ -100,7 +100,7 @@ Coverage: **100% of `src`** (512 statements, every file), 63 tests passed + 1 sk
 
 ## console — the webapp (TypeScript/React, heroui, pnpm workspaces)
 
-Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspacenow/mock-server test:coverage` (39 tests pass, 83.87% lines against an 80% gate).
+Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspacenow/mock-server test:coverage` (40 tests pass against an 80% line gate).
 
 ### Features in place now
 - Real HTTP transport behind `apiBaseUrl`, live updates over SSE (`/events/stream`), demo data from the mock-server (Mistral-only personas)
@@ -109,11 +109,11 @@ Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspac
 - Run-id no longer wraps in the runs table
 - **Search + pagination**: contract now takes `q`/`limit`/`offset` on `/agent-runs`, `/traces`, `/entities/{name}/records`, `/approvals`, `/events` (server-side via `docstore.Page`, total count in the response); console runs/traces/audit/records pages page against the server; audit keeps server-side actor/outcome/q + pager; agents tables use shared `usePagedSearch`/`usePagination` hooks + `TablePager` in `@workspacenow/views`
 - **Dashboard**: `MetricGrid`/`Metric` render a responsive grid of individual KPI cards (icon, value, hint, whole-card links); AI overview has 6 deep-linked KPIs + recent runs + token chart/model usage rail
-- Mock server implements the whole contract and is test-covered (39 tests)
+- Mock server implements the whole contract and is test-covered (40 tests)
 
 ### TODO / what's happening
 - [x] Real OIDC login: Authorization Code + PKCE in `AuthProvider`, `/login/callback` route, `authMode: "oidc"` + `oidc{issuer,clientId,redirectUri}` in `apps/web-ui/public/config.js` (persona picker remains for demo mode)
-- [x] Coverage instrumentation: `@vitest/coverage-v8`, 80% line threshold (currently 83.87%), `test:coverage` gated in CI
+- [x] Coverage instrumentation: `@vitest/coverage-v8`, 80% line threshold, `test:coverage` gated in CI
 - [ ] Never run against the real wsn-service backend
 - [x] Server-side pagination/search: `q`/`limit`/`offset` added to `/agent-runs`, `/traces`, `/entities/{name}/records`, `/approvals`, `/events` in the contract, wsn-service, mock-server, and the console pages
 
@@ -133,4 +133,4 @@ Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspac
 4. `MISTRAL_API_KEY` into `wsn-ai-service/.env`
 
 ### Suggested order
-1. Blockers 2–4. 2. Run wsn-service against compose; fix what breaks. 3. Wire workflows (`-worker`) and run the sale→purchase-order scenario. 4. AI integration end to end (Sidekick, planner). 5. Remaining observability endpoints. 6. Integration tests from the mock's 39 scenarios. 7. CI green, images published, Flux on a test cluster.
+1. Blockers 2–4. 2. Run wsn-service against compose; fix what breaks. 3. Wire workflows (`-worker`) and run the sale→purchase-order scenario. 4. AI integration end to end (Sidekick, planner). 5. Remaining observability endpoints. 6. Integration tests from the mock's 40 scenarios. 7. CI green, images published, Flux on a test cluster.

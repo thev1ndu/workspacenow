@@ -41,7 +41,12 @@ type Service interface {
 	Servers(ctx context.Context) ([]MCPServer, error)
 	RegisterServer(ctx context.Context, ec kernel.ExecutionContext, name, serverURL, auth string) (*MCPServer, error)
 	Integrations(ctx context.Context) ([]Integration, error)
+	CreateIntegration(ctx context.Context, ec kernel.ExecutionContext, in Integration) (*Integration, error)
+	UpdateIntegration(ctx context.Context, ec kernel.ExecutionContext, id string, in Integration) (*Integration, error)
 	TestIntegration(ctx context.Context, ec kernel.ExecutionContext, id string) (*Integration, error)
+	// Secrets: OpenBao references only, values are read on demand and never stored or logged.
+	ListSecrets(ctx context.Context, ec kernel.ExecutionContext, prefix string) ([]string, error)
+	ReadSecret(ctx context.Context, ec kernel.ExecutionContext, path string) (map[string]string, error)
 	// InvokeOperation runs an API operation with version lifecycle + request/response transforms.
 	// version is the caller-requested API version ("" = the API's default).
 	InvokeOperationVersion(ctx context.Context, ec kernel.ExecutionContext, operationID, version string, input map[string]any) (any, http.Header, error)
@@ -366,6 +371,85 @@ func (s *service) RegisterServer(ctx context.Context, ec kernel.ExecutionContext
 
 func (s *service) Integrations(ctx context.Context) ([]Integration, error) {
 	return s.integrations.List(ctx)
+}
+
+// validateIntegration checks an integration draft; the credential reference must be readable.
+func (s *service) validateIntegration(ctx context.Context, in *Integration) error {
+	if strings.TrimSpace(in.Name) == "" || strings.TrimSpace(in.Target) == "" || in.TimeoutMs <= 0 {
+		return kernel.Invalid("An integration needs a name, a target and a positive timeout (ms)")
+	}
+	switch in.Kind {
+	case "rest", "soap", "webhook", "database", "message-broker", "saas":
+	default:
+		return kernel.Invalid("kind must be rest, soap, webhook, database, message-broker or saas")
+	}
+	if in.SecretRef != "" {
+		if _, err := s.secrets.Read(ctx, in.SecretRef); err != nil {
+			return kernel.Invalid("Credential %s is not readable: %v", in.SecretRef, err)
+		}
+	}
+	return nil
+}
+
+func (s *service) CreateIntegration(ctx context.Context, ec kernel.ExecutionContext, in Integration) (*Integration, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "connect.manage", "integration.create", "integration"); err != nil {
+		return nil, err
+	}
+	if err := s.validateIntegration(ctx, &in); err != nil {
+		return nil, err
+	}
+	in.ID, in.Status = kernel.NewID("int"), "untested"
+	if err := s.integrations.Put(ctx, &in); err != nil {
+		return nil, err
+	}
+	return &in, s.auditor.Record(ctx, ec, "integration.create", "integration/"+in.ID, kernel.OutcomeAllowed, in.Name)
+}
+
+func (s *service) UpdateIntegration(ctx context.Context, ec kernel.ExecutionContext, id string, in Integration) (*Integration, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "connect.manage", "integration.update", "integration/"+id); err != nil {
+		return nil, err
+	}
+	cur, err := s.integrations.Get(ctx, id)
+	if errors.Is(err, docstore.ErrNotFound) {
+		return nil, kernel.NotFound("Integration %s not found", id)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateIntegration(ctx, &in); err != nil {
+		return nil, err
+	}
+	cur.Name, cur.Kind, cur.Target, cur.RetryPolicy, cur.TimeoutMs, cur.SecretRef, cur.Auth = in.Name, in.Kind, in.Target, in.RetryPolicy, in.TimeoutMs, in.SecretRef, in.Auth
+	if err := s.integrations.Put(ctx, cur); err != nil {
+		return nil, err
+	}
+	return cur, s.auditor.Record(ctx, ec, "integration.update", "integration/"+id, kernel.OutcomeAllowed, cur.Name)
+}
+
+// ListSecrets returns OpenBao secret references (never values) under prefix.
+func (s *service) ListSecrets(ctx context.Context, ec kernel.ExecutionContext, prefix string) ([]string, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "connect.manage", "secret.list", "secrets"); err != nil {
+		return nil, err
+	}
+	return s.secrets.List(ctx, prefix)
+}
+
+// ReadSecret returns one secret's values to the caller; audited, never logged or stored.
+func (s *service) ReadSecret(ctx context.Context, ec kernel.ExecutionContext, path string) (map[string]string, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "secret.read", "secret/"+path); err != nil {
+		return nil, err
+	}
+	values, err := s.secrets.Read(ctx, path)
+	if errors.Is(err, secrets.ErrNotFound) {
+		return nil, kernel.NotFound("No secret at %s", path)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.auditor.Record(ctx, ec, "secret.read", "secret/"+path, kernel.OutcomeAllowed, "read "+path); err != nil {
+		return nil, err
+	}
+	return values, nil
 }
 
 // TestIntegration confirms the credential exists in the secrets manager and the target answers.

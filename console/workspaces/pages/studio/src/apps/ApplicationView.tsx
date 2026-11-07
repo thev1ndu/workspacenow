@@ -1,12 +1,9 @@
 import { Alert, Chip, Tabs } from "@heroui/react";
-import { FileText, LayoutCells, QrCode, ShoppingCart, SquareChartColumn } from "@workspacenow/icons";
 import { useSearchParams } from "react-router-dom";
 import { useListRecords } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
 import { NoDataFound } from "@workspacenow/views";
 import { PreviewPageRenderer } from "../subComponents/PreviewPageRenderer";
-
-const PAGE_ICON = { list: LayoutCells, form: FileText, dashboard: SquareChartColumn, scan: QrCode, pos: ShoppingCart };
 
 /** Record count shown beside a list page's tab; hidden when the user cannot read the entity. */
 function TabCount({ entityName }: { entityName: string }) {
@@ -58,17 +55,13 @@ export function ApplicationView({ app }: { app: Application }) {
       >
         <Tabs.ListContainer className="max-w-full self-start overflow-x-auto">
           <Tabs.List aria-label={`${app.name} pages`}>
-            {app.pages.map((p) => {
-              const Icon = PAGE_ICON[p.kind];
-              return (
-                <Tabs.Tab key={p.id} id={p.id}>
-                  <Icon className="size-4 shrink-0" aria-hidden />
-                  {p.title}
-                  {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              );
-            })}
+            {app.pages.map((p) => (
+              <Tabs.Tab key={p.id} id={p.id}>
+                {p.title}
+                {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            ))}
           </Tabs.List>
         </Tabs.ListContainer>
         {app.pages.map((p) => (

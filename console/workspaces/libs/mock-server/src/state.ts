@@ -79,7 +79,7 @@ export interface PlatformState {
   pins: Record<string, string[]>;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5; // v5: seed also carries a webhook, alert rule + fire, SLO and backup record
 
 const STORAGE_KEY = "workspacenow-demo-state";
 

@@ -85,13 +85,15 @@ function route(method: string, path: string, handler: Handler, options: { public
   routes.push({ method, pattern, keys, handler, public: options.public });
 }
 
-const list = <T>(items: T[]) => ({ items, total: items.length });
+// Tolerant of older persisted states that predate a field: never throw on a missing array.
+const list = <T>(items: T[] | undefined) => ({ items: items ?? [], total: items?.length ?? 0 });
 
 /** Server-side paging for list endpoints: limit (default 50, max 200) + offset, total kept. */
-const page = <T>(items: T[], query: URLSearchParams) => {
+const page = <T>(items: T[] | undefined, query: URLSearchParams) => {
+  const rows = items ?? [];
   const limit = Math.min(Math.max(Number(query.get("limit") ?? 50), 1), 200);
   const offset = Math.max(Number(query.get("offset") ?? 0), 0);
-  return { items: items.slice(offset, offset + limit), total: items.length };
+  return { items: rows.slice(offset, offset + limit), total: rows.length };
 };
 
 function find<T extends { id: string }>(items: T[], id: string, label: string): T {

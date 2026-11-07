@@ -246,6 +246,28 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+  /applications/{appId}/plan:
+    parameters: [{ $ref: "#/components/parameters/appId" }]
+    post:
+      tags: [Studio]
+      operationId: planApplicationEdit
+      summary: Revise an existing application's plan with AI (Application Architect agent)
+      description: "Requires `studio.manage`. Sends the application's current blueprint plus the change request to the Application Architect and returns the full updated plan for review — nothing is applied until `PUT /applications/{appId}`. Existing entities/fields must keep their name and type (records depend on them); the Architect is told so. Audited as `application.plan` on the application by the agent on behalf of the user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string, minLength: 8 }
+      responses:
+        "201": { description: Updated plan drafted, content: { application/json: { schema: { $ref: "#/components/schemas/ApplicationPlan" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
   /applications/{appId}:
     parameters: [{ $ref: "#/components/parameters/appId" }]
     get:

@@ -6,7 +6,7 @@ import type {
   EnvironmentKey,
   Release,
 } from "@workspacenow/types";
-import { ownedEntities, planOperations, validatePlan, validatePlanChanges } from "@workspacenow/types";
+import { ownedEntities, planFromApplication, planOperations, validatePlan, validatePlanChanges } from "@workspacenow/types";
 import { fail, type ExecutionContext, type Platform } from "./platform";
 
 type PlannedEntity = ApplicationPlan["entities"][number];
@@ -254,6 +254,35 @@ function addCrudOperations(platform: Platform, apiId: string, e: PlannedEntity):
 }
 
 /** Applies an approved plan: Application Blueprint, entities, pages and a CRUD API. */
+// planApplicationEdit revises an existing app's plan from a change prompt: keeps the current
+// blueprint and applies a simple deterministic change so the editor has something to review.
+export function planApplicationEdit(platform: Platform, applicationId: string, prompt: string): ApplicationPlan {
+  const app = platform.state.applications.find((a) => a.id === applicationId);
+  if (!app) fail(404, "NOT_FOUND", "Application not found");
+  const entities = platform.state.entities;
+  const current = planFromApplication(app, entities);
+  const text = prompt.toLowerCase();
+  const revised: ApplicationPlan = { ...current, prompt };
+  const words = text.match(/[a-z]+/g)?.filter((w) => w.length > 3 && !["with", "that", "this", "add", "please", "want", "need"].includes(w)) ?? [];
+  const subject = words[0] ? toPascal([words[0]]) : "Note";
+  if (!current.entities.some((e) => e.name === subject)) {
+    const entity: PlannedEntity = {
+      name: subject,
+      label: subject,
+      description: `A ${subject.toLowerCase()} added by the Architect.`,
+      fields: [
+        { name: "title", label: "Title", type: "string", required: true },
+        { name: "status", label: "Status", type: "enum", enumValues: ["open", "done"] },
+      ],
+      relationships: [],
+    };
+    revised.entities = [...current.entities, entity];
+    revised.pages = [...current.pages, { title: `${subject}s`, kind: "list", entity: subject }];
+  }
+  revised.operations = planOperations(revised.entities);
+  return revised;
+}
+
 export function applyPlan(platform: Platform, ctx: ExecutionContext, plan: ApplicationPlan): Application {
   platform.requirePermission(ctx, "studio.manage", "application.create", "application");
   const slug = slugify(plan.name);

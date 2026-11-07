@@ -2659,6 +2659,11 @@ type UpdateApplicationJSONBody struct {
 	Plan ApplicationPlan `json:"plan"`
 }
 
+// PlanApplicationEditJSONBody defines parameters for PlanApplicationEdit.
+type PlanApplicationEditJSONBody struct {
+	Prompt string `json:"prompt"`
+}
+
 // CreateReleaseJSONBody defines parameters for CreateRelease.
 type CreateReleaseJSONBody struct {
 	Notes *string `json:"notes,omitempty"`
@@ -2819,6 +2824,9 @@ type PlanApplicationJSONRequestBody PlanApplicationJSONBody
 
 // UpdateApplicationJSONRequestBody defines body for UpdateApplication for application/json ContentType.
 type UpdateApplicationJSONRequestBody UpdateApplicationJSONBody
+
+// PlanApplicationEditJSONRequestBody defines body for PlanApplicationEdit for application/json ContentType.
+type PlanApplicationEditJSONRequestBody PlanApplicationEditJSONBody
 
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
@@ -3479,6 +3487,9 @@ type ServerInterface interface {
 	// Apply an edited plan to an existing application
 	// (PUT /applications/{appId})
 	UpdateApplication(w http.ResponseWriter, r *http.Request, appId AppId)
+	// Revise an existing application's plan with AI (Application Architect agent)
+	// (POST /applications/{appId}/plan)
+	PlanApplicationEdit(w http.ResponseWriter, r *http.Request, appId AppId)
 	// An application's releases, newest first
 	// (GET /applications/{appId}/releases)
 	ListReleases(w http.ResponseWriter, r *http.Request, appId AppId)
@@ -4198,6 +4209,37 @@ func (siw *ServerInterfaceWrapper) UpdateApplication(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateApplication(w, r, appId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanApplicationEdit operation middleware
+func (siw *ServerInterfaceWrapper) PlanApplicationEdit(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "appId" -------------
+	var appId AppId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "appId", r.PathValue("appId"), &appId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "appId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanApplicationEdit(w, r, appId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5834,6 +5876,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/applications/plan", wrapper.PlanApplication)
 	m.HandleFunc("GET "+options.BaseURL+"/applications/{appId}", wrapper.GetApplication)
 	m.HandleFunc("PUT "+options.BaseURL+"/applications/{appId}", wrapper.UpdateApplication)
+	m.HandleFunc("POST "+options.BaseURL+"/applications/{appId}/plan", wrapper.PlanApplicationEdit)
 	m.HandleFunc("GET "+options.BaseURL+"/applications/{appId}/releases", wrapper.ListReleases)
 	m.HandleFunc("POST "+options.BaseURL+"/applications/{appId}/releases", wrapper.CreateRelease)
 	m.HandleFunc("GET "+options.BaseURL+"/approvals", wrapper.ListApprovals)

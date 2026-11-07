@@ -70,3 +70,24 @@ func TestBumpAndSlug(t *testing.T) {
 	assert.Equal(t, "leave-tracker", slugify("  Leave Tracker! "))
 	assert.Equal(t, []string{"LeaveRequest.list", "LeaveRequest.get", "LeaveRequest.create", "LeaveRequest.update"}, planOperations(validPlan().Entities))
 }
+
+func TestPlanFromAppRebuildsTheEditableBlueprint(t *testing.T) {
+	app := &Application{
+		ID: "app-1", Name: "Inventory Management", Slug: "inventory-management",
+		Description: "Stock and products", OwnerDepartmentID: "dep-store",
+		EntityNames: []string{"Product"},
+		Pages:       []Page{{ID: "page-1", Title: "Products", Kind: "list", Entity: "Product"}},
+	}
+	saved := []data.Entity{{
+		Name: "Product", Label: "Product", Description: "A product",
+		Fields: []data.Field{{Name: "sku", Label: "SKU", Type: data.FieldString, Required: true}},
+	}}
+	p := planFromApp(app, saved)
+	assert.Equal(t, "Inventory Management", p.Name)
+	assert.Equal(t, "dep-store", p.OwnerDepartmentID)
+	assert.Equal(t, []Page{{ID: "page-1", Title: "Products", Kind: "list", Entity: "Product"}}, p.Pages)
+	assert.Equal(t, []PlannedEntity{{
+		Name: "Product", Label: "Product", Description: "A product",
+		Fields: []data.Field{{Name: "sku", Label: "SKU", Type: data.FieldString, Required: true}},
+	}}, p.Entities)
+}

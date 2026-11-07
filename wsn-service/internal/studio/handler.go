@@ -34,6 +34,16 @@ type planBody struct {
 	Plan Plan `json:"plan"`
 }
 
+func (h *Handler) PlanApplicationEdit(w http.ResponseWriter, r *http.Request, appId string) {
+	var body struct {
+		Prompt string `json:"prompt"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	reply(w, r, http.StatusCreated)(h.svc.PlanEdit(r.Context(), studioContext(r), appId, body.Prompt))
+}
+
 func (h *Handler) ApplyApplicationPlan(w http.ResponseWriter, r *http.Request) {
 	var body planBody
 	if !decode(w, r, &body) {

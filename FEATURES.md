@@ -47,6 +47,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 ## 5. Studio — application lifecycle (plan → build → release → deploy)
 - ✅ Applications list/detail/update, pins (`/me/pinned-applications`)
 - ✅ **Plan with AI**: `POST /applications/plan` via the Application Architect agent (entities, pages, operations, workflows, permissions from a prompt), `POST /applications/apply` to materialize
+- ✅ **Edit with AI**: `POST /applications/{appId}/plan` sends the current blueprint + change prompt to the Architect and returns the revised plan; validated with the same additive change rules, applied via `PUT /applications/{appId}`; "Ask the Architect" panel in the console's edit page
 - ✅ Blueprint editor + workflow editor in the console (studio workspace: applications, builder, edit, detail)
 - ✅ Releases: immutable blueprint artifacts in object storage (`releases/{app}/{version}/blueprint.json`), create/list
 - ✅ Deployments per environment with role gates (`/deployments`) — e.g. production requires Release Manager

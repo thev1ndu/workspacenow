@@ -22,6 +22,17 @@ import (
 // Planner drafts an application plan from a description; wsn-ai-service implements it.
 type Planner interface {
 	Plan(ctx context.Context, req PlanRequest) (*Plan, error)
+	Edit(ctx context.Context, req EditPlanRequest) (*Plan, error)
+}
+
+// EditPlanRequest carries the current blueprint and the change request, plus the problems of a
+// previous draft to fix — same retry shape as PlanRequest.
+type EditPlanRequest struct {
+	Prompt           string   `json:"prompt"`
+	Current          Plan     `json:"current"`
+	Departments      []string `json:"departments"`
+	ExistingEntities []string `json:"existingEntities"`
+	Problems         []string `json:"problems,omitempty"`
 }
 
 // PlanRequest carries what the architect needs, plus the problems of a previous draft to fix.
@@ -43,6 +54,7 @@ type Service interface {
 	Applications(ctx context.Context) ([]Application, error)
 	Application(ctx context.Context, id string) (*Application, error)
 	PlanApplication(ctx context.Context, ec kernel.ExecutionContext, prompt string) (*Plan, error)
+	PlanEdit(ctx context.Context, ec kernel.ExecutionContext, appID, prompt string) (*Plan, error)
 	Apply(ctx context.Context, ec kernel.ExecutionContext, plan Plan) (*Application, error)
 	Update(ctx context.Context, ec kernel.ExecutionContext, id string, plan Plan) (*Application, error)
 	Releases(ctx context.Context, appID string) ([]Release, error)
@@ -147,6 +159,81 @@ func (s *service) PlanApplication(ctx context.Context, ec kernel.ExecutionContex
 	}
 	// A plan with remaining problems is still returned: the editor shows them for the user to fix.
 	return plan, nil
+}
+
+// PlanEdit asks the Application Architect to revise an existing application's blueprint. The
+// updated plan is validated with the same change rules Apply/Update enforce and returned for
+// review; nothing is applied until the caller PUTs the plan.
+func (s *service) PlanEdit(ctx context.Context, ec kernel.ExecutionContext, appID, prompt string) (*Plan, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "studio.manage", "application.plan", "application/"+appID); err != nil {
+		return nil, err
+	}
+	prompt = strings.TrimSpace(prompt)
+	if len(prompt) < 8 {
+		return nil, kernel.Invalid("Describe the change in a sentence or two")
+	}
+	app, err := s.apps.Get(ctx, appID)
+	if err != nil {
+		if errors.Is(err, docstore.ErrNotFound) {
+			return nil, kernel.NotFound("Application not found")
+		}
+		return nil, err
+	}
+	entities, err := s.rt.Entities(ctx)
+	if err != nil {
+		return nil, err
+	}
+	saved := ownedEntities(app, entities)
+	var others []string
+	for _, e := range entities {
+		if !slices.ContainsFunc(saved, func(o data.Entity) bool { return o.Name == e.Name }) {
+			others = append(others, e.Name)
+		}
+	}
+	current := planFromApp(app, saved)
+	depts, err := s.depts.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req := EditPlanRequest{Prompt: prompt, Current: current, ExistingEntities: others}
+	for _, d := range depts {
+		req.Departments = append(req.Departments, d.ID)
+	}
+	architect := ec
+	architect.Actor = kernel.Actor{Kind: kernel.ActorAgent, ID: "agent-application-architect", Name: "Application Architect", OnBehalfOf: ec.Actor.Name}
+	if err := s.auditor.RecordDetached(ctx, architect, "application.plan", "application/"+appID, kernel.OutcomeAllowed, prompt); err != nil {
+		return nil, err
+	}
+	var plan *Plan
+	for attempt := 0; attempt < 2; attempt++ {
+		plan, err = s.planner.Edit(ctx, req)
+		if err != nil {
+			return nil, kernel.InvalidState("The Application Architect could not revise the plan: %s", err.Error())
+		}
+		plan.Prompt = prompt
+		plan.Operations = planOperations(plan.Entities)
+		if req.Problems = append(validatePlan(*plan, others), validatePlanChanges(saved, *plan)...); len(req.Problems) == 0 {
+			break
+		}
+	}
+	// A plan with remaining problems is still returned: the editor shows them for the user to fix.
+	return plan, nil
+}
+
+// planFromApp rebuilds the editable plan of an application from its stored blueprint pieces.
+func planFromApp(app *Application, saved []data.Entity) Plan {
+	p := Plan{
+		Name:              app.Name,
+		Description:       app.Description,
+		OwnerDepartmentID: app.OwnerDepartmentID,
+		Pages:             app.Pages,
+	}
+	for _, e := range saved {
+		p.Entities = append(p.Entities, PlannedEntity{
+			Name: e.Name, Label: e.Label, Description: e.Description, Fields: e.Fields, Relationships: e.Relationships,
+		})
+	}
+	return p
 }
 
 func (s *service) Apply(ctx context.Context, ec kernel.ExecutionContext, plan Plan) (*Application, error) {

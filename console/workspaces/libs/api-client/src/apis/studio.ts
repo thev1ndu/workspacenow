@@ -13,6 +13,10 @@ export async function planApplication(body: { prompt: string }, getToken: GetTok
   return httpPOST<ApplicationPlan>(`${SERVICE_BASE}/applications/plan`, { token: await getToken(), body });
 }
 
+export async function planApplicationEdit(params: { appId: string }, body: { prompt: string }, getToken: GetToken) {
+  return httpPOST<ApplicationPlan>(`${SERVICE_BASE}/applications/${enc(params.appId)}/plan`, { token: await getToken(), body });
+}
+
 export async function applyApplicationPlan(body: { plan: ApplicationPlan }, getToken: GetToken) {
   return httpPOST<Application>(`${SERVICE_BASE}/applications`, { token: await getToken(), body });
 }

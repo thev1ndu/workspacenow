@@ -25,6 +25,14 @@ export function usePlanApplication() {
   });
 }
 
+export function usePlanApplicationEdit() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    showSuccess: false,
+    mutationFn: ({ appId, prompt }: { appId: string; prompt: string }) => api.planApplicationEdit({ appId }, { prompt }, getToken),
+  });
+}
+
 export function useApplyApplicationPlan() {
   const { getToken } = useAuthHooks();
   return useApiMutation({

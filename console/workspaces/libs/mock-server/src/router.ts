@@ -23,7 +23,7 @@ import { activitySeries, entryPointBreakdown, tokenSeries } from "./analytics";
 import { listMcpTools } from "./mcp";
 import { fail, type ExecutionContext, type Platform } from "./platform";
 import { search } from "./search";
-import { applyPlan, createRelease, deploy, planApplication, updateApplication } from "./studio";
+import { applyPlan, createRelease, deploy, planApplication, planApplicationEdit, updateApplication } from "./studio";
 import { decideApproval, runManually, saveWorkflow } from "./workflows";
 
 export interface MockRequest {
@@ -198,6 +198,14 @@ route("POST", "/applications/plan", ({ platform, ctx, body }) => {
   if (prompt.length < 8) fail(422, "VALIDATION_FAILED", "Describe the application in a sentence or two");
   platform.audit({ ...c, actor: { kind: "agent", id: "agent-application-architect", name: "Application Architect", onBehalfOf: c.actor.name } }, "application.plan", "application", "allowed", prompt);
   return planApplication(prompt);
+});
+route("POST", "/applications/:id/plan", ({ platform, ctx, params, body }) => {
+  const c = ctx("studio");
+  platform.requirePermission(c, "studio.manage", "application.plan", `application/${params.id}`);
+  const prompt = String(body.prompt ?? "").trim();
+  if (prompt.length < 8) fail(422, "VALIDATION_FAILED", "Describe the change in a sentence or two");
+  platform.audit({ ...c, actor: { kind: "agent", id: "agent-application-architect", name: "Application Architect", onBehalfOf: c.actor.name } }, "application.plan", `application/${params.id}`, "allowed", prompt);
+  return planApplicationEdit(platform, params.id, prompt);
 });
 route("POST", "/applications", ({ platform, ctx, body }) => applyPlan(platform, ctx("studio"), body.plan as ApplicationPlan));
 route("PUT", "/applications/:id", ({ platform, ctx, params, body }) => updateApplication(platform, ctx("studio"), params.id, body.plan as ApplicationPlan));

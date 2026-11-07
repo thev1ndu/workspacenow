@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Button, Chip } from "@heroui/react";
-import { Check, Xmark } from "@workspacenow/icons";
+import { Button, Chip, TextArea, TextField } from "@heroui/react";
+import { Check, Sparkles, Xmark } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
-import { useCan, useGetApplication, useListEntities, useUpdateApplication } from "@workspacenow/api-client";
+import { useCan, useGetApplication, useListEntities, usePlanApplicationEdit, useUpdateApplication } from "@workspacenow/api-client";
 import { buildPath, planFromApplication, routes, validatePlan, validatePlanChanges, type Application, type Entity } from "@workspacenow/types";
 import { PageLayout, QueryState, errorMessage } from "@workspacenow/views";
 import { Notice } from "./subComponents/Notice";
@@ -13,6 +13,9 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
   const navigate = useNavigate();
   const canBuild = useCan("studio.manage");
   const update = useUpdateApplication();
+  const planEdit = usePlanApplicationEdit();
+  const [prompt, setPrompt] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
   // The plan as loaded is both the baseline for "unsaved changes" and the schema records depend on.
   const [initial] = useState(() => planFromApplication(app, entities));
   const [plan, setPlan] = useState(initial);
@@ -52,6 +55,44 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
             Save changes
           </Button>
         </div>
+      </div>
+      <div className="rounded-2xl bg-surface-secondary px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="grid max-w-[60ch] gap-1">
+            <span className="text-sm font-medium">Edit with AI</span>
+            <p className="text-sm text-muted">
+              Describe the change and the Application Architect revises the plan — nothing is saved until you review and press Save changes.
+            </p>
+          </div>
+          <Button variant="tertiary" onPress={() => setAiOpen((v) => !v)} isDisabled={!canBuild}>
+            <Sparkles className="size-4" aria-hidden />
+            {aiOpen ? "Close" : "Ask the Architect"}
+          </Button>
+        </div>
+        {aiOpen && (
+          <div className="mt-3 grid gap-2">
+            <TextField aria-label="Describe the change" value={prompt} onChange={setPrompt}>
+              <TextArea placeholder="e.g. Add a comments field to PurchaseRequest and a page to review open orders" rows={3} />
+            </TextField>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                isDisabled={prompt.trim().length < 8 || planEdit.isPending || !canBuild}
+                isPending={planEdit.isPending}
+                onPress={() =>
+                  planEdit.mutate(
+                    { appId: app.id, prompt: prompt.trim() },
+                    { onSuccess: (revised) => { setPlan(revised); setAiOpen(false); } },
+                  )
+                }
+              >
+                <Sparkles className="size-4" aria-hidden />
+                Revise plan
+              </Button>
+              {!!planEdit.error && <span className="text-sm text-danger">{errorMessage(planEdit.error)}</span>}
+            </div>
+          </div>
+        )}
       </div>
       {problems.length > 0 && (
         <Notice>

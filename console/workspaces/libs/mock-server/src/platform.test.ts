@@ -3,7 +3,7 @@ import { ApiError, planFromApplication, type AgentRun, type EntityRecord, type W
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
 import { createDemoPlatform } from "./runtime";
-import { applyPlan, createRelease, deploy, planApplication, updateApplication } from "./studio";
+import { applyPlan, createRelease, deploy, planApplication, planApplicationEdit, updateApplication } from "./studio";
 import { decideApproval, runManually, saveWorkflow } from "./workflows";
 
 const get = (platform: ReturnType<typeof createDemoPlatform>, path: string, user = "u-amaya") =>
@@ -255,6 +255,12 @@ describe("studio", () => {
     const plan = planApplication("Build an employee management application with leave requests and approvals");
     expect(plan.entities.map((e) => e.name)).toContain("LeaveRequest");
     const app = applyPlan(platform, ctx, plan);
+    const revised = planApplicationEdit(platform, app.id, "Add a loyalty points field to every sale");
+    expect(revised.entities.length).toBeGreaterThan(plan.entities.length);
+    expect(revised.entities.some((e) => e.name === "Loyalty")).toBe(true);
+    expect(revised.prompt).toContain("loyalty");
+    const updated = updateApplication(platform, ctx, app.id, revised);
+    expect(updated.entityNames).toContain("Loyalty");
     expect(platform.state.operations.filter((o) => o.businessOperation.startsWith("Employee.")).length).toBe(4);
     const release = createRelease(platform, ctx, app.id, "First cut");
     expect(release.version).toBe("1.0.0");

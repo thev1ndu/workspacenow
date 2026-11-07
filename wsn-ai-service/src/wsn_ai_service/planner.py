@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from .llm import ChatModel
-from .models import PlanRequest
+from .models import PlanEditRequest, PlanRequest
 
 # JSON schema of the console's ApplicationPlan, kept to what the Application Architect may propose.
 _FIELD = {
@@ -65,6 +65,16 @@ ARCHITECT = (
 )
 
 
+ARCHITECT_EDIT = (
+    "You are the WorkspaceNow Application Architect revising an existing application. You are given the "
+    "application's current plan as JSON and the user's change request. Output the COMPLETE updated plan in the "
+    "same schema — keep every entity, field, and page that the request does not change, with identical names "
+    "(records depend on them), and make only the requested changes. Changes to entities that already hold "
+    "records must be additive: new fields or enum values are fine, removing or retyping existing ones is not. "
+    "Reference an existing entity instead of redefining it. Keep it minimal: only what the change needs."
+)
+
+
 class Planner:
     def __init__(self, llm: ChatModel, model: str) -> None:
         self._llm = llm
@@ -81,6 +91,26 @@ class Planner:
         completion = await self._llm.complete(
             self._model,
             [{"role": "system", "content": ARCHITECT}, {"role": "user", "content": "\n".join(brief)}],
+            json_schema=PLAN_SCHEMA,
+        )
+        plan: dict[str, Any] = json.loads(completion.content)
+        for entity in plan.get("entities", []):
+            entity.setdefault("relationships", [])
+        plan.update({"prompt": req.prompt, "operations": [], "workflows": [], "permissions": []})
+        return plan
+
+    async def edit(self, req: PlanEditRequest) -> dict[str, Any]:
+        brief = [
+            f"Change request: {req.prompt}",
+            f"Current plan: {json.dumps(req.current, sort_keys=True)}",
+            f"Department ids: {', '.join(req.departments) or 'none'}",
+            f"Entities that already exist outside this app: {', '.join(req.existing_entities) or 'none'}",
+        ]
+        if req.problems:
+            brief.append("Your previous draft had these problems; fix every one:\n- " + "\n- ".join(req.problems))
+        completion = await self._llm.complete(
+            self._model,
+            [{"role": "system", "content": ARCHITECT_EDIT}, {"role": "user", "content": "\n".join(brief)}],
             json_schema=PLAN_SCHEMA,
         )
         plan: dict[str, Any] = json.loads(completion.content)

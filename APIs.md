@@ -123,6 +123,7 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/applications` | Applications | signed in |
 | GET | `/applications/{appId}` | One application, with its pages | signed in |
 | POST | `/applications/plan` | Draft an `ApplicationPlan` from `{ prompt }` (at least 8 characters). The Application Architect agent does this; nothing is created. | `studio.manage` |
+| POST | `/applications/{appId}/plan` | Revise an existing app's plan with AI: sends the current blueprint + `{ prompt }` to the Application Architect and returns the full updated plan for review; nothing is applied until `PUT /applications/{appId}`. Existing entities/fields keep name and type (records depend on them). | `studio.manage` |
 | POST | `/applications` | Create an application from `{ plan }`: its entities, CRUD operations, API and pages | `studio.manage` |
 | PUT | `/applications/{appId}` | Apply an edited `{ plan }` to an existing application | `studio.manage` |
 | GET | `/applications/{appId}/releases` | Releases, newest first | signed in |

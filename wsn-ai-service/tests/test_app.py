@@ -29,7 +29,7 @@ class ScriptedModel:
 
 class PlanAnswer:
     async def complete(self, *args: object, **kwargs: object) -> Completion:
-        plan = '{"name":"Leave Tracker","description":"d","ownerDepartmentId":"dep-hr","entities":[],"pages":[]}'
+        plan = '{"name":"Leave Tracker","description":"d","ownerDepartmentId":"dep-hr","entities":[{"name":"Leave","label":"Leave","description":"d","fields":[]}],"pages":[]}'
         return Completion(plan, tokens=9)
 
 
@@ -125,6 +125,37 @@ def test_plan_answers_502_when_the_model_returns_garbage() -> None:
         r = c.post("/v1/plans", json={"prompt": "x"}, headers={"Authorization": "Bearer secret"})
     assert r.status_code == 502
     assert "unusable plan" in r.json()["message"]
+
+
+EDIT = {
+    "prompt": "Add an approval step",
+    "current": {"name": "Leave Tracker", "entities": [], "pages": []},
+    "departments": ["dep-hr"],
+    "existingEntities": ["Employee"],
+    "problems": ["old problem"],
+}
+
+
+def test_plan_edit_returns_the_revised_plan() -> None:
+    with client(PlanAnswer()) as c:
+        r = c.post("/v1/plans/edit", json=EDIT, headers={"Authorization": "Bearer secret"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Leave Tracker"
+    assert body["prompt"] == "Add an approval step"
+    assert body["operations"] == []
+
+
+def test_plan_edit_answers_502_when_the_model_returns_garbage() -> None:
+    with client() as c:
+        r = c.post("/v1/plans/edit", json=EDIT, headers={"Authorization": "Bearer secret"})
+    assert r.status_code == 502
+    assert "unusable plan" in r.json()["message"]
+
+
+def test_plan_edit_requires_the_service_token() -> None:
+    with client(PlanAnswer()) as c:
+        assert c.post("/v1/plans/edit", json=EDIT).status_code == 401
 
 
 def test_discover_returns_the_external_servers_tools(monkeypatch: pytest.MonkeyPatch) -> None:

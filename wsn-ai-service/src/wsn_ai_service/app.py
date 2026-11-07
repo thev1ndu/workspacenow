@@ -14,7 +14,7 @@ from .config import Settings, get_settings
 from .discovery import discover
 from .llm import ChatModel, MistralChat
 from .mcp_server import build_server, keep_tools_in_sync
-from .models import DiscoverRequest, DiscoverResult, PlanRequest, RunRequest, RunResult
+from .models import DiscoverRequest, DiscoverResult, PlanEditRequest, PlanRequest, RunRequest, RunResult
 from .planner import Planner
 from .platform import PlatformClient
 from .runtime import AgentRuntime
@@ -109,6 +109,13 @@ def create_app(
     async def plan_application(req: PlanRequest) -> dict[str, Any]:
         try:
             return await planner.plan(req)
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"The model returned an unusable plan: {exc}") from exc
+
+    @app.post("/v1/plans/edit", dependencies=internal)
+    async def plan_application_edit(req: PlanEditRequest) -> dict[str, Any]:
+        try:
+            return await planner.edit(req)
         except ValueError as exc:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"The model returned an unusable plan: {exc}") from exc
 

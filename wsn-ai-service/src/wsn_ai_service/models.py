@@ -70,6 +70,14 @@ class PlanRequest(Wire):
     problems: list[str] = Field(default_factory=list)
 
 
+class PlanEditRequest(Wire):
+    prompt: str
+    current: dict[str, Any]
+    departments: list[str] = Field(default_factory=list)
+    existing_entities: list[str] = Field(default_factory=list)
+    problems: list[str] = Field(default_factory=list)
+
+
 class DiscoverRequest(Wire):
     url: str
     auth: Literal["oauth2", "api-key", "none"] = "none"

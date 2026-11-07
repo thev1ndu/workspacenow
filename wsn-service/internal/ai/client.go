@@ -106,6 +106,15 @@ func (c *Client) Plan(ctx context.Context, req studio.PlanRequest) (*studio.Plan
 	return &plan, nil
 }
 
+// Edit implements studio.Planner's revision pass via POST /v1/plans/edit (the Application Architect).
+func (c *Client) Edit(ctx context.Context, req studio.EditPlanRequest) (*studio.Plan, error) {
+	var plan studio.Plan
+	if err := c.post(ctx, "/v1/plans/edit", req, &plan); err != nil {
+		return nil, err
+	}
+	return &plan, nil
+}
+
 // Discover implements connect.Discoverer via POST /v1/mcp/discover.
 func (c *Client) Discover(ctx context.Context, serverURL, auth string) ([]connect.ServerTool, error) {
 	var out struct {

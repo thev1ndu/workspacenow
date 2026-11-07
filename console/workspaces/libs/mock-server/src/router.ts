@@ -750,9 +750,11 @@ route("GET", "/executions", ({ platform, query }) => {
 route("GET", "/executions/:id", ({ platform, params }) => find(platform.state.executions, params.id, "Execution"));
 route("GET", "/approvals", ({ platform, query }) => {
   const status = query.get("status");
+  const applicationId = query.get("applicationId");
   return page(
     platform.state.approvals
       .filter((a) => !status || a.status === status)
+      .filter((a) => !applicationId || a.subject?.applicationId === applicationId)
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
     query,
   );
@@ -765,7 +767,11 @@ route("POST", "/approvals/:id/decision", ({ platform, userId, params, body }) =>
 
 /* Observability and audit */
 
-route("GET", "/events", ({ platform, query }) => page([...platform.state.events].reverse(), query));
+route("GET", "/events", ({ platform, query }) => {
+  const applicationId = query.get("applicationId");
+  const rows = [...platform.state.events].reverse();
+  return page(applicationId ? rows.filter((e) => (e.payload as Record<string, unknown>)?.applicationId === applicationId) : rows, query);
+});
 route("GET", "/status", ({ platform }) => {
   const components = [
     ...platform.state.connections.map((d) => ({ kind: "database", resource: d.name, status: d.status === "connected" ? "healthy" : d.status === "degraded" ? "degraded" : "down", detail: d.host })),

@@ -461,6 +461,25 @@ describe("global search", () => {
   });
 });
 
+describe("per-app notifications", () => {
+  it("events and approvals filter by applicationId", () => {
+    const platform = createDemoPlatform();
+    const app = platform.state.applications[0];
+    const all = get(platform, "/events").body as { total: number };
+    const scoped = get(platform, `/events?applicationId=${app.id}`).body as { items: unknown[]; total: number };
+    expect(scoped.total).toBeLessThanOrEqual(all.total);
+    expect(scoped.items.every((e) => (e as { payload: Record<string, unknown> }).payload?.applicationId === app.id)).toBe(true);
+    const approvalsAll = get(platform, "/approvals").body as { items: Array<{ subject?: { applicationId?: string } }>; total: number };
+    const withSubject = approvalsAll.items.find((a) => a.subject?.applicationId);
+    expect(withSubject).toBeTruthy(); // the seeded low-stock flow leaves a pending approval bound to its app
+    const appId = withSubject!.subject!.applicationId!;
+    const approvalsScoped = get(platform, `/approvals?applicationId=${appId}`).body as { items: Array<{ subject?: { applicationId?: string } }>; total: number };
+    expect(approvalsScoped.items.every((a) => a.subject?.applicationId === appId)).toBe(true);
+    expect(approvalsScoped.total).toBeGreaterThan(0);
+    expect(approvalsScoped.total).toBeLessThanOrEqual(approvalsAll.total);
+  });
+});
+
 describe("ops: alerts, slos, status", () => {
   it("creates an alert that fires on denied approvals, acks it, defines an SLO, reads status", () => {
     const platform = createDemoPlatform();

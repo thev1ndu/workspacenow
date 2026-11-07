@@ -30,7 +30,11 @@ func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request, params oapi
 	if params.Offset != nil {
 		offset = *params.Offset
 	}
-	events, total, err := h.svc.Events(r.Context(), limit, offset)
+	applicationID := ""
+	if params.ApplicationId != nil {
+		applicationID = *params.ApplicationId
+	}
+	events, total, err := h.svc.Events(r.Context(), applicationID, limit, offset)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

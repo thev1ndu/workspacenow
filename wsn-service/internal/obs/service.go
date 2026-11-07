@@ -30,7 +30,7 @@ const (
 
 // Service reads the observability data: Postgres for events and audit, wsn-observer for spans.
 type Service interface {
-	Events(ctx context.Context, limit, offset int) ([]oapi.PlatformEvent, int, error)
+	Events(ctx context.Context, applicationID string, limit, offset int) ([]oapi.PlatformEvent, int, error)
 	Audit(ctx context.Context, params oapi.ListAuditParams) ([]oapi.AuditRecord, error)
 	Traces(ctx context.Context, q string, limit, offset int) ([]oapi.TraceSummary, int, error)
 	Trace(ctx context.Context, traceID string) (*oapi.Trace, error)
@@ -106,16 +106,20 @@ func NewService(d Deps) Service {
 	}
 }
 
-func (s *service) Events(ctx context.Context, limit, offset int) ([]oapi.PlatformEvent, int, error) {
+func (s *service) Events(ctx context.Context, applicationID string, limit, offset int) ([]oapi.PlatformEvent, int, error) {
 	if limit < 1 || limit > eventsLimitMax {
 		limit = 50
 	}
+	q := s.db.WithContext(ctx).Model(&models.Event{})
+	if applicationID != "" {
+		q = q.Where("payload->>'applicationId' = ?", applicationID)
+	}
 	var total int64
-	if err := s.db.WithContext(ctx).Model(&models.Event{}).Count(&total).Error; err != nil {
+	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("count events: %w", err)
 	}
 	var rows []models.Event
-	if err := s.db.WithContext(ctx).Order("seq desc").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+	if err := q.Order("seq desc").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
 		return nil, 0, fmt.Errorf("list events: %w", err)
 	}
 	out := make([]oapi.PlatformEvent, 0, len(rows))

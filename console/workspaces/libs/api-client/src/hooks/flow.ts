@@ -50,7 +50,7 @@ export function useGetExecution(params: { executionId?: string }) {
   });
 }
 
-export function useListApprovals(query: { status?: Approval["status"]; limit?: number; offset?: number } = {}) {
+export function useListApprovals(query: { status?: Approval["status"]; applicationId?: string; limit?: number; offset?: number } = {}) {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["approvals", query], queryFn: () => api.listApprovals(query, getToken) });
 }

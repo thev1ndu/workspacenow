@@ -25,7 +25,7 @@ type fakeSvc struct {
 	gotQ      string
 }
 
-func (f *fakeSvc) Events(_ context.Context, limit, offset int) ([]oapi.PlatformEvent, int, error) {
+func (f *fakeSvc) Events(_ context.Context, _ string, limit, offset int) ([]oapi.PlatformEvent, int, error) {
 	f.gotLimit = limit
 	f.gotOffset = offset
 	return f.events, len(f.events), f.err

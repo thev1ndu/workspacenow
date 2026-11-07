@@ -106,7 +106,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container
 - ✅ **Theming beyond default**: `useAppearance` — light/dark/system mode + accent palettes, persisted, applied pre-paint; Preferences dialog
 - ✅ **Keyboard-first command palette**: Cmd/Ctrl+K fuzzy palette over applications, records, people, entities, agents, workflows, APIs, MCP servers, integrations + workspace navigation
-- ✅ **In-app notifications inbox**: bell with unread count since last open, live events + pending approvals from SSE, mark-all-read, deep links
+- ✅ **In-app notifications inbox**: bell with unread count since last open, live events + pending approvals from SSE, mark-all-read, deep links — **and per-app**: `?applicationId=` on `/events` + `/approvals`, a scoped bell in each full-screen app (`/apps/:appId`) with its own seen marker
 - ✅ **i18n**: `@workspacenow/i18n` provider + dictionaries (en/de), locale in `config.js` or localStorage, language switcher in Preferences; shell (sidebar, topbar, breadcrumbs, login, preferences) localized
 - ✅ **Offline/PWA**: vite-plugin-pwa — precached app shell, `manifest.webmanifest` (standalone), auto-updating `sw.js`, network-first API GET caching with offline fallback
 

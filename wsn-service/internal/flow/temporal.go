@@ -349,7 +349,7 @@ func (a *Activities) RequestApproval(ctx context.Context, in ExecutionInput, ste
 		Summary: render(step.Description, runCtx), Permission: step.Permission, Status: "pending", RequestedAt: time.Now().UTC(),
 	}
 	if s, ok := runCtx["subject"].(map[string]any); ok {
-		approval.Subject = &Subject{Entity: fmt.Sprint(s["entity"]), RecordID: fmt.Sprint(s["recordId"])}
+		approval.Subject = &Subject{Entity: fmt.Sprint(s["entity"]), RecordID: fmt.Sprint(s["recordId"]), ApplicationID: in.Workflow.ApplicationID}
 		approval.Summary = a.describe(ctx, approval.Subject, approval.Summary)
 	}
 	err := postgres.InTx(ctx, a.db, func(ctx context.Context) error {

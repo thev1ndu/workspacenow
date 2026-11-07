@@ -4,12 +4,15 @@ import { Bell, CircleCheck } from "@workspacenow/icons";
 import { useListApprovals, useListEvents } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, TextLink, formatRelative } from "@workspacenow/views";
+import { useT } from "@workspacenow/i18n";
 
 const SEEN_KEY = "workspacenow-notifications-seen";
+// Per-app inboxes track their own seen marker so scopes do not clobber each other.
+const seenKey = (applicationId?: string) => (applicationId ? `${SEEN_KEY}:${applicationId}` : SEEN_KEY);
 
-function readSeen(): string {
+function readSeen(key = SEEN_KEY): string {
   try {
-    return localStorage.getItem(SEEN_KEY) ?? "";
+    return localStorage.getItem(key) ?? "";
   } catch {
     return "";
   }
@@ -22,18 +25,20 @@ function describe(type: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** Platform events and pending approvals, with an unread count since the panel was last opened. */
-export function NotificationsMenu() {
-  const [seen, setSeen] = useState(readSeen);
-  const events = useListEvents({ limit: 15 });
-  const approvals = useListApprovals({ status: "pending" });
+/** Platform events and pending approvals, with an unread count since the panel was last opened.
+ *  Pass applicationId inside a running app to scope the inbox to that app only. */
+export function NotificationsMenu({ applicationId }: { applicationId?: string }) {
+  const t = useT();
+  const [seen, setSeen] = useState(() => readSeen(seenKey(applicationId)));
+  const events = useListEvents({ applicationId, limit: 15 });
+  const approvals = useListApprovals({ status: "pending", applicationId });
   const items = events.data?.items ?? [];
   const unread = items.filter((e) => e.time > seen).length + (approvals.data?.total ?? 0);
 
   const markSeen = (open: boolean) => {
     if (!open || !items[0]) return;
     try {
-      localStorage.setItem(SEEN_KEY, items[0].time);
+      localStorage.setItem(seenKey(applicationId), items[0].time);
     } catch {
       // Unread state then lasts only for this session.
     }
@@ -49,7 +54,7 @@ export function NotificationsMenu() {
         <Popover.Content placement="bottom end" className="w-96 max-w-[calc(100vw-2rem)] p-0">
           <Popover.Dialog className="p-0">
             <div className="flex items-center justify-between px-4 py-3">
-              <Popover.Heading className="text-sm font-semibold">Notifications</Popover.Heading>
+              <Popover.Heading className="text-sm font-semibold">{applicationId ? t("App notifications") : t("Notifications")}</Popover.Heading>
               <LinkButton size="sm" variant="ghost" href={routes.control.audit}>
                 Audit log
               </LinkButton>

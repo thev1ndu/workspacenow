@@ -8,6 +8,7 @@ import { LinkButton, useAppearance } from "@workspacenow/views";
 import { Brand } from "./Brand";
 import { AppSidekick } from "./Sidekick";
 import { UserMenu } from "./UserMenu";
+import { NotificationsMenu } from "./NotificationsMenu";
 
 /**
  * Full-screen frame for the app catalogue and the apps it opens: no console navigation, only the way
@@ -44,6 +45,7 @@ export function AppShell() {
             <ArrowLeft className="size-4" aria-hidden />
             <span className="sr-only sm:not-sr-only">Back to WorkspaceNow</span>
           </LinkButton>
+          {scopedApp && <NotificationsMenu applicationId={scopedApp.id} />}
           {scopedApp && (
             <Button size="sm" variant={sidekickOpen ? "secondary" : "ghost"} aria-pressed={sidekickOpen} onPress={() => setSidekickPreferred(!sidekickOpen)}>
               <SparklesFill className="size-4 text-accent" aria-hidden />

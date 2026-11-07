@@ -27,7 +27,7 @@ type Service interface {
 	StartForEvent(ctx context.Context, e kernel.Event) error
 	Executions(ctx context.Context, workflowID string) ([]Execution, error)
 	Execution(ctx context.Context, id string) (*Execution, error)
-	Approvals(ctx context.Context, status string, limit, offset int) ([]Approval, int, error)
+	Approvals(ctx context.Context, status, applicationID string, limit, offset int) ([]Approval, int, error)
 	Decide(ctx context.Context, caller *kernel.Caller, id string, approved bool, comment string) (*Approval, error)
 }
 
@@ -304,7 +304,7 @@ func (s *service) Execution(ctx context.Context, id string) (*Execution, error) 
 	return e, err
 }
 
-func (s *service) Approvals(ctx context.Context, status string, limit, offset int) ([]Approval, int, error) {
+func (s *service) Approvals(ctx context.Context, status, applicationID string, limit, offset int) ([]Approval, int, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
@@ -312,6 +312,15 @@ func (s *service) Approvals(ctx context.Context, status string, limit, offset in
 	if status != "" {
 		cond = "doc->>'status' = ?"
 		args = append(args, status)
+	}
+	if applicationID != "" {
+		c := "doc->'subject'->>'applicationId' = ?"
+		if cond != "" {
+			cond += " AND " + c
+		} else {
+			cond = c
+		}
+		args = append(args, applicationID)
 	}
 	docs, total, err := s.approvals.Page(ctx, cond, limit, offset, args...)
 	if err != nil {

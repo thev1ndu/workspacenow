@@ -37,7 +37,7 @@ export async function listResources(getToken: GetToken) {
   return httpGET<ListResponse<ResourceSummary>>(`${SERVICE_BASE}/resources`, { token: await getToken() });
 }
 
-export async function listEvents(query: { limit?: number; offset?: number }, getToken: GetToken) {
+export async function listEvents(query: { applicationId?: string; limit?: number; offset?: number }, getToken: GetToken) {
   return httpGET<ListResponse<PlatformEvent>>(`${SERVICE_BASE}/events`, {
     token: await getToken(),
     searchParams: qs(query),

@@ -93,7 +93,11 @@ func (h *Handler) ListApprovals(w http.ResponseWriter, r *http.Request, params o
 	if params.Offset != nil {
 		offset = *params.Offset
 	}
-	out, total, err := h.svc.Approvals(r.Context(), status, limit, offset)
+	applicationID := ""
+	if params.ApplicationId != nil {
+		applicationID = *params.ApplicationId
+	}
+	out, total, err := h.svc.Approvals(r.Context(), status, applicationID, limit, offset)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

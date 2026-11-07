@@ -28,7 +28,7 @@ export function AppsSection() {
                 <AppTile
                   key={app.id}
                   app={app}
-                  meta={`${departmentName(app.ownerDepartmentId)} · ${app.pages.length} ${app.pages.length === 1 ? "page" : "pages"}`}
+                  meta={departmentName(app.ownerDepartmentId)}
                 />
               ))}
             </ul>

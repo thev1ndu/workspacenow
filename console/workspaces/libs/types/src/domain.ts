@@ -585,7 +585,7 @@ export interface Approval {
   title: string;
   summary: string;
   permission: Permission;
-  subject?: { entity: string; recordId: Id };
+  subject?: { entity: string; recordId: Id; applicationId?: Id };
   status: "pending" | "approved" | "rejected";
   requestedAt: IsoDate;
   decidedAt?: IsoDate;

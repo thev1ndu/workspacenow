@@ -3332,8 +3332,11 @@ type CreateReleaseJSONBody struct {
 // ListApprovalsParams defines parameters for ListApprovals.
 type ListApprovalsParams struct {
 	Status *ListApprovalsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
-	Limit  *int                       `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int                       `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// ApplicationId Only approvals whose subject belongs to this application (per-app notification box)
+	ApplicationId *string `form:"applicationId,omitempty" json:"applicationId,omitempty"`
+	Limit         *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset        *int    `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // ListApprovalsParamsStatus defines parameters for ListApprovals.
@@ -3417,8 +3420,10 @@ type RunViewParams struct {
 
 // ListEventsParams defines parameters for ListEvents.
 type ListEventsParams struct {
-	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+	// ApplicationId Only events published with this applicationId in the payload (per-app notification box)
+	ApplicationId *string `form:"applicationId,omitempty" json:"applicationId,omitempty"`
+	Limit         *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset        *int    `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // StreamEventsParams defines parameters for StreamEvents.
@@ -5552,6 +5557,14 @@ func (siw *ServerInterfaceWrapper) ListApprovals(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// ------------- Optional query parameter "applicationId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "applicationId", r.URL.Query(), &params.ApplicationId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "applicationId", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "limit" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -6511,6 +6524,14 @@ func (siw *ServerInterfaceWrapper) ListEvents(w http.ResponseWriter, r *http.Req
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ListEventsParams
+
+	// ------------- Optional query parameter "applicationId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "applicationId", r.URL.Query(), &params.ApplicationId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "applicationId", Err: err})
+		return
+	}
 
 	// ------------- Optional query parameter "limit" -------------
 

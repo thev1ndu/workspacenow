@@ -1267,6 +1267,7 @@ paths:
       summary: Approvals, newest first
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] } }
+        - { name: applicationId, in: query, schema: { type: string }, description: "Only approvals whose subject belongs to this application (per-app notification box)" }
         - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
         - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
 
@@ -1306,6 +1307,7 @@ paths:
       operationId: listEvents
       summary: Platform events, newest first
       parameters:
+        - { name: applicationId, in: query, schema: { type: string }, description: "Only events published with this applicationId in the payload (per-app notification box)" }
         - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
         - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
       responses:

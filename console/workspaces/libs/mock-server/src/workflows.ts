@@ -116,7 +116,7 @@ function advance(platform: Platform, execution: WorkflowExecution, from: string 
               ? `${request.values.quantity} units for ${execution.context.store ?? request.values.store}, estimated LKR ${Number(request.values.estimatedCost).toLocaleString("en-US")}. ${request.values.justification}`
               : step.description,
             permission: step.permission,
-            subject: request ? { entity: "PurchaseRequest", recordId: request.id } : undefined,
+            subject: request ? { entity: "PurchaseRequest", recordId: request.id, applicationId: workflow.applicationId } : undefined,
             status: "pending",
             requestedAt: platform.now(),
           };

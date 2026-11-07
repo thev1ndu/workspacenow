@@ -47,7 +47,7 @@ export async function getExecution(params: { executionId: string }, getToken: Ge
   return httpGET<WorkflowExecution>(`${SERVICE_BASE}/executions/${enc(params.executionId)}`, { token: await getToken() });
 }
 
-export async function listApprovals(query: { status?: Approval["status"]; limit?: number; offset?: number }, getToken: GetToken) {
+export async function listApprovals(query: { status?: Approval["status"]; applicationId?: string; limit?: number; offset?: number }, getToken: GetToken) {
   return httpGET<ListResponse<Approval>>(`${SERVICE_BASE}/approvals`, { token: await getToken(), searchParams: qs(query) });
 }
 

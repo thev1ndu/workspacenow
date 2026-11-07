@@ -165,8 +165,9 @@ type Execution struct {
 }
 
 type Subject struct {
-	Entity   string `json:"entity"`
-	RecordID string `json:"recordId"`
+	Entity        string `json:"entity"`
+	RecordID      string `json:"recordId"`
+	ApplicationID string `json:"applicationId,omitempty"`
 }
 
 type Approval struct {

@@ -34,6 +34,7 @@ const de: Record<string, string> = {
   "Sign in with your identity provider": "Mit Identitätsanbieter anmelden",
   "Choose a demo persona": "Demo-Persona wählen",
   Notifications: "Benachrichtigungen",
+  "App notifications": "App-Benachrichtigungen",
   "No notifications yet": "Noch keine Benachrichtigungen",
   "Mark all read": "Alle als gelesen markieren",
   Open: "Öffnen",

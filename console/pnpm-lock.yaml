@@ -337,6 +337,18 @@ importers:
       '@types/react':
         specifier: 19.2.14
         version: 19.2.14
+      '@workspacenow/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      eslint:
+        specifier: 9.36.0
+        version: 9.36.0(jiti@2.7.0)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: 7.1.7
+        version: 7.1.7(@types/node@24.6.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2)
 
   workspaces/libs/icons:
     dependencies:

@@ -15,7 +15,6 @@ export function IntegrationDialog({ onClose, integration }: { onClose: () => voi
   const [target, setTarget] = useState(integration?.target ?? "");
   const [retryPolicy, setRetryPolicy] = useState(integration?.retryPolicy ?? "None");
   const [timeoutMs, setTimeoutMs] = useState(String(integration?.timeoutMs ?? 5000));
-  const [secretRef, setSecretRef] = useState(integration?.secretRef ?? "");
   const [customRef, setCustomRef] = useState("");
   const [secretChoice, setSecretChoice] = useState<string>(integration?.secretRef ?? "");
   const secrets = useListSecrets();

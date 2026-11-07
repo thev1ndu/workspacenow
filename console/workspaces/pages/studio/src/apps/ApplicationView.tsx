@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Chip, Tabs } from "@heroui/react";
 import { useSearchParams } from "react-router-dom";
 import { useListRecords, useSession } from "@workspacenow/api-client";
@@ -37,6 +37,31 @@ export function ApplicationView({ app }: { app: Application }) {
     }
   });
   const [dragId, setDragId] = useState<string>();
+  const dragIdRef = useRef<string | undefined>(undefined);
+  const setDrag = (id: string | undefined) => {
+    dragIdRef.current = id;
+    setDragId(id);
+  };
+  // HeroUI/react-aria strips drag props, so bind native HTML5 drag & drop on the tab element via ref.
+  const bindDrag = (id: string) => (el: Element | null) => {
+    if (!el || el.getAttribute("data-dnd")) return;
+    el.setAttribute("data-dnd", "1");
+    el.setAttribute("draggable", "true");
+    el.addEventListener("dragstart", (e) => {
+      setDrag(id);
+      (e as DragEvent).dataTransfer!.effectAllowed = "move";
+    });
+    el.addEventListener("dragover", (e) => {
+      if (dragIdRef.current && dragIdRef.current !== id) e.preventDefault();
+    });
+    el.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const from = dragIdRef.current;
+      if (from) moveTab(from, id);
+      setDrag(undefined);
+    });
+    el.addEventListener("dragend", () => setDrag(undefined));
+  };
   const moveTab = (dragged: string, onto: string) => {
     if (dragged === onto) return;
     setOrder((prev) => {
@@ -88,22 +113,8 @@ export function ApplicationView({ app }: { app: Application }) {
               <Tabs.Tab
                 key={p.id}
                 id={p.id}
-                draggable
-                onDragStart={(e) => {
-                  setDragId(p.id);
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-                onDragOver={(e) => {
-                  if (dragId && dragId !== p.id) e.preventDefault(); // allow the drop
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragId) moveTab(dragId, p.id);
-                  setDragId(undefined);
-                }}
-                onDragEnd={() => setDragId(undefined)}
+                ref={bindDrag(p.id)}
                 className={dragId === p.id ? "opacity-50" : "cursor-grab active:cursor-grabbing"}
-                title="Drag to reorder"
               >
                 {p.title}
                 {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}

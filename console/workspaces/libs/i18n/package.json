@@ -17,6 +17,10 @@
     "react": "19.2.3"
   },
   "devDependencies": {
-    "@types/react": "19.2.14"
+    "@types/react": "19.2.14",
+    "vite": "7.1.7",
+    "typescript": "5.9.3",
+    "eslint": "9.36.0",
+    "@workspacenow/eslint-config": "workspace:*"
   }
 }

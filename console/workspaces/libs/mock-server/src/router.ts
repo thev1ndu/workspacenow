@@ -10,6 +10,8 @@ import {
   type FieldValue,
   type GroupRoleMapping,
   type HealthSignal,
+  type Integration,
+  type IntegrationInput,
   type McpServer,
   type OverviewStats,
   type Permission,
@@ -622,7 +624,6 @@ route("POST", "/integrations", ({ platform, ctx, body }) => {
   if (!INTEGRATION_KINDS.includes(input.kind)) fail(422, "VALIDATION_FAILED", "kind must be rest, soap, webhook, database, message-broker or saas");
   assertPublicUrl(input.target);
   if (input.secretRef && !platform.state.secrets[input.secretRef]) fail(422, "VALIDATION_FAILED", `Credential ${input.secretRef} is not readable`);
-  const now = platform.now();
   const integration: Integration = { ...input, id: platform.nextId("int"), status: "untested", name: input.name.trim(), target: input.target.trim(), auth: input.auth, lastTestedAt: undefined };
   platform.state.integrations.push(integration);
   platform.audit(c, "integration.create", `integration/${integration.id}`, "allowed", integration.name);

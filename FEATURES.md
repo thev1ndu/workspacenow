@@ -125,11 +125,11 @@ Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers 
 - ⬜ Live run of the flagship flow (needs Docker + `MISTRAL_API_KEY`)
 
 ## 11. Delivery — local, CI, cloud
-- ✅ Root `Makefile`: `make setup` / `make up` / `make down` (+ `deps`, `build`, `ps`, `logs`, `clean`); full compose stack in `deploy/compose/docker-compose.yml` (infra + 4 apps behind the `app` profile, `.env` at repo root, auto-migrations via `wsn-service-migrate`, MinIO bucket init, NATS stream auto-create, demo seed on first boot)
+- ✅ Root `Makefile`: `make setup` / `make up` / `make down` (+ `deps`, `build`, `ps`, `logs`, `clean`); full compose stack in `deploy/compose/docker-compose.yml` (infra + 4 apps behind the `app` profile, `.env` at repo root, auto-migrations via `wsn-service-migrate`, S3 bucket init, NATS stream auto-create, demo seed on first boot; local object storage is RustFS (MinIO-compatible — MinIO's public images now require login), prod runs the MinIO operator)
 - ✅ Per-component multi-stage Dockerfiles, non-root (distroless / dedicated user / unprivileged nginx); console build pinned to `$BUILDPLATFORM` (fixes the QEMU SIGILL)
-- ✅ GitHub Actions: `ci.yaml` (Go build/vet/lint/test per component, console typecheck+lint+coverage, generated-code freshness, Flux render) and `images.yaml` (buildx multi-platform push to GHCR on main)
+- ✅ GitHub Actions: `ci.yaml` runs on every PR, main push and `v*` tag — component unit tests, console typecheck+lint+coverage, generated-code freshness, Flux render, **and a full e2e job** that boots the compose stack and runs `deploy/e2e/smoke.sh` (session, entities, record create, flagship sale → `Stock.LowStockReached`, approvals/SLOs/alerts/analytics, status page JSON+HTML, SSE) against the live API. `images.yaml` builds and pushes to GHCR **only after ci succeeded** (`workflow_run` gate), so a failed commit never ships an image
 - 🟡 Flux GitOps (`deploy/flux`): controllers, configs, apps per env, image automation, NetworkPolicy, observer PVC — renders with `kubectl kustomize`, never applied; hostnames are placeholders
-- ⬜ CI never executed on GitHub; images never pulled by compose/Flux yet (GHCR packages must be public or authenticated); OpenBao roles for a real cluster documented but not done; no kind/k3d run
+- 🟡 CI runs on PRs/main/tags (first live run on PR #2); images build only on green ci but were never pulled by compose/Flux yet (GHCR packages must be public or authenticated); OpenBao roles for a real cluster documented but not done; no kind/k3d run
 
 ---
 

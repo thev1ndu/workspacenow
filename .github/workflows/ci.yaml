@@ -23,8 +23,8 @@ jobs:
       console: ${{ steps.filter.outputs.console }}
       deploy: ${{ steps.filter.outputs.deploy }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -42,8 +42,8 @@ jobs:
       run:
         working-directory: wsn-service
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: wsn-service/go.mod
           cache-dependency-path: wsn-service/go.sum
@@ -66,8 +66,8 @@ jobs:
       run:
         working-directory: wsn-observer
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: wsn-observer/go.mod
           cache-dependency-path: wsn-observer/go.mod
@@ -85,11 +85,11 @@ jobs:
       run:
         working-directory: console
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           package_json_file: console/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -109,7 +109,7 @@ jobs:
     env:
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Boot the compose stack
         run: |
           docker compose -f deploy/compose/docker-compose.yml --profile app up -d --build || {
@@ -134,7 +134,7 @@ jobs:
     if: needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: fluxcd/flux2/action@main
       - name: Render every Flux overlay
         run: |

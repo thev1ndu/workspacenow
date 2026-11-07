@@ -71,7 +71,7 @@ Release blueprints are stored in object storage at `releases/<appId>/<version>/b
 Prerequisites: Go 1.26, Docker. Node is needed only to re-export the demo seed.
 
 ```sh
-make deps            # postgres, valkey, nats, temporal, minio, openbao (../deploy/compose)
+make deps            # postgres, valkey, nats, temporal, rustfs, openbao (../deploy/compose)
 cp .env.example .env
 make run             # migrate, then serve on :8080 with the demo organization
 make test            # unit tests

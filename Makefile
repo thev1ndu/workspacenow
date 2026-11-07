@@ -21,7 +21,7 @@ up: setup ## Start the full local stack (infra + apps) and wait for readiness
 	$(COMPOSE) --profile app up -d --wait
 	@echo "console http://localhost:8088 | api http://localhost:8080 | temporal UI http://localhost:8233 | observer http://localhost:9098"
 
-deps: setup ## Start only the infrastructure (postgres, valkey, nats, temporal, minio, openbao)
+deps: setup ## Start only the infrastructure (postgres, valkey, nats, temporal, rustfs, openbao)
 	$(COMPOSE) up -d --wait
 
 build: setup ## Build the four app images locally instead of pulling from GHCR
@@ -36,5 +36,5 @@ ps: ## Show container status
 logs: ## Follow all app logs
 	$(COMPOSE) --profile app logs -f
 
-clean: ## Stop the stack and delete its volumes (postgres data, minio, nats, temporal, observer)
+clean: ## Stop the stack and delete its volumes (postgres data, rustfs, nats, temporal, observer)
 	$(COMPOSE) --profile app down -v

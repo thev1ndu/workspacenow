@@ -10,7 +10,7 @@ data:
   NATS_URL: nats://nats:4222
   TEMPORAL_HOSTPORT: temporal-frontend.temporal.svc:7233
   TEMPORAL_NAMESPACE: default
-  S3_ENDPOINT: minio.workspacenow.svc:80
+  S3_ENDPOINT: rustfs.workspacenow.svc:9000
   S3_BUCKET: workspacenow
   OPENBAO_ADDR: http://openbao.openbao.svc:8200
   OPENBAO_ROLE: wsn-service

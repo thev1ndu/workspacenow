@@ -13,7 +13,7 @@ Shared sources of truth and plumbing:
 
 - **API contract**: `openapi.yaml` + `APIs.md` at the root. Never hand-edit generated code — `wsn-service/internal/oapi/gen.go` comes from `make -C wsn-service generate`.
 - **Roadmap / current state**: `ROADMAP.md`. **Status/task list**: `T0D0.md` (what's done, blockers, how to test). **Feature inventory (use cases)**: `FEATURES.md`. **Coverage numbers**: `COVERAGE.md`. Update when you change behavior.
-- **Local stack** (from the repo root): `make setup` then `make up` / `make down` — compose in `deploy/compose/docker-compose.yml` (Postgres, Valkey, NATS, Temporal, MinIO, OpenBao + the four apps behind the `app` profile); variables come from the root `.env` (see `.env.example`).
+- **Local stack** (from the repo root): `make setup` then `make up` / `make down` — compose in `deploy/compose/docker-compose.yml` (Postgres, Valkey, NATS, Temporal, RustFS, OpenBao + the four apps behind the `app` profile); variables come from the root `.env` (see `.env.example`).
 - **Deploy**: `deploy/compose` (local), `deploy/flux` (K8s, renders only), `.github/workflows` (CI, never run yet). Images build per-component with docker buildx to `ghcr.io/thev1ndu`.
 - **Telemetry**: wsn-service and wsn-ai-service export OTLP (spans/logs/metrics) to wsn-observer (`WSN_OBSERVER_URL`); the observer stores segment files under `WSN_OBSERVER_DATA_DIR` (PVC in K8s).
 

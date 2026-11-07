@@ -1,4 +1,4 @@
-// Package objectstore keeps documents and release artifacts in S3-compatible storage (MinIO or AWS S3).
+// Package objectstore keeps documents and release artifacts in S3-compatible storage (RustFS or AWS S3).
 package objectstore
 
 import (

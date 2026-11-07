@@ -1,6 +1,6 @@
 # wsn-service — agent guide
 
-Go platform API (stdlib `net/http` + oapi-codegen, gorm/Postgres, NATS, Valkey, Temporal, MinIO, OpenBao). One binary, roles picked by flags: `-migrate`, `-server` (default), `-relay`, `-worker`.
+Go platform API (stdlib `net/http` + oapi-codegen, gorm/Postgres, NATS, Valkey, Temporal, RustFS (S3), OpenBao). One binary, roles picked by flags: `-migrate`, `-server` (default), `-relay`, `-worker`.
 
 ## File map
 

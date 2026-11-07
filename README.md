@@ -32,7 +32,7 @@ The console calls wsn-service over `/api/v1` (REST plus server-sent events); MCP
 | Sessions, caching, rate limits | Valkey (Redis protocol) |
 | Events | NATS JetStream |
 | Durable workflows | Temporal |
-| Documents, release artifacts | S3-compatible object storage (MinIO) |
+| Documents, release artifacts | S3-compatible object storage (RustFS) |
 | Integration credentials | OpenBao, synced into Kubernetes by External Secrets |
 | Models | Mistral (La Plateforme) |
 
@@ -89,7 +89,7 @@ make down     # stop (volumes kept; `make clean` wipes them)
 Or run the services by hand:
 
 ```sh
-# 1. Infrastructure only: postgres, valkey, nats, temporal, minio, openbao
+# 1. Infrastructure only: postgres, valkey, nats, temporal, rustfs, openbao
 make deps
 
 # 2. wsn-service on :8080 (demo organization loaded on first start)

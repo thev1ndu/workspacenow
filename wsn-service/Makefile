@@ -41,7 +41,7 @@ migrate: ## Apply migrations with .env and exit
 ../.env:
 	cp ../.env.example ../.env
 
-deps: ../.env ## Start local infrastructure (postgres, valkey, nats, temporal, minio, openbao)
+deps: ../.env ## Start local infrastructure (postgres, valkey, nats, temporal, rustfs, openbao)
 	$(COMPOSE) up -d --wait
 
 deps-down: ## Stop local infrastructure

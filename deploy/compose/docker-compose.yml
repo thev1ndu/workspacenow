@@ -20,10 +20,10 @@ x-wsn-service-env: &wsn-service-env
   TEMPORAL_HOSTPORT: temporal:7233
   TEMPORAL_NAMESPACE: default
   TEMPORAL_TASK_QUEUE: workspacenow-workflows
-  S3_ENDPOINT: minio:9000
+  S3_ENDPOINT: rustfs:9000
   S3_BUCKET: workspacenow
-  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-workspacenow}
-  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
+  S3_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-workspacenow}
+  S3_SECRET_KEY: ${RUSTFS_SECRET_KEY:-workspacenow-secret}
   S3_USE_SSL: "false"
   OPENBAO_ADDR: http://openbao:8200
   OPENBAO_TOKEN: ${OPENBAO_ROOT_TOKEN:-root}
@@ -78,31 +78,30 @@ services:
     depends_on:
       volume-init: { condition: service_completed_successfully }
 
-  # S3-compatible object storage. MinIO's public images now require a login on both Docker Hub
-  # and quay.io, so the local stack runs RustFS — a drop-in MinIO-compatible server on the same
-  # ports (9000 API / 9001 console). Production (Flux) runs the real MinIO operator; the S3 API
-  # and the path-style client in wsn-service are identical either way.
-  minio:
+  # S3-compatible object storage: RustFS (MinIO-compatible API) on ports 9000 (API) / 9001
+  # (console). Used both locally and in prod (Flux), so the path-style S3 client in
+  # wsn-service talks to the same API everywhere.
+  rustfs:
     image: rustfs/rustfs:1.0.4
     command: ["server", "/data"]
     environment:
-      RUSTFS_ACCESS_KEY: ${MINIO_ROOT_USER:-workspacenow}
-      RUSTFS_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-workspacenow}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-workspacenow-secret}
     ports: ["9000:9000", "9001:9001"]
-    volumes: ["minio:/data"]
+    volumes: ["rustfs:/data"]
 
-  minio-init:
+  rustfs-init:
     image: amazon/aws-cli:2.39.6
-    depends_on: [minio]
+    depends_on: [rustfs]
     environment:
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-workspacenow}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
+      AWS_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY:-workspacenow}
+      AWS_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_KEY:-workspacenow-secret}
       AWS_DEFAULT_REGION: us-east-1
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        until aws --endpoint-url http://minio:9000 s3api list-buckets >/dev/null 2>&1; do sleep 1; done;
-        aws --endpoint-url http://minio:9000 s3api create-bucket --bucket ${S3_BUCKET:-workspacenow} || true
+        until aws --endpoint-url http://rustfs:9000 s3api list-buckets >/dev/null 2>&1; do sleep 1; done;
+        aws --endpoint-url http://rustfs:9000 s3api create-bucket --bucket ${S3_BUCKET:-workspacenow} || true
 
   # OpenBao in dev mode: root token "root", KV v2 at secret/. Integration credentials live here.
   openbao:
@@ -133,10 +132,10 @@ services:
     environment: *wsn-service-env
     depends_on:
       postgres: { condition: service_healthy }
-      minio-init: { condition: service_completed_successfully }
+      rustfs-init: { condition: service_completed_successfully }
     restart: "no"
 
-  # Backup restore drill: restores Postgres from the newest (or -backup-id) backup in MinIO and exits.
+  # Backup restore drill: restores Postgres from the newest (or -backup-id) backup in object storage and exits.
   # Run against a scratch database: docker compose --profile restore run --rm wsn-service-restore
   wsn-service-restore:
     profiles: ["restore"]
@@ -146,7 +145,7 @@ services:
     environment: *wsn-service-env
     depends_on:
       postgres: { condition: service_healthy }
-      minio-init: { condition: service_completed_successfully }
+      rustfs-init: { condition: service_completed_successfully }
     restart: "no"
 
   wsn-service:
@@ -200,5 +199,5 @@ volumes:
   postgres: {}
   nats: {}
   temporal: {}
-  minio: {}
+  rustfs: {}
   observer: {}

@@ -92,46 +92,79 @@ spec:
   data:
     - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }
 ---
+# Object-storage credentials for the RustFS deployment, pulled from OpenBao.
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: wsn-minio-env
+  name: wsn-rustfs-env
   namespace: workspacenow
 spec:
   refreshInterval: 1h
   secretStoreRef: { kind: ClusterSecretStore, name: openbao }
   target:
-    name: wsn-minio-env
+    name: wsn-rustfs-env
     template:
       data:
-        config.env: |
-          export MINIO_ROOT_USER="{{ .accessKey }}"
-          export MINIO_ROOT_PASSWORD="{{ .secretKey }}"
+        accessKey: "{{ .accessKey }}"
+        secretKey: "{{ .secretKey }}"
   data:
     - { secretKey: accessKey, remoteRef: { key: workspacenow/object-storage, property: accessKey } }
     - { secretKey: secretKey, remoteRef: { key: workspacenow/object-storage, property: secretKey } }
 ---
-# Object storage for documents and release artifacts.
-apiVersion: minio.min.io/v2
-kind: Tenant
+# Object storage for documents and release artifacts: RustFS (S3-compatible, MinIO-compatible
+# API) on a single PVC. The wsn-service object store creates the bucket on first use.
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: wsn-minio
+  name: rustfs
   namespace: workspacenow
 spec:
-  configuration:
-    name: wsn-minio-env
-  requestAutoCert: false
-  buckets:
-    - name: workspacenow
-  pools:
-    - name: pool-0
-      servers: 4
-      volumesPerServer: 2
-      volumeClaimTemplate:
-        metadata:
-          name: data
-        spec:
-          accessModes: [ReadWriteOnce]
-          resources:
-            requests:
-              storage: 20Gi
+  replicas: 1
+  selector: { matchLabels: { app: rustfs } }
+  template:
+    metadata:
+      labels: { app: rustfs }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: rustfs
+          image: docker.io/rustfs/rustfs:1.0.4
+          args: ["server", "/data"]
+          env:
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: wsn-rustfs-env, key: accessKey } }
+            - name: RUSTFS_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: wsn-rustfs-env, key: secretKey } }
+          ports:
+            - { name: s3, containerPort: 9000 }
+            - { name: console, containerPort: 9001 }
+          readinessProbe:
+            httpGet: { path: /minio/health/ready, port: 9000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts: [{ name: data, mountPath: /data }]
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: rustfs-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  namespace: workspacenow
+spec:
+  selector: { app: rustfs }
+  ports:
+    - { name: s3, port: 9000, targetPort: 9000 }
+    - { name: console, port: 9001, targetPort: 9001 }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-data
+  namespace: workspacenow
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi

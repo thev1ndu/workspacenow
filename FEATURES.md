@@ -22,7 +22,7 @@ Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers 
 ## 2. Data platform (entities & records)
 - ✅ Entity registry: list/get/create/update with schema validation (`/entities`), incl. `rowFilter` row-level security (`$actor.*` values)
 - ✅ Records CRUD per entity with server-side `q`/`view`/`includeDeleted`/`limit`/`offset`
-- ✅ **File fields (`type: file`)**: records store only a `FileRef` (key/name/size/contentType); upload via `POST .../records/{id}/files/{field}` (≤50 MiB) into object storage (MinIO), download via GET; permission-checked, audited; the AI Architect and the manual plan editor both offer the file field type, and record forms get an upload/download input
+- ✅ **File fields (`type: file`)**: records store only a `FileRef` (key/name/size/contentType); upload via `POST .../records/{id}/files/{field}` (≤50 MiB) into object storage (RustFS/S3), download via GET; permission-checked, audited; the AI Architect and the manual plan editor both offer the file field type, and record forms get an upload/download input
 - ✅ Rule enforcement: required fields (422), uniqueness (409), referential checks, read-only entities
 - ✅ **Soft deletes** (`deleted_at`/`deleted_by`) + `POST .../restore`; lists hide deleted unless `includeDeleted=true`
 - ✅ **Record history**: every create/update/delete/restore writes a `record_history` row (actor, field-level diff, snapshot); `GET .../records/{id}/history`
@@ -125,7 +125,7 @@ Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers 
 - ⬜ Live run of the flagship flow (needs Docker + `MISTRAL_API_KEY`)
 
 ## 11. Delivery — local, CI, cloud
-- ✅ Root `Makefile`: `make setup` / `make up` / `make down` (+ `deps`, `build`, `ps`, `logs`, `clean`); full compose stack in `deploy/compose/docker-compose.yml` (infra + 4 apps behind the `app` profile, `.env` at repo root, auto-migrations via `wsn-service-migrate`, S3 bucket init, NATS stream auto-create, demo seed on first boot; local object storage is RustFS (MinIO-compatible — MinIO's public images now require login), prod runs the MinIO operator)
+- ✅ Root `Makefile`: `make setup` / `make up` / `make down` (+ `deps`, `build`, `ps`, `logs`, `clean`); full compose stack in `deploy/compose/docker-compose.yml` (infra + 4 apps behind the `app` profile, `.env` at repo root, auto-migrations via `wsn-service-migrate`, S3 bucket init, NATS stream auto-create, demo seed on first boot; object storage is RustFS (S3-compatible) everywhere — local compose and prod Flux)
 - ✅ Per-component multi-stage Dockerfiles, non-root (distroless / dedicated user / unprivileged nginx); console build pinned to `$BUILDPLATFORM` (fixes the QEMU SIGILL)
 - ✅ GitHub Actions: `ci.yaml` runs on every PR, main push and `v*` tag — component unit tests, console typecheck+lint+coverage, generated-code freshness, Flux render, **and a full e2e job** that boots the compose stack and runs `deploy/e2e/smoke.sh` (session, entities, record create, flagship sale → `Stock.LowStockReached`, approvals/SLOs/alerts/analytics, status page JSON+HTML, SSE) against the live API. `images.yaml` builds and pushes to GHCR **only after ci succeeded** (`workflow_run` gate), so a failed commit never ships an image
 - 🟡 Flux GitOps (`deploy/flux`): controllers, configs, apps per env, image automation, NetworkPolicy, observer PVC — renders with `kubectl kustomize`, never applied; hostnames are placeholders

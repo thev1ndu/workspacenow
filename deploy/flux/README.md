@@ -4,8 +4,8 @@ GitOps configuration for WorkspaceNow. Flux applies three layers in order, each 
 
 | Layer | Path | Contents |
 |---|---|---|
-| `infra-controllers` | `infrastructure/controllers` | CloudNativePG, External Secrets, OpenBao, NATS (JetStream), Valkey, MinIO operator, Temporal |
-| `infra-configs` | `infrastructure/configs` | The `wsn-db` Postgres cluster, the OpenBao `ClusterSecretStore`, `ExternalSecret`s, the MinIO tenant |
+| `infra-controllers` | `infrastructure/controllers` | CloudNativePG, External Secrets, OpenBao, NATS (JetStream), Valkey, Temporal |
+| `infra-configs` | `infrastructure/configs` | The `wsn-db` Postgres cluster, the OpenBao `ClusterSecretStore`, `ExternalSecret`s, the RustFS object-storage deployment |
 | `workspacenow` | `apps/<env>` | `wsn-service` (API, relay, worker, migration job), `wsn-ai-service`, the console, the `HTTPRoute` and NetworkPolicies |
 
 `apps/base` holds the manifests; `apps/dev`, `apps/staging` and `apps/prod` patch replicas, image tags, hostnames and runtime config. Dev follows `main` through Flux image automation; staging and production pin release tags.

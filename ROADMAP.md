@@ -1,0 +1,55 @@
+# ROADMAP.md — WorkspaceNow: current state and what's next
+
+Status as of 2026-11-07. See [FEATURES.md](FEATURES.md) for the full feature inventory with per-item
+status, [T0D0.md](T0D0.md) for the task list with test steps, [COVERAGE.md](COVERAGE.md) for test
+coverage numbers, and [APIs.md](APIs.md) / `openapi.yaml` for the 113-operation contract.
+
+## Current state (what the platform can do today)
+
+**≈ 95% of the designed feature set is implemented and unit-verified; ≈ 5–10% is verified against
+live infrastructure** (nothing has run on real Docker/GitHub/K8s yet — the sandbox has no Docker).
+
+| Component | State |
+|---|---|
+| Contract | 113 operations in `openapi.yaml`, all served by real handlers (501 fallback empty) |
+| wsn-service (Go) | identity/OIDC + demo personas, RBAC, data platform (entities, records, soft deletes, history, migrations+backfill, import/export, RLS, saved views), business operations, Connect (APIs, MCP, webhooks+signed delivery, OAuth2, API versions, transforms, GraphQL, portal+API keys), Studio (AI plan + edit-with-AI, releases, deployments, pins), AI (governed agents, grants, budgets, Sidekick), Flow (Temporal workflows, approvals, triggers), observability (audit, traces, SSE realtime, alerts, SLOs, status page, backups, OTLP export). `go test -race` green, golangci-lint 0 issues |
+| wsn-ai-service (Python) | Mistral agent runtime, Architect planner, MCP discovery + managed MCP server, step streaming; 100% line coverage gated in CI, ruff + mypy strict |
+| wsn-observer (Go) | OTLP ingest + query API, WAL segment store (no DB), retention, WAL replication to a standby; `-race` green |
+| console | 7 workspaces / ~35 pages, SSE live updates, OIDC login, command palette, notifications inbox, theming, i18n (en/de), PWA/offline; 37 mock tests + 83% coverage gate |
+| Delivery | root Makefile (`make setup/up/down`), full compose stack (+ HA overlay), non-root multi-stage Dockerfiles, GHCR images workflow, CI (Go/console/observer/ai + Flux render), Flux GitOps renders, nightly backup CronJob |
+
+**Run it:** `make setup && make up` (needs Docker + `MISTRAL_API_KEY` in `.env`) → console :8088, API :8080, Temporal UI :8233, observer :9098. Demo org "Northwind Retail" seeds on first boot; the flagship flow is sale → low stock → workflow → approval → purchase order under one trace.
+
+**What a business can build on it today:** entity-driven CRUD apps, transactional operations, approval workflows, API/MCP exposure with versioning and keys, governed AI agents (incl. a chat app), event-driven automation, integrations with webhooks/OAuth2 — all audited, all realtime.
+
+## Roadmap
+
+Ordered by value per effort. P0 = do first (unblocks selling/operating the platform); P1 = next quarter; P2 = later.
+
+### P0 — prove it live (nothing here is new code, it's verification)
+1. Run `make up` on a Docker host; fix what breaks at first boot (migrations, seed, SSE, webhooks).
+2. Run the flagship flow end to end with a real `MISTRAL_API_KEY`; run the live smoke in CI.
+3. Let GitHub Actions run `ci.yaml` + `images.yaml` for real; make the GHCR packages public (or authenticated) so compose/Flux can pull.
+4. Apply Flux to a kind/k3d cluster; replace placeholder hostnames; verify image automation picks up `main-*` tags.
+5. Integration tests (`//go:build integration`) porting the mock's 37 scenarios against compose Postgres.
+
+### P1 — product depth
+6. **Multi-tenancy**: many organizations per installation (tenant isolation review — today DB-only via the org column), per-tenant SSO config, tenant-level data residency. This is what turns an internal platform into a sellable SaaS.
+7. **Multi-model AI**: OpenAI/Anthropic/ollama alongside Mistral, per-agent model choice with fallback, agent eval suites (golden prompts in CI), per-department cost rollups and budgets.
+8. **Data**: visual query-builder UI for saved views (API supports filters today), record purge job, entity diff/history UI, CSV/JSON import UI.
+9. **Connect**: full GraphQL (schema + federation), OAuth2 authorization-code flow with browser redirect, webhook signature-verification helper lib, developer portal UI (docs pages from OpenAPI).
+10. **Flow**: schedule management UI, retry policies, workflow versioning with running-instance migration, compensation (saga) steps.
+11. **Ops**: alert channels beyond webhooks (email/SMS/PagerDuty), SLO burn-rate alerts, log-based metric dashboards in the console, backup restore drill (`-restore` role), status page HTML skin.
+
+### P2 — scale & ecosystem
+12. HA hardening: read replicas for reads, Valkey Sentinel, observer active-active, chaos tests.
+13. App marketplace / template gallery in Studio; white-label theming per installation.
+14. Plugin/extension API for custom pages (bring-your-own React component) and custom operations.
+15. Metering/billing per department/app (data exists — tokens are recorded), license management.
+16. i18n: add more locales (the dictionary mechanism is in place); accessibility audit (WCAG 2.2 AA).
+
+## Non-goals (deliberate)
+
+- No database inside wsn-observer, ever — WAL segment files only.
+- No ungoverned agent actions: every tool call goes back through wsn-service with a grant. This is the product's core promise; don't trade it for convenience.
+- `agent-manager/` stays a read-only reference checkout.

@@ -114,7 +114,7 @@ Demo mode signs you in as one of the Northwind Retail personas (store manager, p
 - **Images:** `.github/workflows/images.yaml` builds `wsn-service`, `wsn-ai-service` and `console` from each component's multi-stage `Dockerfile` (linux/amd64 + arm64) and pushes them to `ghcr.io/thev1ndu`. Every image runs as a non-root user on a read-only-rootfs-compatible runtime (distroless for wsn-service, a dedicated user on python-slim for wsn-ai-service, unprivileged nginx for the console). Builds from `main` are tagged `main-<sha>-<run>`; `v*` tags publish the version.
 - **Deployment:** Flux applies `deploy/flux/clusters/<env>`: infrastructure controllers, then their instances, then the apps. Dev follows `main` through image automation; staging and production pin release tags.
 
-See [FEATURES.md](FEATURES.md) for the full use-case/feature inventory and completion summary.
+See [ROADMAP.md](ROADMAP.md) for current state and what's next, [FEATURES.md](FEATURES.md) for the full use-case/feature inventory, [T0D0.md](T0D0.md) for tasks and test steps.
 
 ## Status
 

@@ -7,7 +7,7 @@
 # (.env lives at the repo root and is passed with --env-file; running compose directly from this
 # directory without --env-file falls back to the defaults in each ${VAR:-default} below.)
 # Images default to the GHCR main builds; `make build` builds them locally instead.
-name: workspacenow
+name: wsn
 
 x-wsn-service-env: &wsn-service-env
   WSN_ENV: development

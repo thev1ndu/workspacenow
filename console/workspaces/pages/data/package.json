@@ -11,7 +11,9 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@heroui/react": "3.2.7",
@@ -39,6 +41,8 @@
     "@types/react-dom": "19.3.0",
     "@types/node": "26.6.6",
     "eslint": "10.14.0",
-    "@workspacenow/eslint-config": "workspace:*"
+    "@workspacenow/eslint-config": "workspace:*",
+    "vitest": "5.1.0",
+    "@vitest/coverage-v8": "^5.1.0"
   }
 }

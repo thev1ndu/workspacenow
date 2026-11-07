@@ -125,9 +125,9 @@ export function MetricGridSkeleton({ columns = 4 }: { columns?: number }) {
 }
 
 /** A SectionCard whose title is still loading. `flush` runs the body edge to edge, for tables and lists. */
-export function SectionCardSkeleton({ children, flush }: { children: ReactNode; flush?: boolean }) {
+export function SectionCardSkeleton({ children, flush, className }: { children: ReactNode; flush?: boolean; className?: string }) {
   return (
-    <Card className="gap-0 overflow-hidden p-0">
+    <Card className={`gap-0 overflow-hidden p-0 ${className ?? ""}`}>
       <div className="grid gap-2 border-b border-separator px-5 py-4">
         <Skeleton className="h-4 w-36 rounded-md" />
         <Skeleton className="h-3 w-64 max-w-full rounded-md" />

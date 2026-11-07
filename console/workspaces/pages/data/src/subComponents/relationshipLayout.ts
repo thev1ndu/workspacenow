@@ -3,6 +3,7 @@ import type { Entity, RelationshipKind } from "@workspacenow/types";
 export const NODE_HEIGHT = 36;
 const ROW_GAP = 96;
 const COLUMN_GAP = 40;
+const COMPONENT_GAP = 96;
 const PADDING = 32;
 
 export interface LaidOutNode {
@@ -46,8 +47,10 @@ const ENDS: Record<RelationshipKind, ["1" | "N", "1" | "N"]> = {
 };
 
 /**
- * The starting arrangement: referenced entities sit above the entities that reference them, and each
- * row is nudged so related entities line up. People can then move entities and bend connectors.
+ * The starting arrangement: entities are grouped into connected components (unrelated clusters never
+ * share a row), referenced entities sit above the entities that reference them, and each row is
+ * nudged so related entities line up. Components are packed left to right, biggest first. People can
+ * then move entities and bend connectors.
  */
 export function layoutRelationships(entities: Entity[]) {
   const names = new Set(entities.map((e) => e.name));
@@ -63,126 +66,167 @@ export function layoutRelationships(entities: Entity[]) {
       return true;
     });
 
-  // Rank = longest chain of references above an entity; unrelated entities go in a final row.
-  const rank = new Map<string, number>();
-  const rankOf = (name: string, trail: Set<string>): number => {
-    if (rank.has(name)) return rank.get(name)!;
-    if (trail.has(name)) return 0;
-    trail.add(name);
-    const targets = relations.filter((r) => r.from === name).map((r) => r.to);
-    const value = targets.length ? Math.max(...targets.map((t) => rankOf(t, trail) + 1)) : 0;
-    trail.delete(name);
-    rank.set(name, value);
-    return value;
-  };
-  const connected = new Set(relations.flatMap((r) => [r.from, r.to]));
-  entities.filter((e) => connected.has(e.name)).forEach((e) => rankOf(e.name, new Set()));
-  const lastRank = Math.max(-1, ...rank.values());
-  entities.filter((e) => !connected.has(e.name)).forEach((e) => rank.set(e.name, lastRank + 1));
-
-  const rows: string[][] = [];
-  for (const e of entities) (rows[rank.get(e.name)!] ??= []).push(e.name);
-
-  // Place each row under the entities it references, so connectors can drop straight down.
-  const x = new Map<string, number>();
   const width = new Map(entities.map((e) => [e.name, nodeWidth(e.name)]));
-  rows.forEach((row) => {
-    const want = (n: string) => {
-      const above = relations.filter((rel) => rel.from === n && x.has(rel.to)).map((rel) => x.get(rel.to)!);
-      return above.length ? above.reduce((a, b) => a + b, 0) / above.length : undefined;
-    };
-    const desired = new Map(row.map((n) => [n, want(n) ?? Infinity]));
-    row.sort((a, b) => desired.get(a)! - desired.get(b)!);
-    // Greedy left to right at each node's desired x, never closer than the column gap.
-    let right: number | undefined;
-    for (const n of row) {
-      const w = width.get(n)!;
-      const d = desired.get(n)!;
-      const earliest = right === undefined ? -Infinity : right + COLUMN_GAP + w / 2;
-      const fallback = right === undefined ? w / 2 : earliest;
-      const cx = Math.max(Number.isFinite(d) ? d : fallback, earliest);
-      x.set(n, cx);
-      right = cx + w / 2;
-    }
-  });
 
-  /*
-   * Straighten: nudge each node until it overlaps the entities it references in the row above,
-   * wide enough for a straight connector, without crowding its neighbours. A few passes settle it.
-   */
-  // Overlap a shared port needs: an inset at both ends plus a little room.
-  const STRAIGHT = 2 * 14 + 2;
-  const bounds = (row: string[], i: number) => {
-    const w = width.get(row[i])!;
-    const prev = row[i - 1];
-    const next = row[i + 1];
-    return [
-      prev ? x.get(prev)! + width.get(prev)! / 2 + COLUMN_GAP + w / 2 : -Infinity,
-      next ? x.get(next)! - width.get(next)! / 2 - COLUMN_GAP - w / 2 : Infinity,
-    ] as const;
-  };
-  for (let pass = 0; pass < 6; pass += 1) {
-    // Up: each referenced entity moves toward the middle of the entities directly below that reference it.
-    for (let r = rows.length - 2; r >= 0; r -= 1) {
-      rows[r].forEach((n, i) => {
-        const below = relations.filter((rel) => rel.to === n && rank.get(rel.from) === r + 1).map((rel) => x.get(rel.from)!);
-        if (below.length === 0) return;
-        const [min, max] = bounds(rows[r], i);
-        x.set(n, Math.min(Math.max(below.reduce((a, b) => a + b, 0) / below.length, min), max));
-      });
-    }
-    // Down: each entity moves until it overlaps what it references, wide enough for a straight line.
-    rows.forEach((row, r) => {
-      if (r === 0) return;
-      const ranges = row.map((n) => {
-        const w = width.get(n)!;
-        const own = relations
-          .filter((rel) => rel.from === n && rank.get(rel.to) === r - 1)
-          .map((rel) => {
-            const px = x.get(rel.to)!;
-            const pw = width.get(rel.to)!;
-            return [px - pw / 2 + STRAIGHT - w / 2, px + pw / 2 - STRAIGHT + w / 2] as const;
-          });
-        if (own.length === 0) return undefined;
-        const both = own.reduce((acc, [lo, hi]) => [Math.max(acc[0], lo), Math.min(acc[1], hi)] as const);
-        return both[0] <= both[1] ? both : own[0];
-      });
-      const target = row.map((n, i) => {
-        const range = ranges[i];
-        return range ? Math.min(Math.max(x.get(n)!, range[0]), range[1]) : x.get(n)!;
-      });
-      const gap = (i: number) => width.get(row[i])! / 2 + COLUMN_GAP + width.get(row[i + 1])! / 2;
-      // Pack once pushing right and once pushing left; keep whichever leaves more nodes able to run straight.
-      const rightward = [...target];
-      for (let i = 1; i < row.length; i += 1) rightward[i] = Math.max(rightward[i], rightward[i - 1] + gap(i - 1));
-      const leftward = [...target];
-      for (let i = row.length - 2; i >= 0; i -= 1) leftward[i] = Math.min(leftward[i], leftward[i + 1] - gap(i));
-      const straight = (placed: number[]) => placed.filter((cx, i) => !ranges[i] || (cx >= ranges[i]![0] - 0.5 && cx <= ranges[i]![1] + 0.5)).length;
-      const chosen = straight(leftward) > straight(rightward) ? leftward : rightward;
-      row.forEach((n, i) => x.set(n, chosen[i]));
-    });
+  // Undirected connected components; isolated entities form singleton components.
+  const adj = new Map(entities.map((e) => [e.name, [] as string[]]));
+  for (const r of relations) {
+    adj.get(r.from)!.push(r.to);
+    adj.get(r.to)!.push(r.from);
   }
-
-  // Normalise to the padding and size the canvas to the widest extent.
-  const left = Math.min(...entities.map((e) => x.get(e.name)! - width.get(e.name)! / 2));
-  entities.forEach((e) => x.set(e.name, x.get(e.name)! - left + PADDING));
-  const canvasWidth = Math.max(...entities.map((e) => x.get(e.name)! + width.get(e.name)! / 2)) + PADDING;
-  // A lone row (such as unrelated entities) is centred rather than pushed to the left.
-  rows.forEach((row) => {
-    if (row.every((n) => !relations.some((rel) => rel.from === n || rel.to === n))) {
-      const total = row.reduce((sum, n) => sum + width.get(n)!, 0) + COLUMN_GAP * (row.length - 1);
-      let cursor = (canvasWidth - total) / 2;
-      for (const n of row) {
-        x.set(n, cursor + width.get(n)! / 2);
-        cursor += width.get(n)! + COLUMN_GAP;
-      }
+  const components: string[][] = [];
+  const assigned = new Set<string>();
+  for (const e of entities) {
+    if (assigned.has(e.name)) continue;
+    const comp: string[] = [];
+    const stack = [e.name];
+    while (stack.length) {
+      const n = stack.pop()!;
+      if (assigned.has(n)) continue;
+      assigned.add(n);
+      comp.push(n);
+      stack.push(...adj.get(n)!);
     }
-  });
+    components.push(comp);
+  }
+  // Biggest component first, so the main cluster leads and loose singletons trail.
+  components.sort((a, b) => b.length - a.length || a[0].localeCompare(b[0]));
 
   const rowY = (r: number) => PADDING + NODE_HEIGHT / 2 + r * (NODE_HEIGHT + ROW_GAP);
-  const nodes: LaidOutNode[] = entities.map((e) => ({ name: e.name, x: x.get(e.name)!, y: rowY(rank.get(e.name)!), width: width.get(e.name)! }));
-  const height = rowY(rows.length - 1) + NODE_HEIGHT / 2 + PADDING;
-  return { nodes, relations: relations as Relation[], width: canvasWidth, height };
+
+  // Lay out one connected component in local coordinates (x relative to its own left edge).
+  const layoutComponent = (members: string[]): { nodes: LaidOutNode[]; width: number; height: number } => {
+    const local = relations.filter((r) => members.includes(r.from) && members.includes(r.to));
+    // Rank = longest chain of references; referenced entities end up above their referrers.
+    const rank = new Map<string, number>();
+    const rankOf = (name: string, trail: Set<string>): number => {
+      if (rank.has(name)) return rank.get(name)!;
+      if (trail.has(name)) return 0;
+      trail.add(name);
+      const targets = local.filter((r) => r.from === name).map((r) => r.to);
+      const value = targets.length ? Math.max(...targets.map((t) => rankOf(t, trail) + 1)) : 0;
+      trail.delete(name);
+      rank.set(name, value);
+      return value;
+    };
+    members.forEach((m) => rankOf(m, new Set()));
+
+    const rows: string[][] = [];
+    for (const m of members) (rows[rank.get(m)!] ??= []).push(m);
+
+    // Place each row under the entities it references, so connectors can drop straight down.
+    const x = new Map<string, number>();
+    rows.forEach((row) => {
+      const want = (n: string) => {
+        const above = local.filter((rel) => rel.from === n && x.has(rel.to)).map((rel) => x.get(rel.to)!);
+        return above.length ? above.reduce((a, b) => a + b, 0) / above.length : undefined;
+      };
+      const desired = new Map(row.map((n) => [n, want(n) ?? Infinity]));
+      row.sort((a, b) => desired.get(a)! - desired.get(b)!);
+      // Greedy left to right at each node's desired x, never closer than the column gap.
+      let right: number | undefined;
+      for (const n of row) {
+        const w = width.get(n)!;
+        const d = desired.get(n)!;
+        const earliest = right === undefined ? -Infinity : right + COLUMN_GAP + w / 2;
+        const fallback = right === undefined ? w / 2 : earliest;
+        const cx = Math.max(Number.isFinite(d) ? d : fallback, earliest);
+        x.set(n, cx);
+        right = cx + w / 2;
+      }
+    });
+
+    /*
+     * Straighten: nudge each node until it overlaps the entities it references in the row above,
+     * wide enough for a straight connector, without crowding its neighbours. A few passes settle it.
+     */
+    // Overlap a shared port needs: an inset at both ends plus a little room.
+    const STRAIGHT = 2 * 14 + 2;
+    const bounds = (row: string[], i: number) => {
+      const w = width.get(row[i])!;
+      const prev = row[i - 1];
+      const next = row[i + 1];
+      return [
+        prev ? x.get(prev)! + width.get(prev)! / 2 + COLUMN_GAP + w / 2 : -Infinity,
+        next ? x.get(next)! - width.get(next)! / 2 - COLUMN_GAP - w / 2 : Infinity,
+      ] as const;
+    };
+    for (let pass = 0; pass < 6; pass += 1) {
+      // Up: each referenced entity moves toward the middle of the entities directly below that reference it.
+      for (let r = rows.length - 2; r >= 0; r -= 1) {
+        rows[r].forEach((n, i) => {
+          const below = local.filter((rel) => rel.to === n && rank.get(rel.from) === r + 1).map((rel) => x.get(rel.from)!);
+          if (below.length === 0) return;
+          const [min, max] = bounds(rows[r], i);
+          x.set(n, Math.min(Math.max(below.reduce((a, b) => a + b, 0) / below.length, min), max));
+        });
+      }
+      // Down: each entity moves until it overlaps what it references, wide enough for a straight line.
+      rows.forEach((row, r) => {
+        if (r === 0) return;
+        const ranges = row.map((n) => {
+          const w = width.get(n)!;
+          const own = local
+            .filter((rel) => rel.from === n && rank.get(rel.to) === r - 1)
+            .map((rel) => {
+              const px = x.get(rel.to)!;
+              const pw = width.get(rel.to)!;
+              return [px - pw / 2 + STRAIGHT - w / 2, px + pw / 2 - STRAIGHT + w / 2] as const;
+            });
+          if (own.length === 0) return undefined;
+          const both = own.reduce((acc, [lo, hi]) => [Math.max(acc[0], lo), Math.min(acc[1], hi)] as const);
+          return both[0] <= both[1] ? both : own[0];
+        });
+        const target = row.map((n, i) => {
+          const range = ranges[i];
+          return range ? Math.min(Math.max(x.get(n)!, range[0]), range[1]) : x.get(n)!;
+        });
+        const gap = (i: number) => width.get(row[i])! / 2 + COLUMN_GAP + width.get(row[i + 1])! / 2;
+        // Pack once pushing right and once pushing left; keep whichever leaves more nodes able to run straight.
+        const rightward = [...target];
+        for (let i = 1; i < row.length; i += 1) rightward[i] = Math.max(rightward[i], rightward[i - 1] + gap(i - 1));
+        const leftward = [...target];
+        for (let i = row.length - 2; i >= 0; i -= 1) leftward[i] = Math.min(leftward[i], leftward[i + 1] - gap(i));
+        const straight = (placed: number[]) => placed.filter((cx, i) => !ranges[i] || (cx >= ranges[i]![0] - 0.5 && cx <= ranges[i]![1] + 0.5)).length;
+        const chosen = straight(leftward) > straight(rightward) ? leftward : rightward;
+        row.forEach((n, i) => x.set(n, chosen[i]));
+      });
+    }
+
+    // Normalise the component to its own left edge and size it.
+    const left = Math.min(...members.map((m) => x.get(m)! - width.get(m)! / 2));
+    members.forEach((m) => x.set(m, x.get(m)! - left));
+    const compWidth = Math.max(...members.map((m) => x.get(m)! + width.get(m)! / 2));
+    // A lone row (an isolated entity) is centred within the component's width.
+    rows.forEach((row) => {
+      if (row.every((n) => !local.some((rel) => rel.from === n || rel.to === n))) {
+        const total = row.reduce((sum, n) => sum + width.get(n)!, 0) + COLUMN_GAP * (row.length - 1);
+        let cursor = (compWidth - total) / 2;
+        for (const n of row) {
+          x.set(n, cursor + width.get(n)! / 2);
+          cursor += width.get(n)! + COLUMN_GAP;
+        }
+      }
+    });
+
+    const nodes: LaidOutNode[] = members.map((m) => ({ name: m, x: x.get(m)!, y: rowY(rank.get(m)!), width: width.get(m)! }));
+    const height = rowY(rows.length - 1) + NODE_HEIGHT / 2 + PADDING;
+    return { nodes, width: compWidth, height };
+  };
+
+  // Pack the components left to right, top-aligned, into one canvas.
+  const nodes: LaidOutNode[] = [];
+  let cursor = PADDING;
+  let canvasWidth = PADDING;
+  let canvasHeight = 0;
+  for (const comp of components) {
+    const local = layoutComponent(comp);
+    for (const n of local.nodes) nodes.push({ ...n, x: n.x + cursor });
+    canvasWidth = cursor + local.width + PADDING;
+    cursor = canvasWidth + COMPONENT_GAP;
+    canvasHeight = Math.max(canvasHeight, local.height);
+  }
+  return { nodes, relations: relations as Relation[], width: canvasWidth, height: canvasHeight };
 }
 
 const ANCHOR_INSET = 14;

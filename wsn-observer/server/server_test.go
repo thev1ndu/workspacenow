@@ -20,7 +20,7 @@ func newServer(t *testing.T, token string) *httptest.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { _ = store.Close() })
 	cfg := config.Config{Port: 0, Token: token}
 	return httptest.NewServer(New(cfg, store))
 }
@@ -38,7 +38,7 @@ func do(t *testing.T, method, url, token, body string) (int, map[string]any) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
 	var parsed map[string]any
 	if len(raw) > 0 {

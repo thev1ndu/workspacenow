@@ -126,7 +126,7 @@ func (s *Store) recover(sig string) error {
 		}
 		info, err := f.Stat()
 		if err != nil {
-			f.Close()
+			_ = f.Close()
 			return fmt.Errorf("stat %s: %w", path, err)
 		}
 		seg = &segment{file: f, seq: seq, size: info.Size()}
@@ -403,7 +403,7 @@ func scanFileReverse(path string, cap int, visit func([]byte)) (int, error) {
 		}
 		return 0, fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	info, err := f.Stat()
 	if err != nil {
 		return 0, fmt.Errorf("stat %s: %w", path, err)

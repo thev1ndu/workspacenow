@@ -24,7 +24,7 @@ func open(t *testing.T, dir string, retention, segment int64, scanCap int) *Stor
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
@@ -200,7 +200,7 @@ func TestRetentionPrunesOldestSegments(t *testing.T) {
 	kept := int64(0)
 	for _, n := range names {
 		var seq int
-		fmt.Sscanf(n, "%020d.seg", &seq)
+		_, _ = fmt.Sscanf(n, "%020d.seg", &seq)
 		if seq == activeSeq {
 			continue
 		}
@@ -268,7 +268,7 @@ func TestSealedSegmentsReplicateToStandby(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	s.Close()
+	_ = s.Close()
 	if gotSignal != "traces" || gotSeq == "" || len(gotBody) == 0 {
 		t.Fatalf("replica got signal=%q seq=%q bytes=%d", gotSignal, gotSeq, len(gotBody))
 	}
@@ -276,7 +276,7 @@ func TestSealedSegmentsReplicateToStandby(t *testing.T) {
 
 func TestImportSegmentWritesAndCounts(t *testing.T) {
 	s := open(t, t.TempDir(), 16<<20, 1<<16, 10000)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	data := []byte(`{"traceId":"t1"}` + "\n" + `{"traceId":"t2"}` + "\n")
 	if err := s.ImportSegment("traces", 7, data); err != nil {
 		t.Fatal(err)

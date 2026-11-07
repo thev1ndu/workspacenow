@@ -60,7 +60,7 @@ Reproduce: `cd wsn-service && go test -race -cover ./...`
 - **Entity runtime**: `/entities` list/get/create/update, `/entities/{name}/records` list/create/update/delete, `/connections` — with validation (422), uniqueness (409), referential checks, read-only entities
 - **Business operations**: `/business-operations`, `/business-operations/invoke` — all-or-nothing transactions
 - **Connect**: `/apis`, `/api-operations` (list/invoke/MCP exposure), `/mcp/servers`, `/mcp/tools`, `/integrations` + test — rate limits (429), conflict on duplicate tool names (409)
-- **Studio**: applications (list/plan/apply/update), releases, deployments, pins — plan currently needs the AI service
+- **Studio**: applications (list/plan/apply/update + **edit-with-AI** `POST /applications/{appId}/plan`), releases, deployments, pins — planning needs the AI service
 - **Live updates**: `GET /events/stream` (SSE) + NATS relay role (`-relay`) with outbox
 - **AI (new, wired to wsn-ai-service)**: `GET /model-providers`, `/agents` list/get/PATCH (`ai.manage`, tool validation, version bump), `/agent-runs` list/get, `POST /agents/{id}/runs`, `POST /sidekick/runs` (role check, `applicationId` app-scope, permission intersection for acts-as-caller); Ed25519 run grants with tool list + Valkey call budget; internal API on `:8081` (`/internal/v1/tools/invoke`, `/mcp/tools`, `/mcp/invoke`, `/runs/{id}/steps`); runs persisted, `agent.run` audited, tokens+cost added to the provider, `AgentRun.Step`/`Completed` events; `studio.Planner`/`connect.Discoverer`/`flow.AgentRunner` now call wsn-ai-service
 - **Flow (new)**: `Flow` module serves workflows/executions/approvals; `-worker` flag runs the Temporal worker (`flow.RunWorker`) + NATS trigger consumer (`flow.ConsumeTriggers`)

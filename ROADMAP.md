@@ -2,7 +2,7 @@
 
 Status as of 2026-11-07. See [FEATURES.md](FEATURES.md) for the full feature inventory with per-item
 status, [T0D0.md](T0D0.md) for the task list with test steps, [COVERAGE.md](COVERAGE.md) for test
-coverage numbers, and [APIs.md](APIs.md) / `openapi.yaml` for the 113-operation contract.
+coverage numbers, and [APIs.md](APIs.md) / `openapi.yaml` for the 119-operation contract.
 
 ## Current state (what the platform can do today)
 
@@ -11,7 +11,7 @@ live infrastructure** (nothing has run on real Docker/GitHub/K8s yet — the san
 
 | Component | State |
 |---|---|
-| Contract | 113 operations in `openapi.yaml`, all served by real handlers (501 fallback empty) |
+| Contract | 119 operations in `openapi.yaml`, all served by real handlers (501 fallback empty) |
 | wsn-service (Go) | identity/OIDC + demo personas, RBAC, data platform (entities, records, soft deletes, history, migrations+backfill, import/export, RLS, saved views), business operations, Connect (APIs, MCP, webhooks+signed delivery, OAuth2, API versions, transforms, GraphQL, portal+API keys), Studio (AI plan + edit-with-AI, releases, deployments, pins), AI (governed agents, grants, budgets, Sidekick), Flow (Temporal workflows, approvals, triggers), observability (audit, traces, SSE realtime, alerts, SLOs, status page, backups, OTLP export). `go test -race` green, golangci-lint 0 issues |
 | wsn-ai-service (Python) | Mistral agent runtime, Architect planner, MCP discovery + managed MCP server, step streaming; 100% line coverage gated in CI, ruff + mypy strict |
 | wsn-observer (Go) | OTLP ingest + query API, WAL segment store (no DB), retention, WAL replication to a standby; `-race` green |

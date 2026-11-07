@@ -1,0 +1,64 @@
+# Dependabot keeps every dependency in the repo current: GitHub Actions, Docker base images
+# (component Dockerfiles + the compose stack), Go modules, the console's pnpm/npm workspace
+# and the Python service. All groups update weekly; security updates are always separate.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: "docker"
+    directory: "/wsn-service"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/wsn-ai-service"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/wsn-observer"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/console"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "/deploy/compose"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "gomod"
+    directory: "/wsn-service"
+    schedule:
+      interval: "weekly"
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+  - package-ecosystem: "gomod"
+    directory: "/wsn-observer"
+    schedule:
+      interval: "weekly"
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: "npm"
+    directory: "/console"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: "pip"
+    directory: "/wsn-ai-service"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-dependencies:
+        patterns: ["*"]

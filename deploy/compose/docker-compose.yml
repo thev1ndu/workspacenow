@@ -3,16 +3,16 @@
 #   make -C wsn-service deps                 infra only (postgres, valkey, nats, temporal, minio, openbao)
 #   make -C wsn-service up                   full stack: infra + observer + wsn-service (+worker) + ai-service + console
 #
-# Images default to the GHCR main builds (set IMAGE_TAG to use another tag, e.g. a release);
-# `docker compose --profile app build` builds them locally instead.
-# Mistral calls need MISTRAL_API_KEY in the environment (or wsn-ai-service/.env is not mounted — pass it here).
+# All variables come from .env in this directory (see .env.example): IMAGE_TAG, MISTRAL_API_KEY,
+# AI_SERVICE_TOKEN, OBSERVER_TOKEN, and the infra credentials below.
+# Images default to the GHCR main builds; `docker compose --profile app build` builds them locally.
 name: workspacenow
 
 x-wsn-service-env: &wsn-service-env
   WSN_ENV: development
   WSN_DEMO_MODE: "true"
   LOG_LEVEL: DEBUG
-  DATABASE_URL: postgres://workspacenow:workspacenow@postgres:5432/workspacenow?sslmode=disable
+  DATABASE_URL: postgres://${POSTGRES_USER:-workspacenow}:${POSTGRES_PASSWORD:-workspacenow}@postgres:5432/${POSTGRES_DB:-workspacenow}?sslmode=disable
   REDIS_URL: redis://valkey:6379/0
   NATS_URL: nats://nats:4222
   NATS_STREAM: WSN_EVENTS
@@ -21,11 +21,11 @@ x-wsn-service-env: &wsn-service-env
   TEMPORAL_TASK_QUEUE: workspacenow-workflows
   S3_ENDPOINT: minio:9000
   S3_BUCKET: workspacenow
-  S3_ACCESS_KEY: workspacenow
-  S3_SECRET_KEY: workspacenow-secret
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-workspacenow}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
   S3_USE_SSL: "false"
   OPENBAO_ADDR: http://openbao:8200
-  OPENBAO_TOKEN: root
+  OPENBAO_TOKEN: ${OPENBAO_ROOT_TOKEN:-root}
   AI_SERVICE_URL: http://wsn-ai-service:8090
   AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-dev-service-token}
   WSN_OBSERVER_URL: http://wsn-observer:9098
@@ -37,9 +37,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: workspacenow
-      POSTGRES_PASSWORD: workspacenow
-      POSTGRES_DB: workspacenow
+      POSTGRES_USER: ${POSTGRES_USER:-workspacenow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-workspacenow}
+      POSTGRES_DB: ${POSTGRES_DB:-workspacenow}
     ports: ["5432:5432"]
     volumes: ["postgres:/var/lib/postgresql/data"]
     healthcheck:
@@ -72,8 +72,8 @@ services:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: workspacenow
-      MINIO_ROOT_PASSWORD: workspacenow-secret
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-workspacenow}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-workspacenow-secret}
     ports: ["9000:9000", "9001:9001"]
     volumes: ["minio:/data"]
 
@@ -81,13 +81,13 @@ services:
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
     depends_on: [minio]
     entrypoint: >
-      /bin/sh -c "until mc alias set local http://minio:9000 workspacenow workspacenow-secret; do sleep 1; done;
+      /bin/sh -c "until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-workspacenow} ${MINIO_ROOT_PASSWORD:-workspacenow-secret}; do sleep 1; done;
       mc mb --ignore-existing local/workspacenow"
 
   # OpenBao in dev mode: root token "root", KV v2 at secret/. Integration credentials live here.
   openbao:
     image: openbao/openbao:2.2.0
-    command: ["server", "-dev", "-dev-root-token-id=root", "-dev-listen-address=0.0.0.0:8200"]
+    command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_ROOT_TOKEN:-root}", "-dev-listen-address=0.0.0.0:8200"]
     cap_add: [IPC_LOCK]
     ports: ["8200:8200"]
 

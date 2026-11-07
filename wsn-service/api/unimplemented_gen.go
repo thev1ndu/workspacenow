@@ -4,23 +4,5 @@
 
 package api
 
-import (
-	"net/http"
-
-	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
-)
-
 // unimplemented answers every operation no module serves with 501.
 type unimplemented struct{}
-
-func (unimplemented) PurgeRecords(w http.ResponseWriter, r *http.Request, entityName oapi.EntityName, params oapi.PurgeRecordsParams) {
-	notImplemented(w, r)
-}
-
-func (unimplemented) ListEntityVersions(w http.ResponseWriter, r *http.Request, entityName oapi.EntityName) {
-	notImplemented(w, r)
-}
-
-func (unimplemented) DiffEntityVersions(w http.ResponseWriter, r *http.Request, entityName oapi.EntityName, params oapi.DiffEntityVersionsParams) {
-	notImplemented(w, r)
-}

@@ -605,6 +605,10 @@ export function createSeedState(at: Date): PlatformState {
     audit: [],
     views: [],
     history: [],
+    webhooks: [],
+    webhookDeliveries: [],
+    apiVersions: [],
+    apiKeys: [],
     pins: {
       "u-amaya": ["app-inventory", "app-procurement"],
       "u-nimal": ["app-inventory"],

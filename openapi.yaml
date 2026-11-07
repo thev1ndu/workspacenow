@@ -757,7 +757,9 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
   /api-operations/{operationId}/invoke:
-    parameters: [{ $ref: "#/components/parameters/operationId" }]
+    parameters:
+        - { $ref: "#/components/parameters/operationId" }
+        - { name: version, in: query, schema: { type: string }, description: "API version to serve; defaults to the operation's version. Deprecated versions answer with Deprecation/Sunset headers, retired ones with 410." }
     post:
       tags: [Connect]
       operationId: invokeApiOperation
@@ -777,6 +779,207 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+  /webhooks:
+    get:
+      tags: [Connect]
+      operationId: listWebhooks
+      summary: Outbound webhook subscriptions
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/WebhookList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Connect]
+      operationId: createWebhook
+      summary: Subscribe a URL to platform events
+      description: "Requires `connect.manage`. Deliveries are POSTed with `X-WSN-Signature: t=...,v1=<hmac-sha256>` when `secret` is set, retried with backoff, and can be replayed. Audited."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookInput" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Webhook" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /webhooks/{webhookId}:
+    parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [Connect]
+      operationId: updateWebhook
+      summary: Change a webhook (URL, events, secret, active)
+      description: "Requires `connect.manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookInput" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Webhook" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Connect]
+      operationId: deleteWebhook
+      summary: Delete a webhook (deliveries stay)
+      description: "Requires `connect.manage`."
+      responses:
+        "200": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /webhooks/{webhookId}/deliveries:
+    parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [Connect]
+      operationId: listWebhookDeliveries
+      summary: A webhook's delivery log (status, attempts, last status/error, next retry)
+      description: "Requires `connect.manage`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DeliveryList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /webhooks/{webhookId}/deliveries/{deliveryId}/replay:
+    parameters:
+      - { name: webhookId, in: path, required: true, schema: { type: string } }
+      - { name: deliveryId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Connect]
+      operationId: replayWebhookDelivery
+      summary: Re-queue a delivery for immediate retry
+      description: "Requires `connect.manage`. Audited."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Delivery" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /webhooks/{webhookId}/test:
+    parameters: [{ name: webhookId, in: path, required: true, schema: { type: string } }]
+    post:
+      tags: [Connect]
+      operationId: testWebhook
+      summary: Send a synthetic Webhook.Test event now
+      description: "Requires `connect.manage`. Returns the delivery record."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Delivery" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /apis/{apiId}/versions:
+    parameters:
+      - { name: apiId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Connect]
+      operationId: listApiVersions
+      summary: An API's published versions
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApiVersionList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Connect]
+      operationId: createApiVersion
+      summary: Publish a version (active/deprecated/retired, sunset, changelog)
+      description: "Requires `connect.manage`. Deprecated versions answer invokes with Deprecation/Sunset headers; retired answer 410."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApiVersionInput" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/ApiVersion" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /apis/{apiId}/versions/{versionId}:
+    parameters:
+      - { name: apiId, in: path, required: true, schema: { type: string } }
+      - { name: versionId, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [Connect]
+      operationId: updateApiVersion
+      summary: Change a version's status (deprecate/retire), sunset or changelog
+      description: "Requires `connect.manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApiVersionInput" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApiVersion" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /portal/apis:
+    get:
+      tags: [Connect]
+      operationId: portalCatalog
+      summary: Developer portal catalog — active APIs, versions and operations (no secrets)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PortalCatalogList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /api-keys:
+    get:
+      tags: [Connect]
+      operationId: listApiKeys
+      summary: Developer API keys (hashes never leave; raw key only at creation)
+      description: "Requires `connect.manage`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApiKeyList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Connect]
+      operationId: createApiKey
+      summary: Issue an API key (wsn_...) with permissions and an hourly quota
+      description: "Requires `connect.manage`. The raw key is returned exactly once. Calls authenticate with the `X-API-Key` header; the hourly quota is enforced per key."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                permissions: { type: array, items: { type: string } }
+                quotaPerHour: { type: integer, minimum: 0, default: 0, description: "0 = unlimited" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/CreatedApiKey" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /api-keys/{keyId}:
+    parameters: [{ name: keyId, in: path, required: true, schema: { type: string } }]
+    delete:
+      tags: [Connect]
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      description: "Requires `connect.manage`."
+      responses:
+        "200": { description: Revoked }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /graphql:
+    post:
+      tags: [Connect]
+      operationId: executeGraphQL
+      summary: Minimal GraphQL gateway over entity records
+      description: "Supports `query { Entity(where: {field: value}, first: N) { field ... } }`. Read permission of the entity applies; answers GraphQL-style `{data, errors?}`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, properties: { data: { type: object }, errors: { type: array, items: { type: object } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /mcp/tools:
     get:
       tags: [Connect]
@@ -1657,6 +1860,121 @@ components:
         retype: { type: array, items: { $ref: "#/components/schemas/EntityField" } }
         backfill: { type: object, additionalProperties: { $ref: "#/components/schemas/FieldValue" } }
         note: { type: string }
+    Webhook:
+      type: object
+      required: [id, name, url, active, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        url: { type: string, format: uri }
+        events: { type: array, items: { type: string }, description: "Event type prefixes to match; empty = all" }
+        secret: { type: string, description: "HMAC secret for X-WSN-Signature; write-only" }
+        active: { type: boolean }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        updatedAt: { $ref: "#/components/schemas/IsoDate" }
+    WebhookInput:
+      type: object
+      required: [name, url]
+      properties:
+        name: { type: string }
+        url: { type: string, format: uri }
+        events: { type: array, items: { type: string } }
+        secret: { type: string }
+        active: { type: boolean, default: true }
+    WebhookList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Webhook" } }
+        totalCount: { type: integer }
+    Delivery:
+      type: object
+      required: [id, webhookId, eventId, eventType, status, attempts, createdAt]
+      properties:
+        id: { type: string }
+        webhookId: { type: string }
+        eventId: { type: string }
+        eventType: { type: string }
+        status: { type: string, enum: [pending, delivered, failed] }
+        attempts: { type: integer }
+        lastStatus: { type: integer }
+        lastError: { type: string }
+        deliveredAt: { $ref: "#/components/schemas/IsoDate" }
+        nextRetryAt: { $ref: "#/components/schemas/IsoDate" }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+    DeliveryList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Delivery" } }
+        totalCount: { type: integer }
+    ApiVersion:
+      type: object
+      required: [id, apiId, version, status, createdAt]
+      properties:
+        id: { type: string }
+        apiId: { type: string }
+        version: { type: string }
+        status: { type: string, enum: [active, deprecated, retired] }
+        changelog: { type: string }
+        deprecatedAt: { $ref: "#/components/schemas/IsoDate" }
+        sunset: { $ref: "#/components/schemas/IsoDate" }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+    ApiVersionInput:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string }
+        status: { type: string, enum: [active, deprecated, retired], default: active }
+        changelog: { type: string }
+        sunset: { $ref: "#/components/schemas/IsoDate" }
+    ApiVersionList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ApiVersion" } }
+        totalCount: { type: integer }
+    PortalCatalogEntry:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        basePath: { type: string }
+        description: { type: string }
+        defaultVersion: { type: string }
+        versions: { type: array, items: { type: object } }
+        operations: { type: array, items: { type: object } }
+    PortalCatalogList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PortalCatalogEntry" } }
+        totalCount: { type: integer }
+    ApiKey:
+      type: object
+      required: [id, name, prefix, permissions, quotaPerHour, revoked, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        prefix: { type: string, description: "First chars of the raw key, for identification" }
+        permissions: { type: array, items: { type: string } }
+        quotaPerHour: { type: integer }
+        revoked: { type: boolean }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        lastUsedAt: { $ref: "#/components/schemas/IsoDate" }
+    CreatedApiKey:
+      allOf:
+        - { $ref: "#/components/schemas/ApiKey" }
+        - type: object
+          required: [rawKey]
+          properties:
+            rawKey: { type: string, description: "The full key; shown once" }
+    ApiKeyList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ApiKey" } }
+        totalCount: { type: integer }
     DatabaseConnection:
       type: object
       required: [id, name, engine, host, managed, status, environment]
@@ -1704,6 +2022,7 @@ components:
         basePath: { type: string }
         applicationId: { type: string }
         version: { type: string }
+        defaultVersion: { type: string }
         lifecycle: { $ref: "#/components/schemas/LifecycleState" }
         description: { type: string }
     ApiOperation:
@@ -1787,6 +2106,16 @@ components:
         retryPolicy: { type: string }
         timeoutMs: { type: integer }
         secretRef: { type: string, description: Reference to a secret; never the secret itself }
+        auth:
+          type: object
+          description: "How the integration authenticates to its target"
+          properties:
+            type: { type: string, enum: [none, bearer, oauth2], default: none }
+            token: { type: string }
+            tokenUrl: { type: string, format: uri, description: "OAuth2 token endpoint (client credentials or refresh_token)" }
+            clientId: { type: string }
+            clientSecretRef: { type: string, description: "OpenBao ref holding the client secret" }
+            scopes: { type: array, items: { type: string } }
         lastTestedAt: { $ref: "#/components/schemas/IsoDate" }
 
     # AI

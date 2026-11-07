@@ -201,6 +201,13 @@ Operations are registered two ways:
 | GET | `/integrations` | Outbound integrations; `secretRef` points to a secret and never holds the secret | signed in |
 | POST | `/integrations/{id}/test` | Test the connection. Updates `status` and `lastTestedAt`; a failed test still returns `201` with `status: failing`. | `connect.manage` |
 
+| GET/POST | `/webhooks`, PUT/DELETE `/webhooks/{id}` | Outbound subscriptions; deliveries POSTed signed (`X-WSN-Signature`), retried with backoff | `connect.manage` |
+| GET | `/webhooks/{id}/deliveries`, POST `.../replay`, POST `.../test` | Delivery log, replay, synthetic test | `connect.manage` |
+| GET/POST | `/apis/{id}/versions`, PUT `/apis/{id}/versions/{versionId}` | API versions (active/deprecated/retired, sunset, changelog); invoke takes `?version=` | `connect.manage` |
+| GET | `/portal/apis` | Developer portal catalog (APIs + versions + operations, no secrets) | signed in |
+| GET/POST | `/api-keys`, DELETE `/api-keys/{id}` | Issue/revoke `wsn_` keys (raw once, SHA-256 stored); `X-API-Key` auth + per-key hourly quota | `connect.manage` |
+| POST | `/graphql` | Minimal GraphQL gateway over entity records (`query { Entity(where, first) { fields } }`) | entity read perm |
+
 ### AI: models, agents, Sidekick
 
 | Method | Path | Purpose | Permission |

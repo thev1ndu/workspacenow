@@ -25,7 +25,11 @@ import type {
   Workflow,
   WorkflowExecution,
   RecordHistoryEntry,
-  SavedView
+  SavedView,
+  ApiKey,
+  ApiVersion,
+  Webhook,
+  WebhookDelivery
 } from "@workspacenow/types";
 
 /** Everything one Installation persists. */
@@ -59,6 +63,10 @@ export interface PlatformState {
   audit: AuditRecord[];
   views: SavedView[];
   history: RecordHistoryEntry[];
+  webhooks: Webhook[];
+  webhookDeliveries: WebhookDelivery[];
+  apiVersions: ApiVersion[];
+  apiKeys: ApiKey[];
   /** Application ids each user pinned, keyed by user id, in pin order. */
   pins: Record<string, string[]>;
 }

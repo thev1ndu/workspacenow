@@ -290,6 +290,7 @@ export interface Api {
   basePath: string;
   applicationId: Id;
   version: string;
+  defaultVersion?: string;
   lifecycle: LifecycleState;
   description: string;
 }
@@ -304,7 +305,83 @@ export interface ApiOperation {
   businessOperation: string;
   permission: Permission;
   rateLimitPerMinute: number;
+  version?: string;
+  transform?: { request?: Record<string, string>; response?: Record<string, string> };
   mcp?: McpToolExposure;
+}
+
+export interface ApiVersion {
+  id: Id;
+  apiId: Id;
+  version: string;
+  status: "active" | "deprecated" | "retired";
+  changelog?: string;
+  deprecatedAt?: IsoDate;
+  sunset?: IsoDate;
+  createdAt: IsoDate;
+}
+
+export type ApiVersionInput = Pick<ApiVersion, "version" | "status" | "changelog" | "sunset">;
+
+export interface Webhook {
+  id: Id;
+  name: string;
+  url: string;
+  events: string[];
+  secret?: string;
+  active: boolean;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export type WebhookInput = Omit<Webhook, "id" | "createdAt" | "updatedAt">;
+
+export interface WebhookDelivery {
+  id: Id;
+  webhookId: Id;
+  eventId: string;
+  eventType: string;
+  status: "pending" | "delivered" | "failed";
+  attempts: number;
+  lastStatus?: number;
+  lastError?: string;
+  deliveredAt?: IsoDate;
+  nextRetryAt?: IsoDate;
+  createdAt: IsoDate;
+}
+
+export interface ApiKey {
+  id: Id;
+  name: string;
+  prefix: string;
+  permissions: Permission[];
+  quotaPerHour: number;
+  revoked: boolean;
+  createdAt: IsoDate;
+  lastUsedAt?: IsoDate;
+}
+
+export interface CreatedApiKey extends ApiKey {
+  rawKey: string;
+}
+
+export interface PortalCatalogEntry {
+  id: Id;
+  name: string;
+  basePath: string;
+  description: string;
+  defaultVersion?: string;
+  versions: Array<Record<string, unknown>>;
+  operations: Array<Record<string, unknown>>;
+}
+
+export interface AuthConfig {
+  type: "none" | "bearer" | "oauth2";
+  token?: string;
+  tokenUrl?: string;
+  clientId?: string;
+  clientSecretRef?: string;
+  scopes?: string[];
 }
 
 export interface McpToolExposure {
@@ -359,6 +436,7 @@ export interface Integration {
   retryPolicy: string;
   timeoutMs: number;
   secretRef: string;
+  auth?: AuthConfig;
   lastTestedAt?: IsoDate;
 }
 

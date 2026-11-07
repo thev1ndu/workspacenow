@@ -173,6 +173,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	identitySvc := identity.NewService(db, c, auditor)
 	aiClient := ai.NewClient(cfg.AI.ServiceURL, cfg.AI.ServiceToken)
 	connectSvc := connect.NewService(db, engine, auditor, c, runtime, secrets.NewOpenBao(cfg.OpenBao), aiClient)
+	g.Go(func() error { return connectSvc.RunWebhookDispatcher(ctx) }) // startServer runs only in the server role
 	artifacts, err := objectstore.Open(ctx, cfg.S3)
 	if err != nil {
 		return err
@@ -219,7 +220,13 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		middleware.CorrelationID(),
 		middleware.Telemetry(exporter),
 		middleware.RequestLogger(),
-		middleware.Authenticate(cfg.OIDC, cfg.DemoMode, identitySvc, public),
+		middleware.Authenticate(cfg.OIDC, cfg.DemoMode, identitySvc, public, func(ctx context.Context, raw string) (string, string, kernel.Permissions, error) {
+			key, err := connect.VerifyKey(ctx, db, c, raw)
+			if err != nil {
+				return "", "", nil, err
+			}
+			return "key:" + key.ID, "API key " + key.Name, kernel.NewPermissions(key.Permissions...), nil
+		}),
 	)
 	serve(ctx, g, &http.Server{
 		Addr:              cfg.HTTPAddr,

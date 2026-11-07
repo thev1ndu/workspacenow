@@ -7,13 +7,14 @@ import "time"
 const ManagedServerID = "mcp-workspacenow"
 
 type API struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	BasePath      string `json:"basePath"`
-	ApplicationID string `json:"applicationId"`
-	Version       string `json:"version"`
-	Lifecycle     string `json:"lifecycle"`
-	Description   string `json:"description"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	BasePath       string `json:"basePath"`
+	ApplicationID  string `json:"applicationId"`
+	Version        string `json:"version"`
+	DefaultVersion string `json:"defaultVersion,omitempty"` // served when the caller asks for no version
+	Lifecycle      string `json:"lifecycle"`
+	Description    string `json:"description"`
 }
 
 type MCPExposure struct {
@@ -31,6 +32,8 @@ type Operation struct {
 	BusinessOperation  string       `json:"businessOperation"`
 	Permission         string       `json:"permission"`
 	RateLimitPerMinute int          `json:"rateLimitPerMinute"`
+	Version            string       `json:"version,omitempty"` // API version this operation belongs to
+	Transform          *Transform   `json:"transform,omitempty"`
 	MCP                *MCPExposure `json:"mcp,omitempty"`
 }
 
@@ -67,13 +70,14 @@ type Tool struct {
 }
 
 type Integration struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Kind         string     `json:"kind"`
-	Target       string     `json:"target"`
-	Status       string     `json:"status"`
-	RetryPolicy  string     `json:"retryPolicy"`
-	TimeoutMs    int        `json:"timeoutMs"`
-	SecretRef    string     `json:"secretRef"`
-	LastTestedAt *time.Time `json:"lastTestedAt,omitempty"`
+	ID           string      `json:"id"`
+	Name         string      `json:"name"`
+	Kind         string      `json:"kind"`
+	Target       string      `json:"target"`
+	Status       string      `json:"status"`
+	RetryPolicy  string      `json:"retryPolicy"`
+	TimeoutMs    int         `json:"timeoutMs"`
+	SecretRef    string      `json:"secretRef"`
+	Auth         *AuthConfig `json:"auth,omitempty"` // oauth2 client flow; secret resolved via SecretRef
+	LastTestedAt *time.Time  `json:"lastTestedAt,omitempty"`
 }

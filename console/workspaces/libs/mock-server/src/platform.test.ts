@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, planFromApplication, type AgentRun, type Entity, type EntityRecord, type SavedView, type WorkflowDefinition } from "@workspacenow/types";
+import { ApiError, planFromApplication, type AgentRun, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type SavedView, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
 import { createDemoPlatform } from "./runtime";
@@ -458,6 +458,34 @@ describe("global search", () => {
   it("returns only records the user may read", () => {
     expect(search("coconut", "u-nimal").some((h) => h.type === "record")).toBe(true);
     expect(search("lanka", "u-nimal").some((h) => h.type === "record" && h.title.startsWith("pr-"))).toBe(false);
+  });
+});
+
+describe("connect depth", () => {
+  it("webhooks, api versions+portal, api keys, graphql", () => {
+    const platform = createDemoPlatform();
+    const wh = post(platform, "/webhooks", { name: "Slack alerts", url: "https://hooks.example.com/x", events: ["Stock"], secret: "s", active: true }).body as Webhook;
+    expect(wh.id).toBeTruthy();
+    const test = post(platform, `/webhooks/${wh.id}/test`, {});
+    expect((test.body as WebhookDelivery).status).toBe("delivered");
+    const replay = post(platform, `/webhooks/${wh.id}/deliveries/${(test.body as WebhookDelivery).id}/replay`, {});
+    expect((replay.body as WebhookDelivery).status).toBe("pending");
+    // versions + portal
+    const api = platform.state.apis[0];
+    const v = post(platform, `/apis/${api.id}/versions`, { version: "v2", status: "deprecated", changelog: "renamed fields" });
+    expect(v.status).toBe(201);
+    const catalog = get(platform, "/portal/apis").body as { items: Array<{ id: string; versions: ApiVersion[] }> };
+    expect(catalog.items.find((a) => a.id === api.id)?.versions.some((x) => x.version === "v2")).toBe(true);
+    // api keys
+    const key = post(platform, "/api-keys", { name: "CI", permissions: ["data.manage"], quotaPerHour: 100 });
+    expect((key.body as CreatedApiKey).rawKey.startsWith("wsn_")).toBe(true);
+    const revoked = send(platform, "DELETE", `/api-keys/${(key.body as CreatedApiKey).id}`);
+    expect((revoked.body as { revoked: boolean }).revoked).toBe(true);
+    // graphql
+    const g = post(platform, "/graphql", { query: 'query { Product { id name } }' });
+    expect((g.body as { data: { Product: unknown[] } }).data.Product.length).toBeGreaterThan(0);
+    const bad = post(platform, "/graphql", { query: "nope" });
+    expect((bad.body as { errors: unknown[] }).errors.length).toBe(1);
   });
 });
 

@@ -20,7 +20,13 @@ import {
   type Session,
   type Trace,
   type TraceSummary,
-  type WorkflowDefinition
+  type WorkflowDefinition,
+  type ApiKey,
+  type ApiVersion,
+  type ApiVersionInput,
+  type Webhook,
+  type WebhookDelivery,
+  type WebhookInput
 } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { activitySeries, entryPointBreakdown, tokenSeries } from "./analytics";
@@ -523,6 +529,128 @@ route("POST", "/integrations/:id/test", ({ platform, ctx, params }) => {
   platform.audit(c, "integration.test", `integration/${integration.id}`, integration.status === "connected" ? "allowed" : "failed",
     integration.status === "connected" ? "Connection succeeded" : "TLS handshake timed out");
   return integration;
+});
+
+route("GET", "/webhooks", ({ platform }) => list(platform.state.webhooks));
+route("POST", "/webhooks", ({ platform, ctx, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "webhook.create", "webhook");
+  const input = body as WebhookInput;
+  if (!input.name?.trim() || !input.url?.trim()) fail(422, "VALIDATION_FAILED", "The webhook needs a name and a URL");
+  const now = platform.now();
+  const wh: Webhook = { id: platform.nextId("wh"), name: input.name.trim(), url: input.url.trim(), events: input.events ?? [], secret: input.secret, active: input.active ?? true, createdAt: now, updatedAt: now };
+  platform.state.webhooks.push(wh);
+  platform.audit(c, "webhook.create", `webhook/${wh.id}`, "allowed", wh.name);
+  return wh;
+});
+route("PUT", "/webhooks/:id", ({ platform, ctx, params, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "webhook.update", `webhook/${params.id}`);
+  const wh = find(platform.state.webhooks, params.id, "Webhook");
+  const input = body as WebhookInput;
+  Object.assign(wh, { name: input.name, url: input.url, events: input.events ?? [], secret: input.secret, active: input.active ?? true, updatedAt: platform.now() });
+  return wh;
+});
+route("DELETE", "/webhooks/:id", ({ platform, ctx, params }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "webhook.delete", `webhook/${params.id}`);
+  const i = platform.state.webhooks.findIndex((w) => w.id === params.id);
+  if (i < 0) fail(404, "NOT_FOUND", "Webhook not found");
+  platform.state.webhooks.splice(i, 1);
+  return { id: params.id, deleted: true };
+});
+route("GET", "/webhooks/:id/deliveries", ({ platform, ctx, params }) => {
+  platform.requirePermission(ctx("control"), "connect.manage", "webhook.deliveries", `webhook/${params.id}`);
+  return list(platform.state.webhookDeliveries.filter((d) => d.webhookId === params.id));
+});
+route("POST", "/webhooks/:id/deliveries/:deliveryId/replay", ({ platform, ctx, params }) => {
+  platform.requirePermission(ctx("control"), "connect.manage", "webhook.replay", `webhook/${params.id}/${params.deliveryId}`);
+  const d = find(platform.state.webhookDeliveries, params.deliveryId, "Delivery");
+  if (d.webhookId !== params.id) fail(404, "NOT_FOUND", "Delivery not found");
+  d.status = "pending";
+  d.nextRetryAt = undefined;
+  d.lastError = undefined;
+  return d;
+});
+route("POST", "/webhooks/:id/test", ({ platform, ctx, params }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "webhook.test", `webhook/${params.id}`);
+  const wh = find(platform.state.webhooks, params.id, "Webhook");
+  const d: WebhookDelivery = { id: platform.nextId("dlv"), webhookId: wh.id, eventId: "test", eventType: "Webhook.Test", status: "delivered", attempts: 1, lastStatus: 200, deliveredAt: platform.now(), createdAt: platform.now() };
+  platform.state.webhookDeliveries.push(d);
+  return d;
+});
+route("GET", "/apis/:id/versions", ({ platform, params }) => list(platform.state.apiVersions.filter((v) => v.apiId === params.id)));
+route("POST", "/apis/:id/versions", ({ platform, ctx, params, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "api.version.create", `api/${params.id}`);
+  find(platform.state.apis, params.id, "API");
+  const input = body as ApiVersionInput;
+  if (!input.version?.trim()) fail(422, "VALIDATION_FAILED", "The version needs a version string, e.g. v2");
+  const v: ApiVersion = { id: platform.nextId("ver"), apiId: params.id, version: input.version.trim(), status: input.status ?? "active", changelog: input.changelog, sunset: input.sunset, createdAt: platform.now() };
+  platform.state.apiVersions.push(v);
+  return v;
+});
+route("PUT", "/apis/:apiId/versions/:versionId", ({ platform, ctx, params, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "api.version.update", `api/${params.apiId}/${params.versionId}`);
+  const v = platform.state.apiVersions.find((x) => x.id === params.versionId && x.apiId === params.apiId);
+  if (!v) fail(404, "NOT_FOUND", "Version not found");
+  const input = body as ApiVersionInput;
+  if (input.status) v.status = input.status;
+  if (input.changelog) v.changelog = input.changelog;
+  if (input.sunset) v.sunset = input.sunset;
+  return v;
+});
+route("GET", "/portal/apis", ({ platform }) =>
+  list(
+    platform.state.apis
+      .filter((a) => a.lifecycle !== "archived")
+      .map((a) => ({
+        id: a.id, name: a.name, basePath: a.basePath, description: a.description, defaultVersion: a.defaultVersion,
+        versions: platform.state.apiVersions.filter((v) => v.apiId === a.id && v.status !== "retired"),
+        operations: platform.state.operations.filter((o) => o.apiId === a.id).map((o) => ({ id: o.id, method: o.method, path: o.path, summary: o.summary, version: o.version, permission: o.permission, rateLimitPerMinute: o.rateLimitPerMinute })),
+      })),
+  ),
+);
+route("GET", "/api-keys", ({ platform, ctx }) => {
+  platform.requirePermission(ctx("control"), "connect.manage", "api-key.list", "api-key");
+  return list(platform.state.apiKeys);
+});
+route("POST", "/api-keys", ({ platform, ctx, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "api-key.create", "api-key");
+  const input = body as { name: string; permissions?: string[]; quotaPerHour?: number };
+  if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "The key needs a name");
+  const raw = `wsn_${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
+  const key: ApiKey = { id: platform.nextId("key"), name: input.name.trim(), prefix: raw.slice(0, 12), permissions: (input.permissions ?? []) as Permission[], quotaPerHour: input.quotaPerHour ?? 0, revoked: false, createdAt: platform.now() };
+  platform.state.apiKeys.push(key);
+  platform.audit(c, "api-key.create", `api-key/${key.id}`, "allowed", key.name);
+  return { ...key, rawKey: raw };
+});
+route("DELETE", "/api-keys/:id", ({ platform, ctx, params }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "connect.manage", "api-key.revoke", `api-key/${params.id}`);
+  const k = find(platform.state.apiKeys, params.id, "API key");
+  k.revoked = true;
+  return { id: k.id, revoked: true };
+});
+route("POST", "/graphql", ({ platform, ctx, body }) => {
+  const c = ctx("studio");
+  const q = String(body.query ?? "");
+  const m = q.match(/query\s*\{\s*(\w+)(?:\([^)]*\))?\s*\{([^}]*)\}/);
+  if (!m) return { data: null, errors: [{ message: "only 'query { Entity(args) { fields } }' is supported" }] };
+  const entityName = m[1];
+  const fields = m[2].trim().split(/\s+/).filter(Boolean);
+  const entity = platform.state.entities.find((e) => e.name === entityName);
+  if (!entity) return { data: null, errors: [{ message: `Entity ${entityName} not found` }] };
+  platform.requirePermission(c, entity.readPermission, `${entityName}.list`, `entity/${entityName}`);
+  const rows = platform.records(entityName).filter((r) => !r.deletedAt).map((r) => {
+    const row: Record<string, unknown> = { id: r.id };
+    for (const f of fields) if (f in r.values) row[f] = r.values[f];
+    return row;
+  });
+  return { data: { [entityName]: rows } };
 });
 
 /* AI */

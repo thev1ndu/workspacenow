@@ -25,7 +25,7 @@ func InternalMux(cfg *config.Config, svc Service, resolver middleware.CallerReso
 	mux.HandleFunc("POST "+InternalBasePath+"/tools/invoke", serviceToken(cfg, invokeWithGrant(svc)))
 	mux.HandleFunc("GET "+InternalBasePath+"/mcp/tools", serviceToken(cfg, listTools(svc)))
 	mux.HandleFunc("POST "+InternalBasePath+"/runs/{runId}/steps", serviceToken(cfg, appendStep(svc)))
-	userAuth := middleware.Authenticate(cfg.OIDC, cfg.DemoMode, resolver, func(*http.Request) bool { return false })
+	userAuth := middleware.Authenticate(cfg.OIDC, cfg.DemoMode, resolver, func(*http.Request) bool { return false }, nil)
 	mux.Handle("POST "+InternalBasePath+"/mcp/invoke", forwardAuth(userAuth(http.HandlerFunc(invokeAsUser(svc)))))
 	return mux
 }

@@ -149,6 +149,48 @@ func (e AgentRunStep1Kind) Valid() bool {
 	}
 }
 
+// Defines values for ApiVersionStatus.
+const (
+	ApiVersionStatusActive     ApiVersionStatus = "active"
+	ApiVersionStatusDeprecated ApiVersionStatus = "deprecated"
+	ApiVersionStatusRetired    ApiVersionStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the ApiVersionStatus enum.
+func (e ApiVersionStatus) Valid() bool {
+	switch e {
+	case ApiVersionStatusActive:
+		return true
+	case ApiVersionStatusDeprecated:
+		return true
+	case ApiVersionStatusRetired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApiVersionInputStatus.
+const (
+	ApiVersionInputStatusActive     ApiVersionInputStatus = "active"
+	ApiVersionInputStatusDeprecated ApiVersionInputStatus = "deprecated"
+	ApiVersionInputStatusRetired    ApiVersionInputStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the ApiVersionInputStatus enum.
+func (e ApiVersionInputStatus) Valid() bool {
+	switch e {
+	case ApiVersionInputStatusActive:
+		return true
+	case ApiVersionInputStatusDeprecated:
+		return true
+	case ApiVersionInputStatusRetired:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AppPageKind.
 const (
 	AppPageKindDashboard AppPageKind = "dashboard"
@@ -302,6 +344,27 @@ func (e DatabaseConnectionStatus) Valid() bool {
 	case DatabaseConnectionStatusDegraded:
 		return true
 	case DatabaseConnectionStatusDisconnected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeliveryStatus.
+const (
+	DeliveryStatusDelivered DeliveryStatus = "delivered"
+	DeliveryStatusFailed    DeliveryStatus = "failed"
+	DeliveryStatusPending   DeliveryStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the DeliveryStatus enum.
+func (e DeliveryStatus) Valid() bool {
+	switch e {
+	case DeliveryStatusDelivered:
+		return true
+	case DeliveryStatusFailed:
+		return true
+	case DeliveryStatusPending:
 		return true
 	default:
 		return false
@@ -662,30 +725,51 @@ func (e IdentityProviderConfigType) Valid() bool {
 	}
 }
 
+// Defines values for IntegrationAuthType.
+const (
+	IntegrationAuthTypeBearer IntegrationAuthType = "bearer"
+	IntegrationAuthTypeNone   IntegrationAuthType = "none"
+	IntegrationAuthTypeOauth2 IntegrationAuthType = "oauth2"
+)
+
+// Valid indicates whether the value is a known member of the IntegrationAuthType enum.
+func (e IntegrationAuthType) Valid() bool {
+	switch e {
+	case IntegrationAuthTypeBearer:
+		return true
+	case IntegrationAuthTypeNone:
+		return true
+	case IntegrationAuthTypeOauth2:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IntegrationKind.
 const (
-	Database      IntegrationKind = "database"
-	MessageBroker IntegrationKind = "message-broker"
-	Rest          IntegrationKind = "rest"
-	Saas          IntegrationKind = "saas"
-	Soap          IntegrationKind = "soap"
-	Webhook       IntegrationKind = "webhook"
+	IntegrationKindDatabase      IntegrationKind = "database"
+	IntegrationKindMessageBroker IntegrationKind = "message-broker"
+	IntegrationKindRest          IntegrationKind = "rest"
+	IntegrationKindSaas          IntegrationKind = "saas"
+	IntegrationKindSoap          IntegrationKind = "soap"
+	IntegrationKindWebhook       IntegrationKind = "webhook"
 )
 
 // Valid indicates whether the value is a known member of the IntegrationKind enum.
 func (e IntegrationKind) Valid() bool {
 	switch e {
-	case Database:
+	case IntegrationKindDatabase:
 		return true
-	case MessageBroker:
+	case IntegrationKindMessageBroker:
 		return true
-	case Rest:
+	case IntegrationKindRest:
 		return true
-	case Saas:
+	case IntegrationKindSaas:
 		return true
-	case Soap:
+	case IntegrationKindSoap:
 		return true
-	case Webhook:
+	case IntegrationKindWebhook:
 		return true
 	default:
 		return false
@@ -1096,22 +1180,22 @@ func (e WorkflowStatus) Valid() bool {
 
 // Defines values for WorkflowExecutionStatus.
 const (
-	Completed WorkflowExecutionStatus = "completed"
-	Failed    WorkflowExecutionStatus = "failed"
-	Running   WorkflowExecutionStatus = "running"
-	Waiting   WorkflowExecutionStatus = "waiting"
+	WorkflowExecutionStatusCompleted WorkflowExecutionStatus = "completed"
+	WorkflowExecutionStatusFailed    WorkflowExecutionStatus = "failed"
+	WorkflowExecutionStatusRunning   WorkflowExecutionStatus = "running"
+	WorkflowExecutionStatusWaiting   WorkflowExecutionStatus = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the WorkflowExecutionStatus enum.
 func (e WorkflowExecutionStatus) Valid() bool {
 	switch e {
-	case Completed:
+	case WorkflowExecutionStatusCompleted:
 		return true
-	case Failed:
+	case WorkflowExecutionStatusFailed:
 		return true
-	case Running:
+	case WorkflowExecutionStatusRunning:
 		return true
-	case Waiting:
+	case WorkflowExecutionStatusWaiting:
 		return true
 	default:
 		return false
@@ -1589,13 +1673,34 @@ type AgentRunStep1Kind string
 
 // Api defines model for Api.
 type Api struct {
-	ApplicationId string         `json:"applicationId"`
-	BasePath      string         `json:"basePath"`
-	Description   string         `json:"description"`
-	Id            string         `json:"id"`
-	Lifecycle     LifecycleState `json:"lifecycle"`
-	Name          string         `json:"name"`
-	Version       string         `json:"version"`
+	ApplicationId  string         `json:"applicationId"`
+	BasePath       string         `json:"basePath"`
+	DefaultVersion *string        `json:"defaultVersion,omitempty"`
+	Description    string         `json:"description"`
+	Id             string         `json:"id"`
+	Lifecycle      LifecycleState `json:"lifecycle"`
+	Name           string         `json:"name"`
+	Version        string         `json:"version"`
+}
+
+// ApiKey defines model for ApiKey.
+type ApiKey struct {
+	CreatedAt   IsoDate  `json:"createdAt"`
+	Id          string   `json:"id"`
+	LastUsedAt  *IsoDate `json:"lastUsedAt,omitempty"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+
+	// Prefix First chars of the raw key, for identification
+	Prefix       string `json:"prefix"`
+	QuotaPerHour int    `json:"quotaPerHour"`
+	Revoked      bool   `json:"revoked"`
+}
+
+// ApiKeyList defines model for ApiKeyList.
+type ApiKeyList struct {
+	Items      []ApiKey `json:"items"`
+	TotalCount int      `json:"totalCount"`
 }
 
 // ApiList defines model for ApiList.
@@ -1623,6 +1728,38 @@ type ApiOperation struct {
 type ApiOperationList struct {
 	Items []ApiOperation `json:"items"`
 	Total int            `json:"total"`
+}
+
+// ApiVersion defines model for ApiVersion.
+type ApiVersion struct {
+	ApiId        string           `json:"apiId"`
+	Changelog    *string          `json:"changelog,omitempty"`
+	CreatedAt    IsoDate          `json:"createdAt"`
+	DeprecatedAt *IsoDate         `json:"deprecatedAt,omitempty"`
+	Id           string           `json:"id"`
+	Status       ApiVersionStatus `json:"status"`
+	Sunset       *IsoDate         `json:"sunset,omitempty"`
+	Version      string           `json:"version"`
+}
+
+// ApiVersionStatus defines model for ApiVersion.Status.
+type ApiVersionStatus string
+
+// ApiVersionInput defines model for ApiVersionInput.
+type ApiVersionInput struct {
+	Changelog *string                `json:"changelog,omitempty"`
+	Status    *ApiVersionInputStatus `json:"status,omitempty"`
+	Sunset    *IsoDate               `json:"sunset,omitempty"`
+	Version   string                 `json:"version"`
+}
+
+// ApiVersionInputStatus defines model for ApiVersionInput.Status.
+type ApiVersionInputStatus string
+
+// ApiVersionList defines model for ApiVersionList.
+type ApiVersionList struct {
+	Items      []ApiVersion `json:"items"`
+	TotalCount int          `json:"totalCount"`
 }
 
 // AppPage defines model for AppPage.
@@ -1773,6 +1910,23 @@ type CreateEntityBody struct {
 // CreateEntityBodyScope defines model for CreateEntityBody.Scope.
 type CreateEntityBodyScope string
 
+// CreatedApiKey defines model for CreatedApiKey.
+type CreatedApiKey struct {
+	CreatedAt   IsoDate  `json:"createdAt"`
+	Id          string   `json:"id"`
+	LastUsedAt  *IsoDate `json:"lastUsedAt,omitempty"`
+	Name        string   `json:"name"`
+	Permissions []string `json:"permissions"`
+
+	// Prefix First chars of the raw key, for identification
+	Prefix       string `json:"prefix"`
+	QuotaPerHour int    `json:"quotaPerHour"`
+
+	// RawKey The full key; shown once
+	RawKey  string `json:"rawKey"`
+	Revoked bool   `json:"revoked"`
+}
+
 // DatabaseConnection defines model for DatabaseConnection.
 type DatabaseConnection struct {
 	Engine      DatabaseConnectionEngine `json:"engine"`
@@ -1794,6 +1948,30 @@ type DatabaseConnectionStatus string
 type DatabaseConnectionList struct {
 	Items []DatabaseConnection `json:"items"`
 	Total int                  `json:"total"`
+}
+
+// Delivery defines model for Delivery.
+type Delivery struct {
+	Attempts    int            `json:"attempts"`
+	CreatedAt   IsoDate        `json:"createdAt"`
+	DeliveredAt *IsoDate       `json:"deliveredAt,omitempty"`
+	EventId     string         `json:"eventId"`
+	EventType   string         `json:"eventType"`
+	Id          string         `json:"id"`
+	LastError   *string        `json:"lastError,omitempty"`
+	LastStatus  *int           `json:"lastStatus,omitempty"`
+	NextRetryAt *IsoDate       `json:"nextRetryAt,omitempty"`
+	Status      DeliveryStatus `json:"status"`
+	WebhookId   string         `json:"webhookId"`
+}
+
+// DeliveryStatus defines model for Delivery.Status.
+type DeliveryStatus string
+
+// DeliveryList defines model for DeliveryList.
+type DeliveryList struct {
+	Items      []Delivery `json:"items"`
+	TotalCount int        `json:"totalCount"`
 }
 
 // Department defines model for Department.
@@ -2065,6 +2243,19 @@ type IdentityProviderConfigType string
 
 // Integration defines model for Integration.
 type Integration struct {
+	// Auth How the integration authenticates to its target
+	Auth *struct {
+		ClientId *string `json:"clientId,omitempty"`
+
+		// ClientSecretRef OpenBao ref holding the client secret
+		ClientSecretRef *string   `json:"clientSecretRef,omitempty"`
+		Scopes          *[]string `json:"scopes,omitempty"`
+		Token           *string   `json:"token,omitempty"`
+
+		// TokenUrl OAuth2 token endpoint (client credentials or refresh_token)
+		TokenUrl *string              `json:"tokenUrl,omitempty"`
+		Type     *IntegrationAuthType `json:"type,omitempty"`
+	} `json:"auth,omitempty"`
 	Id           string          `json:"id"`
 	Kind         IntegrationKind `json:"kind"`
 	LastTestedAt *IsoDate        `json:"lastTestedAt,omitempty"`
@@ -2077,6 +2268,9 @@ type Integration struct {
 	Target    string            `json:"target"`
 	TimeoutMs int               `json:"timeoutMs"`
 }
+
+// IntegrationAuthType defines model for Integration.Auth.Type.
+type IntegrationAuthType string
 
 // IntegrationKind defines model for Integration.Kind.
 type IntegrationKind string
@@ -2268,6 +2462,23 @@ type PlatformEvent struct {
 type PlatformEventList struct {
 	Items []PlatformEvent `json:"items"`
 	Total int             `json:"total"`
+}
+
+// PortalCatalogEntry defines model for PortalCatalogEntry.
+type PortalCatalogEntry struct {
+	BasePath       *string                   `json:"basePath,omitempty"`
+	DefaultVersion *string                   `json:"defaultVersion,omitempty"`
+	Description    *string                   `json:"description,omitempty"`
+	Id             *string                   `json:"id,omitempty"`
+	Name           *string                   `json:"name,omitempty"`
+	Operations     *[]map[string]interface{} `json:"operations,omitempty"`
+	Versions       *[]map[string]interface{} `json:"versions,omitempty"`
+}
+
+// PortalCatalogList defines model for PortalCatalogList.
+type PortalCatalogList struct {
+	Items      []PortalCatalogEntry `json:"items"`
+	TotalCount int                  `json:"totalCount"`
 }
 
 // PromptBody defines model for PromptBody.
@@ -2565,6 +2776,37 @@ type UserWithRolesList struct {
 	Total int             `json:"total"`
 }
 
+// Webhook defines model for Webhook.
+type Webhook struct {
+	Active    bool    `json:"active"`
+	CreatedAt IsoDate `json:"createdAt"`
+
+	// Events Event type prefixes to match; empty = all
+	Events *[]string `json:"events,omitempty"`
+	Id     string    `json:"id"`
+	Name   string    `json:"name"`
+
+	// Secret HMAC secret for X-WSN-Signature; write-only
+	Secret    *string `json:"secret,omitempty"`
+	UpdatedAt IsoDate `json:"updatedAt"`
+	Url       string  `json:"url"`
+}
+
+// WebhookInput defines model for WebhookInput.
+type WebhookInput struct {
+	Active *bool     `json:"active,omitempty"`
+	Events *[]string `json:"events,omitempty"`
+	Name   string    `json:"name"`
+	Secret *string   `json:"secret,omitempty"`
+	Url    string    `json:"url"`
+}
+
+// WebhookList defines model for WebhookList.
+type WebhookList struct {
+	Items      []Webhook `json:"items"`
+	TotalCount int       `json:"totalCount"`
+}
+
 // Workflow defines model for Workflow.
 type Workflow struct {
 	ApplicationId *string `json:"applicationId,omitempty"`
@@ -2834,6 +3076,15 @@ type GetTokenUsageParams struct {
 	Days *int `form:"days,omitempty" json:"days,omitempty"`
 }
 
+// CreateApiKeyJSONBody defines parameters for CreateApiKey.
+type CreateApiKeyJSONBody struct {
+	Name        string    `json:"name"`
+	Permissions *[]string `json:"permissions,omitempty"`
+
+	// QuotaPerHour 0 = unlimited
+	QuotaPerHour *int `json:"quotaPerHour,omitempty"`
+}
+
 // ListApiOperationsParams defines parameters for ListApiOperations.
 type ListApiOperationsParams struct {
 	ApiId *string `form:"apiId,omitempty" json:"apiId,omitempty"`
@@ -2842,6 +3093,12 @@ type ListApiOperationsParams struct {
 // InvokeApiOperationJSONBody defines parameters for InvokeApiOperation.
 type InvokeApiOperationJSONBody struct {
 	Input *map[string]interface{} `json:"input,omitempty"`
+}
+
+// InvokeApiOperationParams defines parameters for InvokeApiOperation.
+type InvokeApiOperationParams struct {
+	// Version API version to serve; defaults to the operation's version. Deprecated versions answer with Deprecation/Sunset headers, retired ones with 410.
+	Version *string `form:"version,omitempty" json:"version,omitempty"`
 }
 
 // UpdateMcpExposureJSONBody defines parameters for UpdateMcpExposure.
@@ -2978,6 +3235,11 @@ type ListExecutionsParams struct {
 	WorkflowId *string `form:"workflowId,omitempty" json:"workflowId,omitempty"`
 }
 
+// ExecuteGraphQLJSONBody defines parameters for ExecuteGraphQL.
+type ExecuteGraphQLJSONBody struct {
+	Query string `json:"query"`
+}
+
 // UpdateGroupMappingsJSONBody defines parameters for UpdateGroupMappings.
 type UpdateGroupMappingsJSONBody struct {
 	Mappings []GroupRoleMapping `json:"mappings"`
@@ -3047,11 +3309,20 @@ type UpdateAgentJSONRequestBody UpdateAgentJSONBody
 // RunAgentJSONRequestBody defines body for RunAgent for application/json ContentType.
 type RunAgentJSONRequestBody = PromptBody
 
+// CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
+type CreateApiKeyJSONRequestBody CreateApiKeyJSONBody
+
 // InvokeApiOperationJSONRequestBody defines body for InvokeApiOperation for application/json ContentType.
 type InvokeApiOperationJSONRequestBody InvokeApiOperationJSONBody
 
 // UpdateMcpExposureJSONRequestBody defines body for UpdateMcpExposure for application/json ContentType.
 type UpdateMcpExposureJSONRequestBody UpdateMcpExposureJSONBody
+
+// CreateApiVersionJSONRequestBody defines body for CreateApiVersion for application/json ContentType.
+type CreateApiVersionJSONRequestBody = ApiVersionInput
+
+// UpdateApiVersionJSONRequestBody defines body for UpdateApiVersion for application/json ContentType.
+type UpdateApiVersionJSONRequestBody = ApiVersionInput
 
 // ApplyApplicationPlanJSONRequestBody defines body for ApplyApplicationPlan for application/json ContentType.
 type ApplyApplicationPlanJSONRequestBody ApplyApplicationPlanJSONBody
@@ -3101,6 +3372,9 @@ type CreateViewJSONRequestBody = SavedViewInput
 // UpdateViewJSONRequestBody defines body for UpdateView for application/json ContentType.
 type UpdateViewJSONRequestBody = SavedViewInput
 
+// ExecuteGraphQLJSONRequestBody defines body for ExecuteGraphQL for application/json ContentType.
+type ExecuteGraphQLJSONRequestBody ExecuteGraphQLJSONBody
+
 // UpdateGroupMappingsJSONRequestBody defines body for UpdateGroupMappings for application/json ContentType.
 type UpdateGroupMappingsJSONRequestBody UpdateGroupMappingsJSONBody
 
@@ -3109,6 +3383,12 @@ type RegisterMcpServerJSONRequestBody RegisterMcpServerJSONBody
 
 // RunSidekickJSONRequestBody defines body for RunSidekick for application/json ContentType.
 type RunSidekickJSONRequestBody RunSidekickJSONBody
+
+// CreateWebhookJSONRequestBody defines body for CreateWebhook for application/json ContentType.
+type CreateWebhookJSONRequestBody = WebhookInput
+
+// UpdateWebhookJSONRequestBody defines body for UpdateWebhook for application/json ContentType.
+type UpdateWebhookJSONRequestBody = WebhookInput
 
 // CreateWorkflowJSONRequestBody defines body for CreateWorkflow for application/json ContentType.
 type CreateWorkflowJSONRequestBody CreateWorkflowJSONBody
@@ -3706,12 +3986,21 @@ type ServerInterface interface {
 	// Daily model token usage, one numeric key per model
 	// (GET /analytics/tokens)
 	GetTokenUsage(w http.ResponseWriter, r *http.Request, params GetTokenUsageParams)
+	// Developer API keys (hashes never leave; raw key only at creation)
+	// (GET /api-keys)
+	ListApiKeys(w http.ResponseWriter, r *http.Request)
+	// Issue an API key (wsn_...) with permissions and an hourly quota
+	// (POST /api-keys)
+	CreateApiKey(w http.ResponseWriter, r *http.Request)
+	// Revoke an API key
+	// (DELETE /api-keys/{keyId})
+	RevokeApiKey(w http.ResponseWriter, r *http.Request, keyId string)
 	// API endpoints and the business operations behind them
 	// (GET /api-operations)
 	ListApiOperations(w http.ResponseWriter, r *http.Request, params ListApiOperationsParams)
 	// Try an API operation (entry point `api`)
 	// (POST /api-operations/{operationId}/invoke)
-	InvokeApiOperation(w http.ResponseWriter, r *http.Request, operationId OperationId)
+	InvokeApiOperation(w http.ResponseWriter, r *http.Request, operationId OperationId, params InvokeApiOperationParams)
 	// Expose or withdraw an API operation as an MCP tool
 	// (PATCH /api-operations/{operationId}/mcp)
 	UpdateMcpExposure(w http.ResponseWriter, r *http.Request, operationId OperationId)
@@ -3721,6 +4010,15 @@ type ServerInterface interface {
 	// One API
 	// (GET /apis/{apiId})
 	GetApi(w http.ResponseWriter, r *http.Request, apiId string)
+	// An API's published versions
+	// (GET /apis/{apiId}/versions)
+	ListApiVersions(w http.ResponseWriter, r *http.Request, apiId string)
+	// Publish a version (active/deprecated/retired, sunset, changelog)
+	// (POST /apis/{apiId}/versions)
+	CreateApiVersion(w http.ResponseWriter, r *http.Request, apiId string)
+	// Change a version's status (deprecate/retire), sunset or changelog
+	// (PUT /apis/{apiId}/versions/{versionId})
+	UpdateApiVersion(w http.ResponseWriter, r *http.Request, apiId string, versionId string)
 	// Applications
 	// (GET /applications)
 	ListApplications(w http.ResponseWriter, r *http.Request)
@@ -3844,6 +4142,9 @@ type ServerInterface interface {
 	// One execution with its step states
 	// (GET /executions/{executionId})
 	GetExecution(w http.ResponseWriter, r *http.Request, executionId string)
+	// Minimal GraphQL gateway over entity records
+	// (POST /graphql)
+	ExecuteGraphQL(w http.ResponseWriter, r *http.Request)
 	// Identity-provider group to role mappings
 	// (GET /group-mappings)
 	ListGroupMappings(w http.ResponseWriter, r *http.Request)
@@ -3889,6 +4190,9 @@ type ServerInterface interface {
 	// Users offered on the demo sign-in screen
 	// (GET /personas)
 	ListPersonas(w http.ResponseWriter, r *http.Request)
+	// Developer portal catalog — active APIs, versions and operations (no secrets)
+	// (GET /portal/apis)
+	PortalCatalog(w http.ResponseWriter, r *http.Request)
 	// Every governed resource across workspaces
 	// (GET /resources)
 	ListResources(w http.ResponseWriter, r *http.Request)
@@ -3916,6 +4220,27 @@ type ServerInterface interface {
 	// Users with the role names their groups grant
 	// (GET /users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
+	// Outbound webhook subscriptions
+	// (GET /webhooks)
+	ListWebhooks(w http.ResponseWriter, r *http.Request)
+	// Subscribe a URL to platform events
+	// (POST /webhooks)
+	CreateWebhook(w http.ResponseWriter, r *http.Request)
+	// Delete a webhook (deliveries stay)
+	// (DELETE /webhooks/{webhookId})
+	DeleteWebhook(w http.ResponseWriter, r *http.Request, webhookId string)
+	// Change a webhook (URL, events, secret, active)
+	// (PUT /webhooks/{webhookId})
+	UpdateWebhook(w http.ResponseWriter, r *http.Request, webhookId string)
+	// A webhook's delivery log (status, attempts, last status/error, next retry)
+	// (GET /webhooks/{webhookId}/deliveries)
+	ListWebhookDeliveries(w http.ResponseWriter, r *http.Request, webhookId string)
+	// Re-queue a delivery for immediate retry
+	// (POST /webhooks/{webhookId}/deliveries/{deliveryId}/replay)
+	ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request, webhookId string, deliveryId string)
+	// Send a synthetic Webhook.Test event now
+	// (POST /webhooks/{webhookId}/test)
+	TestWebhook(w http.ResponseWriter, r *http.Request, webhookId string)
 	// Workflows
 	// (GET /workflows)
 	ListWorkflows(w http.ResponseWriter, r *http.Request)
@@ -4229,6 +4554,77 @@ func (siw *ServerInterfaceWrapper) GetTokenUsage(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListApiKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListApiKeys(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApiKeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateApiKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateApiKey(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateApiKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeApiKey operation middleware
+func (siw *ServerInterfaceWrapper) RevokeApiKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "keyId" -------------
+	var keyId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "keyId", r.PathValue("keyId"), &keyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keyId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeApiKey(w, r, keyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListApiOperations operation middleware
 func (siw *ServerInterfaceWrapper) ListApiOperations(w http.ResponseWriter, r *http.Request) {
 
@@ -4282,8 +4678,19 @@ func (siw *ServerInterfaceWrapper) InvokeApiOperation(w http.ResponseWriter, r *
 
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params InvokeApiOperationParams
+
+	// ------------- Optional query parameter "version" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "version", r.URL.Query(), &params.Version, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.InvokeApiOperation(w, r, operationId)
+		siw.Handler.InvokeApiOperation(w, r, operationId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4366,6 +4773,108 @@ func (siw *ServerInterfaceWrapper) GetApi(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetApi(w, r, apiId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListApiVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListApiVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "apiId" -------------
+	var apiId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "apiId", r.PathValue("apiId"), &apiId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "apiId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApiVersions(w, r, apiId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateApiVersion operation middleware
+func (siw *ServerInterfaceWrapper) CreateApiVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "apiId" -------------
+	var apiId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "apiId", r.PathValue("apiId"), &apiId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "apiId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateApiVersion(w, r, apiId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateApiVersion operation middleware
+func (siw *ServerInterfaceWrapper) UpdateApiVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "apiId" -------------
+	var apiId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "apiId", r.PathValue("apiId"), &apiId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "apiId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "versionId" -------------
+	var versionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "versionId", r.PathValue("versionId"), &versionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "versionId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateApiVersion(w, r, apiId, versionId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5709,6 +6218,26 @@ func (siw *ServerInterfaceWrapper) GetExecution(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ExecuteGraphQL operation middleware
+func (siw *ServerInterfaceWrapper) ExecuteGraphQL(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExecuteGraphQL(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListGroupMappings operation middleware
 func (siw *ServerInterfaceWrapper) ListGroupMappings(w http.ResponseWriter, r *http.Request) {
 
@@ -6036,6 +6565,26 @@ func (siw *ServerInterfaceWrapper) ListPersonas(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// PortalCatalog operation middleware
+func (siw *ServerInterfaceWrapper) PortalCatalog(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PortalCatalog(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListResources operation middleware
 func (siw *ServerInterfaceWrapper) ListResources(w http.ResponseWriter, r *http.Request) {
 
@@ -6275,6 +6824,210 @@ func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWebhooks operation middleware
+func (siw *ServerInterfaceWrapper) ListWebhooks(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWebhooks(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWebhook operation middleware
+func (siw *ServerInterfaceWrapper) CreateWebhook(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWebhook(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteWebhook operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWebhook(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateWebhook operation middleware
+func (siw *ServerInterfaceWrapper) UpdateWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateWebhook(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWebhookDeliveries operation middleware
+func (siw *ServerInterfaceWrapper) ListWebhookDeliveries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWebhookDeliveries(w, r, webhookId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplayWebhookDelivery operation middleware
+func (siw *ServerInterfaceWrapper) ReplayWebhookDelivery(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "deliveryId" -------------
+	var deliveryId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "deliveryId", r.PathValue("deliveryId"), &deliveryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "deliveryId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplayWebhookDelivery(w, r, webhookId, deliveryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestWebhook operation middleware
+func (siw *ServerInterfaceWrapper) TestWebhook(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "webhookId" -------------
+	var webhookId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "webhookId", r.PathValue("webhookId"), &webhookId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "webhookId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestWebhook(w, r, webhookId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6546,11 +7299,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/activity", wrapper.GetActivity)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/entry-points", wrapper.GetEntryPointBreakdown)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/tokens", wrapper.GetTokenUsage)
+	m.HandleFunc("GET "+options.BaseURL+"/api-keys", wrapper.ListApiKeys)
+	m.HandleFunc("POST "+options.BaseURL+"/api-keys", wrapper.CreateApiKey)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api-keys/{keyId}", wrapper.RevokeApiKey)
 	m.HandleFunc("GET "+options.BaseURL+"/api-operations", wrapper.ListApiOperations)
 	m.HandleFunc("POST "+options.BaseURL+"/api-operations/{operationId}/invoke", wrapper.InvokeApiOperation)
 	m.HandleFunc("PATCH "+options.BaseURL+"/api-operations/{operationId}/mcp", wrapper.UpdateMcpExposure)
 	m.HandleFunc("GET "+options.BaseURL+"/apis", wrapper.ListApis)
 	m.HandleFunc("GET "+options.BaseURL+"/apis/{apiId}", wrapper.GetApi)
+	m.HandleFunc("GET "+options.BaseURL+"/apis/{apiId}/versions", wrapper.ListApiVersions)
+	m.HandleFunc("POST "+options.BaseURL+"/apis/{apiId}/versions", wrapper.CreateApiVersion)
+	m.HandleFunc("PUT "+options.BaseURL+"/apis/{apiId}/versions/{versionId}", wrapper.UpdateApiVersion)
 	m.HandleFunc("GET "+options.BaseURL+"/applications", wrapper.ListApplications)
 	m.HandleFunc("POST "+options.BaseURL+"/applications", wrapper.ApplyApplicationPlan)
 	m.HandleFunc("POST "+options.BaseURL+"/applications/plan", wrapper.PlanApplication)
@@ -6592,6 +7351,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/events/stream", wrapper.StreamEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/executions", wrapper.ListExecutions)
 	m.HandleFunc("GET "+options.BaseURL+"/executions/{executionId}", wrapper.GetExecution)
+	m.HandleFunc("POST "+options.BaseURL+"/graphql", wrapper.ExecuteGraphQL)
 	m.HandleFunc("GET "+options.BaseURL+"/group-mappings", wrapper.ListGroupMappings)
 	m.HandleFunc("PUT "+options.BaseURL+"/group-mappings", wrapper.UpdateGroupMappings)
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.ListHealth)
@@ -6607,6 +7367,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/organization", wrapper.GetOrganization)
 	m.HandleFunc("GET "+options.BaseURL+"/overview", wrapper.GetOverview)
 	m.HandleFunc("GET "+options.BaseURL+"/personas", wrapper.ListPersonas)
+	m.HandleFunc("GET "+options.BaseURL+"/portal/apis", wrapper.PortalCatalog)
 	m.HandleFunc("GET "+options.BaseURL+"/resources", wrapper.ListResources)
 	m.HandleFunc("GET "+options.BaseURL+"/roles", wrapper.ListRoles)
 	m.HandleFunc("GET "+options.BaseURL+"/search", wrapper.Search)
@@ -6616,6 +7377,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/traces", wrapper.ListTraces)
 	m.HandleFunc("GET "+options.BaseURL+"/traces/{traceId}", wrapper.GetTrace)
 	m.HandleFunc("GET "+options.BaseURL+"/users", wrapper.ListUsers)
+	m.HandleFunc("GET "+options.BaseURL+"/webhooks", wrapper.ListWebhooks)
+	m.HandleFunc("POST "+options.BaseURL+"/webhooks", wrapper.CreateWebhook)
+	m.HandleFunc("DELETE "+options.BaseURL+"/webhooks/{webhookId}", wrapper.DeleteWebhook)
+	m.HandleFunc("PUT "+options.BaseURL+"/webhooks/{webhookId}", wrapper.UpdateWebhook)
+	m.HandleFunc("GET "+options.BaseURL+"/webhooks/{webhookId}/deliveries", wrapper.ListWebhookDeliveries)
+	m.HandleFunc("POST "+options.BaseURL+"/webhooks/{webhookId}/deliveries/{deliveryId}/replay", wrapper.ReplayWebhookDelivery)
+	m.HandleFunc("POST "+options.BaseURL+"/webhooks/{webhookId}/test", wrapper.TestWebhook)
 	m.HandleFunc("GET "+options.BaseURL+"/workflows", wrapper.ListWorkflows)
 	m.HandleFunc("POST "+options.BaseURL+"/workflows", wrapper.CreateWorkflow)
 	m.HandleFunc("GET "+options.BaseURL+"/workflows/{workflowId}", wrapper.GetWorkflow)

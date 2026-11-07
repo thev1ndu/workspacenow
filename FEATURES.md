@@ -47,7 +47,13 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ Managed MCP server on wsn-ai-service (`/mcp`) mirroring the platform tool catalogue
 - ✅ Integrations registry + connectivity test (`/integrations/{id}/test`) with failure reasons audited
 - ✅ AI-side external MCP discovery (`/v1/mcp/discover`)
-- ⬜ OAuth flows for external APIs; webhook signature verification
+- ✅ **Outbound webhooks with signing + replay**: `/webhooks` CRUD, deliveries log, `X-WSN-Signature: t=...,v1=<hmac-sha256>`, backoff retries, `POST .../deliveries/{id}/replay`, `POST .../test`; dispatcher runs in the server role
+- ✅ **OAuth2 client flows**: `integration.auth` (client credentials / refresh_token), token fetched and cached in Valkey, used by integration tests
+- ✅ **API versioning + deprecation**: `/apis/{id}/versions` CRUD; invoke takes `?version=`/`X-API-Version`; deprecated → Deprecation/Sunset headers, retired → 410
+- ✅ **Request/response transformation**: `operation.transform` field mapping (dotted paths) around the business operation
+- ✅ **GraphQL gateway**: `POST /graphql` minimal `query { Entity(where:..., first: N) { fields } }` over records, read-permission enforced
+- ✅ **Developer portal**: `GET /portal/apis` catalog (no secrets) + `/api-keys` CRUD; `X-API-Key` auth in middleware, SHA-256-hashed storage, per-key hourly quota in Valkey, revocation
+- ⬜ Full GraphQL schema/federation; OAuth2 authorization-code flow with browser redirect; webhook signature verification helper lib for receivers
 
 ## 5. Studio — application lifecycle (plan → build → release → deploy)
 - ✅ Applications list/detail/update, pins (`/me/pinned-applications`)

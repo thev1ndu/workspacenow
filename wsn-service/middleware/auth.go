@@ -31,8 +31,12 @@ type CallerResolver interface {
 
 const demoTokenPrefix = "demo."
 
+// APIKeyAuth resolves an X-API-Key header into a caller whose permissions are the key's.
+type APIKeyAuth func(ctx context.Context, rawKey string) (userID, name string, permissions kernel.Permissions, err error)
+
 // Authenticate puts the bearer token's caller in the context; demo mode also accepts demo.<userId>.
-func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver, public func(r *http.Request) bool) Middleware {
+// keyAuth, when set, also accepts the X-API-Key header (developer portal keys).
+func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver, public func(r *http.Request) bool, keyAuth APIKeyAuth) Middleware {
 	var verifier *jwtVerifier
 	if cfg.JWKSURL != "" {
 		verifier = newJWTVerifier(cfg)
@@ -42,6 +46,17 @@ func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver,
 			if public(r) {
 				next.ServeHTTP(w, r)
 				return
+			}
+			if keyAuth != nil {
+				if raw := r.Header.Get("X-API-Key"); raw != "" {
+					userID, name, perms, kerr := keyAuth(r.Context(), raw)
+					if kerr != nil {
+						httpx.Error(w, r, kerr)
+						return
+					}
+					next.ServeHTTP(w, r.WithContext(kernel.WithCaller(r.Context(), &kernel.Caller{UserID: userID, Name: name, Permissions: perms})))
+					return
+				}
 			}
 			token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if !ok || token == "" {

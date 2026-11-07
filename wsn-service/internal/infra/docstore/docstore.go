@@ -23,7 +23,7 @@ var Collections = []string{
 	"organization", "departments", "teams", "users", "roles", "group_mappings", "environments",
 	"applications", "releases", "deployments", "pins",
 	"entities", "connections", "entity_views",
-	"apis", "api_operations", "mcp_servers", "integrations",
+	"apis", "api_operations", "api_versions", "mcp_servers", "integrations", "webhooks", "webhook_deliveries", "api_keys",
 	"model_providers", "agents", "agent_runs",
 	"workflows", "executions", "approvals",
 }

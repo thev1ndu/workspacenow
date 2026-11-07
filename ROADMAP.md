@@ -27,9 +27,9 @@ live infrastructure** (nothing has run on real Docker/GitHub/K8s yet — the san
 Ordered by value per effort. P0 = do first (unblocks selling/operating the platform); P1 = next quarter; P2 = later.
 
 ### P0 — prove it live (nothing here is new code, it's verification)
-1. Run `make up` on a Docker host; fix what breaks at first boot (migrations, seed, SSE, webhooks).
+1. ~~Run `make up` on a Docker host; fix what breaks at first boot~~ — automated: the `e2e` CI job boots the compose stack and runs `deploy/e2e/smoke.sh` on every commit/tag (first live run on PR #2); fix what it surfaces.
 2. Run the flagship flow end to end with a real `MISTRAL_API_KEY`; run the live smoke in CI.
-3. Let GitHub Actions run `ci.yaml` + `images.yaml` for real; make the GHCR packages public (or authenticated) so compose/Flux can pull.
+3. ~~`ci.yaml` + `images.yaml` run for real~~ (PR #2; images now gated on ci success via `workflow_run`); remaining: make the GHCR packages public (or authenticated) so compose/Flux can pull.
 4. Apply Flux to a kind/k3d cluster; replace placeholder hostnames; verify image automation picks up `main-*` tags.
 5. Integration tests (`//go:build integration`) porting the mock's 37 scenarios against compose Postgres.
 

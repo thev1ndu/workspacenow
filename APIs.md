@@ -158,10 +158,18 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/entities/{name}` | One entity | signed in |
 | POST | `/entities` | Create: `{ name, label?, description?, scope?, ownerApplicationId?, fields }`. Starts as `draft` v1 with `<Name>.Created` and `<Name>.Updated` events. | `data.manage` |
 | PATCH | `/entities/{name}` | Change `fields`, `description`, `readPermission`, `writePermission`. Bumps `version`. External entities return `409`. | `data.manage` |
-| GET | `/entities/{name}/records` | List records (runs `<Name>.list`) | record perm (read) |
+| GET | `/entities/{name}/records` | List records with `q`, `view` (saved view id), `includeDeleted`, `limit`, `offset`; row-level security (`entity.rowFilter`) applies on top | record perm (read) |
 | POST | `/entities/{name}/records` | Create: `{ values }` (runs `<Name>.create`) | record perm (write) |
 | PATCH | `/entities/{name}/records/{id}` | Update: `{ values }` (runs `<Name>.update`) | record perm (write) |
-| DELETE | `/entities/{name}/records/{id}` | Delete; `409` while referenced or under a pending approval. Returns `{ id, deleted: true }`. | record perm (write) |
+| DELETE | `/entities/{name}/records/{id}` | Soft delete (row stays for history); `409` while referenced or under a pending approval. Returns `{ id, deleted: true }`. | record perm (write) |
+| POST | `/entities/{name}/records/{id}/restore` | Restore a soft-deleted record | record perm (write) |
+| GET | `/entities/{name}/records/{id}/history` | Change log newest first: actor, action, field-level diff, snapshot | record perm (read) |
+| GET | `/entities/{name}/records/export?format=json\|csv&view=` | Download records as JSON or CSV | record perm (read) |
+| POST | `/entities/{name}/records/import` | Import `{ format, data }` (JSON array or CSV text); each row validated like a create | record perm (write) |
+| POST | `/entities/{name}/migrate` | Schema migration `{ add, drop, retype, backfill, note }`: add always safe; drop/retype refused (422) while records exist; backfill sets values on existing rows; snapshots the entity version and bumps `version` | `data.manage` |
+| GET/POST | `/entities/{name}/views` | Saved views (own + shared): `{ name, filters: [{field, op, value}], sortField, sortDesc, limit, shared }` | read perm / `data.manage` for writes |
+| PUT/DELETE | `/entities/{name}/views/{viewId}` | Replace / delete a view | `data.manage` |
+| POST | `/entities/{name}/views/{viewId}/run?includeDeleted=` | Run the view now; RLS still applies | record perm (read) |
 | GET | `/connections` | Database connections | signed in |
 
 Record writes are validated against the entity's fields: required fields, `unique`, enum choices, number and integer types, and references that must exist (`422`). External entities are read-only (`409`).

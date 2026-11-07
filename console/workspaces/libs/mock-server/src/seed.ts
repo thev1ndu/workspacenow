@@ -603,6 +603,8 @@ export function createSeedState(at: Date): PlatformState {
     approvals: [],
     events: [],
     audit: [],
+    views: [],
+    history: [],
     pins: {
       "u-amaya": ["app-inventory", "app-procurement"],
       "u-nimal": ["app-inventory"],

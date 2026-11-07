@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Alert, Button, ListBox, Select } from "@heroui/react";
-import { Plus } from "@workspacenow/icons";
+import { ArrowDownToLine, Plus } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
-import { useCreateRecord, useGetEntity, useListEntities, useListRecords } from "@workspacenow/api-client";
+import { useAuthHooks } from "@workspacenow/auth";
+import { exportRecords, useCreateRecord, useGetEntity, useListEntities, useListRecords, useListViews } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { PageLayout, QueryState, SectionCard, useDebouncedValue } from "@workspacenow/views";
 import { RecordFormDialog, useReferenceLabels } from "./subComponents/RecordForm";
@@ -17,8 +18,22 @@ export function RecordsPage() {
   const entity = useGetEntity({ entityName });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [viewId, setViewId] = useState<string>();
+  const [includeDeleted, setIncludeDeleted] = useState(false);
   const q = useDebouncedValue(search.trim());
-  const records = useListRecords({ entityName, q: q || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+  const records = useListRecords({ entityName, q: viewId ? undefined : q || undefined, view: viewId, includeDeleted, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+  const views = useListViews({ entityName });
+  const { getToken } = useAuthHooks();
+  const download = async (format: "json" | "csv") => {
+    if (!entityName) return;
+    const { body, contentType } = await exportRecords({ entityName, format, view: viewId }, getToken);
+    const url = URL.createObjectURL(new Blob([body], { type: contentType }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${entityName.toLowerCase()}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   const labels = useReferenceLabels(entity.data);
   const createRecord = useCreateRecord();
   const [creating, setCreating] = useState(false);
@@ -54,6 +69,39 @@ export function RecordsPage() {
               </ListBox>
             </Select.Popover>
           </Select>
+          <Select variant="secondary"
+            aria-label="Saved view"
+            className="w-44"
+            value={viewId ?? null}
+            onChange={(key) => { setViewId(key ? String(key) : undefined); setPage(1); }}
+            placeholder="All records"
+          >
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                <ListBox.Item id="" textValue="All records">
+                  All records
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+                {(views.data?.items ?? []).map((v) => (
+                  <ListBox.Item key={v.id} id={v.id} textValue={v.name}>
+                    {v.name}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+          <Button variant="tertiary" onPress={() => download("csv")} isDisabled={!entity.data}>
+            <ArrowDownToLine className="size-4" aria-hidden />
+            Export CSV
+          </Button>
+          <Button variant="tertiary" onPress={() => setIncludeDeleted((v) => !v)}>
+            {includeDeleted ? "Hide deleted" : "Show deleted"}
+          </Button>
           {!readOnly && (
             <Button onPress={() => setCreating(true)} isDisabled={!entity.data}>
               <Plus className="size-4" aria-hidden />

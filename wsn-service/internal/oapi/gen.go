@@ -521,6 +521,42 @@ func (e FieldType) Valid() bool {
 	}
 }
 
+// Defines values for FilterOpOp.
+const (
+	FilterOpOpContains FilterOpOp = "contains"
+	FilterOpOpEq       FilterOpOp = "eq"
+	FilterOpOpGt       FilterOpOp = "gt"
+	FilterOpOpGte      FilterOpOp = "gte"
+	FilterOpOpIn       FilterOpOp = "in"
+	FilterOpOpLt       FilterOpOp = "lt"
+	FilterOpOpLte      FilterOpOp = "lte"
+	FilterOpOpNeq      FilterOpOp = "neq"
+)
+
+// Valid indicates whether the value is a known member of the FilterOpOp enum.
+func (e FilterOpOp) Valid() bool {
+	switch e {
+	case FilterOpOpContains:
+		return true
+	case FilterOpOpEq:
+		return true
+	case FilterOpOpGt:
+		return true
+	case FilterOpOpGte:
+		return true
+	case FilterOpOpIn:
+		return true
+	case FilterOpOpLt:
+		return true
+	case FilterOpOpLte:
+		return true
+	case FilterOpOpNeq:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthSignalKind.
 const (
 	HealthSignalKindAgent       HealthSignalKind = "agent"
@@ -902,6 +938,30 @@ func (e PlannedPageKind) Valid() bool {
 	}
 }
 
+// Defines values for RecordHistoryEntryAction.
+const (
+	Created  RecordHistoryEntryAction = "created"
+	Deleted  RecordHistoryEntryAction = "deleted"
+	Restored RecordHistoryEntryAction = "restored"
+	Updated  RecordHistoryEntryAction = "updated"
+)
+
+// Valid indicates whether the value is a known member of the RecordHistoryEntryAction enum.
+func (e RecordHistoryEntryAction) Valid() bool {
+	switch e {
+	case Created:
+		return true
+	case Deleted:
+		return true
+	case Restored:
+		return true
+	case Updated:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ResourceType.
 const (
 	ResourceTypeAgent       ResourceType = "agent"
@@ -929,6 +989,27 @@ func (e ResourceType) Valid() bool {
 	case ResourceTypeMcpServer:
 		return true
 	case ResourceTypeWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RowFilterOp.
+const (
+	RowFilterOpEq  RowFilterOp = "eq"
+	RowFilterOpIn  RowFilterOp = "in"
+	RowFilterOpNeq RowFilterOp = "neq"
+)
+
+// Valid indicates whether the value is a known member of the RowFilterOp enum.
+func (e RowFilterOp) Valid() bool {
+	switch e {
+	case RowFilterOpEq:
+		return true
+	case RowFilterOpIn:
+		return true
+	case RowFilterOpNeq:
 		return true
 	default:
 		return false
@@ -1310,6 +1391,42 @@ func (e ListAuditParamsOutcome) Valid() bool {
 	case ListAuditParamsOutcomeDenied:
 		return true
 	case ListAuditParamsOutcomeFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExportRecordsParamsFormat.
+const (
+	ExportRecordsParamsFormatCsv  ExportRecordsParamsFormat = "csv"
+	ExportRecordsParamsFormatJson ExportRecordsParamsFormat = "json"
+)
+
+// Valid indicates whether the value is a known member of the ExportRecordsParamsFormat enum.
+func (e ExportRecordsParamsFormat) Valid() bool {
+	switch e {
+	case ExportRecordsParamsFormatCsv:
+		return true
+	case ExportRecordsParamsFormatJson:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportRecordsJSONBodyFormat.
+const (
+	ImportRecordsJSONBodyFormatCsv  ImportRecordsJSONBodyFormat = "csv"
+	ImportRecordsJSONBodyFormatJson ImportRecordsJSONBodyFormat = "json"
+)
+
+// Valid indicates whether the value is a known member of the ImportRecordsJSONBodyFormat enum.
+func (e ImportRecordsJSONBodyFormat) Valid() bool {
+	switch e {
+	case ImportRecordsJSONBodyFormatCsv:
+		return true
+	case ImportRecordsJSONBodyFormatJson:
 		return true
 	default:
 		return false
@@ -1726,10 +1843,13 @@ type Entity struct {
 	OwnerApplicationId *string              `json:"ownerApplicationId,omitempty"`
 	ReadPermission     Permission           `json:"readPermission"`
 	Relationships      []EntityRelationship `json:"relationships"`
-	Scope              EntityScope          `json:"scope"`
-	UpdatedAt          IsoDate              `json:"updatedAt"`
-	Version            int                  `json:"version"`
-	WritePermission    Permission           `json:"writePermission"`
+
+	// RowFilter Row-level security: records are only visible when this holds for the caller. value may be "$actor.id", "$actor.name" or "$actor.kind".
+	RowFilter       *RowFilter  `json:"rowFilter,omitempty"`
+	Scope           EntityScope `json:"scope"`
+	UpdatedAt       IsoDate     `json:"updatedAt"`
+	Version         int         `json:"version"`
+	WritePermission Permission  `json:"writePermission"`
 }
 
 // EntityScope defines model for Entity.Scope.
@@ -1775,6 +1895,8 @@ type EntityList struct {
 type EntityRecord struct {
 	CreatedAt IsoDate                `json:"createdAt"`
 	CreatedBy string                 `json:"createdBy"`
+	DeletedAt *IsoDate               `json:"deletedAt,omitempty"`
+	DeletedBy *string                `json:"deletedBy,omitempty"`
 	Entity    string                 `json:"entity"`
 	Id        string                 `json:"id"`
 	UpdatedAt IsoDate                `json:"updatedAt"`
@@ -1877,6 +1999,16 @@ type FieldValue1 = float32
 
 // FieldValue2 defines model for .
 type FieldValue2 = bool
+
+// FilterOp defines model for FilterOp.
+type FilterOp struct {
+	Field string      `json:"field"`
+	Op    FilterOpOp  `json:"op"`
+	Value *FieldValue `json:"value"`
+}
+
+// FilterOpOp defines model for FilterOp.Op.
+type FilterOpOp string
 
 // GroupRoleMapping defines model for GroupRoleMapping.
 type GroupRoleMapping struct {
@@ -2143,6 +2275,31 @@ type PromptBody struct {
 	Prompt string `json:"prompt"`
 }
 
+// RecordHistoryEntry defines model for RecordHistoryEntry.
+type RecordHistoryEntry struct {
+	Action    RecordHistoryEntryAction `json:"action"`
+	Actor     string                   `json:"actor"`
+	ChangedAt IsoDate                  `json:"changedAt"`
+
+	// Changes Field-level diff; removed keys are null
+	Changes  map[string]*FieldValue `json:"changes"`
+	Entity   string                 `json:"entity"`
+	RecordId string                 `json:"recordId"`
+	Seq      int                    `json:"seq"`
+
+	// Snapshot Full values after the change; null on delete
+	Snapshot map[string]*FieldValue `json:"snapshot"`
+}
+
+// RecordHistoryEntryAction defines model for RecordHistoryEntry.Action.
+type RecordHistoryEntryAction string
+
+// RecordHistoryList defines model for RecordHistoryList.
+type RecordHistoryList struct {
+	Items      []RecordHistoryEntry `json:"items"`
+	TotalCount int                  `json:"totalCount"`
+}
+
 // RecordInput defines model for RecordInput.
 type RecordInput struct {
 	Values map[string]*FieldValue `json:"values"`
@@ -2200,6 +2357,47 @@ type RoleList struct {
 	Total int    `json:"total"`
 }
 
+// RowFilter Row-level security: records are only visible when this holds for the caller. value may be "$actor.id", "$actor.name" or "$actor.kind".
+type RowFilter struct {
+	Field string      `json:"field"`
+	Op    RowFilterOp `json:"op"`
+	Value *FieldValue `json:"value"`
+}
+
+// RowFilterOp defines model for RowFilter.Op.
+type RowFilterOp string
+
+// SavedView defines model for SavedView.
+type SavedView struct {
+	CreatedAt IsoDate    `json:"createdAt"`
+	Entity    string     `json:"entity"`
+	Filters   []FilterOp `json:"filters"`
+	Id        string     `json:"id"`
+	Limit     *int       `json:"limit,omitempty"`
+	Name      string     `json:"name"`
+	OwnerId   string     `json:"ownerId"`
+	Shared    *bool      `json:"shared,omitempty"`
+	SortDesc  *bool      `json:"sortDesc,omitempty"`
+	SortField *string    `json:"sortField,omitempty"`
+	UpdatedAt IsoDate    `json:"updatedAt"`
+}
+
+// SavedViewInput defines model for SavedViewInput.
+type SavedViewInput struct {
+	Filters   *[]FilterOp `json:"filters,omitempty"`
+	Limit     *int        `json:"limit,omitempty"`
+	Name      string      `json:"name"`
+	Shared    *bool       `json:"shared,omitempty"`
+	SortDesc  *bool       `json:"sortDesc,omitempty"`
+	SortField *string     `json:"sortField,omitempty"`
+}
+
+// SavedViewList defines model for SavedViewList.
+type SavedViewList struct {
+	Items      []SavedView `json:"items"`
+	TotalCount int         `json:"totalCount"`
+}
+
 // ScanConfig defines model for ScanConfig.
 type ScanConfig struct {
 	// MatchField Field the QR code holds, or `id`
@@ -2208,6 +2406,15 @@ type ScanConfig struct {
 		Field string `json:"field"`
 		Value string `json:"value"`
 	} `json:"onScan,omitempty"`
+}
+
+// SchemaMigration defines model for SchemaMigration.
+type SchemaMigration struct {
+	Add      *[]EntityField          `json:"add,omitempty"`
+	Backfill *map[string]*FieldValue `json:"backfill,omitempty"`
+	Drop     *[]string               `json:"drop,omitempty"`
+	Note     *string                 `json:"note,omitempty"`
+	Retype   *[]EntityField          `json:"retype,omitempty"`
 }
 
 // SearchHit defines model for SearchHit.
@@ -2720,9 +2927,39 @@ type UpdateEntityJSONBody struct {
 
 // ListRecordsParams defines parameters for ListRecords.
 type ListRecordsParams struct {
-	Q      *string `form:"q,omitempty" json:"q,omitempty"`
-	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// View Saved view id; its filters replace q
+	View *string `form:"view,omitempty" json:"view,omitempty"`
+
+	// IncludeDeleted Include soft-deleted records
+	IncludeDeleted *bool `form:"includeDeleted,omitempty" json:"includeDeleted,omitempty"`
+	Limit          *int  `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset         *int  `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// ExportRecordsParams defines parameters for ExportRecords.
+type ExportRecordsParams struct {
+	Format *ExportRecordsParamsFormat `form:"format,omitempty" json:"format,omitempty"`
+	View   *string                    `form:"view,omitempty" json:"view,omitempty"`
+}
+
+// ExportRecordsParamsFormat defines parameters for ExportRecords.
+type ExportRecordsParamsFormat string
+
+// ImportRecordsJSONBody defines parameters for ImportRecords.
+type ImportRecordsJSONBody struct {
+	// Data JSON array or CSV text
+	Data   string                       `json:"data"`
+	Format *ImportRecordsJSONBodyFormat `json:"format,omitempty"`
+}
+
+// ImportRecordsJSONBodyFormat defines parameters for ImportRecords.
+type ImportRecordsJSONBodyFormat string
+
+// RunViewParams defines parameters for RunView.
+type RunViewParams struct {
+	IncludeDeleted *bool `form:"includeDeleted,omitempty" json:"includeDeleted,omitempty"`
 }
 
 // ListEventsParams defines parameters for ListEvents.
@@ -2846,11 +3083,23 @@ type CreateEntityJSONRequestBody = CreateEntityBody
 // UpdateEntityJSONRequestBody defines body for UpdateEntity for application/json ContentType.
 type UpdateEntityJSONRequestBody UpdateEntityJSONBody
 
+// MigrateEntityJSONRequestBody defines body for MigrateEntity for application/json ContentType.
+type MigrateEntityJSONRequestBody = SchemaMigration
+
 // CreateRecordJSONRequestBody defines body for CreateRecord for application/json ContentType.
 type CreateRecordJSONRequestBody = RecordInput
 
+// ImportRecordsJSONRequestBody defines body for ImportRecords for application/json ContentType.
+type ImportRecordsJSONRequestBody ImportRecordsJSONBody
+
 // UpdateRecordJSONRequestBody defines body for UpdateRecord for application/json ContentType.
 type UpdateRecordJSONRequestBody = RecordInput
+
+// CreateViewJSONRequestBody defines body for CreateView for application/json ContentType.
+type CreateViewJSONRequestBody = SavedViewInput
+
+// UpdateViewJSONRequestBody defines body for UpdateView for application/json ContentType.
+type UpdateViewJSONRequestBody = SavedViewInput
 
 // UpdateGroupMappingsJSONRequestBody defines body for UpdateGroupMappings for application/json ContentType.
 type UpdateGroupMappingsJSONRequestBody UpdateGroupMappingsJSONBody
@@ -3538,18 +3787,48 @@ type ServerInterface interface {
 	// Change an entity's fields, description or permissions
 	// (PATCH /entities/{entityName})
 	UpdateEntity(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Migrate an entity's schema and backfill its records
+	// (POST /entities/{entityName}/migrate)
+	MigrateEntity(w http.ResponseWriter, r *http.Request, entityName EntityName)
 	// Records of an entity
 	// (GET /entities/{entityName}/records)
 	ListRecords(w http.ResponseWriter, r *http.Request, entityName EntityName, params ListRecordsParams)
 	// Create a record
 	// (POST /entities/{entityName}/records)
 	CreateRecord(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Export an entity's records as JSON or CSV
+	// (GET /entities/{entityName}/records/export)
+	ExportRecords(w http.ResponseWriter, r *http.Request, entityName EntityName, params ExportRecordsParams)
+	// Import records from JSON or CSV text
+	// (POST /entities/{entityName}/records/import)
+	ImportRecords(w http.ResponseWriter, r *http.Request, entityName EntityName)
 	// Delete a record
 	// (DELETE /entities/{entityName}/records/{recordId})
 	DeleteRecord(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
 	// Update a record's values
 	// (PATCH /entities/{entityName}/records/{recordId})
 	UpdateRecord(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
+	// One record's change log, newest first
+	// (GET /entities/{entityName}/records/{recordId}/history)
+	RecordHistory(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
+	// Restore a soft-deleted record
+	// (POST /entities/{entityName}/records/{recordId}/restore)
+	RestoreRecord(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
+	// Saved views over an entity's records (own + shared)
+	// (GET /entities/{entityName}/views)
+	ListViews(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Save a named query (filters, sort, limit) over an entity
+	// (POST /entities/{entityName}/views)
+	CreateView(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Delete a saved view
+	// (DELETE /entities/{entityName}/views/{viewId})
+	DeleteView(w http.ResponseWriter, r *http.Request, entityName EntityName, viewId string)
+	// Run a saved view now
+	// (POST /entities/{entityName}/views/{viewId})
+	RunView(w http.ResponseWriter, r *http.Request, entityName EntityName, viewId string, params RunViewParams)
+	// Replace a saved view
+	// (PUT /entities/{entityName}/views/{viewId})
+	UpdateView(w http.ResponseWriter, r *http.Request, entityName EntityName, viewId string)
 	// Deployment environments
 	// (GET /environments)
 	ListEnvironments(w http.ResponseWriter, r *http.Request)
@@ -4689,6 +4968,37 @@ func (siw *ServerInterfaceWrapper) UpdateEntity(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// MigrateEntity operation middleware
+func (siw *ServerInterfaceWrapper) MigrateEntity(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MigrateEntity(w, r, entityName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListRecords operation middleware
 func (siw *ServerInterfaceWrapper) ListRecords(w http.ResponseWriter, r *http.Request) {
 
@@ -4717,6 +5027,22 @@ func (siw *ServerInterfaceWrapper) ListRecords(w http.ResponseWriter, r *http.Re
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "view" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "view", r.URL.Query(), &params.View, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "view", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "includeDeleted" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "includeDeleted", r.URL.Query(), &params.IncludeDeleted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "includeDeleted", Err: err})
 		return
 	}
 
@@ -4769,6 +5095,87 @@ func (siw *ServerInterfaceWrapper) CreateRecord(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateRecord(w, r, entityName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportRecords operation middleware
+func (siw *ServerInterfaceWrapper) ExportRecords(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportRecordsParams
+
+	// ------------- Optional query parameter "format" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "format", r.URL.Query(), &params.Format, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "format", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "view" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "view", r.URL.Query(), &params.View, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "view", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportRecords(w, r, entityName, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ImportRecords operation middleware
+func (siw *ServerInterfaceWrapper) ImportRecords(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImportRecords(w, r, entityName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4849,6 +5256,279 @@ func (siw *ServerInterfaceWrapper) UpdateRecord(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateRecord(w, r, entityName, recordId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecordHistory operation middleware
+func (siw *ServerInterfaceWrapper) RecordHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecordHistory(w, r, entityName, recordId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreRecord operation middleware
+func (siw *ServerInterfaceWrapper) RestoreRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreRecord(w, r, entityName, recordId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListViews operation middleware
+func (siw *ServerInterfaceWrapper) ListViews(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListViews(w, r, entityName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateView operation middleware
+func (siw *ServerInterfaceWrapper) CreateView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateView(w, r, entityName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteView(w, r, entityName, viewId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunView operation middleware
+func (siw *ServerInterfaceWrapper) RunView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RunViewParams
+
+	// ------------- Optional query parameter "includeDeleted" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "includeDeleted", r.URL.Query(), &params.IncludeDeleted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "includeDeleted", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunView(w, r, entityName, viewId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateView operation middleware
+func (siw *ServerInterfaceWrapper) UpdateView(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", r.PathValue("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "viewId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateView(w, r, entityName, viewId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5893,10 +6573,20 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/entities", wrapper.CreateEntity)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}", wrapper.GetEntity)
 	m.HandleFunc("PATCH "+options.BaseURL+"/entities/{entityName}", wrapper.UpdateEntity)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/migrate", wrapper.MigrateEntity)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records", wrapper.ListRecords)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records", wrapper.CreateRecord)
+	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/export", wrapper.ExportRecords)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/import", wrapper.ImportRecords)
 	m.HandleFunc("DELETE "+options.BaseURL+"/entities/{entityName}/records/{recordId}", wrapper.DeleteRecord)
 	m.HandleFunc("PATCH "+options.BaseURL+"/entities/{entityName}/records/{recordId}", wrapper.UpdateRecord)
+	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/{recordId}/history", wrapper.RecordHistory)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/{recordId}/restore", wrapper.RestoreRecord)
+	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/views", wrapper.ListViews)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views", wrapper.CreateView)
+	m.HandleFunc("DELETE "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.DeleteView)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.RunView)
+	m.HandleFunc("PUT "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.UpdateView)
 	m.HandleFunc("GET "+options.BaseURL+"/environments", wrapper.ListEnvironments)
 	m.HandleFunc("GET "+options.BaseURL+"/events", wrapper.ListEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/events/stream", wrapper.StreamEvents)

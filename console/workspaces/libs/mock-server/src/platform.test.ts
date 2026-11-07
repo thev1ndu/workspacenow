@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, planFromApplication, type AgentRun, type EntityRecord, type WorkflowDefinition } from "@workspacenow/types";
+import { ApiError, planFromApplication, type AgentRun, type Entity, type EntityRecord, type SavedView, type WorkflowDefinition } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
 import { createDemoPlatform } from "./runtime";
 import { applyPlan, createRelease, deploy, planApplication, planApplicationEdit, updateApplication } from "./studio";
 import { decideApproval, runManually, saveWorkflow } from "./workflows";
 
-const get = (platform: ReturnType<typeof createDemoPlatform>, path: string, user = "u-amaya") =>
-  handleRequest(platform, { method: "GET", path, query: new URLSearchParams(), body: undefined, token: `demo.${user}` });
+const withQuery = (path: string) => {
+  const [p, q] = path.split("?");
+  return { path: p, query: new URLSearchParams(q ?? "") };
+};
+const get = (platform: ReturnType<typeof createDemoPlatform>, path: string, user = "u-amaya") => {
+  const { path: p, query } = withQuery(path);
+  return handleRequest(platform, { method: "GET", path: p, query, body: undefined, token: `demo.${user}` });
+};
 
 const post = (platform: ReturnType<typeof createDemoPlatform>, path: string, body: unknown, user = "u-amaya") =>
   handleRequest(platform, { method: "POST", path, query: new URLSearchParams(), body, token: `demo.${user}` });
@@ -365,8 +371,10 @@ describe("studio", () => {
   });
 });
 
-const send = (platform: ReturnType<typeof createDemoPlatform>, method: string, path: string, user = "u-amaya", body?: unknown) =>
-  handleRequest(platform, { method, path, query: new URLSearchParams(), body, token: `demo.${user}` });
+const send = (platform: ReturnType<typeof createDemoPlatform>, method: string, path: string, user = "u-amaya", body?: unknown) => {
+  const { path: p, query } = withQuery(path);
+  return handleRequest(platform, { method, path: p, query, body, token: `demo.${user}` });
+};
 
 describe("pinned applications", () => {
   it("keeps each user's pins separate and in pin order", () => {
@@ -453,13 +461,64 @@ describe("global search", () => {
   });
 });
 
+describe("data platform depth", () => {
+  it("saves and runs a view, exports csv, imports json, migrates the schema with backfill", () => {
+    const platform = createDemoPlatform();
+    const ctx = platform.userContext("u-amaya", "studio");
+    // saved view over Supplier
+    const view = post(platform, "/entities/Supplier/views", {
+      name: "Active grocery",
+      filters: [
+        { field: "status", op: "eq", value: "active" },
+        { field: "category", op: "eq", value: "Grocery" },
+      ],
+      shared: true,
+    }).body as SavedView;
+    const run = post(platform, `/entities/Supplier/views/${view.id}/run`, {});
+    expect(run.status).toBe(201);
+    const runItems = (run.body as { items: EntityRecord[] }).items;
+    expect(runItems.every((r) => r.values.status === "active" && r.values.category === "Grocery")).toBe(true);
+    expect((get(platform, `/entities/Supplier/records?view=${view.id}`).body as { items: EntityRecord[] }).items.length).toBe(runItems.length);
+    // export csv + import json round trip into a scratch entity
+    const csv = (get(platform, "/entities/Supplier/records/export?format=csv").body as { body: string }).body;
+    expect(csv.split("\n")[0].startsWith("id,name,")).toBe(true);
+    const created = post(platform, "/entities/Supplier/records", { values: { name: "Imported Co", category: "Grocery", status: "active" } }).body as EntityRecord;
+    const imp = post(platform, "/entities/Supplier/records/import", { format: "json", data: JSON.stringify([{ name: "Bulk Co", category: "Grocery", status: "suspended" }]) });
+    expect(imp.status).toBe(201);
+    expect((imp.body as { created: number }).created).toBe(1);
+    // schema migration: add a field + backfill, then drop refused while records exist
+    const mig = post(platform, "/entities/Supplier/migrate", {
+      add: [{ name: "tier", label: "Tier", type: "enum", enumValues: ["standard", "gold"] }],
+      backfill: { tier: "standard" },
+      note: "add tier",
+    });
+    expect(mig.status).toBe(201);
+    expect((mig.body as Entity).version).toBe(2);
+    expect(platform.records("Supplier").find((r) => r.id === created.id)?.values.tier).toBe("standard");
+    const bad = post(platform, "/entities/Supplier/migrate", { drop: ["category"] });
+    expect(bad.status).toBe(422);
+    expect(ctx).toBeTruthy();
+  });
+});
+
 describe("deleting records", () => {
   it("deletes a record the user may write, and audits it", () => {
     const platform = createDemoPlatform();
     const created = post(platform, "/entities/Supplier/records", { values: { name: "Temp Supplies", category: "Grocery", status: "active" } }).body as EntityRecord;
     const response = send(platform, "DELETE", `/entities/Supplier/records/${created.id}`);
     expect(response.status).toBe(200);
-    expect(platform.records("Supplier").some((r) => r.id === created.id)).toBe(false);
+    // soft delete: the row stays for history/restore, but list hides it
+    const soft = platform.records("Supplier").find((r) => r.id === created.id);
+    expect(soft?.deletedAt).toBeTruthy();
+    const listed = (get(platform, "/entities/Supplier/records").body as { items: EntityRecord[] }).items;
+    expect(listed.some((r) => r.id === created.id)).toBe(false);
+    const withDeleted = (get(platform, "/entities/Supplier/records?includeDeleted=true").body as { items: EntityRecord[] }).items;
+    expect(withDeleted.some((r) => r.id === created.id)).toBe(true);
+    const restored = post(platform, `/entities/Supplier/records/${created.id}/restore`, {});
+    expect(restored.status).toBe(201);
+    expect(platform.records("Supplier").find((r) => r.id === created.id)?.deletedAt).toBeUndefined();
+    const history = (get(platform, `/entities/Supplier/records/${created.id}/history`).body as { items: { action: string }[] }).items;
+    expect(history.map((h: { action: string }) => h.action)).toEqual(["restored", "deleted", "created"]);
     expect(platform.state.audit.some((a) => a.action === "Supplier.delete" && a.outcome === "allowed")).toBe(true);
   });
 

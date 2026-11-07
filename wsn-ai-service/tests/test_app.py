@@ -29,7 +29,10 @@ class ScriptedModel:
 
 class PlanAnswer:
     async def complete(self, *args: object, **kwargs: object) -> Completion:
-        plan = '{"name":"Leave Tracker","description":"d","ownerDepartmentId":"dep-hr","entities":[{"name":"Leave","label":"Leave","description":"d","fields":[]}],"pages":[]}'
+        plan = (
+            '{"name":"Leave Tracker","description":"d","ownerDepartmentId":"dep-hr",'
+            '"entities":[{"name":"Leave","label":"Leave","description":"d","fields":[]}],"pages":[]}'
+        )
         return Completion(plan, tokens=9)
 
 

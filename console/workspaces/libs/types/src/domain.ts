@@ -134,6 +134,14 @@ export interface Entity {
   version: number;
   lifecycle: LifecycleState;
   updatedAt: IsoDate;
+  /** Row-level security: records are only visible when this holds for the caller ("$actor.id" etc. allowed in value). */
+  rowFilter?: RowFilter;
+}
+
+export interface RowFilter {
+  field: string;
+  op: "eq" | "neq" | "in";
+  value: FieldValue | FieldValue[];
 }
 
 export type FieldValue = string | number | boolean | null;
@@ -145,6 +153,49 @@ export interface EntityRecord {
   createdAt: IsoDate;
   updatedAt: IsoDate;
   createdBy: string;
+  deletedAt?: IsoDate;
+  deletedBy?: string;
+}
+
+export interface FilterOp {
+  field: string;
+  op: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "contains" | "in";
+  value: FieldValue | FieldValue[];
+}
+
+export interface SavedView {
+  id: Id;
+  entity: string;
+  name: string;
+  filters: FilterOp[];
+  sortField?: string;
+  sortDesc?: boolean;
+  limit?: number;
+  ownerId: string;
+  shared?: boolean;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export type SavedViewInput = Omit<SavedView, "id" | "entity" | "ownerId" | "createdAt" | "updatedAt">;
+
+export interface RecordHistoryEntry {
+  seq: number;
+  entity: string;
+  recordId: string;
+  actor: string;
+  action: "created" | "updated" | "deleted" | "restored";
+  changedAt: IsoDate;
+  changes: Record<string, FieldValue>;
+  snapshot: Record<string, FieldValue> | null;
+}
+
+export interface SchemaMigration {
+  add?: EntityField[];
+  drop?: string[];
+  retype?: EntityField[];
+  backfill?: Record<string, FieldValue>;
+  note?: string;
 }
 
 export interface DatabaseConnection {

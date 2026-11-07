@@ -7,8 +7,11 @@ import {
   type EntityRecord,
   type EntryPoint,
   type FieldValue,
+  type FilterOp,
   type Permission,
   type PlatformEvent,
+  type SavedView,
+  type SchemaMigration,
 } from "@workspacenow/types";
 import type { PlatformState } from "./state";
 
@@ -223,6 +226,15 @@ export class Platform {
   }
 
   createRecord(ctx: ExecutionContext, entityName: string, values: Record<string, FieldValue>): EntityRecord {
+    const created = this.createRecordRaw(ctx, entityName, values);
+    this.state.history.push({
+      seq: ++this.state.sequence, entity: entityName, recordId: created.id, actor: ctx.actor.name,
+      action: "created", changedAt: this.now(), changes: created.values, snapshot: created.values,
+    });
+    return created;
+  }
+
+  private createRecordRaw(ctx: ExecutionContext, entityName: string, values: Record<string, FieldValue>): EntityRecord {
     const entity = this.entity(entityName);
     const normalized = this.validate(entity, withDefaults(entity, values));
     const now = this.now();
@@ -247,14 +259,75 @@ export class Platform {
   ): EntityRecord {
     const entity = this.entity(entityName);
     const record = this.record(entityName, id);
+    const before = record.values;
     const normalized = this.validate(entity, { ...record.values, ...changes }, id);
     record.values = normalized;
     record.updatedAt = this.now();
+    const diff: Record<string, FieldValue> = {};
+    for (const k of new Set([...Object.keys(before), ...Object.keys(normalized)])) {
+      if (JSON.stringify(before[k]) !== JSON.stringify(normalized[k])) diff[k] = normalized[k] ?? null;
+    }
+    this.state.history.push({
+      seq: ++this.state.sequence, entity: entityName, recordId: id, actor: ctx.actor.name,
+      action: "updated", changedAt: this.now(), changes: diff, snapshot: normalized,
+    });
     this.publish(ctx, `${entity.name}.Updated`, `entity:${entity.name}`, {
       recordId: record.id,
       fields: Object.keys(changes),
     });
     return record;
+  }
+
+  /** Applies a schema migration: add always, drop/retype only with no live records; backfills rows. */
+  migrateEntity(ctx: ExecutionContext, entityName: string, m: SchemaMigration): Entity {
+    this.requirePermission(ctx, "data.manage", "entity.migrate", `entity/${entityName}`);
+    const entity = this.entity(entityName);
+    const live = this.records(entityName).filter((r) => !r.deletedAt);
+    const problems: string[] = [];
+    let fields = [...entity.fields];
+    const has = (n: string) => fields.some((f) => f.name === n);
+    for (const f of m.add ?? []) {
+      if (has(f.name)) problems.push(`${f.name}: field already exists`);
+      else fields.push(f);
+    }
+    for (const n of m.drop ?? []) {
+      if (!has(n)) problems.push(`${n}: no such field`);
+      else if (live.length > 0) problems.push(`${n}: cannot drop a field while the entity holds ${live.length} records; archive them first`);
+      else fields = fields.filter((f) => f.name !== n);
+    }
+    for (const f of m.retype ?? []) {
+      const i = fields.findIndex((x) => x.name === f.name);
+      if (i < 0) problems.push(`${f.name}: no such field`);
+      else if (fields[i].type !== f.type && live.length > 0) problems.push(`${f.name}: cannot retype while the entity holds records`);
+      else if (i >= 0) fields[i] = { ...fields[i], type: f.type, enumValues: f.enumValues };
+    }
+    for (const k of Object.keys(m.backfill ?? {})) if (!has(k)) problems.push(`backfill ${k}: no such field`);
+    if (problems.length > 0) fail(422, "VALIDATION_FAILED", problems.slice(0, 3).join("; "));
+    for (const r of live) {
+      let changed = false;
+      for (const [k, v] of Object.entries(m.backfill ?? {})) {
+        if (r.values[k] === undefined) {
+          r.values[k] = v;
+          changed = true;
+        }
+      }
+      if (changed) r.updatedAt = this.now();
+    }
+    entity.fields = fields;
+    entity.version += 1;
+    entity.updatedAt = this.now();
+    this.audit(ctx, "entity.migrate", `entity/${entityName}`, "allowed", `Version ${entity.version}: ${m.note ?? "schema change"}`);
+    return entity;
+  }
+
+  /** Runs a saved view's filters over the entity's live records. */
+  runView(entityName: string, view: SavedView): EntityRecord[] {
+    let rows = this.records(entityName).filter((r) => !r.deletedAt);
+    for (const f of view.filters) {
+      rows = rows.filter((r) => matchFilter(r.values[f.field], f));
+    }
+    if (view.limit && rows.length > view.limit) rows = rows.slice(0, view.limit);
+    return rows;
   }
 
   /** Removes a record, refusing while other records or a pending approval still point at it. */
@@ -272,9 +345,39 @@ export class Platform {
     if (this.state.approvals.some((a) => a.status === "pending" && a.subject?.entity === entity.name && a.subject.recordId === id)) {
       fail(409, "CONFLICT", `${id} has a pending approval; decide it first`);
     }
-    this.state.records = this.state.records.filter((r) => r !== record);
+    record.deletedAt = this.now();
+    record.deletedBy = ctx.actor.name;
+    this.state.history.push({
+      seq: ++this.state.sequence,
+      entity: entity.name,
+      recordId: id,
+      actor: ctx.actor.name,
+      action: "deleted",
+      changedAt: this.now(),
+      changes: { deleted: true },
+      snapshot: null,
+    });
     this.publish(ctx, `${entity.name}.Deleted`, `entity:${entity.name}`, { recordId: id });
     return { id, deleted: true };
+  }
+
+  restoreRecord(ctx: ExecutionContext, entityName: string, id: string): EntityRecord {
+    const record = this.record(entityName, id);
+    if (!record.deletedAt) fail(422, "VALIDATION_FAILED", `${entityName} ${id} is not deleted`);
+    record.deletedAt = undefined;
+    record.deletedBy = undefined;
+    this.state.history.push({
+      seq: ++this.state.sequence,
+      entity: entityName,
+      recordId: id,
+      actor: ctx.actor.name,
+      action: "restored",
+      changedAt: this.now(),
+      changes: { deleted: false },
+      snapshot: record.values,
+    });
+    this.publish(ctx, `${entityName}.Restored`, `entity:${entityName}`, { recordId: id });
+    return record;
   }
 
   private validate(entity: Entity, values: Record<string, FieldValue>, recordId?: string): Record<string, FieldValue> {
@@ -338,7 +441,7 @@ export class Platform {
           summary: `List ${entity.label} records`,
           permission: entity.readPermission,
           kind: "read",
-          handler: (p) => p.records(entity.name),
+          handler: (p) => p.records(entity.name).filter((r) => !r.deletedAt),
         };
       case "get":
         return {
@@ -402,4 +505,17 @@ function describeResource(operation: OperationDefinition, input: Record<string, 
     undefined;
   const subject = operation.entity ?? operation.name.split(".")[0];
   return id ? `${subject}/${id}` : subject;
+}
+
+function matchFilter(value: FieldValue | undefined, f: FilterOp): boolean {
+  switch (f.op) {
+    case "eq": return JSON.stringify(value) === JSON.stringify(f.value);
+    case "neq": return JSON.stringify(value) !== JSON.stringify(f.value);
+    case "gt": return (value as number) > (f.value as number);
+    case "gte": return (value as number) >= (f.value as number);
+    case "lt": return (value as number) < (f.value as number);
+    case "lte": return (value as number) <= (f.value as number);
+    case "contains": return String(value ?? "").toLowerCase().includes(String(f.value).toLowerCase());
+    case "in": return Array.isArray(f.value) && f.value.some((v) => JSON.stringify(v) === JSON.stringify(value));
+  }
 }

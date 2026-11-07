@@ -22,7 +22,7 @@ var ErrNotFound = errors.New("document not found")
 var Collections = []string{
 	"organization", "departments", "teams", "users", "roles", "group_mappings", "environments",
 	"applications", "releases", "deployments", "pins",
-	"entities", "connections",
+	"entities", "connections", "entity_views",
 	"apis", "api_operations", "mcp_servers", "integrations",
 	"model_providers", "agents", "agent_runs",
 	"workflows", "executions", "approvals",

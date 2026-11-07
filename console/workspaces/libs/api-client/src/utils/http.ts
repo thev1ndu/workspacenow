@@ -71,5 +71,5 @@ export type GetToken = () => Promise<string>;
 export const enc = encodeURIComponent;
 
 /** Stringifies a query object for the URL (numbers become strings, undefined dropped). */
-export const qs = (query: Record<string, string | number | undefined>): Record<string, string> =>
+export const qs = (query: Record<string, string | number | boolean | undefined>): Record<string, string> =>
   Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));

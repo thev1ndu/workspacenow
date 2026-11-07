@@ -22,6 +22,21 @@ func Run(db *gorm.DB) error {
 
 var all = []*gormigrate.Migration{
 	{ID: "001_initial_schema", Migrate: initialSchema},
+	{ID: "002_data_platform_depth", Migrate: dataPlatformDepth},
+}
+
+// dataPlatformDepth adds soft deletes, record history and entity version snapshots.
+func dataPlatformDepth(tx *gorm.DB) error {
+	if err := tx.Migrator().AddColumn(&models.Record{}, "DeletedAt"); err != nil {
+		return fmt.Errorf("records.deleted_at: %w", err)
+	}
+	if err := tx.Migrator().AddColumn(&models.Record{}, "DeletedBy"); err != nil {
+		return fmt.Errorf("records.deleted_by: %w", err)
+	}
+	if err := tx.Migrator().CreateIndex(&models.Record{}, "records_deleted"); err != nil {
+		return err
+	}
+	return tx.Migrator().CreateTable(&models.RecordHistory{}, &models.EntityVersion{})
 }
 
 func initialSchema(tx *gorm.DB) error {

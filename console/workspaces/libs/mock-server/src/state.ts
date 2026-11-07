@@ -24,6 +24,8 @@ import type {
   User,
   Workflow,
   WorkflowExecution,
+  RecordHistoryEntry,
+  SavedView
 } from "@workspacenow/types";
 
 /** Everything one Installation persists. */
@@ -55,6 +57,8 @@ export interface PlatformState {
   approvals: Approval[];
   events: PlatformEvent[];
   audit: AuditRecord[];
+  views: SavedView[];
+  history: RecordHistoryEntry[];
   /** Application ids each user pinned, keyed by user id, in pin order. */
   pins: Record<string, string[]>;
 }

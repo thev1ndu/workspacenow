@@ -452,6 +452,8 @@ paths:
       description: "Runs business operation `<Entity>.list`; requires the entity's `readPermission`. `q` matches any value."
       parameters:
         - { name: q, in: query, schema: { type: string } }
+        - { name: view, in: query, schema: { type: string }, description: "Saved view id; its filters replace q" }
+        - { name: includeDeleted, in: query, schema: { type: boolean, default: false }, description: "Include soft-deleted records" }
         - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
         - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
       responses:
@@ -513,6 +515,157 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /entities/{entityName}/records/export:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    get:
+      tags: [Data]
+      operationId: exportRecords
+      summary: Export an entity's records as JSON or CSV
+      description: "Requires the entity's `readPermission`. `view` runs a saved view first. Answers `application/json` or `text/csv` with a download header."
+      parameters:
+        - { name: format, in: query, schema: { type: string, enum: [json, csv], default: json } }
+        - { name: view, in: query, schema: { type: string } }
+      responses:
+        "200": { description: File body }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /entities/{entityName}/records/import:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    post:
+      tags: [Data]
+      operationId: importRecords
+      summary: Import records from JSON or CSV text
+      description: "Requires the entity's `writePermission`. JSON body is an array of value objects; CSV uses a header row of field names with an optional leading `id`. Each row is validated like a create."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                format: { type: string, enum: [json, csv], default: json }
+                data: { type: string, description: "JSON array or CSV text" }
+      responses:
+        "201": { description: Imported, content: { application/json: { schema: { type: object, required: [created], properties: { created: { type: integer } } } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}/records/{recordId}/history:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+      - { name: recordId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Data]
+      operationId: recordHistory
+      summary: One record's change log, newest first
+      description: "Requires the entity's `readPermission`. Each entry has the actor, action (created/updated/deleted/restored), the field-level diff and the full snapshot after the change."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/RecordHistoryList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /entities/{entityName}/records/{recordId}/restore:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+      - { name: recordId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Data]
+      operationId: restoreRecord
+      summary: Restore a soft-deleted record
+      description: "Requires the entity's `writePermission`. Deletes are soft; the row stays for history until restored or purged."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecord" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}/migrate:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    post:
+      tags: [Data]
+      operationId: migrateEntity
+      summary: Migrate an entity's schema and backfill its records
+      description: "Requires `data.manage`. `add` is always safe; `drop`/`retype` are refused with 422 while the entity holds records. `backfill` sets values on existing records for new fields. Every migration snapshots the entity into its version history and bumps `version`. Audited as `entity.migrate`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SchemaMigration" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}/views:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    get:
+      tags: [Data]
+      operationId: listViews
+      summary: Saved views over an entity's records (own + shared)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SavedViewList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Data]
+      operationId: createView
+      summary: Save a named query (filters, sort, limit) over an entity
+      description: "Requires the entity's `readPermission`. `shared` makes it visible to everyone with read access."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SavedViewInput" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/SavedView" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}/views/{viewId}:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+      - { name: viewId, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [Data]
+      operationId: updateView
+      summary: Replace a saved view
+      description: "Requires `data.manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SavedViewInput" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SavedView" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Data]
+      operationId: deleteView
+      summary: Delete a saved view
+      description: "Requires `data.manage`."
+      responses:
+        "200": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Data]
+      operationId: runView
+      summary: Run a saved view now
+      description: "Requires the entity's `readPermission`. Row-level security still applies on top of the view's filters."
+      parameters:
+        - { name: includeDeleted, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecordList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /connections:
     get:
       tags: [Data]
@@ -1404,6 +1557,7 @@ components:
         version: { type: integer }
         lifecycle: { $ref: "#/components/schemas/LifecycleState" }
         updatedAt: { $ref: "#/components/schemas/IsoDate" }
+        rowFilter: { $ref: "#/components/schemas/RowFilter" }
     CreateEntityBody:
       type: object
       required: [name, fields]
@@ -1429,6 +1583,80 @@ components:
         createdAt: { $ref: "#/components/schemas/IsoDate" }
         updatedAt: { $ref: "#/components/schemas/IsoDate" }
         createdBy: { type: string }
+        deletedAt: { $ref: "#/components/schemas/IsoDate" }
+        deletedBy: { type: string }
+    RowFilter:
+      type: object
+      required: [field, op, value]
+      description: "Row-level security: records are only visible when this holds for the caller. value may be \"$actor.id\", \"$actor.name\" or \"$actor.kind\"."
+      properties:
+        field: { type: string }
+        op: { type: string, enum: [eq, neq, in] }
+        value: { $ref: "#/components/schemas/FieldValue" }
+    FilterOp:
+      type: object
+      required: [field, op, value]
+      properties:
+        field: { type: string }
+        op: { type: string, enum: [eq, neq, gt, gte, lt, lte, contains, in] }
+        value: { $ref: "#/components/schemas/FieldValue" }
+    SavedView:
+      type: object
+      required: [id, entity, name, filters, ownerId, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        entity: { type: string }
+        name: { type: string }
+        filters: { type: array, items: { $ref: "#/components/schemas/FilterOp" } }
+        sortField: { type: string }
+        sortDesc: { type: boolean }
+        limit: { type: integer }
+        ownerId: { type: string }
+        shared: { type: boolean }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        updatedAt: { $ref: "#/components/schemas/IsoDate" }
+    SavedViewInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        filters: { type: array, items: { $ref: "#/components/schemas/FilterOp" } }
+        sortField: { type: string }
+        sortDesc: { type: boolean }
+        limit: { type: integer, minimum: 1, maximum: 200 }
+        shared: { type: boolean }
+    SavedViewList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/SavedView" } }
+        totalCount: { type: integer }
+    RecordHistoryEntry:
+      type: object
+      required: [seq, entity, recordId, actor, action, changedAt, changes, snapshot]
+      properties:
+        seq: { type: integer }
+        entity: { type: string }
+        recordId: { type: string }
+        actor: { type: string }
+        action: { type: string, enum: [created, updated, deleted, restored] }
+        changedAt: { $ref: "#/components/schemas/IsoDate" }
+        changes: { type: object, additionalProperties: { $ref: "#/components/schemas/FieldValue" }, description: "Field-level diff; removed keys are null" }
+        snapshot: { type: object, additionalProperties: { $ref: "#/components/schemas/FieldValue" }, description: "Full values after the change; null on delete" }
+    RecordHistoryList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/RecordHistoryEntry" } }
+        totalCount: { type: integer }
+    SchemaMigration:
+      type: object
+      properties:
+        add: { type: array, items: { $ref: "#/components/schemas/EntityField" } }
+        drop: { type: array, items: { type: string } }
+        retype: { type: array, items: { $ref: "#/components/schemas/EntityField" } }
+        backfill: { type: object, additionalProperties: { $ref: "#/components/schemas/FieldValue" } }
+        note: { type: string }
     DatabaseConnection:
       type: object
       required: [id, name, engine, host, managed, status, environment]

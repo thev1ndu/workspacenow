@@ -42,14 +42,40 @@ type Document struct {
 }
 
 // Record is one instance of an entity; values are validated against the entity before writing.
+// Deletes are soft: deleted_at marks the row, which stays for history and restore.
 type Record struct {
-	Seq       int64     `gorm:"autoIncrement;not null;index:records_entity_seq,priority:2"`
-	Entity    string    `gorm:"primaryKey;index:records_entity_seq,priority:1"`
-	ID        string    `gorm:"primaryKey"`
-	Values    JSON      `gorm:"not null;index:records_values,type:gin"`
-	CreatedAt time.Time `gorm:"not null"`
-	UpdatedAt time.Time `gorm:"not null"`
-	CreatedBy string    `gorm:"not null"`
+	Seq       int64      `gorm:"autoIncrement;not null;index:records_entity_seq,priority:2"`
+	Entity    string     `gorm:"primaryKey;index:records_entity_seq,priority:1"`
+	ID        string     `gorm:"primaryKey"`
+	Values    JSON       `gorm:"not null;index:records_values,type:gin"`
+	CreatedAt time.Time  `gorm:"not null"`
+	UpdatedAt time.Time  `gorm:"not null"`
+	CreatedBy string     `gorm:"not null"`
+	DeletedAt *time.Time `gorm:"index:records_deleted"`
+	DeletedBy string     `gorm:"not null;default:''"`
+}
+
+// RecordHistory is one change to one record: the field-level diff and the full snapshot after it.
+type RecordHistory struct {
+	Seq       int64     `gorm:"autoIncrement;not null;index"`
+	Entity    string    `gorm:"not null;index:record_history_record,priority:1"`
+	RecordID  string    `gorm:"not null;index:record_history_record,priority:2"`
+	Actor     string    `gorm:"not null"`
+	Action    string    `gorm:"not null"` // created, updated, deleted, restored
+	ChangedAt time.Time `gorm:"not null"`
+	Changes   JSON      `gorm:"not null"`
+	Snapshot  JSON      `gorm:"not null"`
+}
+
+// EntityVersion is one immutable snapshot of an entity definition after a schema migration.
+type EntityVersion struct {
+	Seq        int64     `gorm:"autoIncrement;not null;index"`
+	Entity     string    `gorm:"not null;index:entity_versions_entity,priority:1"`
+	Version    int       `gorm:"not null;index:entity_versions_entity,priority:2"`
+	Actor      string    `gorm:"not null"`
+	Note       string    `gorm:"not null;default:''"`
+	MigratedAt time.Time `gorm:"not null"`
+	Doc        JSON      `gorm:"not null"`
 }
 
 // AuditRecord is one attempted action; rows are never updated.

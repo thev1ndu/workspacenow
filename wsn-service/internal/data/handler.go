@@ -2,7 +2,7 @@ package data
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -67,14 +67,10 @@ func (h *Handler) UpdateEntity(w http.ResponseWriter, r *http.Request, name stri
 }
 
 func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request, name oapi.EntityName, params oapi.ListRecordsParams) {
-	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name)+".list", nil)
-	if err != nil {
-		httpx.Error(w, r, err)
-		return
-	}
-	records := out.([]Record)
 	q := ""
 	limit, offset := 50, 0
+	viewID := ""
+	includeDeleted := false
 	if params.Q != nil {
 		q = strings.ToLower(*params.Q)
 	}
@@ -84,24 +80,151 @@ func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request, name oapi.
 	if params.Offset != nil {
 		offset = *params.Offset
 	}
-	if q != "" {
-		filtered := make([]Record, 0, len(records))
-		for _, rec := range records {
-			raw, _ := json.Marshal(rec.Values)
-			if strings.Contains(strings.ToLower(string(raw)), q) {
-				filtered = append(filtered, rec)
-			}
-		}
-		records = filtered
+	if params.View != nil {
+		viewID = *params.View
 	}
-	total := len(records)
-	if offset >= total {
-		records = nil
-	} else {
-		records = records[offset:]
-		if len(records) > limit {
-			records = records[:limit]
-		}
+	if params.IncludeDeleted != nil {
+		includeDeleted = *params.IncludeDeleted
+	}
+	records, total, err := h.svc.ListRecords(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), viewID, includeDeleted, q, limit, offset)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, records, total)
+}
+
+// ExportRecords serves the entity's records as JSON or CSV.
+func (h *Handler) ExportRecords(w http.ResponseWriter, r *http.Request, name oapi.EntityName, params oapi.ExportRecordsParams) {
+	format := "json"
+	if params.Format != nil {
+		format = string(*params.Format)
+	}
+	viewID := ""
+	if params.View != nil {
+		viewID = *params.View
+	}
+	body, contentType, err := h.svc.Export(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), format, viewID)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.%s", strings.ToLower(string(name)), format))
+	_, _ = w.Write([]byte(body))
+}
+
+// ImportRecords creates records from a JSON array or CSV text body.
+func (h *Handler) ImportRecords(w http.ResponseWriter, r *http.Request, name oapi.EntityName) {
+	var body struct {
+		Format string `json:"format"`
+		Data   string `json:"data"`
+	}
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	if body.Format == "" {
+		body.Format = "json"
+	}
+	created, err := h.svc.Import(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), body.Format, body.Data)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, map[string]any{"created": created})
+}
+
+// RecordHistory answers GET records/{id}/history.
+func (h *Handler) RecordHistory(w http.ResponseWriter, r *http.Request, name oapi.EntityName, recordId string) {
+	entries, err := h.svc.History(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), recordId)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.List(w, entries)
+}
+
+// RestoreRecord answers POST records/{id}/restore.
+func (h *Handler) RestoreRecord(w http.ResponseWriter, r *http.Request, name oapi.EntityName, recordId string) {
+	rec, err := h.svc.Restore(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), recordId)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, rec)
+}
+
+// MigrateEntity answers POST /entities/{name}/migrate.
+func (h *Handler) MigrateEntity(w http.ResponseWriter, r *http.Request, name oapi.EntityName) {
+	var m SchemaMigration
+	if err := httpx.Decode(r, &m); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	e, _, err := h.svc.Migrate(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), m)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, e)
+}
+
+func (h *Handler) ListViews(w http.ResponseWriter, r *http.Request, name oapi.EntityName) {
+	views, err := h.svc.Views(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name))
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.List(w, views)
+}
+
+func (h *Handler) CreateView(w http.ResponseWriter, r *http.Request, name oapi.EntityName) {
+	var v SavedView
+	if err := httpx.Decode(r, &v); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.CreateView(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), v)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, out)
+}
+
+func (h *Handler) UpdateView(w http.ResponseWriter, r *http.Request, name oapi.EntityName, viewId string) {
+	var v SavedView
+	if err := httpx.Decode(r, &v); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.UpdateView(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), viewId, v)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
+func (h *Handler) DeleteView(w http.ResponseWriter, r *http.Request, name oapi.EntityName, viewId string) {
+	if err := h.svc.DeleteView(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), viewId); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, map[string]any{"id": viewId, "deleted": true})
+}
+
+// RunView answers POST views/{id}/run with the view's records.
+func (h *Handler) RunView(w http.ResponseWriter, r *http.Request, name oapi.EntityName, viewId string, params oapi.RunViewParams) {
+	includeDeleted := false
+	if params.IncludeDeleted != nil {
+		includeDeleted = *params.IncludeDeleted
+	}
+	records, total, err := h.svc.RunView(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), viewId, includeDeleted)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
 	}
 	httpx.ListTotal(w, records, total)
 }

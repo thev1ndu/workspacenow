@@ -4,6 +4,7 @@ import {
   type AuditRecord,
   type Entity,
   type EntityField,
+  type EntityRecord,
   type EntryPoint,
   type EnvironmentKey,
   type FieldValue,
@@ -13,10 +14,13 @@ import {
   type OverviewStats,
   type Permission,
   type ResourceSummary,
+  type SavedView,
+  type SavedViewInput,
+  type SchemaMigration,
   type Session,
   type Trace,
   type TraceSummary,
-  type WorkflowDefinition,
+  type WorkflowDefinition
 } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { activitySeries, entryPointBreakdown, tokenSeries } from "./analytics";
@@ -292,7 +296,16 @@ route("PATCH", "/entities/:name", ({ platform, ctx, params, body }) => {
 });
 route("GET", "/entities/:name/records", ({ platform, ctx, params, query }) => {
   const q = query.get("q")?.toLowerCase();
-  const records = platform.invoke<Record<string, unknown>[]>(ctx("studio"), `${params.name}.list`);
+  const viewId = query.get("view");
+  let records = platform.invoke<Record<string, unknown>[]>(ctx("studio"), `${params.name}.list`) as unknown as EntityRecord[];
+  if (query.get("includeDeleted") === "true") {
+    records = platform.records(params.name);
+  }
+  if (viewId) {
+    const view = platform.state.views.find((v) => v.id === viewId && v.entity === params.name);
+    if (!view) fail(404, "NOT_FOUND", "View not found");
+    records = platform.runView(params.name, view);
+  }
   return page(
     q ? records.filter((r) => JSON.stringify(r.values).toLowerCase().includes(q)) : records,
     query,
@@ -309,6 +322,122 @@ route("PATCH", "/entities/:name/records/:id", ({ platform, ctx, params, body }) 
 route("DELETE", "/entities/:name/records/:id", ({ platform, ctx, params }) => {
   if (platform.entity(params.name).scope === "external") fail(409, "INVALID_STATE", "External entities are read-only");
   return platform.invoke(ctx("studio"), `${params.name}.delete`, { id: params.id });
+});
+route("GET", "/entities/:name/records/export", ({ platform, ctx, params, query }) => {
+  const entity = platform.entity(params.name);
+  platform.requirePermission(ctx("studio"), entity.readPermission, `${params.name}.export`, `entity/${params.name}`);
+  const format = query.get("format") === "csv" ? "csv" : "json";
+  let rows = platform.records(params.name).filter((r) => !r.deletedAt);
+  const viewId = query.get("view");
+  if (viewId) {
+    const view = platform.state.views.find((v) => v.id === viewId && v.entity === params.name);
+    if (!view) fail(404, "NOT_FOUND", "View not found");
+    rows = platform.runView(params.name, view);
+  }
+  if (format === "csv") {
+    const header = ["id", ...entity.fields.map((f) => f.name)];
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const body = [header, ...rows.map((r) => [r.id, ...entity.fields.map((f) => r.values[f.name])])]
+      .map((row) => row.map(esc).join(","))
+      .join("\n");
+    return { body, contentType: "text/csv", download: `${params.name.toLowerCase()}.csv` };
+  }
+  return { body: JSON.stringify(rows), contentType: "application/json", download: `${params.name.toLowerCase()}.json` };
+});
+route("POST", "/entities/:name/records/import", ({ platform, ctx, params, body }) => {
+  const entity = platform.entity(params.name);
+  if (entity.scope === "external") fail(409, "INVALID_STATE", "External entities are read-only");
+  platform.requirePermission(ctx("studio"), entity.writePermission, `${params.name}.import`, `entity/${params.name}`);
+  const format = body.format === "csv" ? "csv" : "json";
+  let rows: Record<string, FieldValue>[];
+  if (format === "csv") {
+    const lines = String(body.data ?? "").split("\n").filter((l) => l.trim());
+    const header = (lines.shift() ?? "").split(",");
+    rows = lines.map((l) => {
+      const cells = l.split(",");
+      const values: Record<string, FieldValue> = {};
+      header.forEach((h, i) => {
+        if (h !== "id" && cells[i] !== undefined && cells[i] !== "") values[h] = cells[i];
+      });
+      return values;
+    });
+  } else {
+    rows = JSON.parse(String(body.data ?? "[]")) as Record<string, FieldValue>[];
+  }
+  const c = ctx("studio");
+  for (const values of rows) platform.createRecord(c, params.name, values);
+  platform.audit(c, `${params.name}.import`, `entity/${params.name}`, "allowed", `${rows.length} records`);
+  return { created: rows.length };
+});
+route("GET", "/entities/:name/records/:id/history", ({ platform, ctx, params }) => {
+  const entity = platform.entity(params.name);
+  platform.requirePermission(ctx("studio"), entity.readPermission, `${params.name}.history`, `entity/${params.name}/${params.id}`);
+  const items = platform.state.history
+    .filter((h) => h.entity === params.name && h.recordId === params.id)
+    .sort((a, b) => b.seq - a.seq);
+  return list(items);
+});
+route("POST", "/entities/:name/records/:id/restore", ({ platform, ctx, params }) => {
+  const entity = platform.entity(params.name);
+  if (entity.scope === "external") fail(409, "INVALID_STATE", "External entities are read-only");
+  platform.requirePermission(ctx("studio"), entity.writePermission, `${params.name}.restore`, `entity/${params.name}/${params.id}`);
+  return platform.restoreRecord(ctx("studio"), params.name, params.id);
+});
+route("POST", "/entities/:name/migrate", ({ platform, ctx, params, body }) =>
+  platform.migrateEntity(ctx("studio"), params.name, body as SchemaMigration),
+);
+route("GET", "/entities/:name/views", ({ platform, ctx, params }) => {
+  const entity = platform.entity(params.name);
+  platform.requirePermission(ctx("studio"), entity.readPermission, `${params.name}.views`, `entity/${params.name}`);
+  const c = ctx("studio");
+  return list(platform.state.views.filter((v) => v.entity === params.name && (v.shared || v.ownerId === c.actor.id)));
+});
+route("POST", "/entities/:name/views", ({ platform, ctx, params, body }) => {
+  const entity = platform.entity(params.name);
+  const c = ctx("studio");
+  platform.requirePermission(c, entity.readPermission, `${params.name}.view.create`, `entity/${params.name}`);
+  const input = body as SavedViewInput;
+  if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "The view needs a name");
+  const now = platform.now();
+  const view: SavedView = {
+    id: platform.nextId("view"), entity: params.name, name: input.name.trim(), filters: input.filters ?? [],
+    sortField: input.sortField, sortDesc: input.sortDesc, limit: input.limit, ownerId: c.actor.id,
+    shared: input.shared, createdAt: now, updatedAt: now,
+  };
+  platform.state.views.push(view);
+  platform.audit(c, `${params.name}.view.create`, `entity/${params.name}/${view.id}`, "allowed", view.name);
+  return view;
+});
+route("PUT", "/entities/:name/views/:viewId", ({ platform, ctx, params, body }) => {
+  const c = ctx("studio");
+  platform.requirePermission(c, "data.manage", `${params.name}.view.update`, `entity/${params.name}/${params.viewId}`);
+  const view = platform.state.views.find((v) => v.id === params.viewId && v.entity === params.name);
+  if (!view) fail(404, "NOT_FOUND", "View not found");
+  const input = body as SavedViewInput;
+  if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "The view needs a name");
+  Object.assign(view, { name: input.name.trim(), filters: input.filters ?? [], sortField: input.sortField, sortDesc: input.sortDesc, limit: input.limit, shared: input.shared, updatedAt: platform.now() });
+  return view;
+});
+route("DELETE", "/entities/:name/views/:viewId", ({ platform, ctx, params }) => {
+  const c = ctx("studio");
+  platform.requirePermission(c, "data.manage", `${params.name}.view.delete`, `entity/${params.name}/${params.viewId}`);
+  const i = platform.state.views.findIndex((v) => v.id === params.viewId && v.entity === params.name);
+  if (i < 0) fail(404, "NOT_FOUND", "View not found");
+  const [view] = platform.state.views.splice(i, 1);
+  platform.audit(c, `${params.name}.view.delete`, `entity/${params.name}/${params.viewId}`, "allowed", view.name);
+  return { id: params.viewId, deleted: true };
+});
+route("POST", "/entities/:name/views/:viewId/run", ({ platform, ctx, params, query }) => {
+  const entity = platform.entity(params.name);
+  const c = ctx("studio");
+  platform.requirePermission(c, entity.readPermission, `${params.name}.list`, `entity/${params.name}`);
+  const view = platform.state.views.find((v) => v.id === params.viewId && v.entity === params.name);
+  if (!view || (!view.shared && view.ownerId !== c.actor.id)) fail(404, "NOT_FOUND", "View not found");
+  const rows = platform.runView(params.name, view);
+  return page(rows, query);
 });
 route("GET", "/connections", ({ platform }) => list(platform.state.connections));
 

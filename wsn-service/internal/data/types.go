@@ -52,9 +52,19 @@ type Entity struct {
 	Version            int            `json:"version"`
 	Lifecycle          string         `json:"lifecycle"`
 	UpdatedAt          time.Time      `json:"updatedAt"`
+	// RowFilter is optional row-level security: records are only visible when this
+	// condition holds for the caller. Value may reference the actor, e.g. "$actor.id".
+	RowFilter *RowFilter `json:"rowFilter,omitempty"`
 }
 
-// Record is one instance of an entity.
+// RowFilter is a row-level security rule on an entity, e.g. {field: "ownerId", op: "eq", value: "$actor.id"}.
+type RowFilter struct {
+	Field string `json:"field"`
+	Op    string `json:"op"`    // eq, neq, in
+	Value any    `json:"value"` // scalar, []any for "in", or "$actor.id"/"$actor.departmentId"/"$actor.name"
+}
+
+// Record is one instance of an entity. Soft-deleted records keep their row until purged.
 type Record struct {
 	ID        string         `json:"id"`
 	Entity    string         `json:"entity"`
@@ -62,6 +72,8 @@ type Record struct {
 	CreatedAt time.Time      `json:"createdAt"`
 	UpdatedAt time.Time      `json:"updatedAt"`
 	CreatedBy string         `json:"createdBy"`
+	DeletedAt *time.Time     `json:"deletedAt,omitempty"`
+	DeletedBy string         `json:"deletedBy,omitempty"`
 }
 
 func (r *Record) ResourceID() string { return r.ID }
@@ -99,3 +111,47 @@ type Deleted struct {
 }
 
 func (d *Deleted) ResourceID() string { return d.ID }
+
+// RecordHistoryEntry is one change to one record (who, when, field-level diff, snapshot).
+type RecordHistoryEntry struct {
+	Seq       int64          `json:"seq"`
+	Entity    string         `json:"entity"`
+	RecordID  string         `json:"recordId"`
+	Actor     string         `json:"actor"`
+	Action    string         `json:"action"` // created, updated, deleted, restored
+	ChangedAt time.Time      `json:"changedAt"`
+	Changes   map[string]any `json:"changes"`
+	Snapshot  map[string]any `json:"snapshot"`
+}
+
+// FilterOp is one condition of a saved view.
+type FilterOp struct {
+	Field string `json:"field"`
+	Op    string `json:"op"` // eq, neq, gt, gte, lt, lte, contains, in
+	Value any    `json:"value"`
+}
+
+// SavedView is a named, reusable query over one entity's records.
+type SavedView struct {
+	ID        string     `json:"id"`
+	Entity    string     `json:"entity"`
+	Name      string     `json:"name"`
+	Filters   []FilterOp `json:"filters"`
+	SortField string     `json:"sortField,omitempty"`
+	SortDesc  bool       `json:"sortDesc,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
+	OwnerID   string     `json:"ownerId"`
+	Shared    bool       `json:"shared,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+}
+
+// SchemaMigration changes an entity's fields and backfills existing records.
+// drop/retype are refused while the entity holds records; add is always safe.
+type SchemaMigration struct {
+	Add      []Field        `json:"add,omitempty"`
+	Drop     []string       `json:"drop,omitempty"`
+	Retype   []Field        `json:"retype,omitempty"`   // same name, new type — refused with records present
+	Backfill map[string]any `json:"backfill,omitempty"` // field -> value for existing records
+	Note     string         `json:"note,omitempty"`
+}

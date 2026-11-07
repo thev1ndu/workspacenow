@@ -50,13 +50,13 @@ func entityOperation(rt Runtime, e *Entity, verb string) *kernel.Operation {
 	switch verb {
 	case "list":
 		op.Summary, op.Kind, op.Permission = "List "+e.Label+" records", kernel.KindRead, e.ReadPermission
-		op.Handler = func(ctx context.Context, _ kernel.ExecutionContext, _ map[string]any) (any, error) {
-			return rt.Records(ctx, name)
+		op.Handler = func(ctx context.Context, ec kernel.ExecutionContext, _ map[string]any) (any, error) {
+			return rt.RecordsAs(ctx, ec, name, false)
 		}
 	case "get":
 		op.Summary, op.Kind, op.Permission = "Get a "+e.Label+" record", kernel.KindRead, e.ReadPermission
-		op.Handler = func(ctx context.Context, _ kernel.ExecutionContext, in map[string]any) (any, error) {
-			return rt.Record(ctx, name, fmt.Sprint(in["id"]))
+		op.Handler = func(ctx context.Context, ec kernel.ExecutionContext, in map[string]any) (any, error) {
+			return rt.RecordAs(ctx, ec, name, fmt.Sprint(in["id"]))
 		}
 	case "create":
 		op.Summary = "Create a " + e.Label + " record"

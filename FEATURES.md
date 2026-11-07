@@ -20,12 +20,17 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ⬜ SCIM / user provisioning against a real IdP
 
 ## 2. Data platform (entities & records)
-- ✅ Entity registry: list/get/create/update with schema validation (`/entities`)
-- ✅ Records CRUD per entity (`/entities/{name}/records[/{id}]`) with server-side `q`/`limit`/`offset`
+- ✅ Entity registry: list/get/create/update with schema validation (`/entities`), incl. `rowFilter` row-level security (`$actor.*` values)
+- ✅ Records CRUD per entity with server-side `q`/`view`/`includeDeleted`/`limit`/`offset`
 - ✅ Rule enforcement: required fields (422), uniqueness (409), referential checks, read-only entities
+- ✅ **Soft deletes** (`deleted_at`/`deleted_by`) + `POST .../restore`; lists hide deleted unless `includeDeleted=true`
+- ✅ **Record history**: every create/update/delete/restore writes a `record_history` row (actor, field-level diff, snapshot); `GET .../records/{id}/history`
+- ✅ **Schema migrations with backfill**: `POST /entities/{name}/migrate` (`add` always, `drop`/`retype` refused while records exist), backfills rows, snapshots into `entity_versions`, bumps `version`, audited
+- ✅ **Import/export**: `GET .../records/export?format=json|csv`, `POST .../records/import` (JSON/CSV)
+- ✅ **Saved views**: CRUD `/entities/{name}/views`, `POST .../run`, `?view=` on list; console picker in the records page
 - ✅ Connections catalog (databases, caches, warehouses) — `/connections`
-- ✅ Console: data workspace (model/ERD view, entities, records with search+pager, connections pages)
-- ⬜ Schema migrations for entity changes; import/export
+- ✅ Console: data workspace (model/ERD view, entities, records with search+pager+views+export+deleted toggle, connections pages)
+- ⬜ Record-level purge job; visual query builder UI for views (API supports filters today)
 
 ## 3. Business operations
 - ✅ Operation catalog (`/business-operations`) and invocation (`/business-operations/invoke`)

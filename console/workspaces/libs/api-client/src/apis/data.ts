@@ -1,3 +1,4 @@
+import { globalConfig } from "@workspacenow/types";
 import type {
   BusinessOperationDescriptor,
   DatabaseConnection,
@@ -7,8 +8,12 @@ import type {
   FieldValue,
   ListResponse,
   OperationResult,
+  RecordHistoryEntry,
+  SavedView,
+  SavedViewInput,
+  SchemaMigration,
 } from "@workspacenow/types";
-import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, SERVICE_BASE, qs, type GetToken } from "../utils/http";
+import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, httpPUT, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listEntities(getToken: GetToken) {
   return httpGET<ListResponse<Entity>>(`${SERVICE_BASE}/entities`, { token: await getToken() });
@@ -35,7 +40,7 @@ export async function updateEntity(
 }
 
 export async function listRecords(
-  params: { entityName: string; q?: string; limit?: number; offset?: number },
+  params: { entityName: string; q?: string; view?: string; includeDeleted?: boolean; limit?: number; offset?: number },
   getToken: GetToken,
 ) {
   const { entityName, ...query } = params;
@@ -82,6 +87,80 @@ export async function invokeBusinessOperation(
   getToken: GetToken,
 ) {
   return httpPOST<OperationResult>(`${SERVICE_BASE}/business-operations/invoke`, { token: await getToken(), body });
+}
+
+export async function exportRecords(
+  params: { entityName: string; format?: "json" | "csv"; view?: string },
+  getToken: GetToken,
+): Promise<{ body: string; contentType: string }> {
+  const { entityName, ...query } = params;
+  const base = globalConfig.apiBaseUrl?.replace(/\/+$/, "") ?? "";
+  const token = await getToken();
+  const res = await fetch(`${base}${SERVICE_BASE}/entities/${enc(entityName)}/records/export${qs(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw await res.json().then((b) => new Error(b.message ?? `export answered ${res.status}`));
+  return { body: await res.text(), contentType: res.headers.get("Content-Type") ?? "application/json" };
+}
+
+export async function importRecords(
+  params: { entityName: string },
+  body: { format?: "json" | "csv"; data: string },
+  getToken: GetToken,
+) {
+  return httpPOST<{ created: number }>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/records/import`, {
+    token: await getToken(),
+    body,
+  });
+}
+
+export async function recordHistory(params: { entityName: string; recordId: string }, getToken: GetToken) {
+  return httpGET<ListResponse<RecordHistoryEntry>>(
+    `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/${enc(params.recordId)}/history`,
+    { token: await getToken() },
+  );
+}
+
+export async function restoreRecord(params: { entityName: string; recordId: string }, getToken: GetToken) {
+  return httpPOST<EntityRecord>(
+    `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/${enc(params.recordId)}/restore`,
+    { token: await getToken() },
+  );
+}
+
+export async function migrateEntity(params: { entityName: string }, body: SchemaMigration, getToken: GetToken) {
+  return httpPOST<Entity>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/migrate`, { token: await getToken(), body });
+}
+
+export async function listViews(params: { entityName: string }, getToken: GetToken) {
+  return httpGET<ListResponse<SavedView>>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/views`, {
+    token: await getToken(),
+  });
+}
+
+export async function createView(params: { entityName: string }, body: SavedViewInput, getToken: GetToken) {
+  return httpPOST<SavedView>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/views`, { token: await getToken(), body });
+}
+
+export async function updateView(params: { entityName: string; viewId: string }, body: SavedViewInput, getToken: GetToken) {
+  return httpPUT<SavedView>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/views/${enc(params.viewId)}`, {
+    token: await getToken(),
+    body,
+  });
+}
+
+export async function deleteView(params: { entityName: string; viewId: string }, getToken: GetToken) {
+  return httpDELETE(`${SERVICE_BASE}/entities/${enc(params.entityName)}/views/${enc(params.viewId)}`, {
+    token: await getToken(),
+  });
+}
+
+export async function runView(params: { entityName: string; viewId: string; includeDeleted?: boolean }, getToken: GetToken) {
+  const { entityName, viewId, ...query } = params;
+  return httpPOST<ListResponse<EntityRecord>>(
+    `${SERVICE_BASE}/entities/${enc(entityName)}/views/${enc(viewId)}/run${qs(query)}`,
+    { token: await getToken() },
+  );
 }
 
 export async function deleteRecord(params: { entityName: string; recordId: string }, getToken: GetToken) {

@@ -2,7 +2,6 @@
 package server
 
 import (
-	"slices"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
@@ -11,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"

@@ -21,7 +21,7 @@ type Config struct {
 	RetentionBytes int64  // max bytes kept per signal; oldest segments are pruned past it
 	SegmentBytes   int64  // roll the active segment past this size
 	ScanLimit      int    // max records a query scans per signal, newest first
-	ReplicaURL string // when set, sealed segments are replicated to this observer
+	ReplicaURL     string // when set, sealed segments are replicated to this observer
 
 }
 

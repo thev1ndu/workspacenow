@@ -4,14 +4,14 @@
 package walstore
 
 import (
-	"net/http"
-	neturl "net/url"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -53,14 +53,14 @@ type Store struct {
 	counts   map[string]*atomic.Int64
 	services map[string]struct{}
 
-	stop   chan struct{}
-	wg     sync.WaitGroup
+	stop chan struct{}
+	wg   sync.WaitGroup
 
-	replicaURL string      // sealed segments are POSTed here when set
+	replicaURL string // sealed segments are POSTed here when set
 	replicaTok string
 	hc         *http.Client
-	once   sync.Once
-	closed atomic.Bool
+	once       sync.Once
+	closed     atomic.Bool
 }
 
 // Open recovers existing segments under dir, prunes past retention and starts the janitor.

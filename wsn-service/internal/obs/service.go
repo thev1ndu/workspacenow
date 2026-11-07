@@ -57,7 +57,6 @@ type Service interface {
 	RecordSLOCall(ctx context.Context, operation string, d time.Duration, failed bool)
 	// Status page + backups.
 	Status(ctx context.Context) map[string]any
-	Backups(ctx context.Context) ([]BackupRecord, error)
 }
 
 type service struct {
@@ -76,7 +75,6 @@ type service struct {
 	alertRules  *docstore.Collection[AlertRule]
 	alertFires  *docstore.Collection[AlertFire]
 	slos        *docstore.Collection[SLO]
-	backups     *docstore.Collection[BackupRecord]
 }
 
 // Deps are the obs service's collaborators.
@@ -103,7 +101,6 @@ func NewService(d Deps) Service {
 		alertRules: docstore.NewCollection(d.DB, "alert_rules", func(a *AlertRule) string { return a.ID }),
 		alertFires: docstore.NewCollection(d.DB, "alert_fires", func(a *AlertFire) string { return a.ID }),
 		slos:       docstore.NewCollection(d.DB, "slos", func(s *SLO) string { return s.ID }),
-		backups:    docstore.NewCollection(d.DB, "backups", func(b *BackupRecord) string { return b.ID }),
 	}
 }
 

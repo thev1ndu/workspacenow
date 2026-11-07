@@ -868,10 +868,6 @@ route("GET", "/slos/:id/status", ({ platform, params }) => {
   const breached = calls > 0 && (successRate < slo.targetSuccess || 120 > slo.targetP95Ms);
   return { sloId: slo.id, operation: slo.operation, calls, errors, successRate, p95Ms: 120, targetP95Ms: slo.targetP95Ms, breached };
 });
-route("GET", "/admin/backups", ({ platform, ctx }) => {
-  platform.requirePermission(ctx("control"), "control.manage", "backup.list", "backup");
-  return list(platform.state.backups);
-});
 route("GET", "/audit", ({ platform, ctx, query }) => {
   const c = ctx("control");
   platform.requirePermission(c, "audit.read", "audit.read", "audit");

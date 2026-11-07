@@ -32,7 +32,6 @@ import type {
   WebhookDelivery,
   AlertFire,
   AlertRule,
-  BackupRecord,
   Slo
 } from "@workspacenow/types";
 
@@ -74,7 +73,6 @@ export interface PlatformState {
   alertRules: AlertRule[];
   alertFires: AlertFire[];
   slos: Slo[];
-  backups: BackupRecord[];
   /** Application ids each user pinned, keyed by user id, in pin order. */
   pins: Record<string, string[]>;
 }

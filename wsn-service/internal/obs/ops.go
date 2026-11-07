@@ -441,8 +441,6 @@ func (s *service) SLOStatusByID(ctx context.Context, id string) (map[string]any,
 
 /* ---- backups ---- */
 
-func (s *service) Backups(ctx context.Context) ([]BackupRecord, error) { return s.backups.List(ctx) }
-
 func notFound(err error, msg string) error {
 	if err == docstore.ErrNotFound {
 		return kernel.NotFound("%s", msg)

@@ -7,7 +7,6 @@ import {
   useDeleteAlertRule,
   useListAlertFires,
   useListAlertRules,
-  useListBackups,
   useListSLOs,
 } from "@workspacenow/api-client";
 import type { AlertRule } from "@workspacenow/types";
@@ -37,7 +36,6 @@ export function AlertsPage() {
   const canManage = useCan("control.manage");
   const rules = useListAlertRules();
   const slos = useListSLOs();
-  const backups = useListBackups();
   const [selected, setSelected] = useState<AlertRule>();
   const [editing, setEditing] = useState<AlertRule | "new" | undefined>();
   const [definingSlo, setDefiningSlo] = useState(false);
@@ -188,7 +186,7 @@ export function AlertsPage() {
           </SectionCard>
         )}
 
-        <div className="grid items-start gap-6 xl:grid-cols-2">
+        <div className="grid items-start gap-6">
           <SectionCard title="SLOs" subtitle="Service-level objectives per business operation; alert rules with source “SLO burn rate” watch these." flush>
             <QueryState query={slos} skeleton={<TableSkeleton columns={4} />}>
               {(data) =>
@@ -222,40 +220,6 @@ export function AlertsPage() {
             </QueryState>
           </SectionCard>
 
-          <SectionCard title="Backups" subtitle="Nightly pg_dump records from the -backup role; the -restore role drills a restore from them." flush>
-            <QueryState query={backups} skeleton={<TableSkeleton columns={4} />}>
-              {(data) =>
-                data.items.length === 0 ? (
-                  <NoDataFound message="No backups recorded yet." />
-                ) : (
-                  <Table variant="secondary">
-                    <Table.ScrollContainer>
-                      <Table.Content aria-label="Backups" className="min-w-[520px]">
-                        <Table.Header>
-                          <Table.Column>Started</Table.Column>
-                          <Table.Column>Size</Table.Column>
-                          <Table.Column>Status</Table.Column>
-                          <Table.Column>Key</Table.Column>
-                        </Table.Header>
-                        <Table.Body>
-                          {data.items.map((bak) => (
-                            <Table.Row key={bak.id} id={bak.id}>
-                              <Table.Cell className="whitespace-nowrap text-muted">{formatDateTime(bak.startedAt)}</Table.Cell>
-                              <Table.Cell className="tabular-nums">{(bak.sizeBytes / 1024 / 1024).toFixed(1)} MB</Table.Cell>
-                              <Table.Cell>
-                                <StatusChip status={bak.status === "done" ? "active" : bak.status} />
-                              </Table.Cell>
-                              <Table.Cell className="max-w-48 truncate font-mono text-xs text-muted">{bak.s3Key}</Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
-                )
-              }
-            </QueryState>
-          </SectionCard>
         </div>
       </div>
 

@@ -720,14 +720,6 @@ export interface SloStatus {
   p95Ms: number;
   breached: boolean;
 }
-export interface BackupRecord {
-  id: Id;
-  startedAt: IsoDate;
-  finishedAt?: IsoDate;
-  sizeBytes: number;
-  s3Key: string;
-  status: "running" | "done" | "failed";
-}
 export interface StatusPage {
   status: "healthy" | "degraded" | "down" | "unknown";
   service: string;

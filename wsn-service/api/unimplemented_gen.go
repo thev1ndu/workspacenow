@@ -4,15 +4,5 @@
 
 package api
 
-import (
-	"net/http"
-
-	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
-)
-
 // unimplemented answers every operation no module serves with 501.
 type unimplemented struct{}
-
-func (unimplemented) GetLogMetrics(w http.ResponseWriter, r *http.Request, params oapi.GetLogMetricsParams) {
-	notImplemented(w, r)
-}

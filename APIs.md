@@ -278,7 +278,6 @@ Executions are durable and must survive restarts.
 | GET/POST | `/alerts`, PUT/DELETE `/alerts/{id}` | Alert rules over audit/event patterns (threshold + window + webhook — the only channel for now); `source: "slo"` + `sloId` alerts on the SLO burn rate ×100 (e.g. threshold 600 = 6× the error budget) | `control.manage` |
 | GET | `/alerts/{id}/fires`, POST `.../fires/{fireId}/ack` | Fires and acknowledgements | signed in / `control.manage` |
 | GET/POST | `/slos`, GET `/slos/{id}/status` | SLOs per business operation; measured success rate + p95 vs targets | signed in / `control.manage` |
-| GET | `/admin/backups` | Backup records from the `-backup` role / Flux CronJob | `control.manage` |
 
 ### Demo only
 

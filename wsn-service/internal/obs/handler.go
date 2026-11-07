@@ -238,7 +238,3 @@ func (h *Handler) GetSLOStatus(w http.ResponseWriter, r *http.Request, id string
 func (h *Handler) StatusPage(w http.ResponseWriter, r *http.Request) {
 	writeStatusPage(w, r, h.svc.Status(r.Context()))
 }
-
-func (h *Handler) ListBackups(w http.ResponseWriter, r *http.Request) {
-	httpx.ListFrom(w, r, h.svc.Backups)
-}

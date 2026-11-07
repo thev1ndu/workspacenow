@@ -1496,16 +1496,6 @@ paths:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SloStatus" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /admin/backups:
-    get:
-      tags: [Control]
-      operationId: listBackups
-      summary: Backup records (the -backup role / Flux CronJob writes these)
-      description: "Requires `control.manage`."
-      responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/BackupList" } } } }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
   /health:
     get:
       tags: [Observability]
@@ -2609,22 +2599,6 @@ components:
         successRate: { type: number }
         p95Ms: { type: integer }
         breached: { type: boolean }
-    BackupRecord:
-      type: object
-      required: [id, startedAt, sizeBytes, s3Key, status]
-      properties:
-        id: { type: string }
-        startedAt: { $ref: "#/components/schemas/IsoDate" }
-        finishedAt: { $ref: "#/components/schemas/IsoDate" }
-        sizeBytes: { type: integer }
-        s3Key: { type: string }
-        status: { type: string, enum: [running, done, failed] }
-    BackupList:
-      type: object
-      required: [items, totalCount]
-      properties:
-        items: { type: array, items: { $ref: "#/components/schemas/BackupRecord" } }
-        totalCount: { type: integer }
     HealthSignal:
       type: object
       required: [resource, kind, status, detail]

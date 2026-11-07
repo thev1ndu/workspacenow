@@ -106,7 +106,6 @@ func (f *fakeSvc) CreateSLO(context.Context, kernel.ExecutionContext, SLO) (*SLO
 func (f *fakeSvc) SLOStatusByID(context.Context, string) (map[string]any, error) { return nil, nil }
 func (f *fakeSvc) RecordSLOCall(context.Context, string, time.Duration, bool)    {}
 func (f *fakeSvc) Status(context.Context) map[string]any                         { return nil }
-func (f *fakeSvc) Backups(context.Context) ([]BackupRecord, error)               { return nil, nil }
 
 func TestListAuditDeniedWithoutPermission(t *testing.T) {
 	auditor := &fakeAuditor{}

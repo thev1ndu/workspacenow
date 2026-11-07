@@ -497,8 +497,6 @@ describe("ops: alerts, slos, status", () => {
     expect(typeof st.breached).toBe("boolean");
     const status = send(platform, "GET", "/status");
     expect(["healthy", "degraded", "down"]).toContain((status.body as { status: string }).status);
-    const backups = get(platform, "/admin/backups");
-    expect(backups.status).toBe(200);
   });
 
   it("fires an SLO burn-rate alert and serves log metrics per day and level", () => {

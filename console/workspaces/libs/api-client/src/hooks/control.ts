@@ -62,11 +62,6 @@ export function useCreateSLO() {
   });
 }
 
-export function useListBackups() {
-  const { getToken } = useAuthHooks();
-  return useApiQuery({ queryKey: ["backups"], queryFn: () => api.listBackups(getToken) });
-}
-
 export function useListWebhooks() {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["webhooks"], queryFn: () => api.listWebhooks(getToken) });

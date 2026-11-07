@@ -320,27 +320,6 @@ func (e AuditRecordOutcome) Valid() bool {
 	}
 }
 
-// Defines values for BackupRecordStatus.
-const (
-	BackupRecordStatusDone    BackupRecordStatus = "done"
-	BackupRecordStatusFailed  BackupRecordStatus = "failed"
-	BackupRecordStatusRunning BackupRecordStatus = "running"
-)
-
-// Valid indicates whether the value is a known member of the BackupRecordStatus enum.
-func (e BackupRecordStatus) Valid() bool {
-	switch e {
-	case BackupRecordStatusDone:
-		return true
-	case BackupRecordStatusFailed:
-		return true
-	case BackupRecordStatusRunning:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for BusinessOperationDescriptorKind.
 const (
 	Read  BusinessOperationDescriptorKind = "read"
@@ -1261,22 +1240,22 @@ func (e WorkflowStatus) Valid() bool {
 
 // Defines values for WorkflowExecutionStatus.
 const (
-	Completed WorkflowExecutionStatus = "completed"
-	Failed    WorkflowExecutionStatus = "failed"
-	Running   WorkflowExecutionStatus = "running"
-	Waiting   WorkflowExecutionStatus = "waiting"
+	WorkflowExecutionStatusCompleted WorkflowExecutionStatus = "completed"
+	WorkflowExecutionStatusFailed    WorkflowExecutionStatus = "failed"
+	WorkflowExecutionStatusRunning   WorkflowExecutionStatus = "running"
+	WorkflowExecutionStatusWaiting   WorkflowExecutionStatus = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the WorkflowExecutionStatus enum.
 func (e WorkflowExecutionStatus) Valid() bool {
 	switch e {
-	case Completed:
+	case WorkflowExecutionStatusCompleted:
 		return true
-	case Failed:
+	case WorkflowExecutionStatusFailed:
 		return true
-	case Running:
+	case WorkflowExecutionStatusRunning:
 		return true
-	case Waiting:
+	case WorkflowExecutionStatusWaiting:
 		return true
 	default:
 		return false
@@ -2024,25 +2003,6 @@ type AuditRecordList struct {
 	Items []AuditRecord `json:"items"`
 	Total int           `json:"total"`
 }
-
-// BackupList defines model for BackupList.
-type BackupList struct {
-	Items      []BackupRecord `json:"items"`
-	TotalCount int            `json:"totalCount"`
-}
-
-// BackupRecord defines model for BackupRecord.
-type BackupRecord struct {
-	FinishedAt *IsoDate           `json:"finishedAt,omitempty"`
-	Id         string             `json:"id"`
-	S3Key      string             `json:"s3Key"`
-	SizeBytes  int                `json:"sizeBytes"`
-	StartedAt  IsoDate            `json:"startedAt"`
-	Status     BackupRecordStatus `json:"status"`
-}
-
-// BackupRecordStatus defines model for BackupRecord.Status.
-type BackupRecordStatus string
 
 // BusinessOperationDescriptor defines model for BusinessOperationDescriptor.
 type BusinessOperationDescriptor struct {
@@ -4204,9 +4164,6 @@ func (t *WorkflowTrigger) UnmarshalJSON(b []byte) error {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Backup records (the -backup role / Flux CronJob writes these)
-	// (GET /admin/backups)
-	ListBackups(w http.ResponseWriter, r *http.Request)
 	// Agent runs, newest first
 	// (GET /agent-runs)
 	ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams)
@@ -4547,26 +4504,6 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
-
-// ListBackups operation middleware
-func (siw *ServerInterfaceWrapper) ListBackups(w http.ResponseWriter, r *http.Request) {
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListBackups(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
 
 // ListAgentRuns operation middleware
 func (siw *ServerInterfaceWrapper) ListAgentRuns(w http.ResponseWriter, r *http.Request) {
@@ -7904,7 +7841,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("GET "+options.BaseURL+"/admin/backups", wrapper.ListBackups)
 	m.HandleFunc("GET "+options.BaseURL+"/agent-runs", wrapper.ListAgentRuns)
 	m.HandleFunc("GET "+options.BaseURL+"/agent-runs/{runId}", wrapper.GetAgentRun)
 	m.HandleFunc("GET "+options.BaseURL+"/agents", wrapper.ListAgents)

@@ -23,7 +23,7 @@ export const controlWorkspace: WorkspaceModule = {
     { label: "Identity and access", href: routes.control.access },
     { label: "Environments", href: routes.control.environments },
     { label: "Audit log", href: routes.control.audit },
-    { label: "Alerts", href: routes.control.alerts },
+    { label: "Alerts and SLOs", href: routes.control.alerts },
     { label: "Traces", href: routes.control.traces },
     { label: "Settings", href: routes.control.settings },
   ],

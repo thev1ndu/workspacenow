@@ -45,7 +45,7 @@ export function AlertsPage() {
 
   return (
     <PageLayout
-      title="Alerts, SLOs and backups"
+      title="Alerts and SLOs"
       description="Alert rules over audit actions, platform events or SLO burn rates. Webhook is the only notification channel for now; fires also appear in the events stream."
       actions={
         <>

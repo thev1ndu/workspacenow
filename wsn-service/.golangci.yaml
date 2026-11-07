@@ -1,0 +1,7 @@
+version: "2"
+linters:
+  exclusions:
+    rules:
+      # Test fixtures write to recorders/mocks and never care about write errors.
+      - path: _test\.go$
+        linters: [errcheck]

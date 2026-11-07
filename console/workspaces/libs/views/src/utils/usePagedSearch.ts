@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export interface PagedSearch<T> {
   search: string;
@@ -56,4 +56,14 @@ export function usePagination(total: number, pageSize: number, page: number, set
   const safePage = Math.min(Math.max(1, page), totalPages);
   const start = (safePage - 1) * pageSize;
   return { page: safePage, setPage, totalPages, start, end: Math.min(total, start + pageSize) };
+}
+
+/** Debounced copy of a value, for search-as-you-type. */
+export function useDebouncedValue<T>(value: T, delayMs = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
 }

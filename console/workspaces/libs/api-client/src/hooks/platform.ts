@@ -29,7 +29,7 @@ export function useListResources() {
   return useApiQuery({ queryKey: ["resources"], queryFn: () => api.listResources(getToken) });
 }
 
-export function useListEvents(query: { limit?: number } = {}) {
+export function useListEvents(query: { limit?: number; offset?: number } = {}) {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["events", query], queryFn: () => api.listEvents(query, getToken) });
 }

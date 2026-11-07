@@ -70,8 +70,9 @@ Reproduce: `cd wsn-service && go test -race -cover ./...`
 
 ### TODO / what's happening
 - [ ] Run end to end against live infra: compose + wsn-ai-service with `MISTRAL_API_KEY` — Sidekick "Which items are low on stock?", permission denial as Nimal, app-scope denial, "Plan with AI", and the flagship sale → `Stock.LowStockReached` → `wf-low-stock` → approval → purchase order under one trace (`-worker` role)
-- [ ] Temporal workflow tests with the Go SDK `testsuite`
-- [ ] Hardening: integration tests (`//go:build integration`) porting the mock's 34 scenarios, response validation against `openapi.yaml`, golangci-lint, moq mocks, OpenBao against compose, idempotent event-triggered starts
+- [x] Temporal workflow tests with the Go SDK `testsuite` (`internal/flow/temporal_test.go`: happy path, approval approved/rejected, condition branch)
+- [ ] Hardening: integration tests (`//go:build integration`) porting the mock's 34 scenarios, response validation against `openapi.yaml`, moq mocks, OpenBao against compose, idempotent event-triggered starts
+- [x] golangci-lint: `.golangci.yaml` in wsn-service, `golangci-lint v2.14.0 run ./...` = 0 issues
 
 ---
 
@@ -99,22 +100,22 @@ Coverage: **100% of `src`** (491 statements, every file), 60 tests passed + 1 sk
 
 ## console — the webapp (TypeScript/React, heroui, pnpm workspaces)
 
-Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspacenow/mock-server test` (34 tests pass). No coverage provider installed — coverage is not instrumented.
+Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspacenow/mock-server test:coverage` (34 tests pass, 83.02% lines against an 80% gate).
 
 ### Features in place now
 - Real HTTP transport behind `apiBaseUrl`, live updates over SSE (`/events/stream`), demo data from the mock-server (Mistral-only personas)
 - Workspace pages: overview, data, studio, connect, flow, control, AI
 - Environment resource limits removed (type, mock seed, Environments page)
 - Run-id no longer wraps in the runs table
-- **Search + pagination** on runs (text + status), audit (server-side actor/outcome/q + pager), traces, records, agents (both tables), approvals; shared `usePagedSearch`/`usePagination` hooks + `TablePager` in `@workspacenow/views`
+- **Search + pagination**: contract now takes `q`/`limit`/`offset` on `/agent-runs`, `/traces`, `/entities/{name}/records`, `/approvals`, `/events` (server-side via `docstore.Page`, total count in the response); console runs/traces/audit/records pages page against the server; audit keeps server-side actor/outcome/q + pager; agents tables use shared `usePagedSearch`/`usePagination` hooks + `TablePager` in `@workspacenow/views`
 - **Dashboard**: `MetricGrid`/`Metric` render a responsive grid of individual KPI cards (icon, value, hint, whole-card links); AI overview has 6 deep-linked KPIs + recent runs + token chart/model usage rail
 - Mock server implements the whole contract and is test-covered (34 tests)
 
 ### TODO / what's happening
-- [ ] Real OIDC login (persona picker is demo-only)
-- [ ] Coverage instrumentation (add vitest coverage provider + gate)
+- [x] Real OIDC login: Authorization Code + PKCE in `AuthProvider`, `/login/callback` route, `authMode: "oidc"` + `oidc{issuer,clientId,redirectUri}` in `apps/web-ui/public/config.js` (persona picker remains for demo mode)
+- [x] Coverage instrumentation: `@vitest/coverage-v8`, 80% line threshold (currently 83.02%), `test:coverage` gated in CI
 - [ ] Never run against the real wsn-service backend
-- [ ] Server-side pagination/search where the API lacks params (only `/audit`, `/events`, `/search` take them today)
+- [x] Server-side pagination/search: `q`/`limit`/`offset` added to `/agent-runs`, `/traces`, `/entities/{name}/records`, `/approvals`, `/events` in the contract, wsn-service, mock-server, and the console pages
 
 ---
 

@@ -1,29 +1,23 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useListAgentRuns, useListAgents } from "@workspacenow/api-client";
-import { PageLayout, QueryState, SectionCard, SelectInput, TablePager, TextInput, usePagedSearch } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, SelectInput, TablePager, TextInput, useDebouncedValue } from "@workspacenow/views";
 import { RunsTable } from "./subComponents/RunsTable";
 
+const PAGE_SIZE = 10;
+
 export function RunsPage() {
-  const runs = useListAgentRuns();
-  const agents = useListAgents();
+  const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
-
-  const byStatus = useMemo(() => {
-    const items = runs.data?.items ?? [];
-    if (!status) return items;
-    return items.filter((r) => r.status === status);
-  }, [runs.data?.items, status]);
-
-  const paged = usePagedSearch(byStatus, 10, (run) => {
-    const agent = agents.data?.items.find((a) => a.id === run.agentId);
-    return [run.id, run.prompt, run.status, run.trigger, agent?.name ?? run.agentId].join(" ");
-  });
+  const [page, setPage] = useState(1);
+  const q = useDebouncedValue(search.trim());
+  const runs = useListAgentRuns({ q: q || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
+  const agents = useListAgents();
 
   return (
     <PageLayout title="Agent runs" description="Every agent execution, manual or started by a workflow.">
       <div className="grid gap-5">
         <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-          <TextInput label="Search runs" value={paged.search} onChange={paged.setSearch} placeholder="Run id, prompt, agent, status or trigger" />
+          <TextInput label="Search runs" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Run id or prompt" />
           <SelectInput
             label="Status"
             value={status}
@@ -37,10 +31,16 @@ export function RunsPage() {
         </div>
         <SectionCard flush>
           <QueryState query={runs}>
-            {() => (
+            {(data) => (
               <>
-                <RunsTable runs={paged.pageItems} agents={agents.data?.items} />
-                <TablePager page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPageChange={paged.setPage} />
+                <RunsTable runs={status ? data.items.filter((r) => r.status === status) : data.items} agents={agents.data?.items} />
+                <TablePager
+                  page={page}
+                  totalPages={Math.max(1, Math.ceil(data.total / PAGE_SIZE))}
+                  total={data.total}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
               </>
             )}
           </QueryState>

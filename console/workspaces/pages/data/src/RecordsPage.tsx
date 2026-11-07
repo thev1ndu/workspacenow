@@ -4,16 +4,21 @@ import { Plus } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCreateRecord, useGetEntity, useListEntities, useListRecords } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { PageLayout, QueryState, SectionCard } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, useDebouncedValue } from "@workspacenow/views";
 import { RecordFormDialog, useReferenceLabels } from "./subComponents/RecordForm";
 import { RecordsManager } from "./subComponents/RecordsManager";
+
+const PAGE_SIZE = 15;
 
 export function RecordsPage() {
   const { entityName } = useParams();
   const navigate = useNavigate();
   const entities = useListEntities();
   const entity = useGetEntity({ entityName });
-  const records = useListRecords({ entityName });
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const q = useDebouncedValue(search.trim());
+  const records = useListRecords({ entityName, q: q || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
   const labels = useReferenceLabels(entity.data);
   const createRecord = useCreateRecord();
   const [creating, setCreating] = useState(false);
@@ -72,7 +77,17 @@ export function RecordsPage() {
         <QueryState query={records}>
           {(data) =>
             entity.data ? (
-              <RecordsManager entity={entity.data} records={data.items} labels={labels} />
+              <RecordsManager
+                entity={entity.data}
+                records={data.items}
+                labels={labels}
+                search={search}
+                onSearchChange={(v) => { setSearch(v); setPage(1); }}
+                page={page}
+                total={data.total}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+              />
             ) : null
           }
         </QueryState>

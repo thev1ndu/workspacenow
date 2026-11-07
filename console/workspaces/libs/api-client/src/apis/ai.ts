@@ -1,5 +1,5 @@
 import type { Agent, AgentRun, ListResponse, ModelProvider } from "@workspacenow/types";
-import { enc, httpGET, httpPATCH, httpPOST, SERVICE_BASE, type GetToken } from "../utils/http";
+import { enc, httpGET, httpPATCH, httpPOST, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listModelProviders(getToken: GetToken) {
   return httpGET<ListResponse<ModelProvider>>(`${SERVICE_BASE}/model-providers`, { token: await getToken() });
@@ -25,8 +25,8 @@ export async function runAgent(params: { agentId: string }, body: { prompt: stri
   return httpPOST<AgentRun>(`${SERVICE_BASE}/agents/${enc(params.agentId)}/runs`, { token: await getToken(), body });
 }
 
-export async function listAgentRuns(query: { agentId?: string }, getToken: GetToken) {
-  return httpGET<ListResponse<AgentRun>>(`${SERVICE_BASE}/agent-runs`, { token: await getToken(), searchParams: query });
+export async function listAgentRuns(query: { agentId?: string; q?: string; limit?: number; offset?: number }, getToken: GetToken) {
+  return httpGET<ListResponse<AgentRun>>(`${SERVICE_BASE}/agent-runs`, { token: await getToken(), searchParams: qs(query) });
 }
 
 export async function getAgentRun(params: { runId: string }, getToken: GetToken) {

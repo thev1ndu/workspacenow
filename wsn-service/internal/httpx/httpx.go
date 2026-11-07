@@ -36,10 +36,15 @@ type ListResponse[T any] struct {
 
 // List writes a collection; a nil slice is written as an empty list.
 func List[T any](w http.ResponseWriter, items []T) {
+	ListTotal(w, items, len(items))
+}
+
+// ListTotal writes a collection with an explicit total (for server-side paging).
+func ListTotal[T any](w http.ResponseWriter, items []T, total int) {
 	if items == nil {
 		items = []T{}
 	}
-	OK(w, ListResponse[T]{Items: items, Total: len(items)})
+	OK(w, ListResponse[T]{Items: items, Total: total})
 }
 
 // ListFrom loads a collection and writes it, or writes the error.

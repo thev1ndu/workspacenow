@@ -51,7 +51,7 @@ export function useRunSidekick(applicationId?: string) {
   });
 }
 
-export function useListAgentRuns(query: { agentId?: string } = {}) {
+export function useListAgentRuns(query: { agentId?: string; q?: string; limit?: number; offset?: number } = {}) {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["agent-runs", query], queryFn: () => api.listAgentRuns(query, getToken) });
 }

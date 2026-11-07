@@ -27,7 +27,7 @@ type Service interface {
 	StartForEvent(ctx context.Context, e kernel.Event) error
 	Executions(ctx context.Context, workflowID string) ([]Execution, error)
 	Execution(ctx context.Context, id string) (*Execution, error)
-	Approvals(ctx context.Context, status string) ([]Approval, error)
+	Approvals(ctx context.Context, status string, limit, offset int) ([]Approval, int, error)
 	Decide(ctx context.Context, caller *kernel.Caller, id string, approved bool, comment string) (*Approval, error)
 }
 
@@ -304,16 +304,20 @@ func (s *service) Execution(ctx context.Context, id string) (*Execution, error) 
 	return e, err
 }
 
-func (s *service) Approvals(ctx context.Context, status string) ([]Approval, error) {
-	var out []Approval
-	var err error
-	if status == "" {
-		out, err = s.approvals.List(ctx)
-	} else {
-		out, err = s.approvals.Where(ctx, "doc->>'status' = ?", status)
+func (s *service) Approvals(ctx context.Context, status string, limit, offset int) ([]Approval, int, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
 	}
-	slices.SortFunc(out, func(a, b Approval) int { return b.RequestedAt.Compare(a.RequestedAt) })
-	return out, err
+	cond, args := "", []any{}
+	if status != "" {
+		cond = "doc->>'status' = ?"
+		args = append(args, status)
+	}
+	docs, total, err := s.approvals.Page(ctx, cond, limit, offset, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	return docs, int(total), nil
 }
 
 // Decide records a person's decision, acts on its subject as that person, and resumes the execution.

@@ -14,23 +14,29 @@ import (
 )
 
 type fakeSvc struct {
-	events   []oapi.PlatformEvent
-	audit    []oapi.AuditRecord
-	traces   []oapi.TraceSummary
-	trace    *oapi.Trace
-	health   []oapi.HealthSignal
-	err      error
-	gotLimit int
+	events    []oapi.PlatformEvent
+	audit     []oapi.AuditRecord
+	traces    []oapi.TraceSummary
+	trace     *oapi.Trace
+	health    []oapi.HealthSignal
+	err       error
+	gotLimit  int
+	gotOffset int
+	gotQ      string
 }
 
-func (f *fakeSvc) Events(_ context.Context, limit int) ([]oapi.PlatformEvent, error) {
+func (f *fakeSvc) Events(_ context.Context, limit, offset int) ([]oapi.PlatformEvent, int, error) {
 	f.gotLimit = limit
-	return f.events, f.err
+	f.gotOffset = offset
+	return f.events, len(f.events), f.err
 }
 func (f *fakeSvc) Audit(context.Context, oapi.ListAuditParams) ([]oapi.AuditRecord, error) {
 	return f.audit, f.err
 }
-func (f *fakeSvc) Traces(context.Context) ([]oapi.TraceSummary, error) { return f.traces, f.err }
+func (f *fakeSvc) Traces(_ context.Context, q string, limit, offset int) ([]oapi.TraceSummary, int, error) {
+	f.gotQ = q
+	return f.traces, len(f.traces), f.err
+}
 func (f *fakeSvc) Trace(context.Context, string) (*oapi.Trace, error)  { return f.trace, f.err }
 func (f *fakeSvc) Health(context.Context) ([]oapi.HealthSignal, error) { return f.health, f.err }
 func (f *fakeSvc) Overview(context.Context) (*oapi.OverviewStats, error) {
@@ -114,7 +120,7 @@ func TestListTracesAndGetTraceGuarded(t *testing.T) {
 	h := NewHandler(&fakeSvc{traces: []oapi.TraceSummary{{TraceId: "t1"}}}, &fakeAuditor{})
 	noPerm := request(t, &kernel.Caller{UserID: "u1", Name: "X", Permissions: kernel.NewPermissions()})
 	rec := httptest.NewRecorder()
-	h.ListTraces(rec, noPerm)
+	h.ListTraces(rec, noPerm, oapi.ListTracesParams{})
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("list traces: %d", rec.Code)
 	}

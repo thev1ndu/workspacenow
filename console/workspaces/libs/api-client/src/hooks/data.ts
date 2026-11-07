@@ -34,7 +34,7 @@ export function useUpdateEntity() {
   });
 }
 
-export function useListRecords(params: { entityName?: string }) {
+export function useListRecords(params: { entityName?: string; q?: string; limit?: number; offset?: number }) {
   const { getToken } = useAuthHooks();
   return useApiQuery({
     queryKey: ["records", params],

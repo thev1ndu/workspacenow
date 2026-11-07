@@ -2,10 +2,13 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
 )
 
 // Handler serves the Data endpoints; record endpoints run the entity's business operations.
@@ -63,13 +66,44 @@ func (h *Handler) UpdateEntity(w http.ResponseWriter, r *http.Request, name stri
 	httpx.OK(w, e)
 }
 
-func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request, name string) {
-	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name+".list", nil)
+func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request, name oapi.EntityName, params oapi.ListRecordsParams) {
+	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name)+".list", nil)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
 	}
-	httpx.List(w, out.([]Record))
+	records := out.([]Record)
+	q := ""
+	limit, offset := 50, 0
+	if params.Q != nil {
+		q = strings.ToLower(*params.Q)
+	}
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	if q != "" {
+		filtered := make([]Record, 0, len(records))
+		for _, rec := range records {
+			raw, _ := json.Marshal(rec.Values)
+			if strings.Contains(strings.ToLower(string(raw)), q) {
+				filtered = append(filtered, rec)
+			}
+		}
+		records = filtered
+	}
+	total := len(records)
+	if offset >= total {
+		records = nil
+	} else {
+		records = records[offset:]
+		if len(records) > limit {
+			records = records[:limit]
+		}
+	}
+	httpx.ListTotal(w, records, total)
 }
 
 type valuesBody struct {

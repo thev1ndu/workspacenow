@@ -18,6 +18,7 @@ export function initials(name: string): string {
 /** Stand-in for the redirect to the customer's OIDC provider: pick who to sign in as. */
 export function LoginPage() {
   const { isAuthenticated, signIn } = useAuthHooks();
+  const oidcMode = globalConfig.authMode === "oidc" && !!globalConfig.oidc;
   const { data, isLoading } = useListPersonas();
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +37,14 @@ export function LoginPage() {
           </div>
         </div>
 
+        {oidcMode ? (
+          <div className="mb-6 flex flex-col items-center gap-4">
+            <Button size="lg" variant="primary" onPress={() => signIn()}>
+              <ShieldCheck className="size-4" aria-hidden />
+              Sign in with your identity provider
+            </Button>
+          </div>
+        ) : (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
@@ -43,8 +52,9 @@ export function LoginPage() {
             different roles, so each one sees and can do different things.
           </p>
         </div>
+        )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        {!oidcMode && <div className="grid gap-3 sm:grid-cols-2">
           {isLoading
             ? Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
             : data?.items.map((user) => (
@@ -74,7 +84,7 @@ export function LoginPage() {
                   </Button>
                 </Card>
               ))}
-        </div>
+        </div>}
       </div>
     </main>
   );

@@ -331,7 +331,7 @@ func (s *service) probe(ctx context.Context, in *Integration) string {
 		if err != nil {
 			return "No answer from " + u.Host + ": " + err.Error()
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode >= 500 {
 			return fmt.Sprintf("%s answered %d", u.Host, resp.StatusCode)
 		}
@@ -345,7 +345,7 @@ func (s *service) probe(ctx context.Context, in *Integration) string {
 	if err != nil {
 		return "Cannot connect to " + host + ": " + err.Error()
 	}
-	conn.Close()
+	_ = conn.Close()
 	return ""
 }
 

@@ -5,6 +5,7 @@ import { routes } from "@workspacenow/types";
 import { AppShell } from "../Layout/AppShell";
 import { Layout } from "../Layout/Layout";
 import { LoginPage } from "../pages/LoginPage";
+import { OidcCallbackPage } from "../pages/OidcCallbackPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { Protected } from "../Providers/Protected";
 import { RouterBridge } from "../Providers/RouterBridge";
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
     element: <RouterBridge />,
     children: [
       { path: "/login", element: <LoginPage /> },
+      { path: "/login/callback", element: <OidcCallbackPage /> },
       {
         element: <Protected />,
         children: [

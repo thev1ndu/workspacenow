@@ -7,9 +7,9 @@ export function useListAudit(query: api.AuditQuery = {}) {
   return useApiQuery({ queryKey: ["audit", query], queryFn: () => api.listAudit(query, getToken) });
 }
 
-export function useListTraces() {
+export function useListTraces(query: { q?: string; limit?: number; offset?: number } = {}) {
   const { getToken } = useAuthHooks();
-  return useApiQuery({ queryKey: ["traces"], queryFn: () => api.listTraces(getToken) });
+  return useApiQuery({ queryKey: ["traces", query], queryFn: () => api.listTraces(query, getToken) });
 }
 
 export function useGetTrace(params: { traceId?: string }) {

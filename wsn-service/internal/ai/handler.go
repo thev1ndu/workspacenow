@@ -1,7 +1,6 @@
 package ai
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
@@ -52,11 +51,26 @@ func (h *Handler) UpdateAgent(w http.ResponseWriter, r *http.Request, agentId oa
 }
 
 func (h *Handler) ListAgentRuns(w http.ResponseWriter, r *http.Request, params oapi.ListAgentRunsParams) {
-	agentID := ""
+	agentID, q := "", ""
+	limit, offset := 50, 0
 	if params.AgentId != nil {
 		agentID = *params.AgentId
 	}
-	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.AgentRun, error) { return h.svc.Runs(ctx, agentID) })
+	if params.Q != nil {
+		q = *params.Q
+	}
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	runs, total, err := h.svc.Runs(r.Context(), agentID, q, limit, offset)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, runs, total)
 }
 
 func (h *Handler) GetAgentRun(w http.ResponseWriter, r *http.Request, runId string) {

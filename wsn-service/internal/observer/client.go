@@ -115,7 +115,7 @@ func (c *client) Health(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("observer health: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("observer health: status %d", resp.StatusCode)
 	}
@@ -201,7 +201,7 @@ func (c *client) do(req *http.Request, out any) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("read response: %w", err)

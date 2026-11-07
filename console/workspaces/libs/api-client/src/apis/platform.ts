@@ -17,7 +17,7 @@ import type {
   TokenUsagePoint,
   User,
 } from "@workspacenow/types";
-import { httpGET, httpPOST, httpPUT, SERVICE_BASE, type GetToken } from "../utils/http";
+import { httpGET, httpPOST, httpPUT, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export type UserWithRoles = User & { roles: string[] };
 
@@ -37,10 +37,10 @@ export async function listResources(getToken: GetToken) {
   return httpGET<ListResponse<ResourceSummary>>(`${SERVICE_BASE}/resources`, { token: await getToken() });
 }
 
-export async function listEvents(query: { limit?: number }, getToken: GetToken) {
+export async function listEvents(query: { limit?: number; offset?: number }, getToken: GetToken) {
   return httpGET<ListResponse<PlatformEvent>>(`${SERVICE_BASE}/events`, {
     token: await getToken(),
-    searchParams: { limit: query.limit?.toString() },
+    searchParams: qs(query),
   });
 }
 

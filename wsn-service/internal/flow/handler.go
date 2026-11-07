@@ -83,15 +83,22 @@ func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request, id string
 
 func (h *Handler) ListApprovals(w http.ResponseWriter, r *http.Request, params oapi.ListApprovalsParams) {
 	status := ""
+	limit, offset := 50, 0
 	if params.Status != nil {
 		status = string(*params.Status)
 	}
-	out, err := h.svc.Approvals(r.Context(), status)
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	out, total, err := h.svc.Approvals(r.Context(), status, limit, offset)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
 	}
-	httpx.List(w, out)
+	httpx.ListTotal(w, out, total)
 }
 
 func (h *Handler) DecideApproval(w http.ResponseWriter, r *http.Request, id string) {

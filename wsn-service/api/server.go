@@ -65,10 +65,10 @@ type Server struct {
 	*obsAPI
 	*aiAPI
 	*flowAPI
-	fallback
+	fallback //nolint:unused // safety net: promotes the generated 501 stubs in unimplemented_gen.go when an operation has no module yet
 }
 
-type fallback struct{ unimplemented }
+type fallback struct{ unimplemented } //nolint:unused // see Server.fallback
 
 var _ oapi.ServerInterface = (*Server)(nil)
 
@@ -104,7 +104,7 @@ func noRoute(mux *http.ServeMux, w http.ResponseWriter, r *http.Request) {
 	httpx.Error(w, r, kernel.NotFound("No route for %s %s", r.Method, strings.TrimPrefix(r.URL.Path, BasePath)))
 }
 
-func notImplemented(w http.ResponseWriter, r *http.Request) {
+func notImplemented(w http.ResponseWriter, r *http.Request) { //nolint:unused // called by generated stubs in unimplemented_gen.go
 	httpx.JSON(w, http.StatusNotImplemented, map[string]any{
 		"status": http.StatusNotImplemented, "code": kernel.CodeInvalidState, "message": r.Method + " " + strings.TrimPrefix(r.URL.Path, BasePath) + " is not available yet",
 	})

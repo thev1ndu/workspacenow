@@ -73,6 +73,13 @@ function route(method: string, path: string, handler: Handler, options: { public
 
 const list = <T>(items: T[]) => ({ items, total: items.length });
 
+/** Server-side paging for list endpoints: limit (default 50, max 200) + offset, total kept. */
+const page = <T>(items: T[], query: URLSearchParams) => {
+  const limit = Math.min(Math.max(Number(query.get("limit") ?? 50), 1), 200);
+  const offset = Math.max(Number(query.get("offset") ?? 0), 0);
+  return { items: items.slice(offset, offset + limit), total: items.length };
+};
+
 function find<T extends { id: string }>(items: T[], id: string, label: string): T {
   const item = items.find((i) => i.id === id);
   if (!item) fail(404, "NOT_FOUND", `${label} ${id} not found`);
@@ -275,9 +282,14 @@ route("PATCH", "/entities/:name", ({ platform, ctx, params, body }) => {
   platform.audit(c, "entity.update", `entity/${entity.name}`, "allowed", `Version ${entity.version}`);
   return entity;
 });
-route("GET", "/entities/:name/records", ({ platform, ctx, params }) =>
-  list(platform.invoke<unknown[]>(ctx("studio"), `${params.name}.list`)),
-);
+route("GET", "/entities/:name/records", ({ platform, ctx, params, query }) => {
+  const q = query.get("q")?.toLowerCase();
+  const records = platform.invoke<Record<string, unknown>[]>(ctx("studio"), `${params.name}.list`);
+  return page(
+    q ? records.filter((r) => JSON.stringify(r.values).toLowerCase().includes(q)) : records,
+    query,
+  );
+});
 route("POST", "/entities/:name/records", ({ platform, ctx, params, body }) => {
   if (platform.entity(params.name).scope === "external") fail(409, "INVALID_STATE", "External entities are read-only");
   return platform.invoke(ctx("studio"), `${params.name}.create`, { values: body.values as Record<string, FieldValue> });
@@ -429,10 +441,13 @@ route("POST", "/sidekick/runs", ({ platform, userId, ctx, body }) => {
 });
 route("GET", "/agent-runs", ({ platform, query }) => {
   const agentId = query.get("agentId");
-  return list(
+  const q = query.get("q")?.toLowerCase();
+  return page(
     platform.state.agentRuns
       .filter((r) => !agentId || r.agentId === agentId)
+      .filter((r) => !q || `${r.id} ${r.prompt}`.toLowerCase().includes(q))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+    query,
   );
 });
 route("GET", "/agent-runs/:id", ({ platform, params }) => find(platform.state.agentRuns, params.id, "Agent run"));
@@ -466,10 +481,11 @@ route("GET", "/executions", ({ platform, query }) => {
 route("GET", "/executions/:id", ({ platform, params }) => find(platform.state.executions, params.id, "Execution"));
 route("GET", "/approvals", ({ platform, query }) => {
   const status = query.get("status");
-  return list(
+  return page(
     platform.state.approvals
       .filter((a) => !status || a.status === status)
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
+    query,
   );
 });
 route("POST", "/approvals/:id/decision", ({ platform, userId, params, body }) => {
@@ -480,10 +496,7 @@ route("POST", "/approvals/:id/decision", ({ platform, userId, params, body }) =>
 
 /* Observability and audit */
 
-route("GET", "/events", ({ platform, query }) => {
-  const limit = Number(query.get("limit") ?? 50);
-  return list([...platform.state.events].reverse().slice(0, limit));
-});
+route("GET", "/events", ({ platform, query }) => page([...platform.state.events].reverse(), query));
 route("GET", "/audit", ({ platform, ctx, query }) => {
   const c = ctx("control");
   platform.requirePermission(c, "audit.read", "audit.read", "audit");
@@ -498,9 +511,15 @@ route("GET", "/audit", ({ platform, ctx, query }) => {
       .filter((a) => !q || `${a.action} ${a.resource} ${a.actor.name} ${a.detail ?? ""}`.toLowerCase().includes(q)),
   );
 });
-route("GET", "/traces", ({ platform, ctx }) => {
+route("GET", "/traces", ({ platform, ctx, query }) => {
   platform.requirePermission(ctx("control"), "audit.read", "audit.read", "traces");
-  return list(traceSummaries(platform));
+  const q = query.get("q")?.toLowerCase();
+  return page(
+    q
+      ? traceSummaries(platform).filter((t) => `${t.traceId} ${t.title} ${t.actors.join(" ")}`.toLowerCase().includes(q))
+      : traceSummaries(platform),
+    query,
+  );
 });
 route("GET", "/traces/:id", ({ platform, ctx, params }): Trace => {
   platform.requirePermission(ctx("control"), "audit.read", "audit.read", `trace/${params.id}`);

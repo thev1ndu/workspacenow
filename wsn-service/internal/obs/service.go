@@ -29,9 +29,9 @@ const (
 
 // Service reads the observability data: Postgres for events and audit, wsn-observer for spans.
 type Service interface {
-	Events(ctx context.Context, limit int) ([]oapi.PlatformEvent, error)
+	Events(ctx context.Context, limit, offset int) ([]oapi.PlatformEvent, int, error)
 	Audit(ctx context.Context, params oapi.ListAuditParams) ([]oapi.AuditRecord, error)
-	Traces(ctx context.Context) ([]oapi.TraceSummary, error)
+	Traces(ctx context.Context, q string, limit, offset int) ([]oapi.TraceSummary, int, error)
 	Trace(ctx context.Context, traceID string) (*oapi.Trace, error)
 	Health(ctx context.Context) ([]oapi.HealthSignal, error)
 	Overview(ctx context.Context) (*oapi.OverviewStats, error)
@@ -77,19 +77,23 @@ func NewService(d Deps) Service {
 	}
 }
 
-func (s *service) Events(ctx context.Context, limit int) ([]oapi.PlatformEvent, error) {
+func (s *service) Events(ctx context.Context, limit, offset int) ([]oapi.PlatformEvent, int, error) {
 	if limit < 1 || limit > eventsLimitMax {
 		limit = 50
 	}
+	var total int64
+	if err := s.db.WithContext(ctx).Model(&models.Event{}).Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count events: %w", err)
+	}
 	var rows []models.Event
-	if err := s.db.WithContext(ctx).Order("seq desc").Limit(limit).Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("list events: %w", err)
+	if err := s.db.WithContext(ctx).Order("seq desc").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+		return nil, 0, fmt.Errorf("list events: %w", err)
 	}
 	out := make([]oapi.PlatformEvent, 0, len(rows))
 	for _, e := range rows {
 		out = append(out, toEvent(e))
 	}
-	return out, nil
+	return out, int(total), nil
 }
 
 func toEvent(e models.Event) oapi.PlatformEvent {
@@ -148,12 +152,38 @@ func (s *service) spanCounts(ctx context.Context) map[string]int {
 	return out
 }
 
-func (s *service) Traces(ctx context.Context) ([]oapi.TraceSummary, error) {
-	var rows []models.AuditRecord
-	if err := s.db.WithContext(ctx).Order("seq desc").Limit(tracesScanMax).Find(&rows).Error; err != nil {
-		return nil, fmt.Errorf("list audit for traces: %w", err)
+func (s *service) Traces(ctx context.Context, q string, limit, offset int) ([]oapi.TraceSummary, int, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
 	}
-	return summarize(rows, s.spanCounts(ctx)), nil
+	db := s.db.WithContext(ctx).Model(&models.AuditRecord{})
+	if q != "" {
+		like := "%" + q + "%"
+		db = db.Where("trace_id ILIKE ? OR action ILIKE ? OR resource ILIKE ? OR actor::text ILIKE ?", like, like, like, like)
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count audit for traces: %w", err)
+	}
+	var rows []models.AuditRecord
+	listQ := s.db.WithContext(ctx).Order("seq desc").Limit(tracesScanMax)
+	if q != "" {
+		like := "%" + q + "%"
+		listQ = listQ.Where("trace_id ILIKE ? OR action ILIKE ? OR resource ILIKE ? OR actor::text ILIKE ?", like, like, like, like)
+	}
+	if err := listQ.Find(&rows).Error; err != nil {
+		return nil, 0, fmt.Errorf("list audit for traces: %w", err)
+	}
+	sums := summarize(rows, s.spanCounts(ctx))
+	total = int64(len(sums))
+	if offset >= len(sums) {
+		return []oapi.TraceSummary{}, int(total), nil
+	}
+	end := len(sums)
+	if offset+limit < end {
+		end = offset + limit
+	}
+	return sums[offset:end], int(total), nil
 }
 
 // summarize groups newest-first audit rows into per-trace summaries, keeping first-seen order.
@@ -330,7 +360,7 @@ func (s *service) pingAI(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}

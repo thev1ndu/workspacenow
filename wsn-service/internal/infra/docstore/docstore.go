@@ -100,6 +100,35 @@ func (c *Collection[T]) Where(ctx context.Context, cond string, args ...any) ([]
 	return out, nil
 }
 
+// Page returns one page of matching documents, newest first (seq desc), plus the total match count.
+func (c *Collection[T]) Page(ctx context.Context, cond string, limit, offset int, args ...any) ([]T, int64, error) {
+	countQ := c.q(ctx)
+	if cond != "" {
+		countQ = countQ.Where(cond, args...)
+	}
+	var total int64
+	if err := countQ.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count %s: %w", c.table, err)
+	}
+	q := c.q(ctx).Order("seq desc").Limit(limit).Offset(offset)
+	if cond != "" {
+		q = q.Where(cond, args...)
+	}
+	var rows []row
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, 0, fmt.Errorf("page %s: %w", c.table, err)
+	}
+	out := make([]T, 0, len(rows))
+	for _, r := range rows {
+		v, err := decode[T](r.Doc)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, *v)
+	}
+	return out, total, nil
+}
+
 // Count returns how many documents match a condition ("" counts all).
 func (c *Collection[T]) Count(ctx context.Context, cond string, args ...any) (int64, error) {
 	q := c.q(ctx)

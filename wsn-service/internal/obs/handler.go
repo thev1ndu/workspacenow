@@ -23,11 +23,19 @@ func NewHandler(svc Service, auditor kernel.Auditor) *Handler {
 }
 
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request, params oapi.ListEventsParams) {
-	limit := 50
+	limit, offset := 50, 0
 	if params.Limit != nil {
 		limit = *params.Limit
 	}
-	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.PlatformEvent, error) { return h.svc.Events(ctx, limit) })
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	events, total, err := h.svc.Events(r.Context(), limit, offset)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, events, total)
 }
 
 func (h *Handler) ListAudit(w http.ResponseWriter, r *http.Request, params oapi.ListAuditParams) {
@@ -39,13 +47,29 @@ func (h *Handler) ListAudit(w http.ResponseWriter, r *http.Request, params oapi.
 	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.AuditRecord, error) { return h.svc.Audit(ctx, params) })
 }
 
-func (h *Handler) ListTraces(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListTraces(w http.ResponseWriter, r *http.Request, params oapi.ListTracesParams) {
 	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
 	if err := kernel.RequirePermission(r.Context(), h.auditor, ec, AuditReadPermission, "trace.list", "trace"); err != nil {
 		httpx.Error(w, r, err)
 		return
 	}
-	httpx.ListFrom(w, r, h.svc.Traces)
+	q := ""
+	limit, offset := 50, 0
+	if params.Q != nil {
+		q = *params.Q
+	}
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	traces, total, err := h.svc.Traces(r.Context(), q, limit, offset)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, traces, total)
 }
 
 func (h *Handler) GetTrace(w http.ResponseWriter, r *http.Request, traceId string) {

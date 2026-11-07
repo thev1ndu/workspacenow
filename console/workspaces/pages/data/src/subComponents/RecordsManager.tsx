@@ -99,21 +99,43 @@ export function RecordsManager({
   records,
   labels,
   extraActions,
+  search,
+  onSearchChange,
+  page,
+  total,
+  pageSize,
+  onPageChange,
 }: {
   entity: Entity;
   records: EntityRecord[];
   labels: Record<string, Record<string, string>>;
   /** Entity-specific actions, such as recording a sale against stock. */
   extraActions?: (record: EntityRecord) => RecordAction[];
+  /** Server-side search + paging, owned by the page; when omitted the manager pages locally. */
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  page?: number;
+  total?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const readOnly = entity.scope === "external";
+  // Local fallback for embedded previews (studio) that do not drive server paging.
+  const local = usePagedSearch(records, 15, (r) => `${r.id} ${recordLabel(r)} ${JSON.stringify(r.values)}`);
+  const searching = search !== undefined;
+  const shown = searching ? records : local.pageItems;
+  const shownSearch = searching ? search! : local.search;
+  const onSearch = searching ? onSearchChange! : local.setSearch;
+  const pg = searching ? page! : local.page;
+  const totalN = searching ? total! : local.total;
+  const ps = searching ? pageSize! : local.pageSize;
+  const onPg = searching ? onPageChange! : local.setPage;
   const updateRecord = useUpdateRecord();
   const deleteRecord = useDeleteRecord();
   const [viewing, setViewing] = useState<EntityRecord | null>(null);
   const [editing, setEditing] = useState<EntityRecord | null>(null);
   const [deleting, setDeleting] = useState<EntityRecord | null>(null);
 
-  const paged = usePagedSearch(records, 15, (r) => `${r.id} ${recordLabel(r)} ${JSON.stringify(r.values)}`);
 
   const actions = (record: EntityRecord): RecordAction[] =>
     readOnly
@@ -128,11 +150,11 @@ export function RecordsManager({
     <>
       <div className="border-b border-separator px-5 py-3">
         <div className="max-w-sm">
-          <TextInput label="Search records" value={paged.search} onChange={paged.setSearch} placeholder="Id, values or label" />
+          <TextInput label="Search records" value={shownSearch} onChange={onSearch} placeholder="Id, values or label" />
         </div>
       </div>
-      <RecordsTable entity={entity} records={paged.pageItems} labels={labels} onOpen={readOnly ? setViewing : setEditing} actions={actions} />
-      <TablePager page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPageChange={paged.setPage} />
+      <RecordsTable entity={entity} records={shown} labels={labels} onOpen={readOnly ? setViewing : setEditing} actions={actions} />
+      <TablePager page={pg} totalPages={Math.max(1, Math.ceil(totalN / ps))} total={totalN} pageSize={ps} onPageChange={onPg} />
 
       {viewing && <RecordViewDialog entity={entity} record={viewing} labels={labels} onClose={() => setViewing(null)} />}
 

@@ -56,7 +56,7 @@ func (b *openBao) Read(ctx context.Context, path string) (map[string]string, err
 	if err != nil {
 		return nil, fmt.Errorf("read secret: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrNotFound
 	}
@@ -104,7 +104,7 @@ func (b *openBao) login(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("openbao login: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("openbao login: status %d", resp.StatusCode)
 	}

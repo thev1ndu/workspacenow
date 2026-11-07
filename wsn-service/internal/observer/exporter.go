@@ -345,7 +345,7 @@ func (e *Exporter) post(ctx context.Context, path string, payload any) {
 		slog.WarnContext(ctx, "observer: export failed", "path", path, "error", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
 		slog.WarnContext(ctx, "observer: export rejected", "path", path, "status", resp.StatusCode)
 	}

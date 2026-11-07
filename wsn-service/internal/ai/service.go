@@ -34,7 +34,7 @@ type Service interface {
 	Agents(ctx context.Context) ([]oapi.Agent, error)
 	Agent(ctx context.Context, id string) (*oapi.Agent, error)
 	UpdateAgent(ctx context.Context, ec kernel.ExecutionContext, id string, body oapi.UpdateAgentJSONRequestBody) (*oapi.Agent, error)
-	Runs(ctx context.Context, agentID string) ([]oapi.AgentRun, error)
+	Runs(ctx context.Context, agentID, q string, limit, offset int) ([]oapi.AgentRun, int, error)
 	Run(ctx context.Context, id string) (*oapi.AgentRun, error)
 	RunAgent(ctx context.Context, caller *kernel.Caller, ec kernel.ExecutionContext, agentID, prompt string) (*oapi.AgentRun, error)
 	RunSidekick(ctx context.Context, caller *kernel.Caller, ec kernel.ExecutionContext, prompt, appID string) (*oapi.AgentRun, error)
@@ -54,6 +54,7 @@ type collection[T any] interface {
 	GetForUpdate(ctx context.Context, id string) (*T, error)
 	List(ctx context.Context) ([]T, error)
 	Where(ctx context.Context, cond string, args ...any) ([]T, error)
+	Page(ctx context.Context, cond string, limit, offset int, args ...any) ([]T, int64, error)
 	Put(ctx context.Context, v *T) error
 }
 
@@ -190,28 +191,37 @@ func (s *service) UpdateAgent(ctx context.Context, ec kernel.ExecutionContext, i
 	return &out, nil
 }
 
-func (s *service) Runs(ctx context.Context, agentID string) ([]oapi.AgentRun, error) {
-	var docs []RunDoc
-	var err error
+func (s *service) Runs(ctx context.Context, agentID, q string, limit, offset int) ([]oapi.AgentRun, int, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	cond, args := "", []any{}
 	if agentID != "" {
-		docs, err = s.runs.Where(ctx, "doc->>'agentId' = ?", agentID)
-	} else {
-		docs, err = s.runs.List(ctx)
+		cond = "doc->>'agentId' = ?"
+		args = append(args, agentID)
 	}
+	if q != "" {
+		like := "%" + q + "%"
+		if cond != "" {
+			cond += " AND (doc->>'prompt' ILIKE ? OR id ILIKE ?)"
+		} else {
+			cond = "(doc->>'prompt' ILIKE ? OR id ILIKE ?)"
+		}
+		args = append(args, like, like)
+	}
+	docs, total, err := s.runs.Page(ctx, cond, limit, offset, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	slices.SortFunc(docs, func(a, b RunDoc) int { return b.StartedAt.Compare(a.StartedAt) })
 	out := make([]oapi.AgentRun, 0, len(docs))
 	for i := range docs {
-		d := &docs[i]
-		run, err := d.toOapi()
+		run, err := docs[i].toOapi()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out = append(out, run)
 	}
-	return out, nil
+	return out, int(total), nil
 }
 
 func (s *service) Run(ctx context.Context, id string) (*oapi.AgentRun, error) {

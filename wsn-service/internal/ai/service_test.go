@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -18,9 +19,10 @@ import (
 
 // memCollection is an in-memory collection fake.
 type memCollection[T any] struct {
-	mu   sync.Mutex
-	data map[string]*T
-	key  func(*T) string
+	mu    sync.Mutex
+	data  map[string]*T
+	order []string // insertion sequence, mirrors the real table's seq
+	key   func(*T) string
 }
 
 func newMemCollection[T any](key func(*T) string) *memCollection[T] {
@@ -70,10 +72,31 @@ func (m *memCollection[T]) Where(_ context.Context, cond string, args ...any) ([
 	return out, nil
 }
 
+func (m *memCollection[T]) Page(_ context.Context, cond string, limit, offset int, args ...any) ([]T, int64, error) {
+	all, _ := m.Where(context.Background(), cond, args...)
+	// the real collection pages by seq desc (newest first); mirror that here
+	slices.SortFunc(all, func(a, b T) int {
+		return slices.Index(m.order, m.key(&b)) - slices.Index(m.order, m.key(&a))
+	})
+	total := int64(len(all))
+	if offset >= len(all) {
+		return []T{}, total, nil
+	}
+	end := len(all)
+	if limit > 0 && offset+limit < end {
+		end = offset + limit
+	}
+	return all[offset:end], total, nil
+}
+
 func (m *memCollection[T]) Put(_ context.Context, v *T) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.data[m.key(v)] = v
+	k := m.key(v)
+	if _, ok := m.data[k]; !ok {
+		m.order = append(m.order, k)
+	}
+	m.data[k] = v
 	return nil
 }
 
@@ -418,11 +441,11 @@ func TestRunsListAndGet(t *testing.T) {
 	ctx := context.Background()
 	runs.Put(ctx, &RunDoc{ID: "run-1", AgentID: "agent-proc", Status: "completed", Trigger: "manual", TraceID: "t1", StartedAt: time.Now().Add(-time.Hour)})
 	runs.Put(ctx, &RunDoc{ID: "run-2", AgentID: "agent-proc", Status: "failed", Trigger: "workflow", TraceID: "t2", StartedAt: time.Now()})
-	all, err := s.Runs(ctx, "")
-	if err != nil || len(all) != 2 || all[0].Id != "run-2" {
-		t.Fatalf("newest first: %v %v", all, err)
+	all, total, err := s.Runs(ctx, "", "", 50, 0)
+	if err != nil || len(all) != 2 || total != 2 || all[0].Id != "run-2" {
+		t.Fatalf("newest first: %v total=%d %v", all, total, err)
 	}
-	one, err := s.Runs(ctx, "agent-proc")
+	one, _, err := s.Runs(ctx, "agent-proc", "", 50, 0)
 	if err != nil || len(one) != 2 {
 		t.Fatalf("filter: %v %v", one, err)
 	}

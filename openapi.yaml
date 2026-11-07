@@ -427,7 +427,11 @@ paths:
       tags: [Data]
       operationId: listRecords
       summary: Records of an entity
-      description: "Runs business operation `<Entity>.list`; requires the entity's `readPermission`."
+      description: "Runs business operation `<Entity>.list`; requires the entity's `readPermission`. `q` matches any value."
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecordList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -729,6 +733,10 @@ paths:
       summary: Agent runs, newest first
       parameters:
         - { name: agentId, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string }, description: Matches run id or prompt }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
+
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AgentRunList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -881,6 +889,9 @@ paths:
       summary: Approvals, newest first
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected] } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
+
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApprovalList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -917,7 +928,8 @@ paths:
       operationId: listEvents
       summary: Platform events, newest first
       parameters:
-        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlatformEventList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -958,7 +970,11 @@ paths:
       tags: [Observability]
       operationId: listTraces
       summary: Traces built from audit records, newest first
-      description: "Requires `audit.read`."
+      description: "Requires `audit.read`. `q` matches trace id, title or actor."
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TraceSummaryList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }

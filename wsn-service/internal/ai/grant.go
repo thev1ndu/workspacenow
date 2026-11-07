@@ -13,8 +13,8 @@ import (
 
 // Errors the grant check reports to the ai-service as an ErrorBody.
 var (
-	ErrGrantMalformed = errors.New("The run grant is not valid")
-	ErrGrantExpired   = errors.New("The run grant has expired")
+	ErrGrantMalformed = errors.New("the run grant is not valid")
+	ErrGrantExpired   = errors.New("the run grant has expired")
 )
 
 // Grant is everything the ai-service may do for one agent run. It travels as one

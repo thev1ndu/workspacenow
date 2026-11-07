@@ -1,1 +1,1 @@
-export { AuthProvider, useAuthHooks, type AuthUser } from "./AuthProvider";
+export { AuthProvider, completeOidcLogin, useAuthHooks, type AuthUser } from "./AuthProvider";

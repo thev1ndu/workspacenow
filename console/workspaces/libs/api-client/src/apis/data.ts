@@ -8,7 +8,7 @@ import type {
   ListResponse,
   OperationResult,
 } from "@workspacenow/types";
-import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, SERVICE_BASE, type GetToken } from "../utils/http";
+import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listEntities(getToken: GetToken) {
   return httpGET<ListResponse<Entity>>(`${SERVICE_BASE}/entities`, { token: await getToken() });
@@ -34,9 +34,14 @@ export async function updateEntity(
   return httpPATCH<Entity>(`${SERVICE_BASE}/entities/${enc(params.entityName)}`, { token: await getToken(), body });
 }
 
-export async function listRecords(params: { entityName: string }, getToken: GetToken) {
-  return httpGET<ListResponse<EntityRecord>>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/records`, {
+export async function listRecords(
+  params: { entityName: string; q?: string; limit?: number; offset?: number },
+  getToken: GetToken,
+) {
+  const { entityName, ...query } = params;
+  return httpGET<ListResponse<EntityRecord>>(`${SERVICE_BASE}/entities/${enc(entityName)}/records`, {
     token: await getToken(),
+    searchParams: qs(query),
   });
 }
 

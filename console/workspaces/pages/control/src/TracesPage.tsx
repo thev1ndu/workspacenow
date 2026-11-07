@@ -1,17 +1,22 @@
 import { Chip, Table } from "@heroui/react";
 import { useListTraces } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { NoDataFound, PageLayout, QueryState, SectionCard, TablePager, TextInput, TextLink, formatRelative, usePagedSearch } from "@workspacenow/views";
+import { useState } from "react";
+import { NoDataFound, PageLayout, QueryState, SectionCard, TablePager, TextInput, TextLink, formatRelative, useDebouncedValue } from "@workspacenow/views";
 import { formatSpan } from "./utils";
 
+const PAGE_SIZE = 15;
+
 export function TracesPage() {
-  const traces = useListTraces();
-  const paged = usePagedSearch(traces.data?.items, 15, (t) => [t.traceId, t.title, t.actors.join(" ")].join(" "));
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const q = useDebouncedValue(search.trim());
+  const traces = useListTraces({ q: q || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
   return (
     <PageLayout title="Traces" description="One trace follows a request across Studio, APIs, MCP tools, agents and workflows.">
       <div className="grid gap-5">
         <div className="max-w-sm">
-          <TextInput label="Search traces" value={paged.search} onChange={paged.setSearch} placeholder="Trace id, title or actor" />
+          <TextInput label="Search traces" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Trace id, title or actor" />
         </div>
         <SectionCard flush>
           <QueryState query={traces}>
@@ -31,7 +36,7 @@ export function TracesPage() {
                       <Table.Column>Duration</Table.Column>
                     </Table.Header>
                     <Table.Body>
-                      {paged.pageItems.map((trace) => (
+                      {data.items.map((trace) => (
                         <Table.Row key={trace.traceId} id={trace.traceId}>
                           <Table.Cell>
                             <TextLink to={buildPath(routes.control.trace, { traceId: trace.traceId })}>{trace.title}</TextLink>
@@ -67,7 +72,7 @@ export function TracesPage() {
             )
           }
         </QueryState>
-        <TablePager page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPageChange={paged.setPage} />
+        <TablePager page={page} totalPages={Math.max(1, Math.ceil((traces.data?.total ?? 0) / PAGE_SIZE))} total={traces.data?.total ?? 0} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </SectionCard>
       </div>
     </PageLayout>

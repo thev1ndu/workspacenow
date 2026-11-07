@@ -168,7 +168,7 @@ func (v *jwtVerifier) refresh(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetch JWKS: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("fetch JWKS: status %d", resp.StatusCode)
 	}
@@ -224,7 +224,12 @@ func (k jwk) publicKey() (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
+		size := (curve.Params().BitSize + 7) / 8
+		point := make([]byte, 1+2*size)
+		point[0] = 0x04
+		x.FillBytes(point[1 : 1+size])
+		y.FillBytes(point[1+size:])
+		return ecdsa.ParseUncompressedPublicKey(curve, point)
 	}
 	return nil, fmt.Errorf("unsupported key type %s", k.Kty)
 }

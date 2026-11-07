@@ -99,7 +99,7 @@ func (h *Hub) StreamEvents(w http.ResponseWriter, r *http.Request, params oapi.S
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "retry: %d\n\n", retryDelay)
+	_, _ = fmt.Fprintf(w, "retry: %d\n\n", retryDelay)
 
 	visible := h.visibility(r.Context(), caller)
 	if params.LastEventID != nil && *params.LastEventID != "" {
@@ -120,7 +120,7 @@ func (h *Hub) StreamEvents(w http.ResponseWriter, r *http.Request, params oapi.S
 		case <-r.Context().Done():
 			return
 		case <-tick.C:
-			fmt.Fprint(w, ": keep-alive\n\n")
+			_, _ = fmt.Fprint(w, ": keep-alive\n\n")
 		case e := <-events:
 			if !visible(e) {
 				continue
@@ -138,7 +138,7 @@ func write(w http.ResponseWriter, e kernel.Event) {
 	if err != nil {
 		return
 	}
-	fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", e.ID, e.Type, b)
+	_, _ = fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", e.ID, e.Type, b)
 }
 
 // visibility hides events about an entity from callers without its read permission.

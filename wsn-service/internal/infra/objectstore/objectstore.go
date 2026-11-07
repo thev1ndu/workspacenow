@@ -41,13 +41,13 @@ func Open(ctx context.Context, cfg config.S3Config) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("check bucket %s: %w", cfg.Bucket, err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		resp, err = s.do(ctx, http.MethodPut, "/"+cfg.Bucket, "", nil)
 		if err != nil {
 			return nil, fmt.Errorf("create bucket %s: %w", cfg.Bucket, err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode >= 300 {
 			return nil, fmt.Errorf("create bucket %s: %s", cfg.Bucket, status(resp))
 		}
@@ -62,7 +62,7 @@ func (s *s3Store) Put(ctx context.Context, key, contentType string, body []byte)
 	if err != nil {
 		return fmt.Errorf("put %s: %w", key, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("put %s: %s", key, status(resp))
 	}
@@ -74,7 +74,7 @@ func (s *s3Store) Get(ctx context.Context, key string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get %s: %w", key, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("get %s: %s", key, status(resp))
 	}

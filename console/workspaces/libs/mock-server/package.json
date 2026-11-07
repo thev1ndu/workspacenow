@@ -13,19 +13,21 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "test": "vitest run",
-    "test-watch": "vitest"
+    "test-watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@workspacenow/types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
-    "vite": "7.1.7",
+    "@types/node": "24.6.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.1.9",
-    "@types/node": "24.6.0",
-    "eslint": "9.36.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "@workspacenow/eslint-config": "workspace:*",
+    "eslint": "9.36.0",
+    "typescript": "5.9.3",
+    "vite": "7.1.7",
     "vitest": "3.2.4"
   }
 }

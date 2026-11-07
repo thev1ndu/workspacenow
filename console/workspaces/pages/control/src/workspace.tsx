@@ -2,6 +2,7 @@ import { ShieldCheck } from "@workspacenow/icons";
 import { routes } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
 import { AccessPage } from "./AccessPage";
+import { AlertsPage } from "./AlertsPage";
 import { AuditPage } from "./AuditPage";
 import { ControlOverview } from "./ControlOverview";
 import { EnvironmentsPage } from "./EnvironmentsPage";
@@ -22,6 +23,7 @@ export const controlWorkspace: WorkspaceModule = {
     { label: "Identity and access", href: routes.control.access },
     { label: "Environments", href: routes.control.environments },
     { label: "Audit log", href: routes.control.audit },
+    { label: "Alerts", href: routes.control.alerts },
     { label: "Traces", href: routes.control.traces },
     { label: "Settings", href: routes.control.settings },
   ],
@@ -31,6 +33,7 @@ export const controlWorkspace: WorkspaceModule = {
     { path: "access", element: <AccessPage /> },
     { path: "environments", element: <EnvironmentsPage /> },
     { path: "audit", element: <AuditPage /> },
+    { path: "alerts", element: <AlertsPage /> },
     { path: "traces", element: <TracesPage /> },
     { path: "traces/:traceId", element: <TraceDetailPage /> },
     { path: "settings", element: <SettingsPage /> },

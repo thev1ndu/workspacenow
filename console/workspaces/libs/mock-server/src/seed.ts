@@ -605,14 +605,20 @@ export function createSeedState(at: Date): PlatformState {
     audit: [],
     views: [],
     history: [],
-    webhooks: [],
+    webhooks: [
+      { id: "wh-alerts", name: "Ops Slack channel", url: "https://hooks.example.com/ops", events: ["Alert.Fired", "Stock.LowStockReached"], secret: "seeded-hmac", active: true, createdAt: day(-20), updatedAt: day(-20) },
+    ],
     webhookDeliveries: [],
     apiVersions: [],
     apiKeys: [],
-    alertRules: [],
-    alertFires: [],
-    slos: [],
-    backups: [],
+    alertRules: [
+      { id: "alr-denied-approvals", name: "Denied approvals", source: "audit", action: "approval.decision", outcome: "denied", threshold: 1, windowMinutes: 1440, webhookId: "wh-alerts", active: true, createdAt: day(-20), updatedAt: day(-1) },
+    ],
+    alertFires: [
+      { id: "fire-1", ruleId: "alr-denied-approvals", firedAt: day(-1), count: 2, status: "firing", createdAt: day(-1) },
+    ],
+    slos: [{ id: "slo-checkout", operation: "inventory.checkout", targetSuccess: 0.999, targetP95Ms: 500, windowMinutes: 10080, createdAt: day(-20) }],
+    backups: [{ id: "bak-1", startedAt: day(-1), finishedAt: day(-1), sizeBytes: 18_350_000, s3Key: "backups/2026-11-06T02-00-00Z.dump", status: "done" }],
     pins: {
       "u-amaya": ["app-inventory", "app-procurement"],
       "u-nimal": ["app-inventory"],

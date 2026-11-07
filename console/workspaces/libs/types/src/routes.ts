@@ -52,6 +52,7 @@ export const routes = {
     access: "/control/access",
     environments: "/control/environments",
     audit: "/control/audit",
+    alerts: "/control/alerts",
     traces: "/control/traces",
     trace: "/control/traces/:traceId",
     settings: "/control/settings",

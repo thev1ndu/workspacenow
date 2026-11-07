@@ -90,8 +90,8 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ Health (`/health` checks Postgres, Valkey, NATS, observer, ai-service)
 - ✅ OTLP export from wsn-service and wsn-ai-service to **wsn-observer**: per-request spans, request metrics, all logs; shared `X-Trace-Id`
 - ✅ wsn-observer: OTLP ingest (traces/logs/metrics) + GET and POST query APIs, stored as append-only JSONL WAL segment files (no DB, no in-memory payload) with byte retention; Dockerfile, CI, Flux + PVC
-- ✅ Console control workspace: overview, organization, access (roles/mappings), audit, traces + trace detail, environments, settings
-- ✅ **Alerting on audit/event patterns**: `/alerts` CRUD (source audit|event, action, outcome, threshold, window, webhook), fires + ack, evaluator in the server role fires once per window crossing, calls the webhook (signed) and emits `Alert.Fired`
+- ✅ Console control workspace: overview, organization, access (roles/mappings), audit, traces + trace detail, environments, settings, **alerts** (rules CRUD incl. SLO burn-rate source, fires + ack, SLO and backup tables)
+- ✅ **Alerting on audit/event patterns and SLO burn rates**: `/alerts` CRUD (source audit|event|slo, action, outcome, threshold, window, webhook), fires + ack, evaluator in the server role fires once per window crossing, calls the webhook (signed) and emits `Alert.Fired`; console control workspace has an Alerts page (rules, fires, SLOs, backups)
 - ✅ **SLOs per business operation**: `/slos` CRUD + `/slos/{id}/status` — per-minute Valkey counters recorded by an engine OnInvoke hook; success rate + histogram p95 vs targets, `breached` flag
 - ✅ **Status page**: public `GET /status` (no auth) — healthy/degraded/down rollup, version, uptime, components
 - ✅ **Backup/DR**: `-backup` role pg_dumps to S3 (`backups/`) and records it (`GET /admin/backups`); Flux `backup-cronjob.yaml` nightly; PITR via CloudNativePG WAL archiving (infrastructure layer); observer **WAL segment replication** to a standby (`WSN_OBSERVER_REPLICA_URL` + `POST /v1/segments` ingest, idempotent import)

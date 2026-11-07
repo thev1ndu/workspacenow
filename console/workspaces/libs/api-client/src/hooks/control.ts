@@ -1,6 +1,7 @@
 import { useAuthHooks } from "@workspacenow/auth";
 import type { AlertRuleInput, SloInput } from "@workspacenow/types";
 import * as api from "../apis/control";
+import { listWebhooks } from "../apis/connect";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
 
 export function useListAlertRules() {
@@ -64,5 +65,5 @@ export function useCreateSLO() {
 
 export function useListWebhooks() {
   const { getToken } = useAuthHooks();
-  return useApiQuery({ queryKey: ["webhooks"], queryFn: () => api.listWebhooks(getToken) });
+  return useApiQuery({ queryKey: ["webhooks"], queryFn: () => listWebhooks(getToken) });
 }

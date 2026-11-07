@@ -613,7 +613,7 @@ export interface PlatformEvent {
   time: IsoDate;
 }
 
-export type EntryPoint = "studio" | "api" | "mcp" | "agent" | "workflow" | "control" | "system";
+export type EntryPoint = "studio" | "api" | "mcp" | "agent" | "workflow" | "control" | "connect" | "system";
 
 export interface AuditRecord {
   id: Id;

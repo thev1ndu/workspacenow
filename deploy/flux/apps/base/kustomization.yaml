@@ -10,6 +10,7 @@ resources:
   - wsn-observer.yaml
   - console.yaml
   - network.yaml
+  - backup-cronjob.yaml
 images:
   - name: wsn-service
     newName: ghcr.io/thev1ndu/wsn-service
@@ -19,4 +20,3 @@ images:
     newName: ghcr.io/thev1ndu/wsn-observer
   - name: console
     newName: ghcr.io/thev1ndu/console
-  - backup-cronjob.yaml

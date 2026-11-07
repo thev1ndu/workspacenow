@@ -163,8 +163,8 @@ services:
       WSN_OBSERVER_URL: http://wsn-observer:9098
       WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
     ports: ["8090:8090"]
-    depends_on:
-      wsn-service: { condition: service_started }
+    # No depends_on wsn-service: wsn-service already waits for this service, and a back-edge
+    # would be a dependency cycle. The AI service calls back to wsn-service's internal API.
 
   console:
     profiles: ["app"]

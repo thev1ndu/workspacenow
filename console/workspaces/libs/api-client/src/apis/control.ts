@@ -1,4 +1,4 @@
-import type { AlertFire, AlertRule, AlertRuleInput, ListResponse, Slo, SloInput, SloStatus, Webhook } from "@workspacenow/types";
+import type { AlertFire, AlertRule, AlertRuleInput, ListResponse, Slo, SloInput, SloStatus } from "@workspacenow/types";
 import { enc, httpDELETE, httpGET, httpPOST, httpPUT, SERVICE_BASE, type GetToken } from "../utils/http";
 
 export async function listAlertRules(getToken: GetToken) {
@@ -37,6 +37,3 @@ export async function getSLOStatus(params: { sloId: string }, getToken: GetToken
   return httpGET<SloStatus>(`${SERVICE_BASE}/slos/${enc(params.sloId)}/status`, { token: await getToken() });
 }
 
-export async function listWebhooks(getToken: GetToken) {
-  return httpGET<ListResponse<Webhook>>(`${SERVICE_BASE}/webhooks`, { token: await getToken() });
-}

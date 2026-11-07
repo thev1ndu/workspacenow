@@ -80,7 +80,7 @@ export async function requestRaw(method: string, url: string, options: RequestOp
         ...(options.rawBody ? { "Content-Type": "application/octet-stream" } : {}),
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       },
-      body: options.rawBody,
+      body: options.rawBody as BodyInit | undefined,
     });
     const bytes = new Uint8Array(await response.arrayBuffer());
     const text = new TextDecoder().decode(bytes);

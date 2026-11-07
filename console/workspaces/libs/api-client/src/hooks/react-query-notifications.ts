@@ -10,11 +10,15 @@ import { useSnackBar, type Severity } from "@workspacenow/views";
 import { ApiError } from "@workspacenow/types";
 
 export type MutationAction =
+  | "acknowledge"
   | "apply"
   | "approve"
   | "create"
+  | "define"
+  | "delete"
   | "deploy"
   | "invoke"
+  | "read"
   | "register"
   | "reject"
   | "release"
@@ -24,9 +28,13 @@ export type MutationAction =
   | "update";
 
 const SUCCESS_VERB_MAP: Record<MutationAction, string> = {
+  acknowledge: "acknowledged",
   apply: "applied",
   approve: "approved",
   create: "created",
+  define: "defined",
+  delete: "deleted",
+  read: "read",
   deploy: "deployed",
   invoke: "completed",
   register: "registered",

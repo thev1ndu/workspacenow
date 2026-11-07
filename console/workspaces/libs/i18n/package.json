@@ -1,0 +1,22 @@
+{
+  "name": "@workspacenow/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WorkspaceNow localization: dictionaries, provider, useT hook",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14"
+  }
+}

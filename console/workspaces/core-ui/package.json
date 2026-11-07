@@ -27,6 +27,7 @@
     "@workspacenow/control": "workspace:*",
     "@workspacenow/data": "workspace:*",
     "@workspacenow/flow": "workspace:*",
+    "@workspacenow/i18n": "workspace:*",
     "@workspacenow/icons": "workspace:*",
     "@workspacenow/overview": "workspace:*",
     "@workspacenow/studio": "workspace:*",

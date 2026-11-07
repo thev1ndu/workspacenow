@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useListApprovals } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
 import { LinkButton, type WorkspaceModule } from "@workspacenow/views";
+import { useT } from "@workspacenow/i18n";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { activeItem } from "./Sidebar";
 
@@ -20,6 +21,7 @@ export function Topbar({
   sidekick?: { open: boolean; onToggle: () => void };
 }) {
   const { pathname } = useLocation();
+  const t = useT();
   const { data: approvals } = useListApprovals({ status: "pending" });
   const pending = approvals?.total ?? 0;
   const page = active ? activeItem(pathname, active.navigation) : undefined;
@@ -31,31 +33,31 @@ export function Topbar({
       </Button>
 
       <Breadcrumbs className="min-w-0 flex-1 text-sm">
-        <Breadcrumbs.Item href="/">Home</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/">{t("Home")}</Breadcrumbs.Item>
         {active && <Breadcrumbs.Item href={active.basePath}>{active.title}</Breadcrumbs.Item>}
         {active && page && !page.end && <Breadcrumbs.Item href={page.href}>{page.label}</Breadcrumbs.Item>}
       </Breadcrumbs>
 
       <Button variant="outline" size="sm" className="hidden w-64 justify-start font-normal text-muted md:flex" onPress={onOpenSearch}>
         <Magnifier className="size-4" aria-hidden />
-        <span className="flex-1 text-left">Search</span>
+        <span className="flex-1 text-left">{t("Search")}</span>
         <Kbd>
           <Kbd.Abbr keyValue="command" />K
         </Kbd>
       </Button>
-      <Button isIconOnly variant="ghost" size="sm" className="md:hidden" aria-label="Search" onPress={onOpenSearch}>
+      <Button isIconOnly variant="ghost" size="sm" className="md:hidden" aria-label={t("Search")} onPress={onOpenSearch}>
         <Magnifier className="size-4" />
       </Button>
 
       <LinkButton size="sm" variant="ghost" href={routes.catalog}>
         <DotsNine className="size-4" aria-hidden />
-        <span className="sr-only sm:not-sr-only">Applications</span>
+        <span className="sr-only sm:not-sr-only">{t("Applications")}</span>
       </LinkButton>
 
       {sidekick && (
         <Button size="sm" variant={sidekick.open ? "secondary" : "ghost"} aria-pressed={sidekick.open} onPress={sidekick.onToggle}>
           <SparklesFill className="size-4 text-accent" aria-hidden />
-          Sidekick
+          {t("Sidekick")}
         </Button>
       )}
 

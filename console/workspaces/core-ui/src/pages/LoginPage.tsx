@@ -2,6 +2,7 @@ import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { ShieldCheck } from "@workspacenow/icons";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
+import { useT } from "@workspacenow/i18n";
 import { useListPersonas } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
 import { Brand } from "../Layout/Brand";
@@ -17,6 +18,7 @@ export function initials(name: string): string {
 
 /** Stand-in for the redirect to the customer's OIDC provider: pick who to sign in as. */
 export function LoginPage() {
+  const t = useT();
   const { isAuthenticated, signIn } = useAuthHooks();
   const oidcMode = globalConfig.authMode === "oidc" && !!globalConfig.oidc;
   const { data, isLoading } = useListPersonas();
@@ -32,7 +34,7 @@ export function LoginPage() {
         <div className="mb-8 flex flex-col items-center gap-4 text-center">
           <Brand />
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Sign in to {globalConfig.organizationName}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t("Sign in")} {globalConfig.organizationName}</h1>
             <p className="mt-1 text-sm text-muted">Authentication is handled by your organization's identity provider.</p>
           </div>
         </div>
@@ -41,7 +43,7 @@ export function LoginPage() {
           <div className="mb-6 flex flex-col items-center gap-4">
             <Button size="lg" variant="primary" onPress={() => signIn()}>
               <ShieldCheck className="size-4" aria-hidden />
-              Sign in with your identity provider
+              {t("Sign in with your identity provider")}
             </Button>
           </div>
         ) : (

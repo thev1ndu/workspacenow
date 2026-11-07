@@ -1,6 +1,7 @@
 import { Modal } from "@heroui/react";
 import { Check } from "@workspacenow/icons";
 import { PALETTES, useAppearance, type ColorMode } from "@workspacenow/views";
+import { LOCALES, useLocale, useT } from "@workspacenow/i18n";
 
 const MODES: Array<{ id: ColorMode; label: string }> = [
   { id: "light", label: "Light" },
@@ -11,6 +12,8 @@ const MODES: Array<{ id: ColorMode; label: string }> = [
 /** The viewer's own settings: light, dark or system appearance, and a colour theme. Applied as soon as chosen. */
 export function PreferencesDialog({ onClose }: { onClose: () => void }) {
   const { mode, palette, setMode, setPalette } = useAppearance();
+  const t = useT();
+  const { locale, setLocale } = useLocale();
 
   return (
     <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
@@ -18,11 +21,11 @@ export function PreferencesDialog({ onClose }: { onClose: () => void }) {
         <Modal.Dialog>
           <Modal.CloseTrigger />
           <Modal.Header>
-            <Modal.Heading>Preferences</Modal.Heading>
+            <Modal.Heading>{t("Preferences")}</Modal.Heading>
           </Modal.Header>
           <Modal.Body className="grid gap-6 pb-2">
             <fieldset className="grid gap-2">
-              <legend className="mb-2 text-sm font-medium">Appearance</legend>
+              <legend className="mb-2 text-sm font-medium">{t("Appearance")}</legend>
               <div className="grid grid-cols-3 gap-1 rounded-xl bg-default p-1">
                 {MODES.map((m) => (
                   <label
@@ -32,7 +35,24 @@ export function PreferencesDialog({ onClose }: { onClose: () => void }) {
                     }`}
                   >
                     <input type="radio" name="appearance" value={m.id} checked={mode === m.id} onChange={() => setMode(m.id)} className="sr-only" />
-                    {m.label}
+                    {t(m.label)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="grid gap-2">
+              <legend className="mb-2 text-sm font-medium">{t("Language")}</legend>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-default p-1">
+                {LOCALES.map((l) => (
+                  <label
+                    key={l.id}
+                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-center text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus ${
+                      locale === l.id ? "bg-surface font-medium text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                    }`}
+                  >
+                    <input type="radio" name="locale" value={l.id} checked={locale === l.id} onChange={() => setLocale(l.id)} className="sr-only" />
+                    {l.label}
                   </label>
                 ))}
               </div>

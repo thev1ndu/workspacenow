@@ -1,7 +1,8 @@
 import { useState, type CSSProperties, type KeyboardEvent } from "react";
 import { Drawer } from "@heroui/react";
 import { Outlet, useLocation } from "react-router-dom";
-import { workspaces } from "../workspaces";
+import { workspaces as rawWorkspaces } from "../workspaces";
+import { useT } from "@workspacenow/i18n";
 import { useSession } from "@workspacenow/api-client";
 import { useAppearance } from "@workspacenow/views";
 import { CommandPalette } from "./CommandPalette";
@@ -122,6 +123,13 @@ export function Layout() {
     writeSetting(SIDEKICK_KEY, open);
     setSidekickPreferred(open);
   };
+  const t = useT();
+  const workspaces = rawWorkspaces.map((w) => ({
+    ...w,
+    title: t(w.title),
+    description: t(w.description),
+    navigation: w.navigation.map((n) => ({ ...n, label: t(n.label) })),
+  }));
   const active = workspaces.find((w) => pathname === w.basePath || pathname.startsWith(`${w.basePath}/`));
 
   return (

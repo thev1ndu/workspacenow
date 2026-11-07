@@ -22,6 +22,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 ## 2. Data platform (entities & records)
 - ✅ Entity registry: list/get/create/update with schema validation (`/entities`), incl. `rowFilter` row-level security (`$actor.*` values)
 - ✅ Records CRUD per entity with server-side `q`/`view`/`includeDeleted`/`limit`/`offset`
+- ✅ **File fields (`type: file`)**: records store only a `FileRef` (key/name/size/contentType); upload via `POST .../records/{id}/files/{field}` (≤50 MiB) into object storage (MinIO), download via GET; permission-checked, audited; the AI Architect and the manual plan editor both offer the file field type, and record forms get an upload/download input
 - ✅ Rule enforcement: required fields (422), uniqueness (409), referential checks, read-only entities
 - ✅ **Soft deletes** (`deleted_at`/`deleted_by`) + `POST .../restore`; lists hide deleted unless `includeDeleted=true`
 - ✅ **Record history**: every create/update/delete/restore writes a `record_history` row (actor, field-level diff, snapshot); `GET .../records/{id}/history`
@@ -106,7 +107,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 
 ## 9. Console webapp
 - ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces
-- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 40 tests, coverage gated in CI) when unset
+- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 41 tests, coverage gated in CI) when unset
 - ✅ SSE live updates (above), server-side search + pagination on runs/traces/audit/records, KPI dashboard with deep-linked cards, charts
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container
 - ✅ **Theming beyond default**: `useAppearance` — light/dark/system mode + accent palettes, persisted, applied pre-paint; Preferences dialog

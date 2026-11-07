@@ -93,7 +93,15 @@ export interface Actor {
 
 /* Data */
 
-export type FieldType = "string" | "text" | "number" | "integer" | "boolean" | "date" | "enum" | "reference";
+export type FieldType = "string" | "text" | "number" | "integer" | "boolean" | "date" | "enum" | "reference" | "file";
+
+/** A file field's value: an object-storage reference, never the bytes. */
+export interface FileRef {
+  key: string;
+  name: string;
+  sizeBytes: number;
+  contentType: string;
+}
 
 export interface EntityField {
   name: string;

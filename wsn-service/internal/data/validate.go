@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"slices"
@@ -68,6 +69,13 @@ func validate(ctx context.Context, c checks, e *Entity, values map[string]any, r
 			}
 			if !exists {
 				problems = append(problems, fmt.Sprintf("%s references a missing %s", f.Label, f.Reference))
+			}
+			out[f.Name] = s
+		case FieldFile:
+			s := fmt.Sprint(raw)
+			var ref FileRef
+			if err := json.Unmarshal([]byte(s), &ref); err != nil || ref.Key == "" {
+				problems = append(problems, f.Label+" must be a file reference (upload it first)")
 			}
 			out[f.Name] = s
 		default:

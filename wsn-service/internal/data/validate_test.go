@@ -60,6 +60,27 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		"Category must be one of Grocery, Dairy; Supplier references a missing Supplier", apiErr.Message)
 }
 
+func TestValidateFileField(t *testing.T) {
+	e := &Entity{Name: "Evidence", Fields: []Field{
+		{Name: "title", Label: "Title", Type: FieldString, Required: true},
+		{Name: "attachment", Label: "Attachment", Type: FieldFile},
+	}}
+	c := fakeChecks{}
+	// a proper FileRef passes and is kept verbatim
+	ref := `{"key":"uploads/Evidence/r-1/attachment/f-1-report.pdf","name":"report.pdf","sizeBytes":1024,"contentType":"application/pdf"}`
+	got, err := validate(context.Background(), c, e, map[string]any{"title": "Claim", "attachment": ref}, "")
+	require.NoError(t, err)
+	assert.Equal(t, ref, got["attachment"])
+	// anything that is not a FileRef is rejected
+	_, err = validate(context.Background(), c, e, map[string]any{"title": "Claim", "attachment": "not-json"}, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be a file reference")
+	// optional and empty -> null
+	got, err = validate(context.Background(), c, e, map[string]any{"title": "Claim"}, "")
+	require.NoError(t, err)
+	assert.Nil(t, got["attachment"])
+}
+
 func TestValidateEmptyOptionalIsNull(t *testing.T) {
 	got, err := validate(context.Background(), fakeChecks{}, product, map[string]any{"sku": "A", "name": "B", "unitPrice": ""}, "")
 	require.NoError(t, err)

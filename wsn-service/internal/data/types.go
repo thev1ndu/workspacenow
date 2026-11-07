@@ -12,6 +12,7 @@ const (
 	FieldDate      = "date"
 	FieldEnum      = "enum"
 	FieldReference = "reference"
+	FieldFile      = "file" // value is a FileRef JSON: an object-storage reference, never the bytes
 
 	ScopeApplication  = "application"
 	ScopeOrganization = "organization"

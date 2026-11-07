@@ -241,6 +241,34 @@ func (h *Handler) UpdateRecord(w http.ResponseWriter, r *http.Request, name, id 
 	h.write(w, r, name, "update", &id, http.StatusOK)
 }
 
+// UploadRecordFile answers POST records/{id}/files/{field}: raw bytes in, FileRef on the record out.
+func (h *Handler) UploadRecordFile(w http.ResponseWriter, r *http.Request, name, id, field string, params oapi.UploadRecordFileParams) {
+	fileName := ""
+	if params.Name != nil {
+		fileName = *params.Name
+	}
+	out, err := h.svc.UploadFile(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name, id, field, fileName, r.Body)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, out)
+}
+
+// DownloadRecordFile answers GET records/{id}/files/{field}: streams the stored object.
+func (h *Handler) DownloadRecordFile(w http.ResponseWriter, r *http.Request, name, id, field string) {
+	ref, body, err := h.svc.DownloadFile(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name, id, field)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", ref.ContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", ref.Name))
+	w.Header().Set("Content-Length", fmt.Sprint(ref.SizeBytes))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
 func (h *Handler) DeleteRecord(w http.ResponseWriter, r *http.Request, name, id string) {
 	if err := h.writable(r.Context(), name); err != nil {
 		httpx.Error(w, r, err)

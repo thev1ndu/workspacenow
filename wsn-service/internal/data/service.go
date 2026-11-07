@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/thev1ndu/workspacenow/wsn-service/db/models"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/objectstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/postgres"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 )
@@ -59,6 +61,9 @@ type Service interface {
 	// ListRecords is the read path behind GET records: permission + row-level security + optional
 	// saved view, then text search and paging.
 	ListRecords(ctx context.Context, ec kernel.ExecutionContext, entity, viewID string, includeDeleted bool, q string, limit, offset int) ([]Record, int, error)
+	// Files: upload/download record file fields via object storage; records hold only the FileRef.
+	UploadFile(ctx context.Context, ec kernel.ExecutionContext, entity, recordID, field, name string, r io.Reader) (*Record, error)
+	DownloadFile(ctx context.Context, ec kernel.ExecutionContext, entity, recordID, field string) (*FileRef, []byte, error)
 }
 
 type service struct {
@@ -68,14 +73,16 @@ type service struct {
 	connections *docstore.Collection[Connection]
 	apps        *docstore.Collection[map[string]any]
 	views       *docstore.Collection[SavedView]
+	artifacts   objectstore.Store
 }
 
-func NewService(db *gorm.DB, rt Runtime, auditor kernel.Auditor) Service {
+func NewService(db *gorm.DB, rt Runtime, auditor kernel.Auditor, artifacts objectstore.Store) Service {
 	return &service{
 		db: db, rt: rt, auditor: auditor,
 		connections: docstore.NewCollection(db, "connections", func(c *Connection) string { return c.ID }),
 		apps:        docstore.NewCollection(db, "applications", func(a *map[string]any) string { return fmt.Sprint((*a)["id"]) }),
 		views:       docstore.NewCollection(db, "entity_views", func(v *SavedView) string { return v.ID }),
+		artifacts:   artifacts,
 	}
 }
 

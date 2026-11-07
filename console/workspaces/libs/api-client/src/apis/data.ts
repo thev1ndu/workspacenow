@@ -1,4 +1,4 @@
-import { globalConfig } from "@workspacenow/types";
+import { ApiError, globalConfig, type ApiErrorBody } from "@workspacenow/types";
 import type {
   BusinessOperationDescriptor,
   DatabaseConnection,
@@ -13,7 +13,7 @@ import type {
   SavedViewInput,
   SchemaMigration,
 } from "@workspacenow/types";
-import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, httpPUT, SERVICE_BASE, qs, type GetToken } from "../utils/http";
+import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, httpPUT, requestRaw, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listEntities(getToken: GetToken) {
   return httpGET<ListResponse<Entity>>(`${SERVICE_BASE}/entities`, { token: await getToken() });
@@ -70,6 +70,30 @@ export async function updateRecord(
     `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/${enc(params.recordId)}`,
     { token: await getToken(), body },
   );
+}
+
+/** Uploads a file for a record's file field; resolves with the updated record (its field holds the FileRef). */
+export async function uploadRecordFile(
+  params: { entityName: string; recordId: string; field: string; name: string },
+  file: Uint8Array,
+  getToken: GetToken,
+) {
+  const res = await requestRaw("POST", `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/${enc(params.recordId)}/files/${enc(params.field)}`, {
+    token: await getToken(),
+    searchParams: { name: params.name },
+    rawBody: file,
+  });
+  if (res.status >= 400) throw new ApiError(res.body as ApiErrorBody);
+  return res.body as EntityRecord;
+}
+
+/** Downloads the file a record's file field references; resolves with the raw bytes. */
+export async function downloadRecordFile(params: { entityName: string; recordId: string; field: string }, getToken: GetToken) {
+  const res = await requestRaw("GET", `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/${enc(params.recordId)}/files/${enc(params.field)}`, {
+    token: await getToken(),
+  });
+  if (res.status >= 400) throw new ApiError(res.body as ApiErrorBody);
+  return res;
 }
 
 export async function listConnections(getToken: GetToken) {

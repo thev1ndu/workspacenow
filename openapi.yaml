@@ -582,6 +582,38 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/{entityName}/records/{recordId}/files/{field}:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+      - { name: recordId, in: path, required: true, schema: { type: string } }
+      - { name: field, in: path, required: true, schema: { type: string }, description: "The record's file-type field" }
+    post:
+      tags: [Data]
+      operationId: uploadRecordFile
+      summary: Upload a file into object storage and set the record's file field to its reference
+      description: "Requires the entity's `writePermission`. Body is the raw file bytes (`application/octet-stream`); `name` (query) is the original file name, max 50 MiB. The record value becomes a `FileRef` JSON. Audited."
+      parameters:
+        - { name: name, in: query, schema: { type: string }, description: "Original file name" }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream: { schema: { type: string, format: binary } }
+      responses:
+        "201": { description: "Updated record", content: { application/json: { schema: { $ref: "#/components/schemas/EntityRecord" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    get:
+      tags: [Data]
+      operationId: downloadRecordFile
+      summary: Download the file a record's file field references
+      description: "Requires the entity's `readPermission`. Streams the object with its stored content type."
+      responses:
+        "200": { description: File bytes, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /entities/{entityName}/migrate:
     parameters: [{ $ref: "#/components/parameters/entityName" }]
     post:
@@ -1904,7 +1936,16 @@ components:
         deployedBy: { type: string }
 
     # Data
-    FieldType: { type: string, enum: [string, text, number, integer, boolean, date, enum, reference] }
+    FieldType: { type: string, enum: [string, text, number, integer, boolean, date, enum, reference, file] }
+    FileRef:
+      type: object
+      description: "Object-storage reference stored as a file field's value"
+      required: [key, name, sizeBytes, contentType]
+      properties:
+        key: { type: string, description: "Object key in the configured bucket (e.g. uploads/Evidence/r-1/attachment/uuid-report.pdf)" }
+        name: { type: string, description: "Original file name" }
+        sizeBytes: { type: integer }
+        contentType: { type: string }
     FieldValue:
       nullable: true
       oneOf: [{ type: string }, { type: number }, { type: boolean }]

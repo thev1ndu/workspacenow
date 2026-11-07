@@ -16,6 +16,7 @@ const FIELD_TYPES: Array<{ value: FieldType; label: string }> = [
   { value: "date", label: "Date" },
   { value: "enum", label: "Choice" },
   { value: "reference", label: "Reference" },
+  { value: "file", label: "File (stored in object storage)" },
 ];
 
 const PAGE_KINDS: Array<{ value: AppPage["kind"]; label: string }> = [

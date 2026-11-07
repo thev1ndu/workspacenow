@@ -58,6 +58,8 @@ export interface PlatformState {
   integrations: Integration[];
   /** Fake OpenBao KV content: full reference -> key/value data (demo only, never real secrets). */
   secrets: Record<string, Record<string, string>>;
+  /** Fake object storage: FileRef key -> stored object (base64 for the demo). */
+  uploads: Record<string, { name: string; contentType: string; dataBase64: string }>;
   modelProviders: ModelProvider[];
   agents: Agent[];
   agentRuns: AgentRun[];
@@ -79,7 +81,7 @@ export interface PlatformState {
   pins: Record<string, string[]>;
 }
 
-export const SCHEMA_VERSION = 6; // v6: seed carries an OpenBao-style secrets map (and no backup record)
+export const SCHEMA_VERSION = 7; // v7: uploads map for record file fields
 
 const STORAGE_KEY = "workspacenow-demo-state";
 

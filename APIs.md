@@ -160,6 +160,8 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | POST | `/entities` | Create: `{ name, label?, description?, scope?, ownerApplicationId?, fields }`. Starts as `draft` v1 with `<Name>.Created` and `<Name>.Updated` events. | `data.manage` |
 | PATCH | `/entities/{name}` | Change `fields`, `description`, `readPermission`, `writePermission`. Bumps `version`. External entities return `409`. | `data.manage` |
 | GET | `/entities/{name}/records` | List records with `q`, `view` (saved view id), `includeDeleted`, `limit`, `offset`; row-level security (`entity.rowFilter`) applies on top | record perm (read) |
+| POST | `/entities/{name}/records/{id}/files/{field}?name=` | Upload a file (raw bytes, max 50 MiB) into object storage; the record's file field becomes a `FileRef` | entity write permission |
+| GET | `/entities/{name}/records/{id}/files/{field}` | Download the file the field references (streamed with its content type) | entity read permission |
 | POST | `/entities/{name}/records` | Create: `{ values }` (runs `<Name>.create`) | record perm (write) |
 | PATCH | `/entities/{name}/records/{id}` | Update: `{ values }` (runs `<Name>.update`) | record perm (write) |
 | DELETE | `/entities/{name}/records/{id}` | Soft delete (row stays for history); `409` while referenced or under a pending approval. Returns `{ id, deleted: true }`. | record perm (write) |

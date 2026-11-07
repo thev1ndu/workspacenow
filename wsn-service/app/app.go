@@ -232,7 +232,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	api.Routes(mux, api.Modules{
 		Identity: identity.NewHandler(identitySvc, cfg.DemoMode),
 		Demo:     seed.NewHandler(db, cfg.DemoMode, identitySvc.InvalidateAccess),
-		Data:     data.NewHandler(data.NewService(db, runtime, auditor), runtime, engine),
+		Data:     data.NewHandler(data.NewService(db, runtime, auditor, artifacts), runtime, engine),
 		BizOps:   bizops.NewHandler(engine),
 		Connect:  connect.NewHandler(connectSvc),
 		Stream:   hub,

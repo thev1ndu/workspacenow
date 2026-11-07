@@ -613,6 +613,7 @@ const (
 	Boolean   FieldType = "boolean"
 	Date      FieldType = "date"
 	Enum      FieldType = "enum"
+	File      FieldType = "file"
 	Integer   FieldType = "integer"
 	Number    FieldType = "number"
 	Reference FieldType = "reference"
@@ -628,6 +629,8 @@ func (e FieldType) Valid() bool {
 	case Date:
 		return true
 	case Enum:
+		return true
+	case File:
 		return true
 	case Integer:
 		return true
@@ -2349,6 +2352,18 @@ type FieldValue1 = float32
 // FieldValue2 defines model for .
 type FieldValue2 = bool
 
+// FileRef Object-storage reference stored as a file field's value
+type FileRef struct {
+	ContentType string `json:"contentType"`
+
+	// Key Object key in the configured bucket (e.g. uploads/Evidence/r-1/attachment/uuid-report.pdf)
+	Key string `json:"key"`
+
+	// Name Original file name
+	Name      string `json:"name"`
+	SizeBytes int    `json:"sizeBytes"`
+}
+
 // FilterOp defines model for FilterOp.
 type FilterOp struct {
 	Field string      `json:"field"`
@@ -3477,6 +3492,12 @@ type ImportRecordsJSONBody struct {
 // ImportRecordsJSONBodyFormat defines parameters for ImportRecords.
 type ImportRecordsJSONBodyFormat string
 
+// UploadRecordFileParams defines parameters for UploadRecordFile.
+type UploadRecordFileParams struct {
+	// Name Original file name
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
+}
+
 // RunViewParams defines parameters for RunView.
 type RunViewParams struct {
 	IncludeDeleted *bool `form:"includeDeleted,omitempty" json:"includeDeleted,omitempty"`
@@ -4417,6 +4438,12 @@ type ServerInterface interface {
 	// Update a record's values
 	// (PATCH /entities/{entityName}/records/{recordId})
 	UpdateRecord(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
+	// Download the file a record's file field references
+	// (GET /entities/{entityName}/records/{recordId}/files/{field})
+	DownloadRecordFile(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string, field string)
+	// Upload a file into object storage and set the record's file field to its reference
+	// (POST /entities/{entityName}/records/{recordId}/files/{field})
+	UploadRecordFile(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string, field string, params UploadRecordFileParams)
 	// One record's change log, newest first
 	// (GET /entities/{entityName}/records/{recordId}/history)
 	RecordHistory(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
@@ -6323,6 +6350,115 @@ func (siw *ServerInterfaceWrapper) UpdateRecord(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// DownloadRecordFile operation middleware
+func (siw *ServerInterfaceWrapper) DownloadRecordFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "field" -------------
+	var field string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "field", r.PathValue("field"), &field, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "field", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadRecordFile(w, r, entityName, recordId, field)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadRecordFile operation middleware
+func (siw *ServerInterfaceWrapper) UploadRecordFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "recordId" -------------
+	var recordId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "recordId", r.PathValue("recordId"), &recordId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recordId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "field" -------------
+	var field string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "field", r.PathValue("field"), &field, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "field", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UploadRecordFileParams
+
+	// ------------- Optional query parameter "name" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "name", r.URL.Query(), &params.Name, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadRecordFile(w, r, entityName, recordId, field, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RecordHistory operation middleware
 func (siw *ServerInterfaceWrapper) RecordHistory(w http.ResponseWriter, r *http.Request) {
 
@@ -8118,6 +8254,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/import", wrapper.ImportRecords)
 	m.HandleFunc("DELETE "+options.BaseURL+"/entities/{entityName}/records/{recordId}", wrapper.DeleteRecord)
 	m.HandleFunc("PATCH "+options.BaseURL+"/entities/{entityName}/records/{recordId}", wrapper.UpdateRecord)
+	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/{recordId}/files/{field}", wrapper.DownloadRecordFile)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/{recordId}/files/{field}", wrapper.UploadRecordFile)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/{recordId}/history", wrapper.RecordHistory)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/{recordId}/restore", wrapper.RestoreRecord)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/views", wrapper.ListViews)

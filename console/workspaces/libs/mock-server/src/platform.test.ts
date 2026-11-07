@@ -499,6 +499,26 @@ describe("ops: alerts, slos, status", () => {
     expect(["healthy", "degraded", "down"]).toContain((status.body as { status: string }).status);
   });
 
+  it("uploads and downloads a record file; the record holds only the FileRef", () => {
+    const platform = createDemoPlatform();
+    post(platform, "/entities", { name: "Evidence", label: "Evidence", description: "", fields: [
+      { name: "title", label: "Title", type: "string", required: true },
+      { name: "attachment", label: "Attachment", type: "file" },
+    ], scope: "organization" });
+    const rec = post(platform, "/entities/Evidence/records", { values: { title: "Claim 1" } }).body as { id: string };
+    const bytes = new TextEncoder().encode("PDF-DEMO-BYTES");
+    const b64 = Buffer.from(bytes).toString("base64");
+    const up = send(platform, "POST", `/entities/Evidence/records/${rec.id}/files/attachment?name=report.pdf`, "u-amaya", { __rawBase64: b64 });
+    expect(up.status).toBe(201); // Created, per the contract
+    const ref = JSON.parse((up.body as { values: Record<string, string> }).values.attachment) as { key: string; name: string; sizeBytes: number };
+    expect(ref.name).toBe("report.pdf");
+    expect(platform.state.uploads[ref.key].dataBase64).toBe(b64);
+    const down = get(platform, `/entities/Evidence/records/${rec.id}/files/attachment`);
+    expect(Buffer.from((down.body as { __fileBase64: string }).__fileBase64, "base64").toString()).toBe("PDF-DEMO-BYTES");
+    // wrong field type is rejected
+    expect(send(platform, "POST", `/entities/Evidence/records/${rec.id}/files/title?name=x.txt`, "u-amaya", { __rawBase64: b64 }).status).toBe(422);
+  });
+
   it("lists and reads OpenBao secrets, manages integrations, takes a custom alert webhook URL", () => {
     const platform = createDemoPlatform();
     // secrets: list + read (read needs control.manage, audited)

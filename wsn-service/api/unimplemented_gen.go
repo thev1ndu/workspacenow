@@ -13,16 +13,10 @@ import (
 // unimplemented answers every operation no module serves with 501.
 type unimplemented struct{}
 
-func (unimplemented) CreateIntegration(w http.ResponseWriter, r *http.Request) { notImplemented(w, r) }
-
-func (unimplemented) UpdateIntegration(w http.ResponseWriter, r *http.Request, integrationId string) {
+func (unimplemented) DownloadRecordFile(w http.ResponseWriter, r *http.Request, entityName oapi.EntityName, recordId string, field string) {
 	notImplemented(w, r)
 }
 
-func (unimplemented) ListSecrets(w http.ResponseWriter, r *http.Request, params oapi.ListSecretsParams) {
-	notImplemented(w, r)
-}
-
-func (unimplemented) ReadSecret(w http.ResponseWriter, r *http.Request, params oapi.ReadSecretParams) {
+func (unimplemented) UploadRecordFile(w http.ResponseWriter, r *http.Request, entityName oapi.EntityName, recordId string, field string, params oapi.UploadRecordFileParams) {
 	notImplemented(w, r)
 }

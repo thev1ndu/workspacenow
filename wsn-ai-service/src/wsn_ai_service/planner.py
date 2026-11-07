@@ -12,12 +12,13 @@ _FIELD = {
         "label": {"type": "string"},
         "type": {
             "type": "string",
-            "enum": ["string", "text", "number", "integer", "boolean", "date", "enum", "reference"],
+            "enum": ["string", "text", "number", "integer", "boolean", "date", "enum", "reference", "file"],
         },
         "required": {"type": "boolean"},
         "unique": {"type": "boolean"},
         "enumValues": {"type": "array", "items": {"type": "string"}},
         "reference": {"type": "string", "description": "Target entity name when type is reference"},
+        "fileHint": {"type": "string", "description": "What the file holds when type is file, e.g. evidence PDF"},
     },
     "required": ["name", "label", "type"],
 }
@@ -60,7 +61,9 @@ PLAN_SCHEMA: dict[str, Any] = {
 ARCHITECT = (
     "You are the WorkspaceNow Application Architect. Design a small business application from the request: "
     "the entities it needs (PascalCase names, camelCase field names, labels a business user understands), "
-    "and for each entity a list page and a form page. Reference an existing entity instead of redefining it. "
+    "and for each entity a list page and a form page. Use a file field for attachments (evidence, receipts, "
+    "scans) — files are stored in object storage and the record keeps only the reference. "
+    "Reference an existing entity instead of redefining it. "
     "Pick the owning department from the ids given. Keep it minimal: only what the request needs."
 )
 

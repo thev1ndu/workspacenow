@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Modal } from "@heroui/react";
 import { useQueries } from "@tanstack/react-query";
 import { useAuthHooks } from "@workspacenow/auth";
-import { listRecords, useListRecords } from "@workspacenow/api-client";
-import type { Entity, EntityField, EntityRecord, FieldValue } from "@workspacenow/types";
+import { downloadRecordFile, listRecords, uploadRecordFile, useListRecords } from "@workspacenow/api-client";
+import type { Entity, EntityField, EntityRecord, FieldValue, FileRef } from "@workspacenow/types";
 import { SelectInput, TextInput, errorMessage } from "@workspacenow/views";
 
 /** The human-readable name of a record, by the entity's most descriptive field. */
@@ -44,8 +44,100 @@ function ReferenceSelect({ field, value, onChange }: { field: EntityField; value
   );
 }
 
-export function FieldInput({ field, value, onChange }: { field: EntityField; value: string; onChange: (v: string) => void }) {
+/** A file field: uploads into object storage, the record stores only the FileRef; click the name to download. */
+function FileInput({
+  field,
+  value,
+  entityName,
+  recordId,
+  onChange,
+}: {
+  field: EntityField;
+  value: string;
+  entityName: string;
+  recordId?: string;
+  onChange: (v: string) => void;
+}) {
+  const { getToken } = useAuthHooks();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  let ref: FileRef | undefined;
+  try {
+    ref = value ? (JSON.parse(value) as FileRef) : undefined;
+  } catch {
+    ref = undefined;
+  }
+  const upload = async (f: File) => {
+    if (!recordId) {
+      setError("Save the record first, then attach a file");
+      return;
+    }
+    setBusy(true);
+    setError(undefined);
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const record = await uploadRecordFile({ entityName, recordId, field: field.name, name: f.name }, bytes, getToken);
+      const v = record.values[field.name];
+      onChange(typeof v === "string" ? v : "");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const download = async () => {
+    if (!recordId) return;
+    const res = await downloadRecordFile({ entityName, recordId, field: field.name }, getToken);
+    const url = URL.createObjectURL(new Blob([res.bytes as BlobPart], { type: res.contentType }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = ref?.name ?? "file";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <div className="grid gap-1">
+      <label className="text-xs font-medium">{field.label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type="file"
+          aria-label={field.label}
+          disabled={busy || !recordId}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void upload(f);
+            e.target.value = "";
+          }}
+        />
+        {busy && <span className="text-xs text-muted">Uploading…</span>}
+        {ref && (
+          <button type="button" className="text-xs text-accent underline" onClick={() => void download()}>
+            {ref.name} ({Math.round(ref.sizeBytes / 1024)} KB)
+          </button>
+        )}
+      </div>
+      {!!error && <span className="text-xs text-danger">{error}</span>}
+      {!recordId && <span className="text-xs text-muted">Save the record first, then attach a file</span>}
+    </div>
+  );
+}
+
+export function FieldInput({
+  field,
+  value,
+  onChange,
+  entityName,
+  recordId,
+}: {
+  field: EntityField;
+  value: string;
+  onChange: (v: string) => void;
+  entityName?: string;
+  recordId?: string;
+}) {
   switch (field.type) {
+    case "file":
+      return <FileInput field={field} value={value} entityName={entityName ?? ""} recordId={recordId} onChange={onChange} />;
     case "reference":
       return <ReferenceSelect field={field} value={value} onChange={onChange} />;
     case "enum":
@@ -125,6 +217,8 @@ export function RecordForm({
           field={field}
           value={values[field.name] ?? ""}
           onChange={(v) => setValues((prev) => ({ ...prev, [field.name]: v }))}
+          entityName={entity.name}
+          recordId={record?.id}
         />
       ))}
       {!!error && <ErrorAlert error={error} />}

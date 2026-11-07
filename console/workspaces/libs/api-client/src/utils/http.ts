@@ -60,6 +60,65 @@ async function fetchJSON<T>(method: string, url: string, query: URLSearchParams,
   return payload as T;
 }
 
+export interface RawResponse {
+  status: number;
+  contentType: string;
+  bytes: Uint8Array;
+  body: unknown;
+}
+
+// requestRaw is for non-JSON payloads (file upload/download). In demo mode the bytes cross as base64.
+export async function requestRaw(method: string, url: string, options: RequestOptions & { rawBody?: Uint8Array } = {}): Promise<RawResponse> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(options.searchParams ?? {})) {
+    if (value !== undefined && value !== "") query.set(key, value);
+  }
+  if (globalConfig.apiBaseUrl) {
+    const response = await fetch(`${globalConfig.apiBaseUrl.replace(/\/+$/, "")}${url}${query.size ? `?${query}` : ""}`, {
+      method,
+      headers: {
+        ...(options.rawBody ? { "Content-Type": "application/octet-stream" } : {}),
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      },
+      body: options.rawBody,
+    });
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const text = new TextDecoder().decode(bytes);
+    let body: unknown = text;
+    try {
+      body = text ? JSON.parse(text) : undefined;
+    } catch {
+      /* binary */
+    }
+    return { status: response.status, contentType: response.headers.get("Content-Type") ?? "", bytes, body };
+  }
+  await wait(globalConfig.mockLatencyMs);
+  const response = mockServer({
+    method,
+    path: url.startsWith(SERVICE_BASE) ? url.slice(SERVICE_BASE.length) : url,
+    query,
+    body: options.rawBody ? { __rawBase64: btoa(String.fromCharCode(...options.rawBody)) } : options.body,
+    token: options.token,
+  });
+  const payload = response.body as { __fileBase64?: string; contentType?: string; name?: string } | undefined;
+  if (payload && typeof payload.__fileBase64 === "string") {
+    const bin = atob(payload.__fileBase64);
+    return {
+      status: response.status,
+      contentType: payload.contentType ?? "application/octet-stream",
+      bytes: Uint8Array.from(bin, (c) => c.charCodeAt(0)),
+      body: payload,
+    };
+  }
+  const text = payload === undefined ? "" : JSON.stringify(payload);
+  return {
+    status: response.status,
+    contentType: "application/json",
+    bytes: new TextEncoder().encode(text),
+    body: payload,
+  };
+}
+
 export const httpGET =<T>(url: string, options?: RequestOptions) => request<T>("GET", url, options);
 export const httpPOST = <T>(url: string, options?: RequestOptions) => request<T>("POST", url, options);
 export const httpPATCH = <T>(url: string, options?: RequestOptions) => request<T>("PATCH", url, options);

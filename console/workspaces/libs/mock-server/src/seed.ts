@@ -461,6 +461,7 @@ export function createSeedState(at: Date): PlatformState {
       { id: "mcp-knowledge", name: "Company Knowledge Base", url: "https://kb.northwind.lk/mcp", kind: "external", auth: "oauth2", status: "healthy", tools: [{ name: "search_policies", description: "Search company policies and procedures." }], registeredAt: day(-20) },
       { id: "mcp-logistics", name: "Logistics Tracker", url: "https://mcp.shiplk.com/v1", kind: "external", auth: "api-key", status: "degraded", tools: [{ name: "track_shipment", description: "Track a shipment by id." }, { name: "estimate_delivery", description: "Estimate delivery days for a route." }], registeredAt: day(-15) },
     ],
+    uploads: {},
     secrets: {
       "vault://integrations/delivery-hmac": { secret: "demo-hmac-not-real" },
       "vault://integrations/slack-ops": { url: "https://hooks.example.com/ops", token: "demo-token-not-real" },

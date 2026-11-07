@@ -385,6 +385,40 @@ route("POST", "/entities/:name/records/import", ({ platform, ctx, params, body }
   platform.audit(c, `${params.name}.import`, `entity/${params.name}`, "allowed", `${rows.length} records`);
   return { created: rows.length };
 });
+route("POST", "/entities/:name/records/:id/files/:field", ({ platform, ctx, params, query, body }) => {
+  const entity = platform.entity(params.name);
+  const field = entity.fields.find((f) => f.name === params.field);
+  if (!field || field.type !== "file") fail(422, "VALIDATION_FAILED", `${params.name} has no file field ${params.field}`);
+  const c = ctx("studio");
+  platform.requirePermission(c, entity.writePermission, `${params.name}.file.upload`, `entity/${params.name}`);
+  const record = platform.records(params.name).find((r) => r.id === params.id);
+  if (!record) fail(404, "NOT_FOUND", "Record not found");
+  const raw = (body as { __rawBase64?: string })?.__rawBase64;
+  if (!raw) fail(422, "VALIDATION_FAILED", "body must carry the file bytes");
+  const name = (query.get("name") || "file").split("/").pop()!;
+  const key = `uploads/${params.name}/${params.id}/${params.field}/file-${platform.nextId("file")}-${name}`;
+  platform.state.uploads[key] = { name, contentType: "application/octet-stream", dataBase64: raw };
+  const ref = { key, name, sizeBytes: Math.floor(raw.length * 0.75), contentType: "application/octet-stream" };
+  platform.invoke(c, `${params.name}.update`, { id: params.id, values: { [params.field]: JSON.stringify(ref) } });
+  platform.audit(c, "record.file.upload", `record/${params.name}/${params.id}`, "allowed", `${params.field} ${name}`);
+  return platform.records(params.name).find((r) => r.id === params.id);
+});
+route("GET", "/entities/:name/records/:id/files/:field", ({ platform, ctx, params }) => {
+  const entity = platform.entity(params.name);
+  const field = entity.fields.find((f) => f.name === params.field);
+  if (!field || field.type !== "file") fail(422, "VALIDATION_FAILED", `${params.name} has no file field ${params.field}`);
+  const c = ctx("studio");
+  platform.requirePermission(c, entity.readPermission, `${params.name}.file.download`, `entity/${params.name}`);
+  const record = platform.records(params.name).find((r) => r.id === params.id);
+  const raw = record?.values[params.field];
+  let ref: { key?: string; name?: string } = {};
+  try {
+    ref = typeof raw === "string" ? JSON.parse(raw) : {};
+  } catch { /* not a ref */ }
+  const obj = ref.key ? platform.state.uploads[ref.key] : undefined;
+  if (!obj) fail(404, "NOT_FOUND", `No file on ${params.id}.${params.field}`);
+  return { __fileBase64: obj.dataBase64, contentType: obj.contentType, name: obj.name };
+});
 route("GET", "/entities/:name/records/:id/history", ({ platform, ctx, params }) => {
   const entity = platform.entity(params.name);
   platform.requirePermission(ctx("studio"), entity.readPermission, `${params.name}.history`, `entity/${params.name}/${params.id}`);

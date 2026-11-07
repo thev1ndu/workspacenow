@@ -11,5 +11,13 @@
     "typecheck": "pnpm -r --no-sort run typecheck",
     "lint": "pnpm -r --no-sort run lint",
     "test": "pnpm -r --no-sort run test"
+  },
+  "pnpm": {
+    "overrides": {
+      "typescript": "6.0.3"
+    }
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
   }
 }

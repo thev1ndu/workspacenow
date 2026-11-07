@@ -51,6 +51,10 @@ updates:
     directory: "/console"
     schedule:
       interval: "weekly"
+    # typescript-eslint 8.x supports typescript <6.1 only; the pnpm override pins 6.0.3.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-dependencies:
         patterns: ["*"]

@@ -36,7 +36,7 @@
     "@vitejs/plugin-react": "6.2.1",
     "@workspacenow/eslint-config": "workspace:*",
     "eslint": "10.14.0",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
     "vite": "8.3.5",
     "vite-plugin-pwa": "^2.0.0"
   }

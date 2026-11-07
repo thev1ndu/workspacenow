@@ -11,7 +11,7 @@ COPY . .
 # pnpm via npm, not corepack: corepack fetches its shim at runtime and adds a network hop.
 RUN npm install --global pnpm@9.12.3 && pnpm install --frozen-lockfile && pnpm build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.title="console" \

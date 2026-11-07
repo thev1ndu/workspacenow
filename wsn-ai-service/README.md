@@ -1,8 +1,22 @@
 # wsn-ai-service
 
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python) ![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen) ![ci](https://github.com/thev1ndu/workspacenow/actions/workflows/ci.yaml/badge.svg)
+
+----
+
 The AI side of WorkspaceNow: it runs agents on Mistral, drafts application plans as the Application Architect, discovers the tools of external MCP servers, and serves WorkspaceNow's own operations as a managed MCP server built on FastMCP.
 
 It never decides what an agent may do. Every tool call goes back to `wsn-service` with the run's signed grant, and `wsn-service` checks the permissions, the application scope and the call budget, runs the business operation, and writes the audit record.
+
+
+## Quick start
+
+```sh
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]" && cp .env.example .env   # set MISTRAL_API_KEY
+pytest --cov=src --cov-fail-under=100              # 100% line coverage, gated in CI
+python -m wsn_ai_service.app                       # serve on :8090
+```
 
 ## Endpoints
 

@@ -1,7 +1,11 @@
 # WorkspaceNow console
 
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript) ![pnpm](https://img.shields.io/badge/pnpm-workspace- F29D00?logo=pnpm) ![ci](https://github.com/thev1ndu/workspacenow/actions/workflows/ci.yaml/badge.svg)
+
+----
+
 The WorkspaceNow Shell and its six Workspaces (Studio, Connect, Data, AI, Flow, Control), with a fully working
-demonstration of the Retail Operations scenario from `../PROPOSAL.md`. Vocabulary follows `../docs/CONTEXT.md`.
+demonstration of the Northwind Retail scenario described in [../docs/FEATURES.md](../docs/FEATURES.md#10-demo-scenario-northwind-retail). Vocabulary follows `../docs/CONTEXT.md`.
 
 The demo needs no backend. `@workspacenow/mock-server` is an in-browser platform runtime that serves the
 installation's REST API: Entity Runtime, Business Operations, MCP tools, agent runs, durable-style workflows,
@@ -9,6 +13,15 @@ approvals, events and audit. State persists in `localStorage`; reset it from the
 
 The UI is HeroUI v3 on Tailwind CSS v4, with EvilCharts (Recharts) for charts and Gravity UI icons. See
 `docs/UI-GUIDE.md` before changing any screen.
+
+
+## Quick start
+
+```sh
+pnpm install
+pnpm dev     # console on :3100 — in-browser demo platform, no backend needed
+pnpm test    # workspace tests (mock-server contract, layout, …)
+```
 
 ## Run
 

@@ -1,6 +1,18 @@
 # wsn-service
 
+![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go) ![ci](https://github.com/thev1ndu/workspacenow/actions/workflows/ci.yaml/badge.svg)
+
+----
+
 The WorkspaceNow platform service, in Go. It serves the API the console calls (`/api/v1`, defined in [`../openapi.yaml`](../openapi.yaml) and [`../docs/APIs.md`](../docs/APIs.md)), owns every business rule, and runs workflows on Temporal. One binary runs in several roles, each deployed separately.
+
+
+## Quick start
+
+```sh
+make -C wsn-service test    # unit tests with -race + lint
+make -C wsn-service run     # serve on :8080 (needs `make deps` at the repo root first)
+```
 
 ## Roles
 

@@ -1,5 +1,9 @@
 # wsn-observer
 
+![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go) ![ci](https://github.com/thev1ndu/workspacenow/actions/workflows/ci.yaml/badge.svg)
+
+----
+
 The telemetry observer for WorkspaceNow: a lightweight Go backend (modeled on WSO2 Agent Manager's
 `agent-manager-observer`) that ingests OTLP telemetry — traces, logs and metrics — from the
 platform's services and serves the query API the console's observability views call.
@@ -12,6 +16,14 @@ by bytes (`WSN_OBSERVER_RETENTION_BYTES` per signal): a janitor prunes the oldes
 startup and hourly, never deleting the active segment. Queries scan segment files newest-first,
 at most `WSN_OBSERVER_SCAN_LIMIT` records per signal, so counts and pages are over that window.
 In Kubernetes the data dir is a PVC (`/data`); the pod still runs with a read-only root filesystem.
+
+
+## Quick start
+
+```sh
+make -C wsn-observer test   # unit tests with -race
+make -C wsn-observer run    # serve on :9098 (WSN_OBSERVER_DATA_DIR=/tmp/wsn-observer)
+```
 
 ## Endpoints
 

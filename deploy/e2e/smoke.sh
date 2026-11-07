@@ -45,6 +45,14 @@ curl -sf http://localhost:8080/status | jq -e '.status' >/dev/null || fail "stat
 curl -sf -H "Accept: text/html" http://localhost:8080/status | grep -qi "<html" || fail "status HTML skin"
 
 echo "== SSE stream delivers =="
-curl -sf -N -m 3 -H "Authorization: $TOK" "$API/events/stream" | head -c 200 | grep -q "data:" || fail "SSE stream empty"
+# The hub only heartbeats every 20s, so generate an event while the stream is open.
+SSE_OUT=$(mktemp)
+curl -sf -N -m 10 -H "Authorization: $TOK" "$API/events/stream" >"$SSE_OUT" 2>/dev/null &
+SSE_PID=$!
+sleep 1
+post /entities/Product/records '{"values":{"sku":"E2E-2","name":"E2E widget 2","unitPrice":9.5,"stock":3,"category":"Grocery","active":true,"supplier":"sup-1"}}' >/dev/null
+wait $SSE_PID || true
+grep -q "data:" "$SSE_OUT" || { rm -f "$SSE_OUT"; fail "SSE stream empty"; }
+rm -f "$SSE_OUT"
 
 echo "E2E OK"

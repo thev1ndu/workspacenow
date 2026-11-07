@@ -83,7 +83,7 @@ func Routes(mux *http.ServeMux, m Modules) {
 		},
 	})
 	// The status page is public and also lives at the root, outside the API base path (contract: GET /status).
-	mux.HandleFunc("GET /status", server.obsAPI.StatusPage)
+	mux.HandleFunc("GET /status", server.StatusPage)
 	// Anything else under the base path answers in the contract's error shape.
 	mux.HandleFunc(BasePath+"/", func(w http.ResponseWriter, r *http.Request) { noRoute(mux, w, r) })
 }

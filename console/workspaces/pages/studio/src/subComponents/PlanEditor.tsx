@@ -1,7 +1,7 @@
 import { Button, Checkbox, Chip, Input, ListBox, Select, TextField, Tooltip } from "@heroui/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
 import { useListDepartments } from "@workspacenow/api-client";
-import { DEFAULT_SLO, planOperations, toEntityName, toFieldName, type AppSlo, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
+import { DEFAULT_SLO, planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
 import { SectionCard, SelectInput, TextInput } from "@workspacenow/views";
 
 type PlannedEntity = ApplicationPlan["entities"][number];
@@ -339,42 +339,6 @@ function ChipList({ items, mono }: { items: string[]; mono?: boolean }) {
   );
 }
 
-/** The app's SLO switch and targets: applying the plan tracks one SLO per generated operation while enabled. */
-function SloEditor({ slo, onChange }: { slo: AppSlo; onChange: (slo: AppSlo) => void }) {
-  const num = (v: string, fallback: number) => (v.trim() === "" || Number.isNaN(Number(v)) ? fallback : Number(v));
-  return (
-    <SectionCard
-      title="Service level (SLO)"
-      subtitle="Reliability targets for this application. Applying the plan creates one SLO per generated operation while enabled; disabling removes them."
-    >
-      <div className="grid items-end gap-4 px-5 py-4 md:grid-cols-[auto_1fr_1fr_1fr]">
-        <Flag label="Track SLOs for this app" isSelected={slo.enabled} onChange={(enabled) => onChange({ ...slo, enabled })} />
-        <TextInput
-          label="Success target (0–1)"
-          type="number"
-          value={String(slo.targetSuccess)}
-          disabled={!slo.enabled}
-          onChange={(v) => onChange({ ...slo, targetSuccess: num(v, slo.targetSuccess) })}
-        />
-        <TextInput
-          label="p95 target (ms)"
-          type="number"
-          value={String(slo.targetP95Ms)}
-          disabled={!slo.enabled}
-          onChange={(v) => onChange({ ...slo, targetP95Ms: Math.trunc(num(v, slo.targetP95Ms)) })}
-        />
-        <TextInput
-          label="Window (minutes)"
-          type="number"
-          value={String(slo.windowMinutes)}
-          disabled={!slo.enabled}
-          onChange={(v) => onChange({ ...slo, windowMinutes: Math.trunc(num(v, slo.windowMinutes)) })}
-        />
-      </div>
-    </SectionCard>
-  );
-}
-
 /**
  * Edits an application plan before it is applied, whether the Application Architect drafted it or
  * someone started from scratch, or it describes an application that already exists. Renaming an
@@ -483,8 +447,6 @@ export function PlanEditor({
           ))
         )}
       </SectionCard>
-
-      <SloEditor slo={plan.slo ?? DEFAULT_SLO} onChange={(slo) => onChange({ ...plan, slo })} />
 
       <div className="grid items-start gap-6 md:grid-cols-2">
         <SectionCard title="API operations" subtitle="Generated for every entity when the plan is applied.">

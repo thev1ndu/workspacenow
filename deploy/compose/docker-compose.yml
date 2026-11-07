@@ -36,6 +36,7 @@ x-wsn-service-env: &wsn-service-env
 
 services:
   postgres:
+    container_name: postgres
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-workspacenow}
@@ -49,6 +50,7 @@ services:
       retries: 20
 
   valkey:
+    container_name: valkey
     image: valkey/valkey:8-alpine
     ports: ["6379:6379"]
     healthcheck:
@@ -57,6 +59,7 @@ services:
       retries: 20
 
   nats:
+    container_name: nats
     image: nats:2.11-alpine
     command: ["-js", "-sd", "/data", "-m", "8222"]
     ports: ["4222:4222", "8222:8222"]
@@ -65,12 +68,14 @@ services:
   # Named volumes are root-owned on first use; temporal and wsn-observer run as non-root
   # and need write access to their data dirs, so relax the permissions once at boot.
   volume-init:
+    container_name: volume-init
     image: alpine:3.21
     command: ["sh", "-c", "chmod -R a+rwX /temporal /observer"]
     volumes: ["temporal:/temporal", "observer:/observer"]
 
   # Temporal's development server: a single process with an in-memory or sqlite store and the web UI on :8233.
   temporal:
+    container_name: temporal
     image: temporalio/temporal:1.4.1
     command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
     ports: ["7233:7233", "8233:8233"]
@@ -82,6 +87,7 @@ services:
   # (console). Used both locally and in prod (Flux), so the path-style S3 client in
   # wsn-service talks to the same API everywhere.
   rustfs:
+    container_name: rustfs
     image: rustfs/rustfs:1.0.4
     command: ["server", "/data"]
     environment:
@@ -91,6 +97,7 @@ services:
     volumes: ["rustfs:/data"]
 
   rustfs-init:
+    container_name: rustfs-init
     image: amazon/aws-cli:2.39.6
     depends_on: [rustfs]
     environment:
@@ -105,6 +112,7 @@ services:
 
   # OpenBao in dev mode: root token "root", KV v2 at secret/. Integration credentials live here.
   openbao:
+    container_name: openbao
     image: openbao/openbao:2.2.0
     command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_ROOT_TOKEN:-root}", "-dev-listen-address=0.0.0.0:8200"]
     cap_add: [IPC_LOCK]
@@ -113,6 +121,7 @@ services:
   # ---- app profile: the platform itself (docker compose --profile app up -d) ----
 
   wsn-observer:
+    container_name: wsn-observer
     profiles: ["app"]
     image: ghcr.io/thev1ndu/wsn-observer:${IMAGE_TAG:-main}
     build: ../../wsn-observer
@@ -125,6 +134,7 @@ services:
       volume-init: { condition: service_completed_successfully }
 
   wsn-service-migrate:
+    container_name: wsn-service-migrate
     profiles: ["app"]
     image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
     build: ../../wsn-service
@@ -138,6 +148,7 @@ services:
   # Backup restore drill: restores Postgres from the newest (or -backup-id) backup in object storage and exits.
   # Run against a scratch database: docker compose --profile restore run --rm wsn-service-restore
   wsn-service-restore:
+    container_name: wsn-service-restore
     profiles: ["restore"]
     image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
     build: ../../wsn-service
@@ -149,6 +160,7 @@ services:
     restart: "no"
 
   wsn-service:
+    container_name: wsn-service
     profiles: ["app"]
     image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
     build: ../../wsn-service
@@ -161,6 +173,7 @@ services:
       wsn-ai-service: { condition: service_started }
 
   wsn-service-worker:
+    container_name: wsn-service-worker
     profiles: ["app"]
     image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
     build: ../../wsn-service
@@ -171,6 +184,7 @@ services:
       temporal: { condition: service_started }
 
   wsn-ai-service:
+    container_name: wsn-ai-service
     profiles: ["app"]
     image: ghcr.io/thev1ndu/wsn-ai-service:${IMAGE_TAG:-main}
     build: ../../wsn-ai-service
@@ -187,6 +201,7 @@ services:
     # would be a dependency cycle. The AI service calls back to wsn-service's internal API.
 
   console:
+    container_name: wsn-console
     profiles: ["app"]
     image: ghcr.io/thev1ndu/console:${IMAGE_TAG:-main}
     build: ../../console

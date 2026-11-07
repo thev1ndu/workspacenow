@@ -59,6 +59,10 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.ResponseWriter.WriteHeader(code)
 }
 
+// Unwrap lets http.ResponseController reach the real ResponseWriter, so SSE handlers can
+// flush through this wrapper (without it rc.Flush() fails and the stream closes instantly).
+func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+
 // RequestLogger logs one line per request with its outcome and duration.
 func RequestLogger() Middleware {
 	return func(next http.Handler) http.Handler {

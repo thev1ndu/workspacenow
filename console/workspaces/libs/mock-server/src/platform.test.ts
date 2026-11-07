@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError, planFromApplication, type AgentRun, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type SavedView, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
+import { ApiError, planFromApplication, type AgentRun, type AlertFire, type AlertRule, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type SavedView, type Slo, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
 import { createDemoPlatform } from "./runtime";
@@ -458,6 +458,28 @@ describe("global search", () => {
   it("returns only records the user may read", () => {
     expect(search("coconut", "u-nimal").some((h) => h.type === "record")).toBe(true);
     expect(search("lanka", "u-nimal").some((h) => h.type === "record" && h.title.startsWith("pr-"))).toBe(false);
+  });
+});
+
+describe("ops: alerts, slos, status", () => {
+  it("creates an alert that fires on denied approvals, acks it, defines an SLO, reads status", () => {
+    const platform = createDemoPlatform();
+    const rule = post(platform, "/alerts", { name: "Denied approvals", source: "audit", action: "approval.decision", outcome: "denied", threshold: 1, windowMinutes: 60 }).body as AlertRule;
+    expect(rule.id).toBeTruthy();
+    const fires = get(platform, `/alerts/${rule.id}/fires`).body as { items: AlertFire[] };
+    if (fires.items.length > 0) {
+      const ack = post(platform, `/alerts/${rule.id}/fires/${fires.items[0].id}/ack`, {});
+      expect((ack.body as AlertFire).status).toBe("acked");
+    }
+    const slo = post(platform, "/slos", { operation: "inventory.checkout", targetSuccess: 0.99, targetP95Ms: 500, windowMinutes: 60 });
+    expect(slo.status).toBe(201);
+    const st = get(platform, `/slos/${(slo.body as Slo).id}/status`).body as { calls: number; breached: boolean };
+    expect(st.calls).toBeGreaterThanOrEqual(0);
+    expect(typeof st.breached).toBe("boolean");
+    const status = send(platform, "GET", "/status");
+    expect(["healthy", "degraded", "down"]).toContain((status.body as { status: string }).status);
+    const backups = get(platform, "/admin/backups");
+    expect(backups.status).toBe(200);
   });
 });
 

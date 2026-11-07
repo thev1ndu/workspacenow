@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -52,19 +53,28 @@ type Engine interface {
 	List(ctx context.Context) ([]Operation, error)
 	// Invoke authorizes, runs and audits an operation in one transaction with its events.
 	Invoke(ctx context.Context, ec ExecutionContext, name string, input map[string]any) (any, error)
+	// SetOnInvoke registers a hook called after every Invoke with the duration and outcome (SLO counters).
+	SetOnInvoke(hook func(operation string, d time.Duration, failed bool))
 }
 
 type engine struct {
 	db      *gorm.DB
 	auditor Auditor
 
-	mu      sync.RWMutex
-	ops     map[string]Operation
-	sources []OperationSource
+	mu       sync.RWMutex
+	ops      map[string]Operation
+	sources  []OperationSource
+	onInvoke func(operation string, d time.Duration, failed bool)
 }
 
 func NewEngine(db *gorm.DB, auditor Auditor) Engine {
 	return &engine{db: db, auditor: auditor, ops: map[string]Operation{}}
+}
+
+func (e *engine) SetOnInvoke(hook func(operation string, d time.Duration, failed bool)) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.onInvoke = hook
 }
 
 func (e *engine) Register(ops ...Operation) {
@@ -137,6 +147,7 @@ func (e *engine) Invoke(ctx context.Context, ec ExecutionContext, name string, i
 		}
 		return nil, Forbidden("%s lacks permission %s for %s", ec.Actor.Name, op.Permission, name).WithTrace(ec.TraceID)
 	}
+	start := time.Now()
 	var output any
 	err = postgres.InTx(ctx, e.db, func(ctx context.Context) error {
 		out, err := op.Handler(ctx, ec, input)
@@ -146,6 +157,12 @@ func (e *engine) Invoke(ctx context.Context, ec ExecutionContext, name string, i
 		output = out
 		return e.auditor.Record(ctx, ec, name, describeResource(op, input, out), OutcomeAllowed, "")
 	})
+	e.mu.RLock()
+	hook := e.onInvoke
+	e.mu.RUnlock()
+	if hook != nil {
+		hook(name, time.Since(start), err != nil)
+	}
 	if err == nil {
 		return output, nil
 	}

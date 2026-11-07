@@ -2,6 +2,10 @@ package walstore
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"sync"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -241,5 +245,48 @@ func TestClosedStoreFails(t *testing.T) {
 	}
 	if _, _, _, _, err := s.Overview(ctx); err == nil {
 		t.Fatal("overview on closed store must fail")
+	}
+}
+
+func TestSealedSegmentsReplicateToStandby(t *testing.T) {
+	var mu sync.Mutex
+	var gotSignal, gotSeq string
+	var gotBody []byte
+	replica := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		gotSignal, gotSeq, gotBody = r.URL.Query().Get("signal"), r.URL.Query().Get("seq"), body
+		mu.Unlock()
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer replica.Close()
+
+	s := open(t, t.TempDir(), 16<<20, 1<<10, 10000) // tiny segments force rolls
+	s.SetReplicator(replica.URL, "", replica.Client())
+	for i := 0; i < 50; i++ {
+		if err := s.AddSpans(context.Background(), []telemetry.Span{{TraceID: "t", SpanID: "s", Name: "n", Service: "svc", Kind: "SPAN_KIND_SERVER", Status: "1", Start: time.Now(), End: time.Now(), DurationNs: 1}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.Close()
+	if gotSignal != "traces" || gotSeq == "" || len(gotBody) == 0 {
+		t.Fatalf("replica got signal=%q seq=%q bytes=%d", gotSignal, gotSeq, len(gotBody))
+	}
+}
+
+func TestImportSegmentWritesAndCounts(t *testing.T) {
+	s := open(t, t.TempDir(), 16<<20, 1<<16, 10000)
+	defer s.Close()
+	data := []byte(`{"traceId":"t1"}` + "\n" + `{"traceId":"t2"}` + "\n")
+	if err := s.ImportSegment("traces", 7, data); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ImportSegment("traces", 7, data); err != nil {
+		t.Fatal("duplicate import must be a no-op, not an error:", err)
+	}
+	overviews, total, err := s.ListTraces(context.Background(), "", time.Time{}, time.Now(), 10, 0, false)
+	_ = overviews
+	if err != nil || total != 2 {
+		t.Fatalf("total=%d err=%v", total, err)
 	}
 }

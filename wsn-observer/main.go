@@ -34,6 +34,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer store.Close()
+	if cfg.ReplicaURL != "" {
+		store.SetReplicator(cfg.ReplicaURL, cfg.Token, &http.Client{Timeout: 30 * time.Second})
+		log.Printf("wsn-observer: replicating sealed segments to %s", cfg.ReplicaURL)
+	}
 	if err := serve(ctx, cfg, store); err != nil {
 		log.Printf("wsn-observer: %v", err)
 		os.Exit(1)

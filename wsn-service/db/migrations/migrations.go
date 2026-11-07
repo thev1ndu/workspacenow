@@ -25,6 +25,34 @@ var all = []*gormigrate.Migration{
 	{ID: "002_data_platform_depth", Migrate: dataPlatformDepth},
 }
 
+// Pending returns the IDs of migrations not yet recorded in schema_migrations.
+func Pending(db *gorm.DB) ([]string, error) {
+	var applied []string
+	if err := db.Raw("SELECT id FROM schema_migrations ORDER BY id").Scan(&applied).Error; err != nil {
+		return nil, fmt.Errorf("read schema_migrations: %w", err)
+	}
+	ids := make([]string, 0, len(all))
+	for _, m := range all {
+		ids = append(ids, m.ID)
+	}
+	return PendingIDs(applied, ids), nil
+}
+
+// PendingIDs is the pure comparison behind Pending (unit-tested).
+func PendingIDs(applied, all []string) []string {
+	done := map[string]bool{}
+	for _, a := range applied {
+		done[a] = true
+	}
+	var out []string
+	for _, m := range all {
+		if !done[m] {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
 // dataPlatformDepth adds soft deletes, record history and entity version snapshots.
 func dataPlatformDepth(tx *gorm.DB) error {
 	if err := tx.Migrator().AddColumn(&models.Record{}, "DeletedAt"); err != nil {

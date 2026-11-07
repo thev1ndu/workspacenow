@@ -26,6 +26,7 @@ var Collections = []string{
 	"apis", "api_operations", "api_versions", "mcp_servers", "integrations", "webhooks", "webhook_deliveries", "api_keys",
 	"model_providers", "agents", "agent_runs",
 	"workflows", "executions", "approvals",
+	"alert_rules", "alert_fires", "slos", "backups",
 }
 
 // Doc is a JSONB column value.

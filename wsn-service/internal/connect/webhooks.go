@@ -277,3 +277,23 @@ func (d *Dispatcher) Test(ctx context.Context, h *Webhook) (*Delivery, error) {
 	}
 	return d.delivery.Get(ctx, dl.ID)
 }
+
+// DeliverOnce POSTs one signed payload to the webhook immediately (used by alerts) and returns
+// the HTTP status. It does not write a delivery record.
+func DeliverOnce(ctx context.Context, hc *http.Client, h *Webhook, eventType string, payload []byte) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.URL, strings.NewReader(string(payload)))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-WSN-Event", eventType)
+	if h.Secret != "" {
+		req.Header.Set("X-WSN-Signature", signPayload(h.Secret, time.Now().Unix(), payload))
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	return resp.StatusCode, nil
+}

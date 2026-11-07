@@ -4,6 +4,8 @@
 package walstore
 
 import (
+	"net/http"
+	neturl "net/url"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -36,6 +38,7 @@ type segment struct {
 	file *os.File
 	seq  int
 	size int64
+	path string
 }
 
 // Store is the segment-file telemetry.Store.
@@ -52,6 +55,10 @@ type Store struct {
 
 	stop   chan struct{}
 	wg     sync.WaitGroup
+
+	replicaURL string      // sealed segments are POSTed here when set
+	replicaTok string
+	hc         *http.Client
 	once   sync.Once
 	closed atomic.Bool
 }
@@ -162,7 +169,7 @@ func (s *Store) newSegment(sig string, seq int) (*segment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create %s: %w", path, err)
 	}
-	return &segment{file: f, seq: seq}, nil
+	return &segment{file: f, seq: seq, path: path}, nil
 }
 
 // append writes one batch of JSONL lines to the signal's active segment, rolling past segmentBytes.
@@ -196,11 +203,73 @@ func (s *Store) roll(sig string) error {
 	if err := old.file.Close(); err != nil {
 		return fmt.Errorf("close segment: %w", err)
 	}
+	s.replicate(sig, old.seq, old.path) // sealed segment -> replica (best effort, async)
 	seg, err := s.newSegment(sig, old.seq+1)
 	if err != nil {
 		return err
 	}
 	s.segs[sig] = seg
+	return nil
+}
+
+// SetReplicator enables WAL segment replication to a standby observer.
+// Call it once right after Open, before any writes: the fields are read without the lock.
+func (s *Store) SetReplicator(url, token string, hc *http.Client) {
+	s.replicaURL, s.replicaTok, s.hc = url, token, hc
+}
+
+// replicate POSTs a sealed segment to the replica. Best effort: failures are logged, never fatal.
+func (s *Store) replicate(sig string, seq int, path string) {
+	url, tok, hc := s.replicaURL, s.replicaTok, s.hc // set once before writes; no lock needed
+	if url == "" || hc == nil {
+		return
+	}
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		req, err := http.NewRequest(http.MethodPost, strings.TrimRight(url, "/")+"/v1/segments?signal="+neturl.QueryEscape(sig)+"&seq="+strconv.Itoa(seq), bytes.NewReader(data))
+		if err != nil {
+			return
+		}
+		req.Header.Set("Content-Type", "application/octet-stream")
+		if tok != "" {
+			req.Header.Set("Authorization", "Bearer "+tok)
+		}
+		resp, err := hc.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+	}()
+}
+
+// ImportSegment writes a replicated segment into the store (used by the standby's /v1/segments).
+// Refuses to overwrite an existing segment.
+func (s *Store) ImportSegment(sig string, seq int, data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := os.MkdirAll(filepath.Join(s.dir, sig), 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(s.dir, sig, fmt.Sprintf("%020d%s", seq, segExt))
+	if _, err := os.Stat(path); err == nil {
+		return nil // already have it
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return err
+	}
+	if cur, ok := s.segs[sig]; ok && seq >= cur.seq {
+		// standby ingest: adopt as active if newer
+		if seq > cur.seq {
+			if f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
+				s.segs[sig] = &segment{file: f, seq: seq, path: path, size: int64(len(data))}
+			}
+		}
+	}
+	s.counts[sig].Store(s.counts[sig].Load() + int64(countLines(data)))
 	return nil
 }
 

@@ -273,6 +273,12 @@ Executions are durable and must survive restarts.
 | GET | `/traces/{traceId}` | One trace with its audit records and events | `audit.read` |
 | GET | `/health` | Health of applications, APIs, MCP servers, integrations, databases and active workflows | signed in |
 
+| GET | `/status` | Public status page (no auth): healthy/degraded/down rollup + components + version + uptime | public |
+| GET/POST | `/alerts`, PUT/DELETE `/alerts/{id}` | Alert rules over audit/event patterns (threshold + window + webhook) | `control.manage` |
+| GET | `/alerts/{id}/fires`, POST `.../fires/{fireId}/ack` | Fires and acknowledgements | signed in / `control.manage` |
+| GET/POST | `/slos`, GET `/slos/{id}/status` | SLOs per business operation; measured success rate + p95 vs targets | signed in / `control.manage` |
+| GET | `/admin/backups` | Backup records from the `-backup` role / Flux CronJob | `control.manage` |
+
 ### Demo only
 
 | Method | Path | Purpose | Permission |

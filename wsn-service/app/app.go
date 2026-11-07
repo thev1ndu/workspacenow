@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -48,6 +49,7 @@ type Options struct {
 	Server  bool // serve the HTTP API and the event stream
 	Relay   bool // move committed events from the outbox to NATS
 	Worker  bool // run the Temporal workflow worker and the event trigger consumer
+	Backup  bool // run one pg_dump backup to object storage and exit
 }
 
 // Run starts the selected components and blocks until ctx is cancelled or one of them fails.
@@ -65,6 +67,17 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) error {
 			return err
 		}
 		slog.Info("migrations applied")
+	} else if opts.Server || opts.Worker {
+		pending, err := migrations.Pending(db)
+		if err != nil {
+			return err
+		}
+		if len(pending) > 0 {
+			return fmt.Errorf("pending migrations %v — run with -migrate first (upgrade gate)", pending)
+		}
+	}
+	if opts.Backup {
+		return runBackup(ctx, db, cfg)
 	}
 	if !opts.Server && !opts.Relay && !opts.Worker {
 		return nil
@@ -186,6 +199,22 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	obsSvc := obs.NewService(obs.Deps{
 		DB: db, Cache: c, NATS: nc, Observer: obsClient, ServiceName: cfg.Observer.ServiceName,
 		AIHealthURL: cfg.AI.ServiceURL + "/healthz", Connect: connectSvc, Runtime: runtime, Identity: identitySvc,
+		Publisher: publisher, Auditor: auditor,
+	})
+	engine.SetOnInvoke(func(op string, d time.Duration, failed bool) {
+		obsSvc.RecordSLOCall(ctx, op, d, failed)
+	})
+	g.Go(func() error { // alert evaluator: fires rules whose window count crossed the threshold
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+		for {
+			_, _ = obsSvc.EvaluateAlerts(ctx, time.Now().UTC())
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-t.C:
+			}
+		}
 	})
 
 	aiSvc := ai.NewService(ai.Deps{
@@ -212,7 +241,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 
 	public := func(r *http.Request) bool {
 		p := strings.TrimPrefix(r.URL.Path, api.BasePath)
-		return !strings.HasPrefix(r.URL.Path, api.BasePath+"/") || p == "/personas" || p == "/demo/reset"
+		return !strings.HasPrefix(r.URL.Path, api.BasePath+"/") || p == "/personas" || p == "/demo/reset" || p == "/status"
 	}
 	handler := middleware.Chain(mux,
 		middleware.Recover(),
@@ -307,4 +336,25 @@ func setupLogger(level string, exp *observer.Exporter, serviceName string) {
 	}
 	stdout := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: l})
 	slog.SetDefault(slog.New(observer.Tee(stdout, observer.NewLogHandler(exp, serviceName))))
+}
+
+// runBackup dumps Postgres to object storage once (the -backup role; a CronJob in Flux schedules it).
+func runBackup(ctx context.Context, db *gorm.DB, cfg *config.Config) error {
+	artifacts, err := objectstore.Open(ctx, cfg.S3)
+	if err != nil {
+		return err
+	}
+	key := fmt.Sprintf("backups/%s.dump", time.Now().UTC().Format("2006-01-02T15-04-05Z"))
+	dump := exec.CommandContext(ctx, "pg_dump", "--format=custom", cfg.Database.URL)
+	out, err := dump.Output()
+	if err != nil {
+		return fmt.Errorf("pg_dump: %w", err)
+	}
+	if err := artifacts.Put(ctx, key, "application/octet-stream", out); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	rec := obs.BackupRecord{ID: kernel.NewID("bak"), StartedAt: now, FinishedAt: &now, SizeBytes: int64(len(out)), S3Key: key, Status: "done"}
+	col := docstore.NewCollection(db, "backups", func(b *obs.BackupRecord) string { return b.ID })
+	return col.Put(ctx, &rec)
 }

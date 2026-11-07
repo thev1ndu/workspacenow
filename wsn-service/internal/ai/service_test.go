@@ -106,8 +106,9 @@ type fakeEngine struct {
 	failWith *kernel.Error
 }
 
-func (f *fakeEngine) Register(...kernel.Operation)     {}
-func (f *fakeEngine) AddSource(kernel.OperationSource) {}
+func (f *fakeEngine) Register(...kernel.Operation)                  {}
+func (f *fakeEngine) AddSource(kernel.OperationSource)              {}
+func (f *fakeEngine) SetOnInvoke(func(string, time.Duration, bool)) {}
 func (f *fakeEngine) Lookup(context.Context, string) (*kernel.Operation, error) {
 	return &kernel.Operation{Name: "op"}, nil
 }

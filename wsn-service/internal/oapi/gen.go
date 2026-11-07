@@ -149,6 +149,60 @@ func (e AgentRunStep1Kind) Valid() bool {
 	}
 }
 
+// Defines values for AlertFireStatus.
+const (
+	Acked  AlertFireStatus = "acked"
+	Firing AlertFireStatus = "firing"
+)
+
+// Valid indicates whether the value is a known member of the AlertFireStatus enum.
+func (e AlertFireStatus) Valid() bool {
+	switch e {
+	case Acked:
+		return true
+	case Firing:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertRuleSource.
+const (
+	AlertRuleSourceAudit AlertRuleSource = "audit"
+	AlertRuleSourceEvent AlertRuleSource = "event"
+)
+
+// Valid indicates whether the value is a known member of the AlertRuleSource enum.
+func (e AlertRuleSource) Valid() bool {
+	switch e {
+	case AlertRuleSourceAudit:
+		return true
+	case AlertRuleSourceEvent:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertRuleInputSource.
+const (
+	AlertRuleInputSourceAudit AlertRuleInputSource = "audit"
+	AlertRuleInputSourceEvent AlertRuleInputSource = "event"
+)
+
+// Valid indicates whether the value is a known member of the AlertRuleInputSource enum.
+func (e AlertRuleInputSource) Valid() bool {
+	switch e {
+	case AlertRuleInputSourceAudit:
+		return true
+	case AlertRuleInputSourceEvent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ApiVersionStatus.
 const (
 	ApiVersionStatusActive     ApiVersionStatus = "active"
@@ -254,6 +308,27 @@ func (e AuditRecordOutcome) Valid() bool {
 	case AuditRecordOutcomeDenied:
 		return true
 	case AuditRecordOutcomeFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BackupRecordStatus.
+const (
+	BackupRecordStatusDone    BackupRecordStatus = "done"
+	BackupRecordStatusFailed  BackupRecordStatus = "failed"
+	BackupRecordStatusRunning BackupRecordStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the BackupRecordStatus enum.
+func (e BackupRecordStatus) Valid() bool {
+	switch e {
+	case BackupRecordStatusDone:
+		return true
+	case BackupRecordStatusFailed:
+		return true
+	case BackupRecordStatusRunning:
 		return true
 	default:
 		return false
@@ -1180,22 +1255,22 @@ func (e WorkflowStatus) Valid() bool {
 
 // Defines values for WorkflowExecutionStatus.
 const (
-	WorkflowExecutionStatusCompleted WorkflowExecutionStatus = "completed"
-	WorkflowExecutionStatusFailed    WorkflowExecutionStatus = "failed"
-	WorkflowExecutionStatusRunning   WorkflowExecutionStatus = "running"
-	WorkflowExecutionStatusWaiting   WorkflowExecutionStatus = "waiting"
+	Completed WorkflowExecutionStatus = "completed"
+	Failed    WorkflowExecutionStatus = "failed"
+	Running   WorkflowExecutionStatus = "running"
+	Waiting   WorkflowExecutionStatus = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the WorkflowExecutionStatus enum.
 func (e WorkflowExecutionStatus) Valid() bool {
 	switch e {
-	case WorkflowExecutionStatusCompleted:
+	case Completed:
 		return true
-	case WorkflowExecutionStatusFailed:
+	case Failed:
 		return true
-	case WorkflowExecutionStatusRunning:
+	case Running:
 		return true
-	case WorkflowExecutionStatusWaiting:
+	case Waiting:
 		return true
 	default:
 		return false
@@ -1671,6 +1746,71 @@ type AgentRunStep1 struct {
 // AgentRunStep1Kind defines model for AgentRunStep.1.Kind.
 type AgentRunStep1Kind string
 
+// AlertFire defines model for AlertFire.
+type AlertFire struct {
+	AckedAt   *IsoDate        `json:"ackedAt,omitempty"`
+	AckedBy   *string         `json:"ackedBy,omitempty"`
+	Count     int             `json:"count"`
+	CreatedAt IsoDate         `json:"createdAt"`
+	FiredAt   IsoDate         `json:"firedAt"`
+	Id        string          `json:"id"`
+	RuleId    string          `json:"ruleId"`
+	Status    AlertFireStatus `json:"status"`
+}
+
+// AlertFireStatus defines model for AlertFire.Status.
+type AlertFireStatus string
+
+// AlertFireList defines model for AlertFireList.
+type AlertFireList struct {
+	Items      []AlertFire `json:"items"`
+	TotalCount int         `json:"totalCount"`
+}
+
+// AlertRule defines model for AlertRule.
+type AlertRule struct {
+	// Action Audit action or event type to match
+	Action    string  `json:"action"`
+	Active    bool    `json:"active"`
+	CreatedAt IsoDate `json:"createdAt"`
+	Id        string  `json:"id"`
+	Name      string  `json:"name"`
+
+	// Outcome Audit outcome filter, e.g. denied
+	Outcome   *string         `json:"outcome,omitempty"`
+	Source    AlertRuleSource `json:"source"`
+	Threshold int             `json:"threshold"`
+	UpdatedAt IsoDate         `json:"updatedAt"`
+
+	// WebhookId Webhook to call when the rule fires
+	WebhookId     *string `json:"webhookId,omitempty"`
+	WindowMinutes int     `json:"windowMinutes"`
+}
+
+// AlertRuleSource defines model for AlertRule.Source.
+type AlertRuleSource string
+
+// AlertRuleInput defines model for AlertRuleInput.
+type AlertRuleInput struct {
+	Action        string                `json:"action"`
+	Active        *bool                 `json:"active,omitempty"`
+	Name          string                `json:"name"`
+	Outcome       *string               `json:"outcome,omitempty"`
+	Source        *AlertRuleInputSource `json:"source,omitempty"`
+	Threshold     int                   `json:"threshold"`
+	WebhookId     *string               `json:"webhookId,omitempty"`
+	WindowMinutes int                   `json:"windowMinutes"`
+}
+
+// AlertRuleInputSource defines model for AlertRuleInput.Source.
+type AlertRuleInputSource string
+
+// AlertRuleList defines model for AlertRuleList.
+type AlertRuleList struct {
+	Items      []AlertRule `json:"items"`
+	TotalCount int         `json:"totalCount"`
+}
+
 // Api defines model for Api.
 type Api struct {
 	ApplicationId  string         `json:"applicationId"`
@@ -1868,6 +2008,25 @@ type AuditRecordList struct {
 	Items []AuditRecord `json:"items"`
 	Total int           `json:"total"`
 }
+
+// BackupList defines model for BackupList.
+type BackupList struct {
+	Items      []BackupRecord `json:"items"`
+	TotalCount int            `json:"totalCount"`
+}
+
+// BackupRecord defines model for BackupRecord.
+type BackupRecord struct {
+	FinishedAt *IsoDate           `json:"finishedAt,omitempty"`
+	Id         string             `json:"id"`
+	S3Key      string             `json:"s3Key"`
+	SizeBytes  int                `json:"sizeBytes"`
+	StartedAt  IsoDate            `json:"startedAt"`
+	Status     BackupRecordStatus `json:"status"`
+}
+
+// BackupRecordStatus defines model for BackupRecord.Status.
+type BackupRecordStatus string
 
 // BusinessOperationDescriptor defines model for BusinessOperationDescriptor.
 type BusinessOperationDescriptor struct {
@@ -2578,6 +2737,18 @@ type RowFilter struct {
 // RowFilterOp defines model for RowFilter.Op.
 type RowFilterOp string
 
+// SLO defines model for SLO.
+type SLO struct {
+	CreatedAt   IsoDate `json:"createdAt"`
+	Id          string  `json:"id"`
+	Operation   string  `json:"operation"`
+	TargetP95Ms int     `json:"targetP95Ms"`
+
+	// TargetSuccess 0..1 required success rate
+	TargetSuccess float32 `json:"targetSuccess"`
+	WindowMinutes int     `json:"windowMinutes"`
+}
+
 // SavedView defines model for SavedView.
 type SavedView struct {
 	CreatedAt IsoDate    `json:"createdAt"`
@@ -2658,6 +2829,31 @@ type Session struct {
 
 	// Roles Role names
 	Roles []string `json:"roles"`
+}
+
+// SloInput defines model for SloInput.
+type SloInput struct {
+	Operation     string  `json:"operation"`
+	TargetP95Ms   int     `json:"targetP95Ms"`
+	TargetSuccess float32 `json:"targetSuccess"`
+	WindowMinutes int     `json:"windowMinutes"`
+}
+
+// SloList defines model for SloList.
+type SloList struct {
+	Items      []SLO `json:"items"`
+	TotalCount int   `json:"totalCount"`
+}
+
+// SloStatus defines model for SloStatus.
+type SloStatus struct {
+	Breached    *bool    `json:"breached,omitempty"`
+	Calls       *int     `json:"calls,omitempty"`
+	Errors      *int     `json:"errors,omitempty"`
+	Operation   *string  `json:"operation,omitempty"`
+	P95Ms       *int     `json:"p95Ms,omitempty"`
+	SloId       *string  `json:"sloId,omitempty"`
+	SuccessRate *float32 `json:"successRate,omitempty"`
 }
 
 // StepBase defines model for StepBase.
@@ -3309,6 +3505,12 @@ type UpdateAgentJSONRequestBody UpdateAgentJSONBody
 // RunAgentJSONRequestBody defines body for RunAgent for application/json ContentType.
 type RunAgentJSONRequestBody = PromptBody
 
+// CreateAlertRuleJSONRequestBody defines body for CreateAlertRule for application/json ContentType.
+type CreateAlertRuleJSONRequestBody = AlertRuleInput
+
+// UpdateAlertRuleJSONRequestBody defines body for UpdateAlertRule for application/json ContentType.
+type UpdateAlertRuleJSONRequestBody = AlertRuleInput
+
 // CreateApiKeyJSONRequestBody defines body for CreateApiKey for application/json ContentType.
 type CreateApiKeyJSONRequestBody CreateApiKeyJSONBody
 
@@ -3383,6 +3585,9 @@ type RegisterMcpServerJSONRequestBody RegisterMcpServerJSONBody
 
 // RunSidekickJSONRequestBody defines body for RunSidekick for application/json ContentType.
 type RunSidekickJSONRequestBody RunSidekickJSONBody
+
+// CreateSLOJSONRequestBody defines body for CreateSLO for application/json ContentType.
+type CreateSLOJSONRequestBody = SloInput
 
 // CreateWebhookJSONRequestBody defines body for CreateWebhook for application/json ContentType.
 type CreateWebhookJSONRequestBody = WebhookInput
@@ -3959,6 +4164,9 @@ func (t *WorkflowTrigger) UnmarshalJSON(b []byte) error {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Backup records (the -backup role / Flux CronJob writes these)
+	// (GET /admin/backups)
+	ListBackups(w http.ResponseWriter, r *http.Request)
 	// Agent runs, newest first
 	// (GET /agent-runs)
 	ListAgentRuns(w http.ResponseWriter, r *http.Request, params ListAgentRunsParams)
@@ -3977,6 +4185,24 @@ type ServerInterface interface {
 	// Run an agent with a prompt
 	// (POST /agents/{agentId}/runs)
 	RunAgent(w http.ResponseWriter, r *http.Request, agentId AgentId)
+	// Alert rules over audit/event patterns
+	// (GET /alerts)
+	ListAlertRules(w http.ResponseWriter, r *http.Request)
+	// Create an alert rule (e.g. 5 denied approvals in an hour -> webhook)
+	// (POST /alerts)
+	CreateAlertRule(w http.ResponseWriter, r *http.Request)
+	// Delete an alert rule (fires stay)
+	// (DELETE /alerts/{alertId})
+	DeleteAlertRule(w http.ResponseWriter, r *http.Request, alertId string)
+	// Change an alert rule
+	// (PUT /alerts/{alertId})
+	UpdateAlertRule(w http.ResponseWriter, r *http.Request, alertId string)
+	// An alert rule's fires
+	// (GET /alerts/{alertId}/fires)
+	ListAlertFires(w http.ResponseWriter, r *http.Request, alertId string)
+	// Acknowledge a firing alert
+	// (POST /alerts/{alertId}/fires/{fireId}/ack)
+	AckAlertFire(w http.ResponseWriter, r *http.Request, alertId string, fireId string)
 	// Daily API calls, agent tool calls, workflow steps and denials
 	// (GET /analytics/activity)
 	GetActivity(w http.ResponseWriter, r *http.Request, params GetActivityParams)
@@ -4208,6 +4434,18 @@ type ServerInterface interface {
 	// Ask Sidekick, the console assistant
 	// (POST /sidekick/runs)
 	RunSidekick(w http.ResponseWriter, r *http.Request)
+	// SLOs per business operation
+	// (GET /slos)
+	ListSLOs(w http.ResponseWriter, r *http.Request)
+	// Define an SLO for a business operation
+	// (POST /slos)
+	CreateSLO(w http.ResponseWriter, r *http.Request)
+	// Measure an SLO now (calls, errors, success rate, p95 ms, breached)
+	// (GET /slos/{sloId}/status)
+	GetSLOStatus(w http.ResponseWriter, r *http.Request, sloId string)
+	// Public status page payload (no auth)
+	// (GET /status)
+	StatusPage(w http.ResponseWriter, r *http.Request)
 	// Teams
 	// (GET /teams)
 	ListTeams(w http.ResponseWriter, r *http.Request)
@@ -4266,6 +4504,26 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListBackups operation middleware
+func (siw *ServerInterfaceWrapper) ListBackups(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBackups(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListAgentRuns operation middleware
 func (siw *ServerInterfaceWrapper) ListAgentRuns(w http.ResponseWriter, r *http.Request) {
@@ -4459,6 +4717,179 @@ func (siw *ServerInterfaceWrapper) RunAgent(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RunAgent(w, r, agentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAlertRules operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertRules(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertRules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAlertRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateAlertRule(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAlertRule(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAlertRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAlertRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "alertId" -------------
+	var alertId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "alertId", r.PathValue("alertId"), &alertId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alertId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAlertRule(w, r, alertId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAlertRule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAlertRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "alertId" -------------
+	var alertId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "alertId", r.PathValue("alertId"), &alertId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alertId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAlertRule(w, r, alertId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAlertFires operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertFires(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "alertId" -------------
+	var alertId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "alertId", r.PathValue("alertId"), &alertId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alertId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertFires(w, r, alertId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AckAlertFire operation middleware
+func (siw *ServerInterfaceWrapper) AckAlertFire(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "alertId" -------------
+	var alertId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "alertId", r.PathValue("alertId"), &alertId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "alertId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "fireId" -------------
+	var fireId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fireId", r.PathValue("fireId"), &fireId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fireId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AckAlertFire(w, r, alertId, fireId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6713,6 +7144,97 @@ func (siw *ServerInterfaceWrapper) RunSidekick(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListSLOs operation middleware
+func (siw *ServerInterfaceWrapper) ListSLOs(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSLOs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSLO operation middleware
+func (siw *ServerInterfaceWrapper) CreateSLO(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSLO(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSLOStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetSLOStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "sloId" -------------
+	var sloId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sloId", r.PathValue("sloId"), &sloId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sloId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSLOStatus(w, r, sloId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StatusPage operation middleware
+func (siw *ServerInterfaceWrapper) StatusPage(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StatusPage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTeams operation middleware
 func (siw *ServerInterfaceWrapper) ListTeams(w http.ResponseWriter, r *http.Request) {
 
@@ -7290,12 +7812,19 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("GET "+options.BaseURL+"/admin/backups", wrapper.ListBackups)
 	m.HandleFunc("GET "+options.BaseURL+"/agent-runs", wrapper.ListAgentRuns)
 	m.HandleFunc("GET "+options.BaseURL+"/agent-runs/{runId}", wrapper.GetAgentRun)
 	m.HandleFunc("GET "+options.BaseURL+"/agents", wrapper.ListAgents)
 	m.HandleFunc("GET "+options.BaseURL+"/agents/{agentId}", wrapper.GetAgent)
 	m.HandleFunc("PATCH "+options.BaseURL+"/agents/{agentId}", wrapper.UpdateAgent)
 	m.HandleFunc("POST "+options.BaseURL+"/agents/{agentId}/runs", wrapper.RunAgent)
+	m.HandleFunc("GET "+options.BaseURL+"/alerts", wrapper.ListAlertRules)
+	m.HandleFunc("POST "+options.BaseURL+"/alerts", wrapper.CreateAlertRule)
+	m.HandleFunc("DELETE "+options.BaseURL+"/alerts/{alertId}", wrapper.DeleteAlertRule)
+	m.HandleFunc("PUT "+options.BaseURL+"/alerts/{alertId}", wrapper.UpdateAlertRule)
+	m.HandleFunc("GET "+options.BaseURL+"/alerts/{alertId}/fires", wrapper.ListAlertFires)
+	m.HandleFunc("POST "+options.BaseURL+"/alerts/{alertId}/fires/{fireId}/ack", wrapper.AckAlertFire)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/activity", wrapper.GetActivity)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/entry-points", wrapper.GetEntryPointBreakdown)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/tokens", wrapper.GetTokenUsage)
@@ -7373,6 +7902,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/search", wrapper.Search)
 	m.HandleFunc("GET "+options.BaseURL+"/session", wrapper.GetSession)
 	m.HandleFunc("POST "+options.BaseURL+"/sidekick/runs", wrapper.RunSidekick)
+	m.HandleFunc("GET "+options.BaseURL+"/slos", wrapper.ListSLOs)
+	m.HandleFunc("POST "+options.BaseURL+"/slos", wrapper.CreateSLO)
+	m.HandleFunc("GET "+options.BaseURL+"/slos/{sloId}/status", wrapper.GetSLOStatus)
+	m.HandleFunc("GET "+options.BaseURL+"/status", wrapper.StatusPage)
 	m.HandleFunc("GET "+options.BaseURL+"/teams", wrapper.ListTeams)
 	m.HandleFunc("GET "+options.BaseURL+"/traces", wrapper.ListTraces)
 	m.HandleFunc("GET "+options.BaseURL+"/traces/{traceId}", wrapper.GetTrace)

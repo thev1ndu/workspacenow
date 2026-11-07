@@ -16,6 +16,7 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/data"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/identity"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/observer"
@@ -40,6 +41,22 @@ type Service interface {
 	Activity(ctx context.Context, days int) ([]oapi.ActivityPoint, error)
 	TokenUsage(ctx context.Context, days int) ([]oapi.TokenUsagePoint, error)
 	EntryPoints(ctx context.Context) ([]oapi.EntryPointBreakdown, error)
+	// Alerts: rules over audit/event patterns, fires, ack.
+	AlertRules(ctx context.Context) ([]AlertRule, error)
+	CreateAlertRule(ctx context.Context, ec kernel.ExecutionContext, r AlertRule) (*AlertRule, error)
+	UpdateAlertRule(ctx context.Context, ec kernel.ExecutionContext, id string, r AlertRule) (*AlertRule, error)
+	DeleteAlertRule(ctx context.Context, ec kernel.ExecutionContext, id string) error
+	AlertFires(ctx context.Context, ruleID string) ([]AlertFire, error)
+	AckFire(ctx context.Context, ec kernel.ExecutionContext, ruleID, fireID string) (*AlertFire, error)
+	EvaluateAlerts(ctx context.Context, now time.Time) ([]AlertFire, error)
+	// SLOs per business operation.
+	SLOs(ctx context.Context) ([]SLO, error)
+	CreateSLO(ctx context.Context, ec kernel.ExecutionContext, s SLO) (*SLO, error)
+	SLOStatusByID(ctx context.Context, id string) (map[string]any, error)
+	RecordSLOCall(ctx context.Context, operation string, d time.Duration, failed bool)
+	// Status page + backups.
+	Status(ctx context.Context) map[string]any
+	Backups(ctx context.Context) ([]BackupRecord, error)
 }
 
 type service struct {
@@ -53,6 +70,12 @@ type service struct {
 	connect     connect.Service
 	runtime     data.Runtime
 	identity    identity.Service
+	publisher   kernel.Publisher
+	auditor     kernel.Auditor
+	alertRules  *docstore.Collection[AlertRule]
+	alertFires  *docstore.Collection[AlertFire]
+	slos        *docstore.Collection[SLO]
+	backups     *docstore.Collection[BackupRecord]
 }
 
 // Deps are the obs service's collaborators.
@@ -66,6 +89,8 @@ type Deps struct {
 	Connect     connect.Service
 	Runtime     data.Runtime
 	Identity    identity.Service
+	Publisher   kernel.Publisher
+	Auditor     kernel.Auditor
 }
 
 // NewService wires the obs service.
@@ -73,7 +98,11 @@ func NewService(d Deps) Service {
 	return &service{
 		db: d.DB, cache: d.Cache, nats: d.NATS, obs: d.Observer, serviceName: d.ServiceName,
 		aiHealthURL: d.AIHealthURL, hc: &http.Client{Timeout: 3 * time.Second},
-		connect: d.Connect, runtime: d.Runtime, identity: d.Identity,
+		connect: d.Connect, runtime: d.Runtime, identity: d.Identity, publisher: d.Publisher,
+		alertRules: docstore.NewCollection(d.DB, "alert_rules", func(a *AlertRule) string { return a.ID }),
+		alertFires: docstore.NewCollection(d.DB, "alert_fires", func(a *AlertFire) string { return a.ID }),
+		slos:       docstore.NewCollection(d.DB, "slos", func(s *SLO) string { return s.ID }),
+		backups:    docstore.NewCollection(d.DB, "backups", func(b *BackupRecord) string { return b.ID }),
 	}
 }
 

@@ -26,7 +26,11 @@ import {
   type ApiVersionInput,
   type Webhook,
   type WebhookDelivery,
-  type WebhookInput
+  type WebhookInput,
+  type AlertRule,
+  type AlertRuleInput,
+  type Slo,
+  type SloInput
 } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { activitySeries, entryPointBreakdown, tokenSeries } from "./analytics";
@@ -762,6 +766,85 @@ route("POST", "/approvals/:id/decision", ({ platform, userId, params, body }) =>
 /* Observability and audit */
 
 route("GET", "/events", ({ platform, query }) => page([...platform.state.events].reverse(), query));
+route("GET", "/status", ({ platform }) => {
+  const components = [
+    ...platform.state.connections.map((d) => ({ kind: "database", resource: d.name, status: d.status === "connected" ? "healthy" : d.status === "degraded" ? "degraded" : "down", detail: d.host })),
+    ...platform.state.integrations.map((i) => ({ kind: "integration", resource: i.name, status: i.status === "failing" ? "down" : i.status === "untested" ? "degraded" : "healthy", detail: i.target })),
+    { kind: "api", resource: "wsn-service", status: "healthy", detail: "serving" },
+    { kind: "agent-runtime", resource: "wsn-ai-service", status: "healthy", detail: "connected" },
+    { kind: "observer", resource: "wsn-observer", status: "healthy", detail: "ingesting" },
+  ];
+  const status = components.some((c) => c.status === "down") ? "down" : components.some((c) => c.status === "degraded") ? "degraded" : "healthy";
+  return { status, service: "wsn-service", version: "mock", uptimeSeconds: 3600, time: platform.now(), components };
+}, { public: true });
+route("GET", "/alerts", ({ platform }) => list(platform.state.alertRules));
+route("POST", "/alerts", ({ platform, ctx, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "alert.create", "alert");
+  const input = body as AlertRuleInput;
+  if (!input.name?.trim() || !input.action?.trim() || !(input.threshold > 0) || !(input.windowMinutes > 0))
+    fail(422, "VALIDATION_FAILED", "An alert needs a name, an action or event type, a threshold and a window in minutes");
+  const now = platform.now();
+  const rule: AlertRule = { ...input, id: platform.nextId("alr"), source: input.source ?? "audit", active: input.active ?? true, name: input.name.trim(), action: input.action.trim(), createdAt: now, updatedAt: now };
+  platform.state.alertRules.push(rule);
+  // mock evaluator: if the seeded audit log already crosses the threshold, fire immediately
+  const since = new Date(Date.now() - rule.windowMinutes * 60000).toISOString();
+  const count = platform.state.audit.filter((a) => a.action === rule.action && (!rule.outcome || a.outcome === rule.outcome) && a.time >= since).length;
+  if (count >= rule.threshold) {
+    platform.state.alertFires.push({ id: platform.nextId("fire"), ruleId: rule.id, firedAt: now, count, status: "firing", createdAt: now });
+  }
+  platform.audit(c, "alert.create", `alert/${rule.id}`, "allowed", rule.name);
+  return rule;
+});
+route("PUT", "/alerts/:id", ({ platform, ctx, params, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "alert.update", `alert/${params.id}`);
+  const rule = find(platform.state.alertRules, params.id, "Alert rule");
+  Object.assign(rule, body, { updatedAt: platform.now() });
+  return rule;
+});
+route("DELETE", "/alerts/:id", ({ platform, ctx, params }) => {
+  platform.requirePermission(ctx("control"), "control.manage", "alert.delete", `alert/${params.id}`);
+  const i = platform.state.alertRules.findIndex((r) => r.id === params.id);
+  if (i < 0) fail(404, "NOT_FOUND", "Alert rule not found");
+  platform.state.alertRules.splice(i, 1);
+  return { id: params.id, deleted: true };
+});
+route("GET", "/alerts/:id/fires", ({ platform, params }) => list(platform.state.alertFires.filter((f) => f.ruleId === params.id)));
+route("POST", "/alerts/:id/fires/:fireId/ack", ({ platform, ctx, params }) => {
+  platform.requirePermission(ctx("control"), "control.manage", "alert.ack", `alert/${params.id}/${params.fireId}`);
+  const f = find(platform.state.alertFires, params.fireId, "Alert fire");
+  if (f.ruleId !== params.id) fail(404, "NOT_FOUND", "Alert fire not found");
+  f.status = "acked";
+  f.ackedBy = ctx("control").actor.name;
+  f.ackedAt = platform.now();
+  return f;
+});
+route("GET", "/slos", ({ platform }) => list(platform.state.slos));
+route("POST", "/slos", ({ platform, ctx, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "slo.create", "slo");
+  const input = body as SloInput;
+  if (!input.operation?.trim() || !(input.targetSuccess > 0) || !(input.targetP95Ms > 0) || !(input.windowMinutes > 0))
+    fail(422, "VALIDATION_FAILED", "An SLO needs an operation, a success target, a p95 target (ms) and a window in minutes");
+  const slo: Slo = { id: platform.nextId("slo"), operation: input.operation.trim(), targetSuccess: input.targetSuccess, targetP95Ms: input.targetP95Ms, windowMinutes: input.windowMinutes, createdAt: platform.now() };
+  platform.state.slos.push(slo);
+  return slo;
+});
+route("GET", "/slos/:id/status", ({ platform, params }) => {
+  const slo = find(platform.state.slos, params.id, "SLO");
+  const since = new Date(Date.now() - slo.windowMinutes * 60000).toISOString();
+  const rows = platform.state.audit.filter((a) => a.action === slo.operation && a.time >= since);
+  const calls = rows.length;
+  const errors = rows.filter((r) => r.outcome !== "allowed").length;
+  const successRate = calls > 0 ? (calls - errors) / calls : 1;
+  const breached = calls > 0 && (successRate < slo.targetSuccess || 120 > slo.targetP95Ms);
+  return { sloId: slo.id, operation: slo.operation, calls, errors, successRate, p95Ms: 120, targetP95Ms: slo.targetP95Ms, breached };
+});
+route("GET", "/admin/backups", ({ platform, ctx }) => {
+  platform.requirePermission(ctx("control"), "control.manage", "backup.list", "backup");
+  return list(platform.state.backups);
+});
 route("GET", "/audit", ({ platform, ctx, query }) => {
   const c = ctx("control");
   platform.requirePermission(c, "audit.read", "audit.read", "audit");

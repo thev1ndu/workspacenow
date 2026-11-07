@@ -21,16 +21,17 @@ type Config struct {
 	RetentionBytes int64  // max bytes kept per signal; oldest segments are pruned past it
 	SegmentBytes   int64  // roll the active segment past this size
 	ScanLimit      int    // max records a query scans per signal, newest first
+	ReplicaURL string // when set, sealed segments are replicated to this observer
+
 }
 
 // Load reads the process environment.
-func Load() (Config, error) {
-	return load(os.LookupEnv)
-}
+func Load() (Config, error) { return load(os.LookupEnv) }
 
 func load(lookup func(string) (string, bool)) (Config, error) {
 	cfg := Config{
 		Port:           9098,
+		ReplicaURL:     "",
 		LogLevel:       "INFO",
 		DataDir:        "./data",
 		RetentionBytes: 256 << 20, // 256 MiB per signal
@@ -60,6 +61,9 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 		} else {
 			cfg.SegmentBytes = n
 		}
+	}
+	if v, ok := lookup("WSN_OBSERVER_REPLICA_URL"); ok {
+		cfg.ReplicaURL = v
 	}
 	if v, ok := lookup("WSN_OBSERVER_SCAN_LIMIT"); ok && v != "" {
 		n, err := strconv.Atoi(v)

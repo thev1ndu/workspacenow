@@ -1,0 +1,30 @@
+# Nightly Postgres backup: the -backup role pg_dumps to object storage (backups/) and records
+# it in the backups table (GET /api/v1/admin/backups). PITR itself comes from CloudNativePG's
+# WAL archiving to the same bucket — see deploy/flux/infrastructure.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: wsn-service-backup
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: wsn-service
+          securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+          containers:
+            - name: backup
+              image: wsn-service
+              args: ["-backup"]
+              envFrom: [{ configMapRef: { name: wsn-service } }]
+              env:
+                - name: DATABASE_URL
+                  valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }

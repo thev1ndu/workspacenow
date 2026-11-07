@@ -82,4 +82,6 @@ type Store interface {
 	ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]MetricPoint, int, error)
 	Overview(ctx context.Context) (services []string, spans, logs, metrics int, err error)
 	Close() error
+	// ImportSegment writes one replicated WAL segment (standby side of segment replication).
+	ImportSegment(signal string, seq int, data []byte) error
 }

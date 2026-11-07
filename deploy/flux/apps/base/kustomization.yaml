@@ -19,3 +19,4 @@ images:
     newName: ghcr.io/thev1ndu/wsn-observer
   - name: console
     newName: ghcr.io/thev1ndu/console
+  - backup-cronjob.yaml

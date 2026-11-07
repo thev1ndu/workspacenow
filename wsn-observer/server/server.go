@@ -2,6 +2,7 @@
 package server
 
 import (
+	"slices"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
@@ -41,6 +42,7 @@ func New(cfg config.Config, store telemetry.Store) http.Handler {
 	mux.HandleFunc("POST /v1/traces", s.auth(s.ingest(s.storeSpans)))
 	mux.HandleFunc("POST /v1/logs", s.auth(s.ingest(s.storeLogs)))
 	mux.HandleFunc("POST /v1/metrics", s.auth(s.ingest(s.storeMetrics)))
+	mux.HandleFunc("POST /v1/segments", s.auth(s.importSegment)) // WAL replication from a primary observer
 	mux.HandleFunc("GET /api/v1/traces", s.auth(s.listTraces))
 	mux.HandleFunc("GET /api/v1/trace", s.auth(s.getTrace))
 	mux.HandleFunc("GET /api/v1/logs", s.auth(s.listLogs))
@@ -118,6 +120,31 @@ func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusNotFound, "NOT_FOUND", r.Method+" "+r.URL.Path+" does not exist")
+}
+
+// importSegment receives a sealed WAL segment from a primary observer (replication).
+func (s *Server) importSegment(w http.ResponseWriter, r *http.Request) {
+	sig := r.URL.Query().Get("signal")
+	seq, err := strconv.Atoi(r.URL.Query().Get("seq"))
+	if sig == "" || err != nil || seq < 0 {
+		http.Error(w, `{"status":400,"code":"VALIDATION_FAILED","message":"signal and seq required"}`, http.StatusBadRequest)
+		return
+	}
+	if !slices.Contains([]string{"traces", "logs", "metrics"}, sig) {
+		http.Error(w, `{"status":400,"code":"VALIDATION_FAILED","message":"unknown signal"}`, http.StatusBadRequest)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 512<<20))
+	if err != nil {
+		http.Error(w, `{"status":400,"code":"VALIDATION_FAILED","message":"read body"}`, http.StatusBadRequest)
+		return
+	}
+	if err := s.store.ImportSegment(sig, seq, body); err != nil {
+		http.Error(w, `{"status":500,"code":"INVALID_STATE","message":"import segment"}`, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"accepted":1}`))
 }
 
 func (s *Server) ingest(accept func(context.Context, []byte) (int, error)) http.HandlerFunc {

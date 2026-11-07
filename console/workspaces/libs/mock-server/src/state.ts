@@ -29,7 +29,11 @@ import type {
   ApiKey,
   ApiVersion,
   Webhook,
-  WebhookDelivery
+  WebhookDelivery,
+  AlertFire,
+  AlertRule,
+  BackupRecord,
+  Slo
 } from "@workspacenow/types";
 
 /** Everything one Installation persists. */
@@ -67,6 +71,10 @@ export interface PlatformState {
   webhookDeliveries: WebhookDelivery[];
   apiVersions: ApiVersion[];
   apiKeys: ApiKey[];
+  alertRules: AlertRule[];
+  alertFires: AlertFire[];
+  slos: Slo[];
+  backups: BackupRecord[];
   /** Application ids each user pinned, keyed by user id, in pin order. */
   pins: Record<string, string[]>;
 }

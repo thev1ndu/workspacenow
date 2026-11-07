@@ -1370,6 +1370,130 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /status:
+    get:
+      tags: [Control]
+      operationId: statusPage
+      summary: Public status page payload (no auth)
+      description: "Aggregates component health, version and uptime into `healthy`/`degraded`/`down`. Mounted at `/status` outside the API base path too."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, properties: { status: { type: string }, service: { type: string }, version: { type: string }, uptimeSeconds: { type: integer }, components: { type: array, items: { $ref: "#/components/schemas/HealthSignal" } } } } } } }
+  /alerts:
+    get:
+      tags: [Control]
+      operationId: listAlertRules
+      summary: Alert rules over audit/event patterns
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AlertRuleList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Control]
+      operationId: createAlertRule
+      summary: Create an alert rule (e.g. 5 denied approvals in an hour -> webhook)
+      description: "Requires `control.manage`. Source `audit` matches action+outcome, source `event` matches event type. When the window count reaches the threshold and no fire is open, an `Alert.Fired` event is emitted and the rule's webhook is called."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AlertRuleInput" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/AlertRule" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /alerts/{alertId}:
+    parameters: [{ name: alertId, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [Control]
+      operationId: updateAlertRule
+      summary: Change an alert rule
+      description: "Requires `control.manage`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AlertRuleInput" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AlertRule" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Control]
+      operationId: deleteAlertRule
+      summary: Delete an alert rule (fires stay)
+      description: "Requires `control.manage`."
+      responses:
+        "200": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /alerts/{alertId}/fires:
+    parameters: [{ name: alertId, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [Control]
+      operationId: listAlertFires
+      summary: An alert rule's fires
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AlertFireList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /alerts/{alertId}/fires/{fireId}/ack:
+    parameters:
+      - { name: alertId, in: path, required: true, schema: { type: string } }
+      - { name: fireId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Control]
+      operationId: ackAlertFire
+      summary: Acknowledge a firing alert
+      description: "Requires `control.manage`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/AlertFire" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /slos:
+    get:
+      tags: [Control]
+      operationId: listSLOs
+      summary: SLOs per business operation
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SloList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Control]
+      operationId: createSLO
+      summary: Define an SLO for a business operation
+      description: "Requires `control.manage`. Measured from per-minute counters recorded on every invoke."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SloInput" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/SLO" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /slos/{sloId}/status:
+    parameters: [{ name: sloId, in: path, required: true, schema: { type: string } }]
+    get:
+      tags: [Control]
+      operationId: getSLOStatus
+      summary: Measure an SLO now (calls, errors, success rate, p95 ms, breached)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SloStatus" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /admin/backups:
+    get:
+      tags: [Control]
+      operationId: listBackups
+      summary: Backup records (the -backup role / Flux CronJob writes these)
+      description: "Requires `control.manage`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/BackupList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /health:
     get:
       tags: [Observability]
@@ -2386,6 +2510,107 @@ components:
           properties:
             audit: { type: array, items: { $ref: "#/components/schemas/AuditRecord" } }
             events: { type: array, items: { $ref: "#/components/schemas/PlatformEvent" } }
+    AlertRule:
+      type: object
+      required: [id, name, source, action, threshold, windowMinutes, active, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        source: { type: string, enum: [audit, event] }
+        action: { type: string, description: "Audit action or event type to match" }
+        outcome: { type: string, description: "Audit outcome filter, e.g. denied" }
+        threshold: { type: integer, minimum: 1 }
+        windowMinutes: { type: integer, minimum: 1 }
+        webhookId: { type: string, description: "Webhook to call when the rule fires" }
+        active: { type: boolean }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+        updatedAt: { $ref: "#/components/schemas/IsoDate" }
+    AlertRuleInput:
+      type: object
+      required: [name, action, threshold, windowMinutes]
+      properties:
+        name: { type: string }
+        source: { type: string, enum: [audit, event], default: audit }
+        action: { type: string }
+        outcome: { type: string }
+        threshold: { type: integer, minimum: 1 }
+        windowMinutes: { type: integer, minimum: 1 }
+        webhookId: { type: string }
+        active: { type: boolean, default: true }
+    AlertRuleList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AlertRule" } }
+        totalCount: { type: integer }
+    AlertFire:
+      type: object
+      required: [id, ruleId, firedAt, count, status, createdAt]
+      properties:
+        id: { type: string }
+        ruleId: { type: string }
+        firedAt: { $ref: "#/components/schemas/IsoDate" }
+        count: { type: integer }
+        status: { type: string, enum: [firing, acked] }
+        ackedBy: { type: string }
+        ackedAt: { $ref: "#/components/schemas/IsoDate" }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+    AlertFireList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AlertFire" } }
+        totalCount: { type: integer }
+    SLO:
+      type: object
+      required: [id, operation, targetSuccess, targetP95Ms, windowMinutes, createdAt]
+      properties:
+        id: { type: string }
+        operation: { type: string }
+        targetSuccess: { type: number, description: "0..1 required success rate" }
+        targetP95Ms: { type: integer }
+        windowMinutes: { type: integer }
+        createdAt: { $ref: "#/components/schemas/IsoDate" }
+    SloInput:
+      type: object
+      required: [operation, targetSuccess, targetP95Ms, windowMinutes]
+      properties:
+        operation: { type: string }
+        targetSuccess: { type: number }
+        targetP95Ms: { type: integer }
+        windowMinutes: { type: integer }
+    SloList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/SLO" } }
+        totalCount: { type: integer }
+    SloStatus:
+      type: object
+      properties:
+        sloId: { type: string }
+        operation: { type: string }
+        calls: { type: integer }
+        errors: { type: integer }
+        successRate: { type: number }
+        p95Ms: { type: integer }
+        breached: { type: boolean }
+    BackupRecord:
+      type: object
+      required: [id, startedAt, sizeBytes, s3Key, status]
+      properties:
+        id: { type: string }
+        startedAt: { $ref: "#/components/schemas/IsoDate" }
+        finishedAt: { $ref: "#/components/schemas/IsoDate" }
+        sizeBytes: { type: integer }
+        s3Key: { type: string }
+        status: { type: string, enum: [running, done, failed] }
+    BackupList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/BackupRecord" } }
+        totalCount: { type: integer }
     HealthSignal:
       type: object
       required: [resource, kind, status, detail]

@@ -85,6 +85,28 @@ func decode(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	return out
 }
 
+func (f *fakeSvc) AlertRules(context.Context) ([]AlertRule, error) { return nil, nil }
+func (f *fakeSvc) CreateAlertRule(context.Context, kernel.ExecutionContext, AlertRule) (*AlertRule, error) {
+	return nil, nil
+}
+func (f *fakeSvc) UpdateAlertRule(context.Context, kernel.ExecutionContext, string, AlertRule) (*AlertRule, error) {
+	return nil, nil
+}
+func (f *fakeSvc) DeleteAlertRule(context.Context, kernel.ExecutionContext, string) error { return nil }
+func (f *fakeSvc) AlertFires(context.Context, string) ([]AlertFire, error)                { return nil, nil }
+func (f *fakeSvc) AckFire(context.Context, kernel.ExecutionContext, string, string) (*AlertFire, error) {
+	return nil, nil
+}
+func (f *fakeSvc) EvaluateAlerts(context.Context, time.Time) ([]AlertFire, error) { return nil, nil }
+func (f *fakeSvc) SLOs(context.Context) ([]SLO, error)                            { return nil, nil }
+func (f *fakeSvc) CreateSLO(context.Context, kernel.ExecutionContext, SLO) (*SLO, error) {
+	return nil, nil
+}
+func (f *fakeSvc) SLOStatusByID(context.Context, string) (map[string]any, error) { return nil, nil }
+func (f *fakeSvc) RecordSLOCall(context.Context, string, time.Duration, bool)    {}
+func (f *fakeSvc) Status(context.Context) map[string]any                         { return nil }
+func (f *fakeSvc) Backups(context.Context) ([]BackupRecord, error)               { return nil, nil }
+
 func TestListAuditDeniedWithoutPermission(t *testing.T) {
 	auditor := &fakeAuditor{}
 	h := NewHandler(&fakeSvc{}, auditor)

@@ -673,3 +673,63 @@ export interface OverviewStats {
   auditToday: number;
   deniedToday: number;
 }
+
+/* Ops: alerts, SLOs, status, backups */
+export interface AlertRule {
+  id: Id;
+  name: string;
+  source: "audit" | "event";
+  action: string;
+  outcome?: string;
+  threshold: number;
+  windowMinutes: number;
+  webhookId?: Id;
+  active: boolean;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+export type AlertRuleInput = Omit<AlertRule, "id" | "createdAt" | "updatedAt">;
+export interface AlertFire {
+  id: Id;
+  ruleId: Id;
+  firedAt: IsoDate;
+  count: number;
+  status: "firing" | "acked";
+  ackedBy?: string;
+  ackedAt?: IsoDate;
+  createdAt: IsoDate;
+}
+export interface Slo {
+  id: Id;
+  operation: string;
+  targetSuccess: number;
+  targetP95Ms: number;
+  windowMinutes: number;
+  createdAt: IsoDate;
+}
+export type SloInput = Omit<Slo, "id" | "createdAt">;
+export interface SloStatus {
+  sloId: Id;
+  operation: string;
+  calls: number;
+  errors: number;
+  successRate: number;
+  p95Ms: number;
+  breached: boolean;
+}
+export interface BackupRecord {
+  id: Id;
+  startedAt: IsoDate;
+  finishedAt?: IsoDate;
+  sizeBytes: number;
+  s3Key: string;
+  status: "running" | "done" | "failed";
+}
+export interface StatusPage {
+  status: "healthy" | "degraded" | "down" | "unknown";
+  service: string;
+  version: string;
+  uptimeSeconds: number;
+  time: IsoDate;
+  components: Array<{ kind: string; resource: string; status: string; detail?: string }>;
+}

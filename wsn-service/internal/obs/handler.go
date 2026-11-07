@@ -132,3 +132,101 @@ func (h *Handler) GetTokenUsage(w http.ResponseWriter, r *http.Request, params o
 func (h *Handler) GetEntryPointBreakdown(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.EntryPoints)
 }
+
+/* ---- alerts, SLOs, status, backups ---- */
+
+func (h *Handler) ec(r *http.Request) kernel.ExecutionContext {
+	return httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
+}
+
+func (h *Handler) ListAlertRules(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.AlertRules)
+}
+
+func (h *Handler) CreateAlertRule(w http.ResponseWriter, r *http.Request) {
+	var rule AlertRule
+	if err := httpx.Decode(r, &rule); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.CreateAlertRule(r.Context(), h.ec(r), rule)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, out)
+}
+
+func (h *Handler) UpdateAlertRule(w http.ResponseWriter, r *http.Request, id string) {
+	var rule AlertRule
+	if err := httpx.Decode(r, &rule); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.UpdateAlertRule(r.Context(), h.ec(r), id, rule)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
+func (h *Handler) DeleteAlertRule(w http.ResponseWriter, r *http.Request, id string) {
+	if err := h.svc.DeleteAlertRule(r.Context(), h.ec(r), id); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, map[string]any{"id": id, "deleted": true})
+}
+
+func (h *Handler) ListAlertFires(w http.ResponseWriter, r *http.Request, ruleId string) {
+	out, err := h.svc.AlertFires(r.Context(), ruleId)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.List(w, out)
+}
+
+func (h *Handler) AckAlertFire(w http.ResponseWriter, r *http.Request, ruleId, fireId string) {
+	out, err := h.svc.AckFire(r.Context(), h.ec(r), ruleId, fireId)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
+func (h *Handler) ListSLOs(w http.ResponseWriter, r *http.Request) { httpx.ListFrom(w, r, h.svc.SLOs) }
+
+func (h *Handler) CreateSLO(w http.ResponseWriter, r *http.Request) {
+	var slo SLO
+	if err := httpx.Decode(r, &slo); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.CreateSLO(r.Context(), h.ec(r), slo)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, out)
+}
+
+func (h *Handler) GetSLOStatus(w http.ResponseWriter, r *http.Request, id string) {
+	out, err := h.svc.SLOStatusByID(r.Context(), id)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
+// StatusPage is the public status endpoint (no auth).
+func (h *Handler) StatusPage(w http.ResponseWriter, r *http.Request) {
+	httpx.OK(w, h.svc.Status(r.Context()))
+}
+
+func (h *Handler) ListBackups(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.Backups)
+}

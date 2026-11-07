@@ -98,6 +98,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm --filter @workspacenow/mock-server test:coverage
+      - run: pnpm test # every workspace with a test script (mock-server, pages, …)
       - run: pnpm build
 
   # Full e2e: boot the whole compose stack and run the flagship smoke against the live API.

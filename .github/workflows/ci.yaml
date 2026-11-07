@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: fluxcd/flux2/action@main
+      - uses: fluxcd/flux2/action@v2.10.0
       - name: Render every Flux overlay
         run: |
           for dir in deploy/flux/infrastructure/controllers deploy/flux/infrastructure/configs deploy/flux/apps/dev deploy/flux/apps/staging deploy/flux/apps/prod; do

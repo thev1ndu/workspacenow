@@ -66,6 +66,21 @@ func (h *Handler) ListGroupMappings(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.GroupMappings)
 }
 
+func (h *Handler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, userId string) {
+	var body oapi.UpdateUserRolesJSONRequestBody
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
+	user, err := h.svc.UpdateUserRoles(r.Context(), ec, userId, body.Roles)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, user)
+}
+
 func (h *Handler) UpdateGroupMappings(w http.ResponseWriter, r *http.Request) {
 	var body oapi.UpdateGroupMappingsJSONRequestBody
 	if err := httpx.Decode(r, &body); err != nil {

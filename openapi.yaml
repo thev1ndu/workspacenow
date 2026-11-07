@@ -149,10 +149,25 @@ paths:
     get:
       tags: [Control]
       operationId: listUsers
-      summary: Users with the role names their groups grant
+      summary: Users with the role names their groups and explicit assignments grant
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UserWithRolesList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+  /users/{userId}/roles:
+    parameters: [{ name: userId, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [Control]
+      operationId: updateUserRoles
+      summary: Set the roles explicitly assigned to a user
+      description: "Requires `control.manage`. Pass the full list of role IDs; an empty list removes all explicit assignments. Explicit roles are added on top of the roles the user's identity-provider groups grant."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UserRolesUpdate" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UserWithRoles" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /roles:
     get:
       tags: [Control]
@@ -1847,13 +1862,14 @@ components:
         departmentId: { type: string }
         teamId: { type: string }
         groups: { type: array, items: { type: string }, description: Group claims asserted by the identity provider }
+        roleIds: { type: array, items: { type: string }, description: "Role IDs explicitly assigned to this user, on top of the roles their IdP groups grant" }
     UserWithRoles:
       allOf:
         - { $ref: "#/components/schemas/User" }
         - type: object
           required: [roles]
           properties:
-            roles: { type: array, items: { type: string } }
+            roles: { type: array, items: { type: string }, description: "Resolved role names: explicit assignments union the roles their IdP groups grant" }
     Role:
       type: object
       required: [id, name, description, permissions]
@@ -1868,6 +1884,11 @@ components:
       properties:
         group: { type: string }
         roleId: { type: string }
+    UserRolesUpdate:
+      type: object
+      required: [roles]
+      properties:
+        roles: { type: array, items: { type: string }, description: "Full list of role IDs to assign explicitly; empty removes all" }
     Environment:
       type: object
       required: [key, name, description, requiresApproval, resourceLimits]

@@ -88,9 +88,10 @@ export class Platform {
   rolesForUser(userId: string) {
     const user = this.state.users.find((u) => u.id === userId);
     if (!user) return [];
-    const roleIds = new Set(
-      this.state.groupMappings.filter((m) => user.groups.includes(m.group)).map((m) => m.roleId),
-    );
+    const roleIds = new Set([
+      ...this.state.groupMappings.filter((m) => user.groups.includes(m.group)).map((m) => m.roleId),
+      ...(user.roleIds ?? []),
+    ]);
     return this.state.roles.filter((role) => roleIds.has(role.id));
   }
 

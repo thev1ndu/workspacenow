@@ -72,6 +72,13 @@ export async function listGroupMappings(getToken: GetToken) {
   return httpGET<ListResponse<GroupRoleMapping>>(`${SERVICE_BASE}/group-mappings`, { token: await getToken() });
 }
 
+export async function updateUserRoles(userId: string, roleIds: string[], getToken: GetToken) {
+  return httpPUT<UserWithRoles>(`${SERVICE_BASE}/users/${encodeURIComponent(userId)}/roles`, {
+    token: await getToken(),
+    body: { roles: roleIds },
+  });
+}
+
 export async function updateGroupMappings(mappings: GroupRoleMapping[], getToken: GetToken) {
   return httpPUT<ListResponse<GroupRoleMapping>>(`${SERVICE_BASE}/group-mappings`, {
     token: await getToken(),

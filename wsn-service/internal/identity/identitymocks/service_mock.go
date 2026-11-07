@@ -54,6 +54,9 @@ import (
 //			UpdateGroupMappingsFunc: func(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error) {
 //				panic("mock out the UpdateGroupMappings method")
 //			},
+//			UpdateUserRolesFunc: func(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error) {
+//				panic("mock out the UpdateUserRoles method")
+//			},
 //			UsersFunc: func(ctx context.Context) ([]oapi.UserWithRoles, error) {
 //				panic("mock out the Users method")
 //			},
@@ -99,6 +102,9 @@ type ServiceMock struct {
 
 	// UpdateGroupMappingsFunc mocks the UpdateGroupMappings method.
 	UpdateGroupMappingsFunc func(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error)
+
+	// UpdateUserRolesFunc mocks the UpdateUserRoles method.
+	UpdateUserRolesFunc func(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error)
 
 	// UsersFunc mocks the Users method.
 	UsersFunc func(ctx context.Context) ([]oapi.UserWithRoles, error)
@@ -175,6 +181,17 @@ type ServiceMock struct {
 			// Mappings is the mappings argument value.
 			Mappings []oapi.GroupRoleMapping
 		}
+		// UpdateUserRoles holds details about calls to the UpdateUserRoles method.
+		UpdateUserRoles []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// UserID is the userID argument value.
+			UserID string
+			// RoleIDs is the roleIDs argument value.
+			RoleIDs []string
+		}
 		// Users holds details about calls to the Users method.
 		Users []struct {
 			// Ctx is the ctx argument value.
@@ -193,6 +210,7 @@ type ServiceMock struct {
 	lockRoles                sync.RWMutex
 	lockTeams                sync.RWMutex
 	lockUpdateGroupMappings  sync.RWMutex
+	lockUpdateUserRoles      sync.RWMutex
 	lockUsers                sync.RWMutex
 }
 
@@ -597,6 +615,50 @@ func (mock *ServiceMock) UpdateGroupMappingsCalls() []struct {
 	mock.lockUpdateGroupMappings.RLock()
 	calls = mock.calls.UpdateGroupMappings
 	mock.lockUpdateGroupMappings.RUnlock()
+	return calls
+}
+
+// UpdateUserRoles calls UpdateUserRolesFunc.
+func (mock *ServiceMock) UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error) {
+	if mock.UpdateUserRolesFunc == nil {
+		panic("ServiceMock.UpdateUserRolesFunc: method is nil but Service.UpdateUserRoles was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		Ec      kernel.ExecutionContext
+		UserID  string
+		RoleIDs []string
+	}{
+		Ctx:     ctx,
+		Ec:      ec,
+		UserID:  userID,
+		RoleIDs: roleIDs,
+	}
+	mock.lockUpdateUserRoles.Lock()
+	mock.calls.UpdateUserRoles = append(mock.calls.UpdateUserRoles, callInfo)
+	mock.lockUpdateUserRoles.Unlock()
+	return mock.UpdateUserRolesFunc(ctx, ec, userID, roleIDs)
+}
+
+// UpdateUserRolesCalls gets all the calls that were made to UpdateUserRoles.
+// Check the length with:
+//
+//	len(mockedService.UpdateUserRolesCalls())
+func (mock *ServiceMock) UpdateUserRolesCalls() []struct {
+	Ctx     context.Context
+	Ec      kernel.ExecutionContext
+	UserID  string
+	RoleIDs []string
+} {
+	var calls []struct {
+		Ctx     context.Context
+		Ec      kernel.ExecutionContext
+		UserID  string
+		RoleIDs []string
+	}
+	mock.lockUpdateUserRoles.RLock()
+	calls = mock.calls.UpdateUserRoles
+	mock.lockUpdateUserRoles.RUnlock()
 	return calls
 }
 

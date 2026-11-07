@@ -189,6 +189,20 @@ route("GET", "/teams", ({ platform }) => list(platform.state.teams));
 route("GET", "/users", ({ platform }) =>
   list(platform.state.users.map((u) => ({ ...u, roles: platform.rolesForUser(u.id).map((r) => r.name) }))),
 );
+route("PUT", "/users/:userId/roles", ({ platform, ctx, params, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "user.roles", `user/${params.userId}`);
+  const user = platform.state.users.find((u) => u.id === params.userId);
+  if (!user) fail(404, "NOT_FOUND", `No user ${params.userId}`);
+  const roleIds = body.roles as string[];
+  if (!Array.isArray(roleIds)) fail(422, "VALIDATION_FAILED", "roles must be a list");
+  for (const id of roleIds) {
+    if (!platform.state.roles.some((r) => r.id === id)) fail(422, "VALIDATION_FAILED", `Unknown role ${id}`);
+  }
+  user.roleIds = roleIds;
+  platform.audit(c, "user.roles", `user/${user.id}`, "allowed", `${roleIds.length} roles`);
+  return { ...user, roles: platform.rolesForUser(user.id).map((r) => r.name) };
+});
 route("GET", "/personas", ({ platform }) => list(platform.state.users), { public: true });
 route("GET", "/roles", ({ platform }) => list(platform.state.roles));
 route("GET", "/group-mappings", ({ platform }) => list(platform.state.groupMappings));

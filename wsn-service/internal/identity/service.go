@@ -48,6 +48,8 @@ type Service interface {
 	GroupMappings(ctx context.Context) ([]oapi.GroupRoleMapping, error)
 	Environments(ctx context.Context) ([]oapi.Environment, error)
 	UpdateGroupMappings(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error)
+	// UpdateUserRoles sets the roles explicitly assigned to a user, on top of group-mapped roles.
+	UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error)
 
 	// InvalidateAccess drops every cached permission resolution, on every replica.
 	InvalidateAccess(ctx context.Context)
@@ -129,14 +131,14 @@ func (s *service) resolve(ctx context.Context, user *oapi.User) (*kernel.Caller,
 	if err != nil {
 		slog.WarnContext(ctx, "access cache unavailable; resolving from the database", "error", err)
 	}
-	key := fmt.Sprintf("wsn:access:%s:%s:%s", version, user.Id, groupsKey(user.Groups))
+	key := fmt.Sprintf("wsn:access:%s:%s:%s:%s", version, user.Id, groupsKey(user.Groups), rolesKey(user.RoleIds))
 	var a access
 	found := false
 	if err == nil {
 		found, _ = s.cache.GetJSON(ctx, key, &a)
 	}
 	if !found {
-		roles, perms, err := s.rolesAndPermissions(ctx, user.Groups)
+		roles, perms, err := s.rolesAndPermissions(ctx, user)
 		if err != nil {
 			return nil, err
 		}
@@ -154,8 +156,18 @@ func groupsKey(groups []string) string {
 	return fmt.Sprint(g)
 }
 
-// rolesAndPermissions maps group claims to roles (in role order) and the union of their permissions.
-func (s *service) rolesAndPermissions(ctx context.Context, groups []string) ([]string, kernel.Permissions, error) {
+func rolesKey(roleIDs *[]string) string {
+	if roleIDs == nil {
+		return "[]"
+	}
+	r := slices.Clone(*roleIDs)
+	slices.Sort(r)
+	return fmt.Sprint(r)
+}
+
+// rolesAndPermissions resolves a user's roles: explicit assignments union the roles their
+// identity-provider groups grant, and permissions are the union of both sets.
+func (s *service) rolesAndPermissions(ctx context.Context, user *oapi.User) ([]string, kernel.Permissions, error) {
 	mappings, err := s.mappings.List(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -164,12 +176,7 @@ func (s *service) rolesAndPermissions(ctx context.Context, groups []string) ([]s
 	if err != nil {
 		return nil, nil, err
 	}
-	granted := map[string]bool{}
-	for _, m := range mappings {
-		if slices.Contains(groups, m.Group) {
-			granted[m.RoleId] = true
-		}
-	}
+	granted := unionGranted(user.Groups, deref(user.RoleIds), mappings)
 	names := []string{}
 	perms := kernel.Permissions{}
 	for _, r := range roles {
@@ -185,8 +192,67 @@ func (s *service) rolesAndPermissions(ctx context.Context, groups []string) ([]s
 }
 
 func (s *service) PermissionsForGroups(ctx context.Context, groups []string) (kernel.Permissions, error) {
-	_, perms, err := s.rolesAndPermissions(ctx, groups)
+	_, perms, err := s.rolesAndPermissions(ctx, &oapi.User{Groups: groups})
 	return perms, err
+}
+
+// UpdateUserRoles replaces the roles explicitly assigned to a user (group-mapped roles stay).
+func (s *service) UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "user.roles", "user/"+userID); err != nil {
+		return nil, err
+	}
+	roles, err := s.roles.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range roleIDs {
+		if !slices.ContainsFunc(roles, func(r oapi.Role) bool { return r.Id == id }) {
+			return nil, kernel.Invalid("Unknown role %s", id)
+		}
+	}
+	user, err := s.users.Get(ctx, userID)
+	if errors.Is(err, docstore.ErrNotFound) {
+		return nil, kernel.NotFound("No user %s", userID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	user.RoleIds = &roleIDs
+	if err := s.users.Put(ctx, user); err != nil {
+		return nil, err
+	}
+	s.InvalidateAccess(ctx)
+	if err := s.auditor.Record(ctx, ec, "user.roles", "user/"+userID, kernel.OutcomeAllowed, fmt.Sprintf("%d roles", len(roleIDs))); err != nil {
+		return nil, err
+	}
+	names, _, err := s.rolesAndPermissions(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return &oapi.UserWithRoles{
+		Id: user.Id, Name: user.Name, Email: user.Email, Title: user.Title, DepartmentId: user.DepartmentId, TeamId: user.TeamId, Groups: user.Groups, RoleIds: user.RoleIds, Roles: names,
+	}, nil
+}
+
+// unionGranted is the pure set behind role resolution: explicit assignments union group grants.
+func unionGranted(groups, explicit []string, mappings []oapi.GroupRoleMapping) map[string]bool {
+	granted := map[string]bool{}
+	for _, m := range mappings {
+		if slices.Contains(groups, m.Group) {
+			granted[m.RoleId] = true
+		}
+	}
+	for _, id := range explicit {
+		granted[id] = true
+	}
+	return granted
+}
+
+func deref(p *[]string) []string {
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 func (s *service) Organization(ctx context.Context) (*oapi.Organization, error) {
@@ -214,12 +280,12 @@ func (s *service) Users(ctx context.Context) ([]oapi.UserWithRoles, error) {
 	}
 	out := make([]oapi.UserWithRoles, 0, len(users))
 	for _, u := range users {
-		roles, _, err := s.rolesAndPermissions(ctx, u.Groups)
+		roles, _, err := s.rolesAndPermissions(ctx, &u)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, oapi.UserWithRoles{
-			Id: u.Id, Name: u.Name, Email: u.Email, Title: u.Title, DepartmentId: u.DepartmentId, TeamId: u.TeamId, Groups: u.Groups, Roles: roles,
+			Id: u.Id, Name: u.Name, Email: u.Email, Title: u.Title, DepartmentId: u.DepartmentId, TeamId: u.TeamId, Groups: u.Groups, RoleIds: u.RoleIds, Roles: roles,
 		})
 	}
 	return out, nil

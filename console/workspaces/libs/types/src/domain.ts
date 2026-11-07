@@ -48,6 +48,8 @@ export interface User {
   teamId?: Id;
   /** Group claims asserted by the identity provider. */
   groups: string[];
+  /** Role IDs explicitly assigned to this user, on top of the roles their groups grant. */
+  roleIds?: Id[];
 }
 
 export type Permission =

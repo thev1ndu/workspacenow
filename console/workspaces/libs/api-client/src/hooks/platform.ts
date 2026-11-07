@@ -69,6 +69,14 @@ export function useListGroupMappings() {
   return useApiQuery({ queryKey: ["group-mappings"], queryFn: () => api.listGroupMappings(getToken) });
 }
 
+export function useUpdateUserRoles() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "update", target: "user roles" },
+    mutationFn: ({ userId, roleIds }: { userId: string; roleIds: string[] }) => api.updateUserRoles(userId, roleIds, getToken),
+  });
+}
+
 export function useUpdateGroupMappings() {
   const { getToken } = useAuthHooks();
   return useApiMutation({

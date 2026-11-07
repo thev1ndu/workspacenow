@@ -3047,14 +3047,23 @@ type User struct {
 	Groups []string `json:"groups"`
 	Id     string   `json:"id"`
 	Name   string   `json:"name"`
-	TeamId *string  `json:"teamId,omitempty"`
-	Title  string   `json:"title"`
+
+	// RoleIds Role IDs explicitly assigned to this user, on top of the roles their IdP groups grant
+	RoleIds *[]string `json:"roleIds,omitempty"`
+	TeamId  *string   `json:"teamId,omitempty"`
+	Title   string    `json:"title"`
 }
 
 // UserList defines model for UserList.
 type UserList struct {
 	Items []User `json:"items"`
 	Total int    `json:"total"`
+}
+
+// UserRolesUpdate defines model for UserRolesUpdate.
+type UserRolesUpdate struct {
+	// Roles Full list of role IDs to assign explicitly; empty removes all
+	Roles []string `json:"roles"`
 }
 
 // UserWithRoles defines model for UserWithRoles.
@@ -3066,6 +3075,11 @@ type UserWithRoles struct {
 	Groups []string `json:"groups"`
 	Id     string   `json:"id"`
 	Name   string   `json:"name"`
+
+	// RoleIds Role IDs explicitly assigned to this user, on top of the roles their IdP groups grant
+	RoleIds *[]string `json:"roleIds,omitempty"`
+
+	// Roles Resolved role names: explicit assignments union the roles their IdP groups grant
 	Roles  []string `json:"roles"`
 	TeamId *string  `json:"teamId,omitempty"`
 	Title  string   `json:"title"`
@@ -3736,6 +3750,9 @@ type RunSidekickJSONRequestBody RunSidekickJSONBody
 
 // CreateSLOJSONRequestBody defines body for CreateSLO for application/json ContentType.
 type CreateSLOJSONRequestBody = SloInput
+
+// UpdateUserRolesJSONRequestBody defines body for UpdateUserRoles for application/json ContentType.
+type UpdateUserRolesJSONRequestBody = UserRolesUpdate
 
 // CreateWebhookJSONRequestBody defines body for CreateWebhook for application/json ContentType.
 type CreateWebhookJSONRequestBody = WebhookInput
@@ -4630,9 +4647,12 @@ type ServerInterface interface {
 	// One trace with its audit records and events
 	// (GET /traces/{traceId})
 	GetTrace(w http.ResponseWriter, r *http.Request, traceId string)
-	// Users with the role names their groups grant
+	// Users with the role names their groups and explicit assignments grant
 	// (GET /users)
 	ListUsers(w http.ResponseWriter, r *http.Request)
+	// Set the roles explicitly assigned to a user
+	// (PUT /users/{userId}/roles)
+	UpdateUserRoles(w http.ResponseWriter, r *http.Request, userId string)
 	// Outbound webhook subscriptions
 	// (GET /webhooks)
 	ListWebhooks(w http.ResponseWriter, r *http.Request)
@@ -7929,6 +7949,37 @@ func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateUserRoles operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUserRoles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", r.PathValue("userId"), &userId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "userId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateUserRoles(w, r, userId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListWebhooks operation middleware
 func (siw *ServerInterfaceWrapper) ListWebhooks(w http.ResponseWriter, r *http.Request) {
 
@@ -8493,6 +8544,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/traces", wrapper.ListTraces)
 	m.HandleFunc("GET "+options.BaseURL+"/traces/{traceId}", wrapper.GetTrace)
 	m.HandleFunc("GET "+options.BaseURL+"/users", wrapper.ListUsers)
+	m.HandleFunc("PUT "+options.BaseURL+"/users/{userId}/roles", wrapper.UpdateUserRoles)
 	m.HandleFunc("GET "+options.BaseURL+"/webhooks", wrapper.ListWebhooks)
 	m.HandleFunc("POST "+options.BaseURL+"/webhooks", wrapper.CreateWebhook)
 	m.HandleFunc("DELETE "+options.BaseURL+"/webhooks/{webhookId}", wrapper.DeleteWebhook)

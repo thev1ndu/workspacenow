@@ -1,112 +1,45 @@
-import { Chip, Table } from "@heroui/react";
-import { useListDepartments, useListTeams, useListUsers } from "@workspacenow/api-client";
-import { PageLayout, QueryState, SectionCard } from "@workspacenow/views";
+import { Chip } from "@heroui/react";
+import { useOrganization } from "@workspacenow/api-client";
+import { globalConfig } from "@workspacenow/types";
+import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from "@workspacenow/views";
 
+/**
+ * One WorkspaceNow installation serves one organization — there are no tenants. Users, roles and
+ * group mappings live on the Identity and access page; identities come from the identity provider.
+ */
 export function OrganizationPage() {
-  const departments = useListDepartments();
-  const teams = useListTeams();
-  const users = useListUsers();
-  const deptName = (id: string) => departments.data?.items.find((d) => d.id === id)?.name ?? id;
-
+  const organization = useOrganization();
   return (
-    <PageLayout title="Organization" description="Departments and teams own resources inside this one organization. They are not tenants.">
-      <div className="grid gap-6">
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          <SectionCard title="Departments" flush>
-            <QueryState query={departments}>
-              {(data) => (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Departments">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Name</Table.Column>
-                        <Table.Column>Description</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {data.items.map((d) => (
-                          <Table.Row key={d.id} id={d.id}>
-                            <Table.Cell className="font-medium whitespace-nowrap">{d.name}</Table.Cell>
-                            <Table.Cell className="text-muted">{d.description}</Table.Cell>
-                          </Table.Row>
+    <PageLayout
+      title="Organization"
+      description="This installation and the identity provider that authenticates its users."
+    >
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <SectionCard title="Installation">
+          <QueryState query={organization} skeleton={<DetailSkeleton items={5} columns={2} />}>
+            {(org) => (
+              <DetailList
+                columns={2}
+                items={[
+                  { label: "Organization", value: org.name },
+                  { label: "Installation", value: org.installationName },
+                  { label: "Version", value: globalConfig.version },
+                  { label: "Identity provider", value: org.identityProvider.type },
+                  { label: "Issuer", fullWidth: true, value: <code className="font-mono text-[13px]">{org.identityProvider.issuer}</code> },
+                  {
+                    label: "Scopes",
+                    value: (
+                      <div className="flex flex-wrap gap-1">
+                        {org.identityProvider.scopes.map((s) => (
+                          <Chip key={s} size="sm" variant="secondary">
+                            {s}
+                          </Chip>
                         ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
-              )}
-            </QueryState>
-          </SectionCard>
-          <SectionCard title="Teams" flush>
-            <QueryState query={teams}>
-              {(data) => (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Teams">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Team</Table.Column>
-                        <Table.Column>Department</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {data.items.map((t) => (
-                          <Table.Row key={t.id} id={t.id}>
-                            <Table.Cell className="font-medium">{t.name}</Table.Cell>
-                            <Table.Cell className="text-muted">{deptName(t.departmentId)}</Table.Cell>
-                          </Table.Row>
-                        ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
-              )}
-            </QueryState>
-          </SectionCard>
-        </div>
-        <SectionCard title="Users" subtitle="Identities come from the identity provider; roles come from group mappings." flush>
-          <QueryState query={users}>
-            {(data) => (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Users" className="min-w-[880px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Name</Table.Column>
-                      <Table.Column>Title</Table.Column>
-                      <Table.Column>Department</Table.Column>
-                      <Table.Column>Groups (from IdP)</Table.Column>
-                      <Table.Column>WorkspaceNow roles</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {data.items.map((u) => (
-                        <Table.Row key={u.id} id={u.id}>
-                          <Table.Cell>
-                            <p className="font-medium">{u.name}</p>
-                            <p className="text-xs text-muted">{u.email}</p>
-                          </Table.Cell>
-                          <Table.Cell>{u.title}</Table.Cell>
-                          <Table.Cell className="text-muted">{deptName(u.departmentId)}</Table.Cell>
-                          <Table.Cell>
-                            <div className="flex flex-wrap gap-1">
-                              {u.groups.map((g) => (
-                                <Chip key={g} size="sm" variant="secondary">
-                                  <span className="font-mono">{g}</span>
-                                </Chip>
-                              ))}
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex flex-wrap gap-1">
-                              {u.roles.map((r) => (
-                                <Chip key={r} size="sm" variant="soft" color="accent">
-                                  {r}
-                                </Chip>
-                              ))}
-                            </div>
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
             )}
           </QueryState>
         </SectionCard>

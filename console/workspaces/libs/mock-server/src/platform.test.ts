@@ -376,6 +376,28 @@ const send = (platform: ReturnType<typeof createDemoPlatform>, method: string, p
   return handleRequest(platform, { method, path: p, query, body, token: `demo.${user}` });
 };
 
+describe("user roles", () => {
+  it("assigns roles to a user directly, unioned with group-mapped roles", () => {
+    const platform = createDemoPlatform();
+    // u-nimal gets Store Operator via the store-staff group mapping; add Auditor explicitly
+    const res = send(platform, "PUT", "/users/u-nimal/roles", "u-amaya", { roles: ["role-auditor"] });
+    expect(res.status).toBe(200);
+    expect((res.body as { roles: string[] }).roles).toEqual(expect.arrayContaining(["Store Operator", "Auditor"]));
+    const listed = get(platform, "/users", "u-amaya").body as { items: { id: string; roleIds?: string[]; roles: string[] }[] };
+    const nimal = listed.items.find((u) => u.id === "u-nimal")!;
+    expect(nimal.roleIds).toEqual(["role-auditor"]);
+    expect(nimal.roles).toEqual(expect.arrayContaining(["Store Operator", "Auditor"]));
+  });
+
+  it("rejects unknown roles and users without control.manage", () => {
+    const platform = createDemoPlatform();
+    expect(send(platform, "PUT", "/users/u-nimal/roles", "u-amaya", { roles: ["role-nope"] }).status).toBe(422);
+    expect(send(platform, "PUT", "/users/u-missing/roles", "u-amaya", { roles: [] }).status).toBe(404);
+    expect(send(platform, "PUT", "/users/u-nimal/roles", "u-kavya", { roles: [] }).status).toBe(403);
+    expect(send(platform, "PUT", "/users/u-nimal/roles", "u-amaya", { roles: [] }).status).toBe(200);
+  });
+});
+
 describe("pinned applications", () => {
   it("keeps each user's pins separate and in pin order", () => {
     const platform = createDemoPlatform();

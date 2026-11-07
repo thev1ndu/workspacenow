@@ -72,3 +72,10 @@ func TestStatusAggregatesHealth(t *testing.T) {
 	assert.Equal(t, 1, bucketOf(100))
 	_ = time.Now()
 }
+
+// TestNewServiceWiresEveryDep guards against a constructor dropping a dependency:
+// a nil auditor only panics on the first audited call (e.g. POST /slos), not in tests with fakes.
+func TestNewServiceWiresEveryDep(t *testing.T) {
+	s := NewService(Deps{Auditor: &fakeAuditor{}}).(*service)
+	assert.NotNil(t, s.auditor)
+}

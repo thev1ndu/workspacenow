@@ -97,7 +97,7 @@ func NewService(d Deps) Service {
 	return &service{
 		db: d.DB, cache: d.Cache, nats: d.NATS, obs: d.Observer, serviceName: d.ServiceName,
 		aiHealthURL: d.AIHealthURL, hc: &http.Client{Timeout: 3 * time.Second},
-		connect: d.Connect, runtime: d.Runtime, identity: d.Identity, publisher: d.Publisher,
+		connect: d.Connect, runtime: d.Runtime, identity: d.Identity, publisher: d.Publisher, auditor: d.Auditor,
 		alertRules: docstore.NewCollection(d.DB, "alert_rules", func(a *AlertRule) string { return a.ID }),
 		alertFires: docstore.NewCollection(d.DB, "alert_fires", func(a *AlertFire) string { return a.ID }),
 		slos:       docstore.NewCollection(d.DB, "slos", func(s *SLO) string { return s.ID }),

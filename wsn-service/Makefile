@@ -6,7 +6,7 @@ OAPI_CODEGEN := go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 MOQ := go run github.com/matryer/moq@latest
 
-.PHONY: help generate build test test-integration lint fmt run migrate deps deps-down seed-export
+.PHONY: help generate build test test-integration lint fmt run migrate deps deps-down up up-down seed-export
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -43,6 +43,12 @@ deps: ## Start local infrastructure (postgres, valkey, nats, temporal, minio, op
 
 deps-down: ## Stop local infrastructure
 	$(COMPOSE) down
+
+up: ## Start the full local stack (infra + apps) from GHCR images; build them first with: $(COMPOSE) --profile app build
+	$(COMPOSE) --profile app up -d --wait
+
+up-down: ## Stop the full local stack
+	$(COMPOSE) --profile app down
 
 seed-export: ## Re-export the demo seed from the console mock
 	node scripts/export-seed.mjs

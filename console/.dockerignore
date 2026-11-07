@@ -5,3 +5,7 @@ node_modules
 *.tsbuildinfo
 .DS_Store
 *.log
+coverage
+**/coverage
+.turbo
+**/.turbo

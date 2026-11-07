@@ -1,5 +1,37 @@
-# Local WorkspaceNow infrastructure (make -C wsn-service deps); production uses deploy/flux.
+# WorkspaceNow local stack. Production uses deploy/flux.
+#
+#   make -C wsn-service deps                 infra only (postgres, valkey, nats, temporal, minio, openbao)
+#   make -C wsn-service up                   full stack: infra + observer + wsn-service (+worker) + ai-service + console
+#
+# Images default to the GHCR main builds (set IMAGE_TAG to use another tag, e.g. a release);
+# `docker compose --profile app build` builds them locally instead.
+# Mistral calls need MISTRAL_API_KEY in the environment (or wsn-ai-service/.env is not mounted — pass it here).
 name: workspacenow
+
+x-wsn-service-env: &wsn-service-env
+  WSN_ENV: development
+  WSN_DEMO_MODE: "true"
+  LOG_LEVEL: DEBUG
+  DATABASE_URL: postgres://workspacenow:workspacenow@postgres:5432/workspacenow?sslmode=disable
+  REDIS_URL: redis://valkey:6379/0
+  NATS_URL: nats://nats:4222
+  NATS_STREAM: WSN_EVENTS
+  TEMPORAL_HOSTPORT: temporal:7233
+  TEMPORAL_NAMESPACE: default
+  TEMPORAL_TASK_QUEUE: workspacenow-workflows
+  S3_ENDPOINT: minio:9000
+  S3_BUCKET: workspacenow
+  S3_ACCESS_KEY: workspacenow
+  S3_SECRET_KEY: workspacenow-secret
+  S3_USE_SSL: "false"
+  OPENBAO_ADDR: http://openbao:8200
+  OPENBAO_TOKEN: root
+  AI_SERVICE_URL: http://wsn-ai-service:8090
+  AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-dev-service-token}
+  WSN_OBSERVER_URL: http://wsn-observer:9098
+  WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
+  CORS_ALLOWED_ORIGINS: http://localhost:8088
+  # OIDC_ISSUER / OIDC_JWKS_URL stay empty in demo mode (persona tokens); set them to switch to real OIDC.
 
 services:
   postgres:
@@ -59,8 +91,79 @@ services:
     cap_add: [IPC_LOCK]
     ports: ["8200:8200"]
 
+  # ---- app profile: the platform itself (docker compose --profile app up -d) ----
+
+  wsn-observer:
+    profiles: ["app"]
+    image: ghcr.io/thev1ndu/wsn-observer:${IMAGE_TAG:-main}
+    build: ../../wsn-observer
+    environment:
+      WSN_OBSERVER_DATA_DIR: /data
+      WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
+    ports: ["9098:9098"]
+    volumes: ["observer:/data"]
+
+  wsn-service-migrate:
+    profiles: ["app"]
+    image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
+    build: ../../wsn-service
+    command: ["-migrate", "-server=false"]
+    environment: *wsn-service-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    restart: "no"
+
+  wsn-service:
+    profiles: ["app"]
+    image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
+    build: ../../wsn-service
+    command: ["-server", "-relay"]
+    environment: *wsn-service-env
+    ports: ["8080:8080", "8081:8081"]
+    depends_on:
+      wsn-service-migrate: { condition: service_completed_successfully }
+      wsn-observer: { condition: service_started }
+      wsn-ai-service: { condition: service_started }
+
+  wsn-service-worker:
+    profiles: ["app"]
+    image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
+    build: ../../wsn-service
+    command: ["-server=false", "-worker"]
+    environment: *wsn-service-env
+    depends_on:
+      wsn-service-migrate: { condition: service_completed_successfully }
+      temporal: { condition: service_started }
+
+  wsn-ai-service:
+    profiles: ["app"]
+    image: ghcr.io/thev1ndu/wsn-ai-service:${IMAGE_TAG:-main}
+    build: ../../wsn-ai-service
+    environment:
+      PORT: 8090
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-dev-service-token}
+      PLATFORM_INTERNAL_URL: http://wsn-service:8081
+      PLATFORM_API_URL: http://wsn-service:8080
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      WSN_OBSERVER_URL: http://wsn-observer:9098
+      WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
+    ports: ["8090:8090"]
+    depends_on:
+      wsn-service: { condition: service_started }
+
+  console:
+    profiles: ["app"]
+    image: ghcr.io/thev1ndu/console:${IMAGE_TAG:-main}
+    build: ../../console
+    ports: ["8088:8080"]
+    volumes: ["./console-config.js:/usr/share/nginx/html/config.js:ro"]
+    depends_on:
+      wsn-service: { condition: service_started }
+
 volumes:
   postgres: {}
   nats: {}
   temporal: {}
   minio: {}
+  observer: {}

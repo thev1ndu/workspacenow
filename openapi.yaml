@@ -1372,12 +1372,22 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /analytics/log-metrics:
+    get:
+      tags: [Overview]
+      operationId: getLogMetrics
+      summary: Log volume per severity level per day, from wsn-observer's OTLP log store
+      parameters:
+        - { name: days, in: query, schema: { type: integer, default: 14 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/LogMetricList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
   /status:
     get:
       tags: [Control]
       operationId: statusPage
-      summary: Public status page payload (no auth)
-      description: "Aggregates component health, version and uptime into `healthy`/`degraded`/`down`. Mounted at `/status` outside the API base path too."
+      summary: "Public status page (no auth) — JSON, or an HTML page when the client sends Accept: text/html"
+      description: "Aggregates component health, version and uptime into `healthy`/`degraded`/`down`. Mounted at `/status` outside the API base path too. Content negotiation: `Accept: text/html` renders the status page skin, anything else returns JSON."
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: object, properties: { status: { type: string }, service: { type: string }, version: { type: string }, uptimeSeconds: { type: integer }, components: { type: array, items: { $ref: "#/components/schemas/HealthSignal" } } } } } } }
   /alerts:
@@ -2518,12 +2528,13 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        source: { type: string, enum: [audit, event] }
-        action: { type: string, description: "Audit action or event type to match" }
+        source: { type: string, enum: [audit, event, slo], description: "`slo` = burn-rate alert on an SLO" }
+        action: { type: string, description: "Audit action or event type to match; for `slo` rules the operation name (or use sloId)" }
+        sloId: { type: string, description: "The SLO this rule watches when source is `slo`" }
         outcome: { type: string, description: "Audit outcome filter, e.g. denied" }
-        threshold: { type: integer, minimum: 1 }
+        threshold: { type: integer, minimum: 1, description: "Count for audit/event; for `slo` rules the burn rate × 100 (600 = 6× the error budget)" }
         windowMinutes: { type: integer, minimum: 1 }
-        webhookId: { type: string, description: "Webhook to call when the rule fires" }
+        webhookId: { type: string, description: "Webhook to call when the rule fires (the only alert channel for now)" }
         active: { type: boolean }
         createdAt: { $ref: "#/components/schemas/IsoDate" }
         updatedAt: { $ref: "#/components/schemas/IsoDate" }
@@ -2532,8 +2543,9 @@ components:
       required: [name, action, threshold, windowMinutes]
       properties:
         name: { type: string }
-        source: { type: string, enum: [audit, event], default: audit }
+        source: { type: string, enum: [audit, event, slo], default: audit }
         action: { type: string }
+        sloId: { type: string, description: "Required when source is `slo`" }
         outcome: { type: string }
         threshold: { type: integer, minimum: 1 }
         windowMinutes: { type: integer, minimum: 1 }
@@ -2628,6 +2640,13 @@ components:
     ResourceSummaryList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ResourceSummary" } }, total: { type: integer } } }
     SearchHitList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/SearchHit" } }, total: { type: integer } } }
     ActivityPointList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ActivityPoint" } }, total: { type: integer } } }
+    LogMetricPoint:
+      type: object
+      required: [date, levels]
+      properties:
+        date: { type: string, format: date }
+        levels: { type: object, additionalProperties: { type: integer }, description: "Log count per severity, e.g. info/warn/error" }
+    LogMetricList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/LogMetricPoint" } }, total: { type: integer } } }
     TokenUsagePointList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/TokenUsagePoint" } }, total: { type: integer } } }
     EntryPointBreakdownList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/EntryPointBreakdown" } }, total: { type: integer } } }
     DepartmentList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Department" } }, total: { type: integer } } }

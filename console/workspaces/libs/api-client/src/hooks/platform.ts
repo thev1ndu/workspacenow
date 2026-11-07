@@ -94,6 +94,11 @@ export function useActivity(query: { days?: number } = {}) {
   return useApiQuery({ queryKey: ["analytics", "activity", query], queryFn: () => api.getActivity(query, getToken) });
 }
 
+export function useLogMetrics(query: { days?: number } = {}) {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["analytics", "log-metrics", query], queryFn: () => api.getLogMetrics(query, getToken) });
+}
+
 export function useTokenUsage(query: { days?: number } = {}) {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["analytics", "tokens", query], queryFn: () => api.getTokenUsage(query, getToken) });

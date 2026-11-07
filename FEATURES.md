@@ -97,11 +97,15 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ **Backup/DR**: `-backup` role pg_dumps to S3 (`backups/`) and records it (`GET /admin/backups`); Flux `backup-cronjob.yaml` nightly; PITR via CloudNativePG WAL archiving (infrastructure layer); observer **WAL segment replication** to a standby (`WSN_OBSERVER_REPLICA_URL` + `POST /v1/segments` ingest, idempotent import)
 - ✅ **HA**: `deploy/compose/docker-compose.ha.yml` overlay (postgres primary+streaming replica, valkey+replica, 2nd wsn-service, observer standby); Flux base already runs 2 replicas
 - ✅ **Upgrade gate**: server/worker roles refuse to start with pending migrations (`-migrate` first); compose runs the migrate job before them
-- ⬜ Alerting channels beyond webhooks (email/SMS/PagerDuty); log-based metric dashboards in console; observer exact totals beyond scan limit
+- ✅ **SLO burn-rate alerts**: alert rules with `source: "slo"` + `sloId` (or operation in `action`); the evaluator measures the SLO's counters and fires when the burn rate ×100 crosses the threshold (600 = 6× the error budget), webhook + `Alert.Fired` like any rule
+- ✅ **Log-based metric dashboards**: `GET /analytics/log-metrics?days=` aggregates OTLP logs from wsn-observer per severity per day; console overview has a stacked "Log volume" chart
+- ✅ **Backup restore drill**: `-restore` role (`-backup-id` to pick a record, newest done by default) downloads the dump from S3 and `pg_restore --clean --if-exists`; compose service `wsn-service-restore` under the `restore` profile
+- ✅ **Status page HTML skin**: `GET /status` returns the HTML page when the client sends `Accept: text/html`, JSON otherwise
+- ⬜ Alerting channels beyond webhooks (email/SMS/PagerDuty — webhook is the only channel for now); observer exact totals beyond scan limit
 
 ## 9. Console webapp
 - ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces
-- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 38 tests, 83.04% coverage gated in CI) when unset
+- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 39 tests, 83.87% coverage gated in CI) when unset
 - ✅ SSE live updates (above), server-side search + pagination on runs/traces/audit/records, KPI dashboard with deep-linked cards, charts
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container
 - ✅ **Theming beyond default**: `useAppearance` — light/dark/system mode + accent palettes, persisted, applied pre-paint; Preferences dialog

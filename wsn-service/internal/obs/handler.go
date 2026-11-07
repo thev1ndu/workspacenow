@@ -125,6 +125,14 @@ func (h *Handler) GetActivity(w http.ResponseWriter, r *http.Request, params oap
 	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.ActivityPoint, error) { return h.svc.Activity(ctx, days) })
 }
 
+func (h *Handler) GetLogMetrics(w http.ResponseWriter, r *http.Request, params oapi.GetLogMetricsParams) {
+	days := 14
+	if params.Days != nil {
+		days = *params.Days
+	}
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.LogMetricPoint, error) { return h.svc.LogMetrics(ctx, days) })
+}
+
 func (h *Handler) GetTokenUsage(w http.ResponseWriter, r *http.Request, params oapi.GetTokenUsageParams) {
 	days := 14
 	if params.Days != nil {
@@ -226,9 +234,9 @@ func (h *Handler) GetSLOStatus(w http.ResponseWriter, r *http.Request, id string
 	httpx.OK(w, out)
 }
 
-// StatusPage is the public status endpoint (no auth).
+// StatusPage is the public status endpoint (no auth): JSON, or the HTML skin for browsers.
 func (h *Handler) StatusPage(w http.ResponseWriter, r *http.Request) {
-	httpx.OK(w, h.svc.Status(r.Context()))
+	writeStatusPage(w, r, h.svc.Status(r.Context()))
 }
 
 func (h *Handler) ListBackups(w http.ResponseWriter, r *http.Request) {

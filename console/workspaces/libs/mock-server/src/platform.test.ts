@@ -500,6 +500,26 @@ describe("ops: alerts, slos, status", () => {
     const backups = get(platform, "/admin/backups");
     expect(backups.status).toBe(200);
   });
+
+  it("fires an SLO burn-rate alert and serves log metrics per day and level", () => {
+    const platform = createDemoPlatform();
+    // one denied call on the operation inside the window: burn rate = (1-0)/(1-0.5) x100 = 200
+    platform.audit(platform.userContext("u-amaya", "control"), "inventory.checkout", "op/drill", "denied", "burn drill");
+    const slo = post(platform, "/slos", { operation: "inventory.checkout", targetSuccess: 0.5, targetP95Ms: 500, windowMinutes: 60 }).body as Slo;
+    // threshold 1 = burn rate 0.01x; any recorded call on the operation already crosses it
+    const rule = post(platform, "/alerts", { name: "Checkout burn", source: "slo", sloId: slo.id, threshold: 1, windowMinutes: 60 });
+    expect(rule.status).toBe(201);
+    const fires = get(platform, `/alerts/${(rule.body as AlertRule).id}/fires`).body as { items: AlertFire[] };
+    expect(fires.items.length).toBeGreaterThan(0);
+    expect(fires.items[0].count).toBe(200);
+    // unknown SLO is rejected
+    const bad = post(platform, "/alerts", { name: "Ghost", source: "slo", sloId: "slo-nope", threshold: 1, windowMinutes: 60 });
+    expect(bad.status).toBe(422);
+    // log metrics: one point per day with severity levels
+    const logs = get(platform, "/analytics/log-metrics?days=7").body as { items: Array<{ date: string; levels: Record<string, number> }> };
+    expect(logs.items).toHaveLength(7);
+    expect(Object.keys(logs.items[0].levels).sort()).toEqual(["debug", "error", "info", "warn"]);
+  });
 });
 
 describe("connect depth", () => {

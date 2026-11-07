@@ -171,6 +171,7 @@ func (e AlertFireStatus) Valid() bool {
 const (
 	AlertRuleSourceAudit AlertRuleSource = "audit"
 	AlertRuleSourceEvent AlertRuleSource = "event"
+	AlertRuleSourceSlo   AlertRuleSource = "slo"
 )
 
 // Valid indicates whether the value is a known member of the AlertRuleSource enum.
@@ -179,6 +180,8 @@ func (e AlertRuleSource) Valid() bool {
 	case AlertRuleSourceAudit:
 		return true
 	case AlertRuleSourceEvent:
+		return true
+	case AlertRuleSourceSlo:
 		return true
 	default:
 		return false
@@ -189,6 +192,7 @@ func (e AlertRuleSource) Valid() bool {
 const (
 	AlertRuleInputSourceAudit AlertRuleInputSource = "audit"
 	AlertRuleInputSourceEvent AlertRuleInputSource = "event"
+	AlertRuleInputSourceSlo   AlertRuleInputSource = "slo"
 )
 
 // Valid indicates whether the value is a known member of the AlertRuleInputSource enum.
@@ -197,6 +201,8 @@ func (e AlertRuleInputSource) Valid() bool {
 	case AlertRuleInputSourceAudit:
 		return true
 	case AlertRuleInputSourceEvent:
+		return true
+	case AlertRuleInputSourceSlo:
 		return true
 	default:
 		return false
@@ -1769,7 +1775,7 @@ type AlertFireList struct {
 
 // AlertRule defines model for AlertRule.
 type AlertRule struct {
-	// Action Audit action or event type to match
+	// Action Audit action or event type to match; for `slo` rules the operation name (or use sloId)
 	Action    string  `json:"action"`
 	Active    bool    `json:"active"`
 	CreatedAt IsoDate `json:"createdAt"`
@@ -1777,25 +1783,35 @@ type AlertRule struct {
 	Name      string  `json:"name"`
 
 	// Outcome Audit outcome filter, e.g. denied
-	Outcome   *string         `json:"outcome,omitempty"`
-	Source    AlertRuleSource `json:"source"`
-	Threshold int             `json:"threshold"`
-	UpdatedAt IsoDate         `json:"updatedAt"`
+	Outcome *string `json:"outcome,omitempty"`
 
-	// WebhookId Webhook to call when the rule fires
+	// SloId The SLO this rule watches when source is `slo`
+	SloId *string `json:"sloId,omitempty"`
+
+	// Source `slo` = burn-rate alert on an SLO
+	Source AlertRuleSource `json:"source"`
+
+	// Threshold Count for audit/event; for `slo` rules the burn rate × 100 (600 = 6× the error budget)
+	Threshold int     `json:"threshold"`
+	UpdatedAt IsoDate `json:"updatedAt"`
+
+	// WebhookId Webhook to call when the rule fires (the only alert channel for now)
 	WebhookId     *string `json:"webhookId,omitempty"`
 	WindowMinutes int     `json:"windowMinutes"`
 }
 
-// AlertRuleSource defines model for AlertRule.Source.
+// AlertRuleSource `slo` = burn-rate alert on an SLO
 type AlertRuleSource string
 
 // AlertRuleInput defines model for AlertRuleInput.
 type AlertRuleInput struct {
-	Action        string                `json:"action"`
-	Active        *bool                 `json:"active,omitempty"`
-	Name          string                `json:"name"`
-	Outcome       *string               `json:"outcome,omitempty"`
+	Action  string  `json:"action"`
+	Active  *bool   `json:"active,omitempty"`
+	Name    string  `json:"name"`
+	Outcome *string `json:"outcome,omitempty"`
+
+	// SloId Required when source is `slo`
+	SloId         *string               `json:"sloId,omitempty"`
 	Source        *AlertRuleInputSource `json:"source,omitempty"`
 	Threshold     int                   `json:"threshold"`
 	WebhookId     *string               `json:"webhookId,omitempty"`
@@ -2467,6 +2483,20 @@ type JsonSchema struct {
 
 // LifecycleState defines model for LifecycleState.
 type LifecycleState string
+
+// LogMetricList defines model for LogMetricList.
+type LogMetricList struct {
+	Items []LogMetricPoint `json:"items"`
+	Total int              `json:"total"`
+}
+
+// LogMetricPoint defines model for LogMetricPoint.
+type LogMetricPoint struct {
+	Date openapi_types.Date `json:"date"`
+
+	// Levels Log count per severity, e.g. info/warn/error
+	Levels map[string]int `json:"levels"`
+}
 
 // McpServer defines model for McpServer.
 type McpServer struct {
@@ -3264,6 +3294,11 @@ type UpdateAgentJSONBodyStatus string
 
 // GetActivityParams defines parameters for GetActivity.
 type GetActivityParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
+// GetLogMetricsParams defines parameters for GetLogMetrics.
+type GetLogMetricsParams struct {
 	Days *int `form:"days,omitempty" json:"days,omitempty"`
 }
 
@@ -4214,6 +4249,9 @@ type ServerInterface interface {
 	// Allowed, denied and failed actions per entry point
 	// (GET /analytics/entry-points)
 	GetEntryPointBreakdown(w http.ResponseWriter, r *http.Request)
+	// Log volume per severity level per day, from wsn-observer's OTLP log store
+	// (GET /analytics/log-metrics)
+	GetLogMetrics(w http.ResponseWriter, r *http.Request, params GetLogMetricsParams)
 	// Daily model token usage, one numeric key per model
 	// (GET /analytics/tokens)
 	GetTokenUsage(w http.ResponseWriter, r *http.Request, params GetTokenUsageParams)
@@ -4448,7 +4486,7 @@ type ServerInterface interface {
 	// Measure an SLO now (calls, errors, success rate, p95 ms, breached)
 	// (GET /slos/{sloId}/status)
 	GetSLOStatus(w http.ResponseWriter, r *http.Request, sloId string)
-	// Public status page payload (no auth)
+	// Public status page (no auth) — JSON, or an HTML page when the client sends Accept: text/html
 	// (GET /status)
 	StatusPage(w http.ResponseWriter, r *http.Request)
 	// Teams
@@ -4948,6 +4986,39 @@ func (siw *ServerInterfaceWrapper) GetEntryPointBreakdown(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetEntryPointBreakdown(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLogMetrics operation middleware
+func (siw *ServerInterfaceWrapper) GetLogMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetLogMetricsParams
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLogMetrics(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7848,6 +7919,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/alerts/{alertId}/fires/{fireId}/ack", wrapper.AckAlertFire)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/activity", wrapper.GetActivity)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/entry-points", wrapper.GetEntryPointBreakdown)
+	m.HandleFunc("GET "+options.BaseURL+"/analytics/log-metrics", wrapper.GetLogMetrics)
 	m.HandleFunc("GET "+options.BaseURL+"/analytics/tokens", wrapper.GetTokenUsage)
 	m.HandleFunc("GET "+options.BaseURL+"/api-keys", wrapper.ListApiKeys)
 	m.HandleFunc("POST "+options.BaseURL+"/api-keys", wrapper.CreateApiKey)

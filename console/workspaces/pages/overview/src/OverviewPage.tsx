@@ -6,6 +6,7 @@ import { EntryPointOutcomesChart, HealthChart } from "@workspacenow/control";
 import { globalConfig } from "@workspacenow/types";
 import { PageLayout } from "@workspacenow/views";
 import { ActivityChart } from "./subComponents/ActivityChart";
+import { LogMetricsChart } from "./subComponents/LogMetricsChart";
 import { AppsSection } from "./subComponents/AppsSection";
 import { NeedsAttentionCard } from "./subComponents/NeedsAttentionCard";
 
@@ -41,6 +42,8 @@ export function OverviewPage() {
           <EntryPointOutcomesChart />
           <TokenUsageChart />
         </div>
+
+        <LogMetricsChart />
 
       </div>
     </PageLayout>

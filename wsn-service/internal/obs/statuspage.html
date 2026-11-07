@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.service}} — status</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0d10; color: #e7e9ee;
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { width: min(560px, 92vw); padding: 32px 0; }
+  h1 { font-size: 15px; font-weight: 600; color: #9aa3b2; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 4px; }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 650; margin: 8px 0 24px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .healthy .dot, .dot.healthy { background: #3fb96f; box-shadow: 0 0 10px #3fb96f88; }
+  .degraded .dot, .dot.degraded { background: #e5b13d; box-shadow: 0 0 10px #e5b13d88; }
+  .down .dot, .dot.down { background: #e5484d; box-shadow: 0 0 10px #e5484d88; }
+  .unknown .dot, .dot.unknown { background: #9aa3b2; }
+  .status.healthy { color: #3fb96f; } .status.degraded { color: #e5b13d; } .status.down { color: #e5484d; } .status.unknown { color: #9aa3b2; }
+  ul { list-style: none; margin: 0; padding: 0; border: 1px solid #23262d; border-radius: 12px; overflow: hidden; }
+  li { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #12151a; }
+  li + li { border-top: 1px solid #23262d; }
+  .resource { font-weight: 550; } .kind { color: #9aa3b2; font-size: 13px; } .detail { margin-left: auto; color: #9aa3b2; font-size: 13px; }
+  footer { margin-top: 20px; color: #6b7280; font-size: 13px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{.service}}</h1>
+  <div class="status {{.status}}"><span class="dot {{.status}}"></span>{{.status}}</div>
+  <ul>
+    {{range .components}}
+    <li><span class="dot {{.Status}}"></span><span class="resource">{{.Resource}}</span><span class="kind">{{.Kind}}</span><span class="detail">{{.Detail}}</span></li>
+    {{end}}
+  </ul>
+  <footer><span>v{{.version}} · up {{.uptimeSeconds}}s</span><span>{{.time}}</span></footer>
+</main>
+</body>
+</html>

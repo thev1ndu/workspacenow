@@ -102,6 +102,7 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/analytics/activity?days=14` | Daily API calls, agent tool calls, workflow steps, denials | signed in |
 | GET | `/analytics/tokens?days=14` | Daily tokens per model (one key per model name) | signed in |
 | GET | `/analytics/entry-points` | Allowed, denied and failed counts per entry point | signed in |
+| GET | `/analytics/log-metrics?days=14` | Log volume per severity (debug/info/warn/error) per day, from wsn-observer's OTLP log store | signed in |
 
 ### Control: organization and access
 
@@ -273,8 +274,8 @@ Executions are durable and must survive restarts.
 | GET | `/traces/{traceId}` | One trace with its audit records and events | `audit.read` |
 | GET | `/health` | Health of applications, APIs, MCP servers, integrations, databases and active workflows | signed in |
 
-| GET | `/status` | Public status page (no auth): healthy/degraded/down rollup + components + version + uptime | public |
-| GET/POST | `/alerts`, PUT/DELETE `/alerts/{id}` | Alert rules over audit/event patterns (threshold + window + webhook) | `control.manage` |
+| GET | `/status` | Public status page (no auth): JSON rollup + components; `Accept: text/html` renders the HTML skin | public |
+| GET/POST | `/alerts`, PUT/DELETE `/alerts/{id}` | Alert rules over audit/event patterns (threshold + window + webhook — the only channel for now); `source: "slo"` + `sloId` alerts on the SLO burn rate ×100 (e.g. threshold 600 = 6× the error budget) | `control.manage` |
 | GET | `/alerts/{id}/fires`, POST `.../fires/{fireId}/ack` | Fires and acknowledgements | signed in / `control.manage` |
 | GET/POST | `/slos`, GET `/slos/{id}/status` | SLOs per business operation; measured success rate + p95 vs targets | signed in / `control.manage` |
 | GET | `/admin/backups` | Backup records from the `-backup` role / Flux CronJob | `control.manage` |

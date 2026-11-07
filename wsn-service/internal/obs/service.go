@@ -39,6 +39,7 @@ type Service interface {
 	Resources(ctx context.Context) ([]oapi.ResourceSummary, error)
 	Search(ctx context.Context, ec kernel.ExecutionContext, q string, limit int) ([]oapi.SearchHit, error)
 	Activity(ctx context.Context, days int) ([]oapi.ActivityPoint, error)
+	LogMetrics(ctx context.Context, days int) ([]oapi.LogMetricPoint, error)
 	TokenUsage(ctx context.Context, days int) ([]oapi.TokenUsagePoint, error)
 	EntryPoints(ctx context.Context) ([]oapi.EntryPointBreakdown, error)
 	// Alerts: rules over audit/event patterns, fires, ack.

@@ -35,6 +35,15 @@ func TestBucketOfAndP95(t *testing.T) {
 	assert.Equal(t, int64(0), p95FromBuckets(counts, 0))
 }
 
+func TestBurnRatePer100(t *testing.T) {
+	assert.Equal(t, 0, burnRatePer100(1.0, 0.99, 0))       // no calls, no burn
+	assert.Equal(t, 0, burnRatePer100(1.0, 0.99, 100))     // perfect window
+	assert.Equal(t, 100, burnRatePer100(0.99, 0.99, 100))  // exactly at the budget
+	assert.Equal(t, 600, burnRatePer100(0.94, 0.99, 1000)) // 6% errors on a 1% budget = 6x
+	// 100% target: any error burns infinitely fast
+	assert.Greater(t, burnRatePer100(0.999, 1.0, 1000), 999)
+}
+
 func TestPendingIDs(t *testing.T) {
 	all := []string{"001_a", "002_b", "003_c"}
 	assert.Empty(t, migrations.PendingIDs([]string{"001_a", "002_b", "003_c"}, all))

@@ -115,6 +115,19 @@ services:
       minio-init: { condition: service_completed_successfully }
     restart: "no"
 
+  # Backup restore drill: restores Postgres from the newest (or -backup-id) backup in MinIO and exits.
+  # Run against a scratch database: docker compose --profile restore run --rm wsn-service-restore
+  wsn-service-restore:
+    profiles: ["restore"]
+    image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}
+    build: ../../wsn-service
+    command: ["-restore", "-server=false"]
+    environment: *wsn-service-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    restart: "no"
+
   wsn-service:
     profiles: ["app"]
     image: ghcr.io/thev1ndu/wsn-service:${IMAGE_TAG:-main}

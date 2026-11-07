@@ -45,11 +45,13 @@ import (
 
 // Options selects what this process runs; one image serves every role as separate deployments.
 type Options struct {
-	Migrate bool // apply schema migrations before anything else
-	Server  bool // serve the HTTP API and the event stream
-	Relay   bool // move committed events from the outbox to NATS
-	Worker  bool // run the Temporal workflow worker and the event trigger consumer
-	Backup  bool // run one pg_dump backup to object storage and exit
+	Migrate  bool   // apply schema migrations before anything else
+	Server   bool   // serve the HTTP API and the event stream
+	Relay    bool   // move committed events from the outbox to NATS
+	Worker   bool   // run the Temporal workflow worker and the event trigger consumer
+	Backup   bool   // run one pg_dump backup to object storage and exit
+	Restore  bool   // restore the database from a backup in object storage and exit (drill)
+	BackupID string // with Restore: the backup record to restore instead of the newest
 }
 
 // Run starts the selected components and blocks until ctx is cancelled or one of them fails.
@@ -78,6 +80,9 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) error {
 	}
 	if opts.Backup {
 		return runBackup(ctx, db, cfg)
+	}
+	if opts.Restore {
+		return runRestore(ctx, db, cfg, opts.BackupID)
 	}
 	if !opts.Server && !opts.Relay && !opts.Worker {
 		return nil
@@ -336,6 +341,75 @@ func setupLogger(level string, exp *observer.Exporter, serviceName string) {
 	}
 	stdout := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: l})
 	slog.SetDefault(slog.New(observer.Tee(stdout, observer.NewLogHandler(exp, serviceName))))
+}
+
+// pickBackup chooses the backup record to restore: the one named by id, else the newest done one.
+func pickBackup(records []obs.BackupRecord, id string) (*obs.BackupRecord, error) {
+	done := make([]obs.BackupRecord, 0, len(records))
+	for _, r := range records {
+		if r.Status == "done" {
+			done = append(done, r)
+		}
+	}
+	if id != "" {
+		for i := range done {
+			if done[i].ID == id {
+				return &done[i], nil
+			}
+		}
+		return nil, fmt.Errorf("no completed backup with id %s", id)
+	}
+	if len(done) == 0 {
+		return nil, fmt.Errorf("no completed backups to restore")
+	}
+	latest := &done[0]
+	for i := range done {
+		if done[i].StartedAt.After(latest.StartedAt) {
+			latest = &done[i]
+		}
+	}
+	return latest, nil
+}
+
+// runRestore downloads a backup from object storage and pg_restore's it into the database (the
+// -restore role; a manual drill proving backups are restorable — run it against a scratch database).
+func runRestore(ctx context.Context, db *gorm.DB, cfg *config.Config, backupID string) error {
+	col := docstore.NewCollection(db, "backups", func(b *obs.BackupRecord) string { return b.ID })
+	records, err := col.List(ctx)
+	if err != nil {
+		return err
+	}
+	rec, err := pickBackup(records, backupID)
+	if err != nil {
+		return err
+	}
+	artifacts, err := objectstore.Open(ctx, cfg.S3)
+	if err != nil {
+		return err
+	}
+	dump, err := artifacts.Get(ctx, rec.S3Key)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", rec.S3Key, err)
+	}
+	tmp, err := os.CreateTemp("", "wsn-restore-*.dump")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	if _, err := tmp.Write(dump); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	slog.Info("restoring database from backup", "backup", rec.ID, "key", rec.S3Key, "size", rec.SizeBytes)
+	out, err := exec.CommandContext(ctx, "pg_restore", "--clean", "--if-exists", "-d", cfg.Database.URL, tmp.Name()).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("pg_restore: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	slog.Info("restore completed", "backup", rec.ID)
+	return nil
 }
 
 // runBackup dumps Postgres to object storage once (the -backup role; a CronJob in Flux schedules it).

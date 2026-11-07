@@ -1,4 +1,4 @@
-import type { ActivityPoint, EntryPointBreakdown, TokenUsagePoint } from "@workspacenow/types";
+import type { ActivityPoint, EntryPointBreakdown, LogMetricPoint, TokenUsagePoint } from "@workspacenow/types";
 import type { Platform } from "./platform";
 
 /**
@@ -69,4 +69,22 @@ export function entryPointBreakdown(platform: Platform): EntryPointBreakdown[] {
     byEntry.set(record.entryPoint, row);
   }
   return [...byEntry.values()].sort((a, b) => b.allowed + b.denied - (a.allowed + a.denied));
+}
+
+/** Log volume per severity per day: a deterministic baseline plus denials recorded in the audit log. */
+export function logSeries(platform: Platform, days: number): LogMetricPoint[] {
+  return lastDays(days).map((d) => {
+    const key = dayKey(d);
+    const records = platform.state.audit.filter((a) => a.time.slice(0, 10) === key);
+    const weekday = isWeekend(d) ? 0.45 : 1;
+    return {
+      date: key,
+      levels: {
+        debug: Math.round((40 + noise(`dbg${key}`) * 60) * weekday),
+        info: Math.round((900 + noise(`inf${key}`) * 500) * weekday) + records.length,
+        warn: Math.round((30 + noise(`wrn${key}`) * 40) * weekday),
+        error: Math.round(noise(`err${key}`) * 8 * weekday) + records.filter((r) => r.outcome === "denied").length,
+      },
+    };
+  });
 }

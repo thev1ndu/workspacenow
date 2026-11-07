@@ -1,4 +1,4 @@
-// Command wsn-service runs the WorkspaceNow service; flags pick the role (-migrate, -server, -relay, -worker).
+// Command wsn-service runs the WorkspaceNow service; flags pick the role (-migrate, -server, -relay, -worker, -backup, -restore).
 package main
 
 import (
@@ -19,6 +19,8 @@ func main() {
 	flag.BoolVar(&opts.Server, "server", true, "serve the HTTP API and the event stream")
 	flag.BoolVar(&opts.Relay, "relay", false, "relay committed events from the outbox to NATS")
 	flag.BoolVar(&opts.Worker, "worker", false, "run the Temporal workflow worker and event trigger consumer")
+	flag.BoolVar(&opts.Restore, "restore", false, "restore the database from a backup in object storage and exit (drill)")
+	flag.StringVar(&opts.BackupID, "backup-id", "", "with -restore: the backup record id to restore instead of the newest")
 	flag.Parse()
 
 	cfg, err := config.Load()

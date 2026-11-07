@@ -33,7 +33,7 @@ import {
   type SloInput
 } from "@workspacenow/types";
 import { runAgent } from "./agents";
-import { activitySeries, entryPointBreakdown, tokenSeries } from "./analytics";
+import { activitySeries, entryPointBreakdown, logSeries, tokenSeries } from "./analytics";
 import { listMcpTools } from "./mcp";
 import { fail, type ExecutionContext, type Platform } from "./platform";
 import { search } from "./search";
@@ -175,6 +175,7 @@ route("GET", "/search", ({ platform, ctx, query }) => list(search(platform, ctx(
 route("GET", "/analytics/activity", ({ platform, query }) => list(activitySeries(platform, Number(query.get("days") ?? 14))));
 route("GET", "/analytics/tokens", ({ platform, query }) => list(tokenSeries(platform, Number(query.get("days") ?? 14))));
 route("GET", "/analytics/entry-points", ({ platform }) => list(entryPointBreakdown(platform)));
+route("GET", "/analytics/log-metrics", ({ platform, query }) => list(logSeries(platform, Number(query.get("days") ?? 14))));
 
 /* Control: organization and access */
 
@@ -788,14 +789,32 @@ route("POST", "/alerts", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "alert.create", "alert");
   const input = body as AlertRuleInput;
-  if (!input.name?.trim() || !input.action?.trim() || !(input.threshold > 0) || !(input.windowMinutes > 0))
+  const source = input.source ?? "audit";
+  if (!input.name?.trim() || !(input.threshold > 0) || !(input.windowMinutes > 0) || (source !== "slo" && !input.action?.trim()))
     fail(422, "VALIDATION_FAILED", "An alert needs a name, an action or event type, a threshold and a window in minutes");
+  if (source === "slo") {
+    if (!input.sloId && !input.action?.trim()) fail(422, "VALIDATION_FAILED", "An SLO alert needs an sloId or the operation name");
+    if (input.sloId && !platform.state.slos.some((x) => x.id === input.sloId)) fail(422, "VALIDATION_FAILED", `SLO ${input.sloId} does not exist`);
+  }
   const now = platform.now();
-  const rule: AlertRule = { ...input, id: platform.nextId("alr"), source: input.source ?? "audit", active: input.active ?? true, name: input.name.trim(), action: input.action.trim(), createdAt: now, updatedAt: now };
+  const rule: AlertRule = { ...input, id: platform.nextId("alr"), source, active: input.active ?? true, name: input.name.trim(), action: (input.action ?? "").trim(), createdAt: now, updatedAt: now };
   platform.state.alertRules.push(rule);
-  // mock evaluator: if the seeded audit log already crosses the threshold, fire immediately
-  const since = new Date(Date.now() - rule.windowMinutes * 60000).toISOString();
-  const count = platform.state.audit.filter((a) => a.action === rule.action && (!rule.outcome || a.outcome === rule.outcome) && a.time >= since).length;
+  // mock evaluator: slo rules fire on the SLO's burn rate ×100, audit/event rules on the window count
+  let count = 0;
+  if (source === "slo") {
+    const slo = platform.state.slos.find((x) => x.id === rule.sloId || x.operation === rule.action);
+    if (slo) {
+      const since = new Date(Date.now() - slo.windowMinutes * 60000).toISOString();
+      const rows = platform.state.audit.filter((a) => a.action === slo.operation && a.time >= since);
+      const calls = rows.length;
+      const errors = rows.filter((r) => r.outcome !== "allowed").length;
+      const successRate = calls > 0 ? (calls - errors) / calls : 1;
+      count = calls > 0 ? Math.round(((1 - successRate) / Math.max(1 - slo.targetSuccess, 0.0001)) * 100) : 0;
+    }
+  } else {
+    const since = new Date(Date.now() - rule.windowMinutes * 60000).toISOString();
+    count = platform.state.audit.filter((a) => a.action === rule.action && (!rule.outcome || a.outcome === rule.outcome) && a.time >= since).length;
+  }
   if (count >= rule.threshold) {
     platform.state.alertFires.push({ id: platform.nextId("fire"), ruleId: rule.id, firedAt: now, count, status: "firing", createdAt: now });
   }

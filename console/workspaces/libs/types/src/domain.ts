@@ -678,12 +678,15 @@ export interface OverviewStats {
 export interface AlertRule {
   id: Id;
   name: string;
-  source: "audit" | "event";
+  /** "slo" rules alert on the SLO's burn rate (threshold = burn rate × 100, e.g. 600 = 6×). */
+  source: "audit" | "event" | "slo";
   action: string;
   outcome?: string;
   threshold: number;
   windowMinutes: number;
   webhookId?: Id;
+  /** The SLO this rule watches when source is "slo". */
+  sloId?: Id;
   active: boolean;
   createdAt: IsoDate;
   updatedAt: IsoDate;

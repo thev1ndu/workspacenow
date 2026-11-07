@@ -51,6 +51,7 @@ func (f *fakeSvc) Search(_ context.Context, _ kernel.ExecutionContext, q string,
 func (f *fakeSvc) Activity(context.Context, int) ([]oapi.ActivityPoint, error) {
 	return []oapi.ActivityPoint{{ApiCalls: 5, Denied: 1}}, f.err
 }
+func (f *fakeSvc) LogMetrics(context.Context, int) ([]oapi.LogMetricPoint, error) { return nil, nil }
 func (f *fakeSvc) TokenUsage(context.Context, int) ([]oapi.TokenUsagePoint, error) {
 	return []oapi.TokenUsagePoint{{AdditionalProperties: map[string]float32{"mistral_medium_latest": 42}}}, f.err
 }

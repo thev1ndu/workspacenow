@@ -81,6 +81,12 @@ export type TokenUsagePoint = {
   [model: string]: number | string;
 };
 
+/** One day of log volume per severity level, for the log-metrics chart. */
+export type LogMetricPoint = {
+  date: string;
+  levels: Record<string, number>;
+};
+
 export type EntryPointBreakdown = {
   entryPoint: string;
   allowed: number;

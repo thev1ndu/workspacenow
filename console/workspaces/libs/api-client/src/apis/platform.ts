@@ -1,5 +1,5 @@
 import type {
-  ActivityPoint,
+  ActivityPoint, LogMetricPoint,
   Department,
   EntryPointBreakdown,
   Environment,
@@ -96,6 +96,13 @@ export async function getActivity(query: { days?: number }, getToken: GetToken) 
 
 export async function getTokenUsage(query: { days?: number }, getToken: GetToken) {
   return httpGET<ListResponse<TokenUsagePoint>>(`${SERVICE_BASE}/analytics/tokens`, {
+    token: await getToken(),
+    searchParams: { days: query.days?.toString() },
+  });
+}
+
+export async function getLogMetrics(query: { days?: number }, getToken: GetToken) {
+  return httpGET<ListResponse<LogMetricPoint>>(`${SERVICE_BASE}/analytics/log-metrics`, {
     token: await getToken(),
     searchParams: { days: query.days?.toString() },
   });

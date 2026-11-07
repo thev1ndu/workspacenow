@@ -17,6 +17,7 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/observer"
 )
 
 // collection helpers bound to the service's db in NewService.
@@ -424,6 +425,34 @@ func (s *service) TokenUsage(ctx context.Context, days int) ([]oapi.TokenUsagePo
 }
 
 // EntryPoints aggregates audit outcomes per entry point.
+// logLevels are the OTLP severities counted per day; the observer matches them case-insensitively.
+var logLevels = []string{"debug", "info", "warn", "error"}
+
+// LogMetrics aggregates log volume per severity per day from wsn-observer's OTLP log store. When the
+// observer is unreachable the day's counts stay zero, so the dashboard still renders.
+func (s *service) LogMetrics(ctx context.Context, days int) ([]oapi.LogMetricPoint, error) {
+	if days <= 0 || days > 90 {
+		days = 14
+	}
+	out := make([]oapi.LogMetricPoint, 0, days)
+	for _, d := range lastDays(days) {
+		p := oapi.LogMetricPoint{Date: openapi_types.Date{Time: d}, Levels: map[string]int{}}
+		for _, lv := range logLevels {
+			p.Levels[lv] = 0
+			if s.obs == nil {
+				continue
+			}
+			res, err := s.obs.ListLogs(ctx, observer.LogQuery{Level: lv, StartTime: d, EndTime: d.Add(24 * time.Hour), Limit: 1})
+			if err != nil {
+				continue // observer down: leave the zero
+			}
+			p.Levels[lv] = res.TotalCount
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 func (s *service) EntryPoints(ctx context.Context) ([]oapi.EntryPointBreakdown, error) {
 	var rows []struct {
 		EntryPoint string

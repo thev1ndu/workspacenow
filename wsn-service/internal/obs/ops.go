@@ -3,7 +3,9 @@ package obs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/config"
@@ -25,6 +27,7 @@ type AlertRule struct {
 	Threshold     int       `json:"threshold"`
 	WindowMinutes int       `json:"windowMinutes"`
 	WebhookID     string    `json:"webhookId,omitempty"`
+	SLOID         string    `json:"sloId,omitempty"` // set when Source == "slo"
 	Active        bool      `json:"active"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
@@ -47,8 +50,51 @@ func ruleFires(rule *AlertRule, count int) bool {
 	return rule.Active && rule.Threshold > 0 && count >= rule.Threshold
 }
 
-// evaluateRule counts matching audit/event rows in the rule's window.
+// burnRatePer100 returns the SLO burn rate scaled ×100: observed error rate over the allowed error
+// rate (1 - targetSuccess). 600 means the operation burns its error budget 6× too fast.
+func burnRatePer100(successRate, targetSuccess float64, calls int64) int {
+	if calls <= 0 {
+		return 0
+	}
+	denom := 1 - targetSuccess
+	if denom <= 0 {
+		denom = 0.0001 // 100% target: any error is an infinitely fast burn
+	}
+	return int(math.Round((1 - successRate) / denom * 100))
+}
+
+// sloForRule resolves the SLO an slo-source rule watches, by id or by operation name.
+func (s *service) sloForRule(ctx context.Context, rule *AlertRule) (*SLO, error) {
+	if rule.SLOID != "" {
+		slo, err := s.slos.Get(ctx, rule.SLOID)
+		if errors.Is(err, docstore.ErrNotFound) {
+			return nil, kernel.NotFound("SLO %s not found", rule.SLOID)
+		}
+		return slo, err
+	}
+	list, err := s.slos.Where(ctx, "doc->>'operation' = ?", rule.Action)
+	if err != nil || len(list) == 0 {
+		return nil, err
+	}
+	return &list[0], nil
+}
+
+// evaluateRule counts matching audit/event rows in the rule's window; for slo rules it is the
+// operation's current burn rate ×100 over the SLO's window.
 func (s *service) countMatches(ctx context.Context, rule *AlertRule, now time.Time) (int, error) {
+	if rule.Source == "slo" {
+		slo, err := s.sloForRule(ctx, rule)
+		if err != nil || slo == nil {
+			return 0, err
+		}
+		st, err := s.SLOStatus(ctx, slo, now)
+		if err != nil {
+			return 0, nil // no counters (no cache configured): nothing is burning
+		}
+		calls, _ := st["calls"].(int64)
+		success, _ := st["successRate"].(float64)
+		return burnRatePer100(success, slo.TargetSuccess, calls), nil
+	}
 	from := now.Add(-time.Duration(rule.WindowMinutes) * time.Minute)
 	if rule.Source == "event" {
 		var n int64
@@ -267,15 +313,42 @@ func configVersion() string { return config.Version }
 
 func (s *service) AlertRules(ctx context.Context) ([]AlertRule, error) { return s.alertRules.List(ctx) }
 
+// validateRule checks the source-specific fields; slo rules need an existing SLO and carry its burn
+// rate ×100 as the count, so the threshold means e.g. 600 = 6× the error budget.
+func (s *service) validateRule(ctx context.Context, r *AlertRule) error {
+	if r.Name == "" || r.Threshold <= 0 || r.WindowMinutes <= 0 || (r.Source != "slo" && r.Action == "") {
+		return kernel.Invalid("An alert needs a name, an action or event type, a threshold and a window in minutes")
+	}
+	switch r.Source {
+	case "", "audit", "event":
+		return nil
+	case "slo":
+		if r.SLOID == "" && r.Action == "" {
+			return kernel.Invalid("An SLO alert needs an sloId or the operation name")
+		}
+		if r.SLOID != "" {
+			if _, err := s.slos.Get(ctx, r.SLOID); err != nil {
+				if errors.Is(err, docstore.ErrNotFound) {
+					return kernel.Invalid("SLO %s does not exist", r.SLOID)
+				}
+				return err
+			}
+		}
+		return nil
+	default:
+		return kernel.Invalid("source must be audit, event or slo")
+	}
+}
+
 func (s *service) CreateAlertRule(ctx context.Context, ec kernel.ExecutionContext, r AlertRule) (*AlertRule, error) {
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "alert.create", "alert"); err != nil {
 		return nil, err
 	}
-	if r.Name == "" || r.Action == "" || r.Threshold <= 0 || r.WindowMinutes <= 0 {
-		return nil, kernel.Invalid("An alert needs a name, an action or event type, a threshold and a window in minutes")
-	}
 	if r.Source == "" {
 		r.Source = "audit"
+	}
+	if err := s.validateRule(ctx, &r); err != nil {
+		return nil, err
 	}
 	now := time.Now().UTC()
 	r.ID, r.Active, r.CreatedAt, r.UpdatedAt = kernel.NewID("alr"), true, now, now
@@ -293,8 +366,14 @@ func (s *service) UpdateAlertRule(ctx context.Context, ec kernel.ExecutionContex
 	if err != nil {
 		return nil, notFound(err, "Alert rule not found")
 	}
-	cur.Name, cur.Source, cur.Action, cur.Outcome, cur.Threshold, cur.WindowMinutes, cur.WebhookID, cur.Active, cur.UpdatedAt =
-		r.Name, r.Source, r.Action, r.Outcome, r.Threshold, r.WindowMinutes, r.WebhookID, r.Active, time.Now().UTC()
+	if r.Source == "" {
+		r.Source = cur.Source
+	}
+	if err := s.validateRule(ctx, &r); err != nil {
+		return nil, err
+	}
+	cur.Name, cur.Source, cur.Action, cur.Outcome, cur.Threshold, cur.WindowMinutes, cur.WebhookID, cur.SLOID, cur.Active, cur.UpdatedAt =
+		r.Name, r.Source, r.Action, r.Outcome, r.Threshold, r.WindowMinutes, r.WebhookID, r.SLOID, r.Active, time.Now().UTC()
 	if err := s.alertRules.Put(ctx, cur); err != nil {
 		return nil, err
 	}

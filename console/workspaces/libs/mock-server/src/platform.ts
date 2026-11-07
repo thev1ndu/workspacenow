@@ -316,6 +316,7 @@ export class Platform {
     entity.fields = fields;
     entity.version += 1;
     entity.updatedAt = this.now();
+    this.state.entityVersions.push({ entity: entity.name, version: entity.version, actor: ctx.actor.name, note: m.note ?? "schema change", migratedAt: this.now(), doc: JSON.parse(JSON.stringify({ ...entity, fields })) });
     this.audit(ctx, "entity.migrate", `entity/${entityName}`, "allowed", `Version ${entity.version}: ${m.note ?? "schema change"}`);
     return entity;
   }

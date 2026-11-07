@@ -206,8 +206,29 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		AIHealthURL: cfg.AI.ServiceURL + "/healthz", Connect: connectSvc, Runtime: runtime, Identity: identitySvc,
 		Publisher: publisher, Auditor: auditor,
 	})
+	dataSvc := data.NewService(db, runtime, auditor, artifacts)
 	engine.SetOnInvoke(func(op string, d time.Duration, failed bool) {
 		obsSvc.RecordSLOCall(ctx, op, d, failed)
+	})
+	g.Go(func() error { // nightly purge job: hard-delete soft-deleted records older than 30 days
+		t := time.NewTicker(24 * time.Hour)
+		defer t.Stop()
+		for {
+			entities, err := runtime.Entities(ctx)
+			if err == nil {
+				for _, e := range entities {
+					if e.Scope == data.ScopeExternal {
+						continue
+					}
+					_, _ = dataSvc.Purge(ctx, kernel.ExecutionContext{Actor: kernel.Actor{Kind: kernel.ActorSystem, ID: "purge", Name: "Purge job"}}, e.Name, 30)
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-t.C:
+			}
+		}
 	})
 	g.Go(func() error { // alert evaluator: fires rules whose window count crossed the threshold
 		t := time.NewTicker(time.Minute)
@@ -232,7 +253,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	api.Routes(mux, api.Modules{
 		Identity: identity.NewHandler(identitySvc, cfg.DemoMode),
 		Demo:     seed.NewHandler(db, cfg.DemoMode, identitySvc.InvalidateAccess),
-		Data:     data.NewHandler(data.NewService(db, runtime, auditor, artifacts), runtime, engine),
+		Data:     data.NewHandler(dataSvc, runtime, engine),
 		BizOps:   bizops.NewHandler(engine),
 		Connect:  connect.NewHandler(connectSvc),
 		Stream:   hub,

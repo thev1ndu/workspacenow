@@ -108,6 +108,32 @@ export function useCreateView() {
   });
 }
 
+export function useUpdateView() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "update", target: "view" },
+    mutationFn: ({ entityName, viewId, body }: { entityName: string; viewId: string; body: SavedViewInput }) =>
+      api.updateView({ entityName, viewId }, body, getToken),
+  });
+}
+
+export function useListEntityVersions(params: { entityName?: string }) {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({
+    queryKey: ["entity-versions", params.entityName],
+    queryFn: () => api.listEntityVersions({ entityName: params.entityName! }, getToken),
+    enabled: !!params.entityName,
+  });
+}
+
+export function usePurgeRecords() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    successMessage: (data) => `Purged ${data.purged} deleted records`,
+    mutationFn: ({ entityName, olderThanDays }: { entityName: string; olderThanDays?: number }) => api.purgeRecords({ entityName, olderThanDays }, getToken),
+  });
+}
+
 export function useDeleteView() {
   const { getToken } = useAuthHooks();
   return useApiMutation({

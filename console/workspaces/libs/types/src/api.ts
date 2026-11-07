@@ -81,6 +81,24 @@ export type TokenUsagePoint = {
   [model: string]: number | string;
 };
 
+/** One immutable schema snapshot of an entity (one per migration). */
+export type EntityVersion = {
+  entity: string;
+  version: number;
+  actor: string;
+  note?: string;
+  migratedAt: string;
+  doc: Record<string, unknown>;
+};
+
+export type EntityVersionDiff = {
+  from: number;
+  to: number;
+  added: string[];
+  removed: string[];
+  changed: Array<{ field: string; from: unknown; to: unknown }>;
+};
+
 /** One OpenBao secret's values, returned by GET /secrets/read (sensitive). */
 export type SecretValues = {
   path: string;

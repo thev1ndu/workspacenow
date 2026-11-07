@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Alert, Button, ListBox, Select } from "@heroui/react";
-import { ArrowDownToLine, Plus } from "@workspacenow/icons";
+import { ArrowDownToLine, ArrowUp, Plus, SquareListUl } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
 import { exportRecords, useCreateRecord, useGetEntity, useListEntities, useListRecords, useListViews } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { PageLayout, QueryState, SectionCard, useDebouncedValue } from "@workspacenow/views";
+import { ImportDialog } from "./subComponents/ImportDialog";
 import { RecordFormDialog, useReferenceLabels } from "./subComponents/RecordForm";
+import { ViewBuilderDialog } from "./subComponents/ViewBuilderDialog";
 import { RecordsManager } from "./subComponents/RecordsManager";
 
 const PAGE_SIZE = 15;
@@ -37,6 +39,8 @@ export function RecordsPage() {
   const labels = useReferenceLabels(entity.data);
   const createRecord = useCreateRecord();
   const [creating, setCreating] = useState(false);
+  const [viewsOpen, setViewsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const readOnly = entity.data?.scope === "external";
 
   return (
@@ -99,6 +103,16 @@ export function RecordsPage() {
             <ArrowDownToLine className="size-4" aria-hidden />
             Export CSV
           </Button>
+          <Button variant="tertiary" onPress={() => setViewsOpen(true)} isDisabled={!entity.data}>
+            <SquareListUl className="size-4" aria-hidden />
+            Views
+          </Button>
+          {!readOnly && (
+            <Button variant="tertiary" onPress={() => setImportOpen(true)} isDisabled={!entity.data}>
+              <ArrowUp className="size-4" aria-hidden />
+              Import
+            </Button>
+          )}
           <Button variant="tertiary" onPress={() => setIncludeDeleted((v) => !v)}>
             {includeDeleted ? "Hide deleted" : "Show deleted"}
           </Button>
@@ -153,6 +167,8 @@ export function RecordsPage() {
           onSubmit={(values) => createRecord.mutate({ entityName: entity.data!.name, values }, { onSuccess: () => setCreating(false) })}
         />
       )}
+      {viewsOpen && entity.data && <ViewBuilderDialog entity={entity.data} onClose={() => setViewsOpen(false)} />}
+      {importOpen && entity.data && <ImportDialog entity={entity.data} onClose={() => setImportOpen(false)} />}
     </PageLayout>
   );
 }

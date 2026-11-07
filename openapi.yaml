@@ -614,6 +614,43 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /entities/{entityName}/records/purge:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+    post:
+      tags: [Data]
+      operationId: purgeRecords
+      summary: Permanently delete soft-deleted records older than a threshold
+      description: "Requires `data.manage`. Hard-deletes rows with `deleted_at` set and older than `olderThanDays` (default 30); also runs nightly in the server role. Audited with the count."
+      parameters:
+        - { name: olderThanDays, in: query, schema: { type: integer, default: 30, minimum: 1 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, properties: { purged: { type: integer } } } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /entities/{entityName}/versions:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+    get:
+      tags: [Data]
+      operationId: listEntityVersions
+      summary: Immutable schema snapshots of the entity (one per migration)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityVersionList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /entities/{entityName}/versions/diff:
+    parameters:
+      - { $ref: "#/components/parameters/entityName" }
+      - { name: from, in: query, required: true, schema: { type: integer } }
+      - { name: to, in: query, required: true, schema: { type: integer } }
+    get:
+      tags: [Data]
+      operationId: diffEntityVersions
+      summary: Field-level diff between two schema versions
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityVersionDiff" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /entities/{entityName}/migrate:
     parameters: [{ $ref: "#/components/parameters/entityName" }]
     post:
@@ -1969,6 +2006,31 @@ components:
         kind: { type: string, enum: [one-to-one, one-to-many, many-to-one, many-to-many] }
         target: { type: string }
         via: { type: string }
+    EntityVersion:
+      type: object
+      required: [entity, version, actor, migratedAt, doc]
+      properties:
+        entity: { type: string }
+        version: { type: integer }
+        actor: { type: string }
+        note: { type: string }
+        migratedAt: { $ref: "#/components/schemas/IsoDate" }
+        doc: { type: object, description: "The full entity definition at that version" }
+    EntityVersionList:
+      type: object
+      required: [items, totalCount]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/EntityVersion" } }
+        totalCount: { type: integer }
+    EntityVersionDiff:
+      type: object
+      required: [from, to, added, removed, changed]
+      properties:
+        from: { type: integer }
+        to: { type: integer }
+        added: { type: array, items: { type: string } }
+        removed: { type: array, items: { type: string } }
+        changed: { type: array, items: { type: object, properties: { field: { type: string }, from: {}, to: {} } } }
     Entity:
       type: object
       required: [id, name, label, description, scope, fields, relationships, events, readPermission, writePermission, version, lifecycle, updatedAt]

@@ -3,7 +3,7 @@ import type {
   BusinessOperationDescriptor,
   DatabaseConnection,
   Entity,
-  EntityRecord,
+  EntityRecord, EntityVersion, EntityVersionDiff,
   EntryPoint,
   FieldValue,
   ListResponse,
@@ -184,6 +184,24 @@ export async function runView(params: { entityName: string; viewId: string; incl
   return httpPOST<ListResponse<EntityRecord>>(
     `${SERVICE_BASE}/entities/${enc(entityName)}/views/${enc(viewId)}/run${qs(query)}`,
     { token: await getToken() },
+  );
+}
+
+export async function listEntityVersions(params: { entityName: string }, getToken: GetToken) {
+  return httpGET<ListResponse<EntityVersion>>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/versions`, { token: await getToken() });
+}
+
+export async function diffEntityVersions(params: { entityName: string; from: number; to: number }, getToken: GetToken) {
+  return httpGET<EntityVersionDiff>(
+    `${SERVICE_BASE}/entities/${enc(params.entityName)}/versions/diff${qs({ from: String(params.from), to: String(params.to) })}`,
+    { token: await getToken() },
+  );
+}
+
+export async function purgeRecords(params: { entityName: string; olderThanDays?: number }, getToken: GetToken) {
+  return httpPOST<{ purged: number }>(
+    `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/purge${qs({ olderThanDays: params.olderThanDays?.toString() })}`,
+    { token: await getToken(), body: {} },
   );
 }
 

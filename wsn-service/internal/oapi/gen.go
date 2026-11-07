@@ -2272,6 +2272,37 @@ type EntityRelationship struct {
 // EntityRelationshipKind defines model for EntityRelationship.Kind.
 type EntityRelationshipKind string
 
+// EntityVersion defines model for EntityVersion.
+type EntityVersion struct {
+	Actor string `json:"actor"`
+
+	// Doc The full entity definition at that version
+	Doc        map[string]interface{} `json:"doc"`
+	Entity     string                 `json:"entity"`
+	MigratedAt IsoDate                `json:"migratedAt"`
+	Note       *string                `json:"note,omitempty"`
+	Version    int                    `json:"version"`
+}
+
+// EntityVersionDiff defines model for EntityVersionDiff.
+type EntityVersionDiff struct {
+	Added   []string `json:"added"`
+	Changed []struct {
+		Field *string     `json:"field,omitempty"`
+		From  interface{} `json:"from,omitempty"`
+		To    interface{} `json:"to,omitempty"`
+	} `json:"changed"`
+	From    int      `json:"from"`
+	Removed []string `json:"removed"`
+	To      int      `json:"to"`
+}
+
+// EntityVersionList defines model for EntityVersionList.
+type EntityVersionList struct {
+	Items      []EntityVersion `json:"items"`
+	TotalCount int             `json:"totalCount"`
+}
+
 // EntryPoint defines model for EntryPoint.
 type EntryPoint string
 
@@ -3492,10 +3523,21 @@ type ImportRecordsJSONBody struct {
 // ImportRecordsJSONBodyFormat defines parameters for ImportRecords.
 type ImportRecordsJSONBodyFormat string
 
+// PurgeRecordsParams defines parameters for PurgeRecords.
+type PurgeRecordsParams struct {
+	OlderThanDays *int `form:"olderThanDays,omitempty" json:"olderThanDays,omitempty"`
+}
+
 // UploadRecordFileParams defines parameters for UploadRecordFile.
 type UploadRecordFileParams struct {
 	// Name Original file name
 	Name *string `form:"name,omitempty" json:"name,omitempty"`
+}
+
+// DiffEntityVersionsParams defines parameters for DiffEntityVersions.
+type DiffEntityVersionsParams struct {
+	From int `form:"from" json:"from"`
+	To   int `form:"to" json:"to"`
 }
 
 // RunViewParams defines parameters for RunView.
@@ -4432,6 +4474,9 @@ type ServerInterface interface {
 	// Import records from JSON or CSV text
 	// (POST /entities/{entityName}/records/import)
 	ImportRecords(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Permanently delete soft-deleted records older than a threshold
+	// (POST /entities/{entityName}/records/purge)
+	PurgeRecords(w http.ResponseWriter, r *http.Request, entityName EntityName, params PurgeRecordsParams)
 	// Delete a record
 	// (DELETE /entities/{entityName}/records/{recordId})
 	DeleteRecord(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
@@ -4450,6 +4495,12 @@ type ServerInterface interface {
 	// Restore a soft-deleted record
 	// (POST /entities/{entityName}/records/{recordId}/restore)
 	RestoreRecord(w http.ResponseWriter, r *http.Request, entityName EntityName, recordId string)
+	// Immutable schema snapshots of the entity (one per migration)
+	// (GET /entities/{entityName}/versions)
+	ListEntityVersions(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Field-level diff between two schema versions
+	// (GET /entities/{entityName}/versions/diff)
+	DiffEntityVersions(w http.ResponseWriter, r *http.Request, entityName EntityName, params DiffEntityVersionsParams)
 	// Saved views over an entity's records (own + shared)
 	// (GET /entities/{entityName}/views)
 	ListViews(w http.ResponseWriter, r *http.Request, entityName EntityName)
@@ -6270,6 +6321,48 @@ func (siw *ServerInterfaceWrapper) ImportRecords(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// PurgeRecords operation middleware
+func (siw *ServerInterfaceWrapper) PurgeRecords(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PurgeRecordsParams
+
+	// ------------- Optional query parameter "olderThanDays" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "olderThanDays", r.URL.Query(), &params.OlderThanDays, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "olderThanDays", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PurgeRecords(w, r, entityName, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteRecord operation middleware
 func (siw *ServerInterfaceWrapper) DeleteRecord(w http.ResponseWriter, r *http.Request) {
 
@@ -6530,6 +6623,101 @@ func (siw *ServerInterfaceWrapper) RestoreRecord(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RestoreRecord(w, r, entityName, recordId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEntityVersions operation middleware
+func (siw *ServerInterfaceWrapper) ListEntityVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntityVersions(w, r, entityName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiffEntityVersions operation middleware
+func (siw *ServerInterfaceWrapper) DiffEntityVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DiffEntityVersionsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	if paramValue := r.URL.Query().Get("from"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	if paramValue := r.URL.Query().Get("to"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiffEntityVersions(w, r, entityName, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8252,12 +8440,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records", wrapper.CreateRecord)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/export", wrapper.ExportRecords)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/import", wrapper.ImportRecords)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/purge", wrapper.PurgeRecords)
 	m.HandleFunc("DELETE "+options.BaseURL+"/entities/{entityName}/records/{recordId}", wrapper.DeleteRecord)
 	m.HandleFunc("PATCH "+options.BaseURL+"/entities/{entityName}/records/{recordId}", wrapper.UpdateRecord)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/{recordId}/files/{field}", wrapper.DownloadRecordFile)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/{recordId}/files/{field}", wrapper.UploadRecordFile)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/records/{recordId}/history", wrapper.RecordHistory)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/records/{recordId}/restore", wrapper.RestoreRecord)
+	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/versions", wrapper.ListEntityVersions)
+	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/versions/diff", wrapper.DiffEntityVersions)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/views", wrapper.ListViews)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views", wrapper.CreateView)
 	m.HandleFunc("DELETE "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.DeleteView)

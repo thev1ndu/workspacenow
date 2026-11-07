@@ -499,6 +499,29 @@ describe("ops: alerts, slos, status", () => {
     expect(["healthy", "degraded", "down"]).toContain((status.body as { status: string }).status);
   });
 
+  it("purges soft-deleted records and diffs entity schema versions", () => {
+    const platform = createDemoPlatform();
+    // seed a soft-deleted old record and a recent one
+    const rec = post(platform, "/entities/Product/records", { values: { sku: "PURGE-ME", name: "Old", unitPrice: 1, stock: 0, category: "Grocery", active: true, supplier: "sup-1" } }).body as { id: string };
+    send(platform, "DELETE", `/entities/Product/records/${rec.id}`);
+    const del = platform.state.records.find((r) => r.id === rec.id)!;
+    del.deletedAt = new Date(Date.now() - 40 * 86_400_000).toISOString(); // 40 days old
+    const recent = post(platform, "/entities/Product/records", { values: { sku: "KEEP-ME", name: "New", unitPrice: 2, stock: 1, category: "Grocery", active: true, supplier: "sup-1" } }).body as { id: string };
+    send(platform, "DELETE", `/entities/Product/records/${recent.id}`); // deleted just now
+    const purged = send(platform, "POST", "/entities/Product/records/purge?olderThanDays=30", "u-amaya", {}).body as { purged: number };
+    expect(purged.purged).toBe(1);
+    expect(platform.state.records.some((r) => r.id === rec.id)).toBe(false);
+    expect(platform.state.records.some((r) => r.id === recent.id)).toBe(true);
+    // versions: seeded v1 exists; migrate to v2 and diff
+    const v1 = get(platform, "/entities/Product/versions").body as { items: Array<{ version: number }> };
+    expect(v1.items.some((v) => v.version === 1)).toBe(true);
+    post(platform, "/entities/Product/migrate", { add: [{ name: "tier", label: "Tier", type: "enum", enumValues: ["standard", "gold"] }], note: "add tier" });
+    const diff = get(platform, "/entities/Product/versions/diff?from=1&to=2").body as { added: string[]; removed: string[]; changed: unknown[] };
+    expect(diff.added).toContain("tier");
+    expect(diff.removed).toEqual([]);
+    expect(get(platform, "/entities/Product/versions/diff?from=1&to=99").status).toBe(404);
+  });
+
   it("uploads and downloads a record file; the record holds only the FileRef", () => {
     const platform = createDemoPlatform();
     post(platform, "/entities", { name: "Evidence", label: "Evidence", description: "", fields: [

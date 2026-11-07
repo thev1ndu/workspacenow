@@ -9,7 +9,7 @@ import type {
   DatabaseConnection,
   Department,
   Deployment,
-  Entity,
+  Entity, EntityVersion,
   EntityRecord,
   Environment,
   GroupRoleMapping,
@@ -60,6 +60,8 @@ export interface PlatformState {
   secrets: Record<string, Record<string, string>>;
   /** Fake object storage: FileRef key -> stored object (base64 for the demo). */
   uploads: Record<string, { name: string; contentType: string; dataBase64: string }>;
+  /** Schema snapshots per entity (one per migration), newest last. */
+  entityVersions: EntityVersion[];
   modelProviders: ModelProvider[];
   agents: Agent[];
   agentRuns: AgentRun[];
@@ -81,7 +83,7 @@ export interface PlatformState {
   pins: Record<string, string[]>;
 }
 
-export const SCHEMA_VERSION = 7; // v7: uploads map for record file fields
+export const SCHEMA_VERSION = 8; // v8: entityVersions snapshots
 
 const STORAGE_KEY = "workspacenow-demo-state";
 

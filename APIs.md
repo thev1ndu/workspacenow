@@ -169,6 +169,8 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/entities/{name}/records/{id}/history` | Change log newest first: actor, action, field-level diff, snapshot | record perm (read) |
 | GET | `/entities/{name}/records/export?format=json\|csv&view=` | Download records as JSON or CSV | record perm (read) |
 | POST | `/entities/{name}/records/import` | Import `{ format, data }` (JSON array or CSV text); each row validated like a create | record perm (write) |
+| POST | `/entities/{name}/records/purge?olderThanDays=30` | Hard-delete soft-deleted records past the threshold (nightly job too) | `data.manage` |
+| GET | `/entities/{name}/versions`, GET `.../versions/diff?from=&to=` | Schema snapshots per migration + field-level diff | signed in |
 | POST | `/entities/{name}/migrate` | Schema migration `{ add, drop, retype, backfill, note }`: add always safe; drop/retype refused (422) while records exist; backfill sets values on existing rows; snapshots the entity version and bumps `version` | `data.manage` |
 | GET/POST | `/entities/{name}/views` | Saved views (own + shared): `{ name, filters: [{field, op, value}], sortField, sortDesc, limit, shared }` | read perm / `data.manage` for writes |
 | PUT/DELETE | `/entities/{name}/views/{viewId}` | Replace / delete a view | `data.manage` |

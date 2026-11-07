@@ -269,6 +269,40 @@ func (h *Handler) DownloadRecordFile(w http.ResponseWriter, r *http.Request, nam
 	_, _ = w.Write(body)
 }
 
+// PurgeRecords answers POST records/purge: hard-delete soft-deleted rows past the threshold.
+func (h *Handler) PurgeRecords(w http.ResponseWriter, r *http.Request, name oapi.EntityName, params oapi.PurgeRecordsParams) {
+	days := 30
+	if params.OlderThanDays != nil {
+		days = *params.OlderThanDays
+	}
+	n, err := h.svc.Purge(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), string(name), days)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, map[string]any{"purged": n})
+}
+
+// ListEntityVersions answers GET versions: the entity's schema snapshots.
+func (h *Handler) ListEntityVersions(w http.ResponseWriter, r *http.Request, name oapi.EntityName) {
+	out, err := h.svc.EntityVersions(r.Context(), string(name))
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.List(w, out)
+}
+
+// DiffEntityVersions answers GET versions/diff?from=&to=.
+func (h *Handler) DiffEntityVersions(w http.ResponseWriter, r *http.Request, name oapi.EntityName, params oapi.DiffEntityVersionsParams) {
+	out, err := h.svc.DiffEntityVersions(r.Context(), string(name), params.From, params.To)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
 func (h *Handler) DeleteRecord(w http.ResponseWriter, r *http.Request, name, id string) {
 	if err := h.writable(r.Context(), name); err != nil {
 		httpx.Error(w, r, err)

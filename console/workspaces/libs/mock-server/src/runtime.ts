@@ -30,6 +30,11 @@ function steppingClock(start: Date, stepMs: number): () => Date {
  */
 export function createDemoPlatform(now: Date = new Date()): Platform {
   const platform = createPlatform(createSeedState(now));
+
+  // snapshot every seeded entity as version 1
+  for (const e of platform.state.entities) {
+    platform.state.entityVersions.push({ entity: e.name, version: 1, actor: "seed", note: "Initial schema", migratedAt: platform.now(), doc: JSON.parse(JSON.stringify(e)) });
+  }
   const at = (daysAgo: number, hour: number, minute: number) => {
     const d = new Date(now);
     d.setDate(d.getDate() - daysAgo);

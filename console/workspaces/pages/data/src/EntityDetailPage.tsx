@@ -7,6 +7,7 @@ import { buildPath, routes } from "@workspacenow/types";
 import { DetailList, LinkButton, PageLayout, QueryState, SectionCard, StatusChip, TextLink, formatDateTime } from "@workspacenow/views";
 import { SCOPE_EXPLANATION } from "./constants";
 import { AddFieldDialog } from "./subComponents/AddFieldDialog";
+import { SchemaHistoryCard } from "./subComponents/SchemaHistoryCard";
 import { ScopeChip } from "./subComponents/ScopeChip";
 
 export function EntityDetailPage() {
@@ -45,6 +46,7 @@ export function EntityDetailPage() {
           const owner = apps?.items.find((a) => a.id === e.ownerApplicationId);
           return (
             <div className="grid gap-6">
+              <SchemaHistoryCard entity={e} />
               <div className="grid items-start gap-6 md:grid-cols-[2fr_1fr]">
                 <SectionCard title="Definition">
                   <DetailList

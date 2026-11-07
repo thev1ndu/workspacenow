@@ -64,6 +64,11 @@ type Service interface {
 	// Files: upload/download record file fields via object storage; records hold only the FileRef.
 	UploadFile(ctx context.Context, ec kernel.ExecutionContext, entity, recordID, field, name string, r io.Reader) (*Record, error)
 	DownloadFile(ctx context.Context, ec kernel.ExecutionContext, entity, recordID, field string) (*FileRef, []byte, error)
+	// Schema history: immutable snapshots per migration + field-level diffs.
+	EntityVersions(ctx context.Context, name string) ([]EntityVersion, error)
+	DiffEntityVersions(ctx context.Context, name string, from, to int) (*EntityVersionDiff, error)
+	// Purge hard-deletes soft-deleted records older than a threshold.
+	Purge(ctx context.Context, ec kernel.ExecutionContext, name string, olderThanDays int) (int64, error)
 }
 
 type service struct {

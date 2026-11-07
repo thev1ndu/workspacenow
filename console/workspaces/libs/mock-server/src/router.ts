@@ -433,6 +433,39 @@ route("POST", "/entities/:name/records/:id/restore", ({ platform, ctx, params })
   platform.requirePermission(ctx("studio"), entity.writePermission, `${params.name}.restore`, `entity/${params.name}/${params.id}`);
   return platform.restoreRecord(ctx("studio"), params.name, params.id);
 });
+route("GET", "/entities/:name/versions", ({ platform, params }) =>
+  list([...platform.state.entityVersions.filter((v) => v.entity === params.name)].sort((a, b) => b.version - a.version)));
+route("GET", "/entities/:name/versions/diff", ({ platform, params, query }) => {
+  const from = Number(query.get("from"));
+  const to = Number(query.get("to"));
+  const versions = platform.state.entityVersions.filter((v) => v.entity === params.name);
+  const a = versions.find((v) => v.version === from);
+  const b = versions.find((v) => v.version === to);
+  if (!a || !b) fail(404, "NOT_FOUND", `Entity ${params.name} has no versions ${from}/${to}`);
+  const fieldsOf = (doc: Record<string, unknown>) => Object.fromEntries(((doc.fields as Array<{ name: string }>) ?? []).map((f) => [f.name, f]));
+  const fa = fieldsOf(a.doc);
+  const fb = fieldsOf(b.doc);
+  const added: string[] = [];
+  const removed: string[] = [];
+  const changed: Array<{ field: string; from: unknown; to: unknown }> = [];
+  for (const name of Object.keys(fb)) if (!(name in fa)) added.push(name);
+  for (const name of Object.keys(fa)) {
+    if (!(name in fb)) removed.push(name);
+    else if (JSON.stringify(fa[name]) !== JSON.stringify(fb[name])) changed.push({ field: name, from: fa[name], to: fb[name] });
+  }
+  return { from, to, added, removed, changed };
+});
+route("POST", "/entities/:name/records/purge", ({ platform, ctx, params, query }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "data.manage", "entity.purge", `entity/${params.name}`);
+  const days = Math.max(Number(query.get("olderThanDays") ?? 30), 1);
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+  const before = platform.state.records.length;
+  platform.state.records = platform.state.records.filter((r) => !(r.entity === params.name && r.deletedAt && r.deletedAt < cutoff));
+  const purged = before - platform.state.records.length;
+  platform.audit(c, "entity.purge", `entity/${params.name}`, "allowed", `purged ${purged} records older than ${days} days`);
+  return { purged };
+});
 route("POST", "/entities/:name/migrate", ({ platform, ctx, params, body }) =>
   platform.migrateEntity(ctx("studio"), params.name, body as SchemaMigration),
 );

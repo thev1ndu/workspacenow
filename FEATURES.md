@@ -31,7 +31,10 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ **Saved views**: CRUD `/entities/{name}/views`, `POST .../run`, `?view=` on list; console picker in the records page
 - ✅ Connections catalog (databases, caches, warehouses) — `/connections`
 - ✅ Console: data workspace (model/ERD view, entities, records with search+pager+views+export+deleted toggle, connections pages)
-- ⬜ Record-level purge job; visual query builder UI for views (API supports filters today)
+- ✅ **Visual query-builder UI for saved views**: records page "Views" dialog — filter rows (field/op/value), sort, limit, shared; runs via the existing views API
+- ✅ **Record purge job**: `POST /entities/{name}/records/purge?olderThanDays=30` hard-deletes soft-deleted rows (audited); a nightly job in the server role purges every non-external entity
+- ✅ **Entity diff/history UI**: `GET /entities/{name}/versions` + `GET .../versions/diff?from=&to=` (field-level added/removed/changed); the entity detail page has a Schema history card with a version table and diff chips
+- ✅ **CSV/JSON import UI**: records page "Import" dialog (paste or load a file, JSON or CSV) on top of the existing import API
 
 ## 3. Business operations
 - ✅ Operation catalog (`/business-operations`) and invocation (`/business-operations/invoke`)
@@ -107,7 +110,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 
 ## 9. Console webapp
 - ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces
-- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 41 tests, coverage gated in CI) when unset
+- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 42 tests, coverage gated in CI) when unset
 - ✅ SSE live updates (above), server-side search + pagination on runs/traces/audit/records, KPI dashboard with deep-linked cards, charts
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container
 - ✅ **Theming beyond default**: `useAppearance` — light/dark/system mode + accent palettes, persisted, applied pre-paint; Preferences dialog

@@ -93,7 +93,6 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ Console control workspace: overview, organization, access (roles/mappings), audit, traces + trace detail, environments, settings
 - ✅ **Alerting on audit/event patterns**: `/alerts` CRUD (source audit|event, action, outcome, threshold, window, webhook), fires + ack, evaluator in the server role fires once per window crossing, calls the webhook (signed) and emits `Alert.Fired`
 - ✅ **SLOs per business operation**: `/slos` CRUD + `/slos/{id}/status` — per-minute Valkey counters recorded by an engine OnInvoke hook; success rate + histogram p95 vs targets, `breached` flag
-- ✅ **Per-app SLOs with an enable switch**: `Application.slo` / `ApplicationPlan.slo` (`enabled`, `targetSuccess`, `targetP95Ms`, `windowMinutes`) — set by the Architect when the prompt asks for reliability targets, or by putting `slo` on the plan over the API. Applying a plan creates one `applicationId`-tagged SLO per generated operation (`GET /slos?applicationId=`); disabling removes them. Shown on the app's overview tab
 - ✅ **Status page**: public `GET /status` (no auth) — healthy/degraded/down rollup, version, uptime, components
 - ✅ **Backup/DR**: `-backup` role pg_dumps to S3 (`backups/`) and records it (`GET /admin/backups`); Flux `backup-cronjob.yaml` nightly; PITR via CloudNativePG WAL archiving (infrastructure layer); observer **WAL segment replication** to a standby (`WSN_OBSERVER_REPLICA_URL` + `POST /v1/segments` ingest, idempotent import)
 - ✅ **HA**: `deploy/compose/docker-compose.ha.yml` overlay (postgres primary+streaming replica, valkey+replica, 2nd wsn-service, observer standby); Flux base already runs 2 replicas
@@ -102,7 +101,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 
 ## 9. Console webapp
 - ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces
-- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 39 tests, 83.16% coverage gated in CI) when unset
+- ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 38 tests, 83.04% coverage gated in CI) when unset
 - ✅ SSE live updates (above), server-side search + pagination on runs/traces/audit/records, KPI dashboard with deep-linked cards, charts
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container
 - ✅ **Theming beyond default**: `useAppearance` — light/dark/system mode + accent palettes, persisted, applied pre-paint; Preferences dialog

@@ -11,7 +11,6 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/connect"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
-	"github.com/thev1ndu/workspacenow/wsn-service/internal/studio"
 )
 
 /* ---- alerts on audit/event patterns ---- */
@@ -130,8 +129,7 @@ func (s *service) notify(ctx context.Context, rule *AlertRule, fire *AlertFire) 
 type SLO struct {
 	ID            string    `json:"id"`
 	Operation     string    `json:"operation"`
-	ApplicationID string    `json:"applicationId,omitempty"` // set when defined per application
-	TargetSuccess float64   `json:"targetSuccess"`           // 0..1
+	TargetSuccess float64   `json:"targetSuccess"` // 0..1
 	TargetP95Ms   int       `json:"targetP95Ms"`
 	WindowMinutes int       `json:"windowMinutes"`
 	CreatedAt     time.Time `json:"createdAt"`
@@ -338,64 +336,7 @@ func (s *service) AckFire(ctx context.Context, ec kernel.ExecutionContext, ruleI
 
 /* ---- SLO CRUD ---- */
 
-// SLOs lists all SLOs, or only those covering the given application when applicationID is set.
-func (s *service) SLOs(ctx context.Context, applicationID string) ([]SLO, error) {
-	if applicationID == "" {
-		return s.slos.List(ctx)
-	}
-	return s.slos.Where(ctx, "doc->>'applicationId' = ?", applicationID)
-}
-
-// SyncAppSLOs keeps the SLO records tagged with appID in step with the application's plan: while the
-// plan's SLO is enabled there is one SLO per operation with the plan's targets; disabled, none remain.
-func (s *service) SyncAppSLOs(ctx context.Context, ec kernel.ExecutionContext, appID string, operations []string, slo *studio.AppSLO) error {
-	existing, err := s.slos.Where(ctx, "doc->>'applicationId' = ?", appID)
-	if err != nil {
-		return err
-	}
-	toPut, toDelete := sloSyncPlan(existing, appID, operations, slo, time.Now().UTC())
-	for i := range toPut {
-		if err := s.slos.Put(ctx, &toPut[i]); err != nil {
-			return err
-		}
-	}
-	for _, id := range toDelete {
-		if err := s.slos.Delete(ctx, id); err != nil {
-			return err
-		}
-	}
-	return s.auditor.Record(ctx, ec, "slo.sync", "application/"+appID, kernel.OutcomeAllowed, fmt.Sprintf("%d SLOs for %d operations", len(toPut), len(operations)))
-}
-
-// sloSyncPlan decides which SLO records to upsert and which ids to remove for an application.
-func sloSyncPlan(existing []SLO, appID string, operations []string, slo *studio.AppSLO, now time.Time) (put []SLO, remove []string) {
-	if slo == nil || !slo.Enabled {
-		for i := range existing {
-			remove = append(remove, existing[i].ID)
-		}
-		return nil, remove
-	}
-	byOp := map[string]int{}
-	for i := range existing {
-		byOp[existing[i].Operation] = i
-	}
-	want := map[string]bool{}
-	for _, op := range operations {
-		want[op] = true
-		if i, ok := byOp[op]; ok {
-			existing[i].TargetSuccess, existing[i].TargetP95Ms, existing[i].WindowMinutes = slo.TargetSuccess, slo.TargetP95Ms, slo.WindowMinutes
-			put = append(put, existing[i])
-		} else {
-			put = append(put, SLO{ID: kernel.NewID("slo"), Operation: op, ApplicationID: appID, TargetSuccess: slo.TargetSuccess, TargetP95Ms: slo.TargetP95Ms, WindowMinutes: slo.WindowMinutes, CreatedAt: now})
-		}
-	}
-	for i := range existing {
-		if !want[existing[i].Operation] {
-			remove = append(remove, existing[i].ID)
-		}
-	}
-	return put, remove
-}
+func (s *service) SLOs(ctx context.Context) ([]SLO, error) { return s.slos.List(ctx) }
 
 func (s *service) CreateSLO(ctx context.Context, ec kernel.ExecutionContext, in SLO) (*SLO, error) {
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "slo.create", "slo"); err != nil {

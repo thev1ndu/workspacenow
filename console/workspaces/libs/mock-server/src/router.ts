@@ -826,17 +826,14 @@ route("POST", "/alerts/:id/fires/:fireId/ack", ({ platform, ctx, params }) => {
   f.ackedAt = platform.now();
   return f;
 });
-route("GET", "/slos", ({ platform, query }) => {
-  const applicationId = query.get("applicationId");
-  return list(applicationId ? platform.state.slos.filter((s) => s.applicationId === applicationId) : platform.state.slos);
-});
+route("GET", "/slos", ({ platform }) => list(platform.state.slos));
 route("POST", "/slos", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "slo.create", "slo");
   const input = body as SloInput;
   if (!input.operation?.trim() || !(input.targetSuccess > 0) || !(input.targetP95Ms > 0) || !(input.windowMinutes > 0))
     fail(422, "VALIDATION_FAILED", "An SLO needs an operation, a success target, a p95 target (ms) and a window in minutes");
-  const slo: Slo = { id: platform.nextId("slo"), operation: input.operation.trim(), applicationId: input.applicationId || undefined, targetSuccess: input.targetSuccess, targetP95Ms: input.targetP95Ms, windowMinutes: input.windowMinutes, createdAt: platform.now() };
+  const slo: Slo = { id: platform.nextId("slo"), operation: input.operation.trim(), targetSuccess: input.targetSuccess, targetP95Ms: input.targetP95Ms, windowMinutes: input.windowMinutes, createdAt: platform.now() };
   platform.state.slos.push(slo);
   return slo;
 });

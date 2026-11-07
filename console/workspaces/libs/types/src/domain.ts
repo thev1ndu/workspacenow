@@ -220,19 +220,8 @@ export interface Application {
   version: string;
   entityNames: string[];
   pages: AppPage[];
-  /** Per-app SLO switch and targets; when enabled, applying the plan tracks one SLO per generated operation. */
-  slo?: AppSlo;
   createdAt: IsoDate;
   updatedAt: IsoDate;
-}
-
-/** An application's service-level objective configuration. */
-export interface AppSlo {
-  enabled: boolean;
-  /** 0..1 required success rate, e.g. 0.999 */
-  targetSuccess: number;
-  targetP95Ms: number;
-  windowMinutes: number;
 }
 
 export interface AppPage {
@@ -289,8 +278,6 @@ export interface ApplicationPlan {
   operations: string[];
   workflows: string[];
   permissions: string[];
-  /** Per-app SLO the Architect proposes when the request asks for reliability targets. */
-  slo?: AppSlo;
 }
 
 /* Connect */
@@ -715,8 +702,6 @@ export interface AlertFire {
 export interface Slo {
   id: Id;
   operation: string;
-  /** Set when the SLO was defined for an application; one per generated operation. */
-  applicationId?: Id;
   targetSuccess: number;
   targetP95Ms: number;
   windowMinutes: number;

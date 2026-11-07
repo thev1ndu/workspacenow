@@ -23,15 +23,6 @@ type Page struct {
 	Scan   *ScanConfig `json:"scan,omitempty"`
 }
 
-// AppSLO is an application's service-level objective switch and targets. When enabled, applying
-// the plan tracks one SLO per generated CRUD operation of the application's entities.
-type AppSLO struct {
-	Enabled       bool    `json:"enabled"`
-	TargetSuccess float64 `json:"targetSuccess"` // 0..1
-	TargetP95Ms   int     `json:"targetP95Ms"`
-	WindowMinutes int     `json:"windowMinutes"`
-}
-
 type Application struct {
 	ID                string    `json:"id"`
 	Name              string    `json:"name"`
@@ -42,7 +33,6 @@ type Application struct {
 	Version           string    `json:"version"`
 	EntityNames       []string  `json:"entityNames"`
 	Pages             []Page    `json:"pages"`
-	SLO               *AppSLO   `json:"slo,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 }
@@ -67,7 +57,6 @@ type Plan struct {
 	Operations        []string        `json:"operations"`
 	Workflows         []string        `json:"workflows"`
 	Permissions       []string        `json:"permissions"`
-	SLO               *AppSLO         `json:"slo,omitempty"`
 }
 
 type Release struct {

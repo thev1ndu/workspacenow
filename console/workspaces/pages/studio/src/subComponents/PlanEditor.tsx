@@ -1,7 +1,7 @@
 import { Button, Checkbox, Chip, Input, ListBox, Select, TextField, Tooltip } from "@heroui/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
 import { useListDepartments } from "@workspacenow/api-client";
-import { DEFAULT_SLO, planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
+import { planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
 import { SectionCard, SelectInput, TextInput } from "@workspacenow/views";
 
 type PlannedEntity = ApplicationPlan["entities"][number];
@@ -39,7 +39,6 @@ export function blankPlan(ownerDepartmentId = ""): ApplicationPlan {
     operations: [],
     workflows: [],
     permissions: [],
-    slo: { ...DEFAULT_SLO },
   };
 }
 

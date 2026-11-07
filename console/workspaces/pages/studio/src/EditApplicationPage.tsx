@@ -82,7 +82,7 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
                 onPress={() =>
                   planEdit.mutate(
                     { appId: app.id, prompt: prompt.trim() },
-                    { onSuccess: (revised) => { setPlan({ ...revised, slo: revised.slo ?? initial.slo }); setAiOpen(false); } },
+                    { onSuccess: (revised) => { setPlan(revised); setAiOpen(false); } },
                   )
                 }
               >

@@ -20,7 +20,6 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/observer"
-	"github.com/thev1ndu/workspacenow/wsn-service/internal/studio"
 )
 
 const (
@@ -50,12 +49,11 @@ type Service interface {
 	AlertFires(ctx context.Context, ruleID string) ([]AlertFire, error)
 	AckFire(ctx context.Context, ec kernel.ExecutionContext, ruleID, fireID string) (*AlertFire, error)
 	EvaluateAlerts(ctx context.Context, now time.Time) ([]AlertFire, error)
-	// SLOs per business operation, optionally filtered by application.
-	SLOs(ctx context.Context, applicationID string) ([]SLO, error)
+	// SLOs per business operation.
+	SLOs(ctx context.Context) ([]SLO, error)
 	CreateSLO(ctx context.Context, ec kernel.ExecutionContext, s SLO) (*SLO, error)
 	SLOStatusByID(ctx context.Context, id string) (map[string]any, error)
 	RecordSLOCall(ctx context.Context, operation string, d time.Duration, failed bool)
-	SyncAppSLOs(ctx context.Context, ec kernel.ExecutionContext, appID string, operations []string, slo *studio.AppSLO) error
 	// Status page + backups.
 	Status(ctx context.Context) map[string]any
 	Backups(ctx context.Context) ([]BackupRecord, error)

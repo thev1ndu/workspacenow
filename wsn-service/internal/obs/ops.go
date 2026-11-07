@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/url"
 	"time"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/config"
 	"github.com/thev1ndu/workspacenow/wsn-service/db/models"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/connect"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/netutil"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 )
 
@@ -325,9 +325,8 @@ func (s *service) validateRule(ctx context.Context, r *AlertRule) error {
 		return kernel.Invalid("An alert needs a name, an action or event type, a threshold and a window in minutes")
 	}
 	if r.WebhookURL != "" {
-		u, err := url.Parse(r.WebhookURL)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			return kernel.Invalid("webhookUrl must be an absolute http(s) URL")
+		if err := netutil.AssertPublicHTTPURL(r.WebhookURL); err != nil {
+			return kernel.Invalid("webhookUrl is not allowed: %s", err.Error())
 		}
 	}
 	switch r.Source {

@@ -565,6 +565,11 @@ describe("ops: alerts, slos, status", () => {
     expect(ok.status).toBe(201);
     expect((ok.body as { webhookUrl: string }).webhookUrl).toBe("https://hooks.example.com/custom");
     expect(post(platform, "/alerts", { name: "Bad URL", source: "event", action: "Stock.LowStockReached", threshold: 1, windowMinutes: 60, webhookUrl: "notaurl" }).status).toBe(422);
+    // SSRF guard: internal targets are rejected everywhere user URLs are accepted
+    expect(post(platform, "/alerts", { name: "SSRF", source: "event", action: "X", threshold: 1, windowMinutes: 60, webhookUrl: "http://169.254.169.254/x" }).status).toBe(422);
+    expect(post(platform, "/webhooks", { name: "evil", url: "http://127.0.0.1:8080/x", events: [], active: true }).status).toBe(422);
+    expect(post(platform, "/integrations", { name: "evil", kind: "rest", target: "http://10.0.0.5/", retryPolicy: "None", timeoutMs: 1000, secretRef: "" }).status).toBe(422);
+    expect(get(platform, "/secrets/read?path=../other").status).toBe(422);
   });
 
   it("fires an SLO burn-rate alert and serves log metrics per day and level", () => {

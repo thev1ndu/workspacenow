@@ -18,6 +18,7 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/data"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/netutil"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/postgres"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/secrets"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
@@ -378,6 +379,12 @@ func (s *service) validateIntegration(ctx context.Context, in *Integration) erro
 	if strings.TrimSpace(in.Name) == "" || strings.TrimSpace(in.Target) == "" || in.TimeoutMs <= 0 {
 		return kernel.Invalid("An integration needs a name, a target and a positive timeout (ms)")
 	}
+	if u, err := url.Parse(in.Target); err != nil || u.Host == "" || !strings.HasPrefix(in.Target, "http") {
+		return kernel.Invalid("Target must be an absolute http(s) URL")
+	}
+	if err := netutil.AssertPublicHTTPURL(in.Target); err != nil {
+		return kernel.Invalid("Integration target is not allowed: %s", err.Error())
+	}
 	switch in.Kind {
 	case "rest", "soap", "webhook", "database", "message-broker", "saas":
 	default:
@@ -611,6 +618,9 @@ func (s *service) CreateWebhook(ctx context.Context, ec kernel.ExecutionContext,
 	}
 	if _, err := url.ParseRequestURI(w.URL); err != nil {
 		return nil, kernel.Invalid("Webhook URL is not valid: %s", err.Error())
+	}
+	if err := netutil.AssertPublicHTTPURL(w.URL); err != nil {
+		return nil, kernel.Invalid("Webhook URL is not allowed: %s", err.Error())
 	}
 	now := time.Now().UTC()
 	w.ID, w.Active, w.CreatedAt, w.UpdatedAt = kernel.NewID("wh"), true, now, now

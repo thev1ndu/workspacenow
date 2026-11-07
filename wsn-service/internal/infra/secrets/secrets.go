@@ -19,6 +19,17 @@ import (
 // ErrNotFound is returned when no secret exists at a path.
 var ErrNotFound = errors.New("secret not found")
 
+// sanitizePath rejects traversal segments so a caller-controlled path stays inside the KV mount.
+func sanitizePath(path string) (string, error) {
+	cleaned := strings.Trim(path, "/")
+	for _, seg := range strings.Split(cleaned, "/") {
+		if seg == ".." || seg == "." || strings.ContainsRune(seg, 0) {
+			return "", fmt.Errorf("invalid secret path %q", path)
+		}
+	}
+	return cleaned, nil
+}
+
 // Reader reads a secret's key/value data from a path in the KV v2 mount.
 type Reader interface {
 	Read(ctx context.Context, path string) (map[string]string, error)
@@ -48,7 +59,11 @@ func (b *openBao) Read(ctx context.Context, path string) (map[string]string, err
 	if err != nil {
 		return nil, err
 	}
-	path = strings.TrimPrefix(path, b.cfg.Mount+"/")
+	path, err = sanitizePath(strings.TrimPrefix(path, b.cfg.Mount+"/"))
+	if err != nil {
+		return nil, err
+	}
+	path = strings.TrimPrefix(path, "vault://")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/v1/%s/data/%s", strings.TrimRight(b.cfg.Addr, "/"), b.cfg.Mount, strings.TrimPrefix(path, "/")), nil)
 	if err != nil {
 		return nil, err
@@ -88,6 +103,9 @@ func (b *openBao) List(ctx context.Context, prefix string) ([]string, error) {
 	}
 	prefix = strings.TrimPrefix(prefix, b.cfg.Mount+"/")
 	prefix = strings.TrimPrefix(prefix, "vault://")
+	if prefix, err = sanitizePath(prefix); err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, "LIST", fmt.Sprintf("%s/v1/%s/metadata/%s", strings.TrimRight(b.cfg.Addr, "/"), b.cfg.Mount, strings.TrimPrefix(prefix, "/")), nil)
 	if err != nil {
 		return nil, err

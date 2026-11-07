@@ -5,7 +5,7 @@ Status as of 2026-11-07. Legend: ✅ implemented + unit tested · 🟡 partial �
 compose stack (`make setup && make up`) is the first live run. `T0D0.md` is the task list with test
 steps; `COVERAGE.md` has per-package test coverage numbers.
 
-Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers in wsn-service
+Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers in wsn-service
 (the generated 501 fallback has 0 stubs). Console: 7 workspaces, ~35 pages.
 
 ---
@@ -120,7 +120,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 - ✅ **Offline/PWA**: vite-plugin-pwa — precached app shell, `manifest.webmanifest` (standalone), auto-updating `sw.js`, network-first API GET caching with offline fallback
 
 ## 10. Demo scenario (Northwind Retail)
-- ✅ Seeded: org, 6 departments, 4 teams, 6 users, 7 roles, 3 environments, 4 apps, 9 entities, 29 records, 3 APIs, 12 operations, 3 MCP servers, 5 integrations, 1 model provider, 11 agents, 4 workflows
+- ✅ Seeded: org, 6 departments, 4 teams, 6 users, 7 roles, 3 environments, 4 apps, 9 entities, 29 records, 3 APIs, 119 operations, 3 MCP servers, 5 integrations, 1 model provider, 11 agents, 4 workflows
 - ✅ Flagship flow: sale crossing reorder level → `Stock.LowStockReached` → `wf-low-stock` → procurement agent → approval → purchase order → supplier notification, one trace end to end
 - ⬜ Live run of the flagship flow (needs Docker + `MISTRAL_API_KEY`)
 
@@ -137,7 +137,7 @@ Scope: 59 paths / 73 operations in `openapi.yaml`, all served by real handlers i
 
 | Area | Written | Live-verified |
 |---|---|---|
-| API contract + wsn-service (73/73 endpoints, tests, lint clean) | 100% | 0% |
+| API contract + wsn-service (119/119 endpoints, tests, lint clean) | 100% | 0% |
 | wsn-ai-service (100% line coverage, CI-gated) | 100% | 0% (live smoke opt-in) |
 | wsn-observer (WAL store + query API) | ~95% | 0% |
 | Console (7 workspaces, SSE, OIDC, coverage gate) | ~95% | demo platform only |

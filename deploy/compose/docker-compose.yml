@@ -70,7 +70,7 @@ services:
     volumes: ["temporal:/data"]
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-workspacenow}
@@ -79,7 +79,7 @@ services:
     volumes: ["minio:/data"]
 
   minio-init:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
     depends_on: [minio]
     entrypoint: >
       /bin/sh -c "until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-workspacenow} ${MINIO_ROOT_PASSWORD:-workspacenow-secret}; do sleep 1; done;

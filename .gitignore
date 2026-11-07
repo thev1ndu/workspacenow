@@ -35,3 +35,6 @@ build/
 .DS_Store
 *.log
 nohup.out
+
+# Reference checkout of WSO2 agent-manager, not part of this repo.
+agent-manager/

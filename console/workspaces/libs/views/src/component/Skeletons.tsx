@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Card, Skeleton } from "@heroui/react";
+import { metricGridColumns } from "./Metric";
 
 // Placeholders shaped like the content they stand in for, so nothing jumps when data arrives.
 
@@ -112,16 +113,14 @@ export function DetailSkeleton({ items = 4, columns = 4 }: { items?: number; col
 /** A metric strip, as MetricGrid draws it. */
 export function MetricGridSkeleton({ columns = 4 }: { columns?: number }) {
   return (
-    <Card className="gap-0 overflow-hidden p-0">
-      <div className={`-mr-px -mb-px grid ${columns >= 4 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"}`}>
-        {range(columns).map((i) => (
-          <div key={i} className="grid gap-2.5 border-r border-b border-separator px-4 py-3.5">
-            <Skeleton className="h-3 w-20 rounded-md" />
-            <Skeleton className="h-6 w-12 rounded-md" />
-          </div>
-        ))}
-      </div>
-    </Card>
+    <div className={metricGridColumns(columns)}>
+      {range(columns).map((i) => (
+        <Card key={i} className="gap-2.5 px-4 py-3.5">
+          <Skeleton className="h-3 w-20 rounded-md" />
+          <Skeleton className="h-6 w-12 rounded-md" />
+        </Card>
+      ))}
+    </div>
   );
 }
 

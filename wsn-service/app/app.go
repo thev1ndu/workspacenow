@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
@@ -28,6 +29,8 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/postgres"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/secrets"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/obs"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/observer"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/seed"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/stream"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/studio"
@@ -43,8 +46,9 @@ type Options struct {
 
 // Run starts the selected components and blocks until ctx is cancelled or one of them fails.
 func Run(ctx context.Context, cfg *config.Config, opts Options) error {
-	setupLogger(cfg.LogLevel)
-	slog.Info("starting wsn-service", "version", config.Version, "env", cfg.Env, "demo", cfg.DemoMode)
+	exporter := observer.NewExporter(cfg.Observer.URL, cfg.Observer.Token, cfg.Observer.ServiceName, cfg.Observer.FlushInterval, nil)
+	setupLogger(cfg.LogLevel, exporter, cfg.Observer.ServiceName)
+	slog.Info("starting wsn-service", "version", config.Version, "env", cfg.Env, "demo", cfg.DemoMode, "observer", cfg.Observer.URL != "")
 
 	db, err := postgres.Open(ctx, cfg.Database)
 	if err != nil {
@@ -71,14 +75,14 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) error {
 		g.Go(func() error { return events.Relay(ctx, db, js) })
 	}
 	if opts.Server {
-		if err := startServer(ctx, g, cfg, db, func(hub *stream.Hub) error { return hub.Run(ctx, nc) }); err != nil {
+		if err := startServer(ctx, g, cfg, db, nc, exporter, func(hub *stream.Hub) error { return hub.Run(ctx, nc) }); err != nil {
 			return err
 		}
 	}
 	return g.Wait()
 }
 
-func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db *gorm.DB, runHub func(*stream.Hub) error) error {
+func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db *gorm.DB, nc *nats.Conn, exporter *observer.Exporter, runHub func(*stream.Hub) error) error {
 	if cfg.DemoMode {
 		if err := seedIfEmpty(ctx, db); err != nil {
 			return err
@@ -91,6 +95,12 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	g.Go(func() error {
 		<-ctx.Done()
 		return c.Close()
+	})
+	g.Go(func() error {
+		<-ctx.Done()
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return exporter.Close(flushCtx)
 	})
 
 	auditor := kernel.NewAuditor(db)
@@ -110,6 +120,9 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	hub := stream.NewHub(db, runtime)
 	g.Go(func() error { return runHub(hub) })
 
+	obsClient := observer.NewClient(cfg.Observer.URL, cfg.Observer.Token)
+	obsSvc := obs.NewService(db, c, nc, obsClient, cfg.Observer.ServiceName, cfg.AI.ServiceURL+"/healthz")
+
 	mux := http.NewServeMux()
 	api.Routes(mux, api.Modules{
 		Identity: identity.NewHandler(identitySvc, cfg.DemoMode),
@@ -119,6 +132,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		Connect:  connect.NewHandler(connectSvc),
 		Stream:   hub,
 		Studio:   studio.NewHandler(studioSvc),
+		Obs:      obs.NewHandler(obsSvc, auditor),
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /readyz", readiness(db, c))
@@ -131,6 +145,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		middleware.Recover(),
 		middleware.CORS(cfg.CORSOrigins),
 		middleware.CorrelationID(),
+		middleware.Telemetry(exporter),
 		middleware.RequestLogger(),
 		middleware.Authenticate(cfg.OIDC, cfg.DemoMode, identitySvc, public),
 	)
@@ -209,10 +224,12 @@ func readiness(db *gorm.DB, c cache.Cache) http.HandlerFunc {
 	}
 }
 
-func setupLogger(level string) {
+// setupLogger writes JSON to stdout and tees every record to wsn-observer as OTLP logs.
+func setupLogger(level string, exp *observer.Exporter, serviceName string) {
 	var l slog.Level
 	if err := l.UnmarshalText([]byte(level)); err != nil {
 		l = slog.LevelInfo
 	}
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: l})))
+	stdout := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: l})
+	slog.SetDefault(slog.New(observer.Tee(stdout, observer.NewLogHandler(exp, serviceName))))
 }

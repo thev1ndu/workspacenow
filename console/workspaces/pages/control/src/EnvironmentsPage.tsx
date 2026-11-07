@@ -29,9 +29,6 @@ export function EnvironmentsPage() {
                     )}
                   </div>
                   <p className="text-sm text-muted">{env.description}</p>
-                  <p className="text-xs text-muted tabular-nums">
-                    Limits {env.resourceLimits.cpu} · {env.resourceLimits.memory}
-                  </p>
                 </Card>
               ))}
             </div>

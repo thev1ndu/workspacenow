@@ -3,7 +3,7 @@ import { AlertDialog, Button, Modal } from "@heroui/react";
 import { Eye, Pencil, TrashBin } from "@workspacenow/icons";
 import { useDeleteRecord, useUpdateRecord } from "@workspacenow/api-client";
 import type { Entity, EntityRecord } from "@workspacenow/types";
-import { DetailList, formatDateTime, formatRelative } from "@workspacenow/views";
+import { DetailList, TablePager, TextInput, formatDateTime, formatRelative, usePagedSearch } from "@workspacenow/views";
 import { RecordFormDialog, recordLabel } from "./RecordForm";
 import { RecordsTable, formatFieldValue, type RecordAction } from "./RecordsTable";
 
@@ -113,6 +113,8 @@ export function RecordsManager({
   const [editing, setEditing] = useState<EntityRecord | null>(null);
   const [deleting, setDeleting] = useState<EntityRecord | null>(null);
 
+  const paged = usePagedSearch(records, 15, (r) => `${r.id} ${recordLabel(r)} ${JSON.stringify(r.values)}`);
+
   const actions = (record: EntityRecord): RecordAction[] =>
     readOnly
       ? [{ id: "view", label: "View", icon: <Eye />, onAction: () => setViewing(record) }]
@@ -124,7 +126,13 @@ export function RecordsManager({
 
   return (
     <>
-      <RecordsTable entity={entity} records={records} labels={labels} onOpen={readOnly ? setViewing : setEditing} actions={actions} />
+      <div className="border-b border-separator px-5 py-3">
+        <div className="max-w-sm">
+          <TextInput label="Search records" value={paged.search} onChange={paged.setSearch} placeholder="Id, values or label" />
+        </div>
+      </div>
+      <RecordsTable entity={entity} records={paged.pageItems} labels={labels} onOpen={readOnly ? setViewing : setEditing} actions={actions} />
+      <TablePager page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPageChange={paged.setPage} />
 
       {viewing && <RecordViewDialog entity={entity} record={viewing} labels={labels} onClose={() => setViewing(null)} />}
 

@@ -16,3 +16,5 @@ export * from "./component/ColorScheme";
 export * from "./component/WorkspaceModule";
 export * from "./utils/format";
 export * from "./component/BrandMark";
+export * from "./component/TablePager";
+export * from "./utils/usePagedSearch";

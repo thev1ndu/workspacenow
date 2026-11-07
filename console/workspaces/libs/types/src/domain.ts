@@ -214,7 +214,6 @@ export interface Environment {
   name: string;
   description: string;
   requiresApproval: boolean;
-  resourceLimits: { cpu: string; memory: string };
 }
 
 export interface ApplicationPlan {

@@ -224,7 +224,7 @@ func (s *service) Start(ctx context.Context, caller *kernel.Caller, id string, i
 	if err != nil {
 		return nil, err
 	}
-	ec := caller.Context(kernel.EntryWorkflow, "")
+	ec := caller.ContextFrom(ctx, kernel.EntryWorkflow, "")
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, "flow.manage", "workflow.run", "workflow/"+w.ID); err != nil {
 		return nil, err
 	}
@@ -319,7 +319,7 @@ func (s *service) Decide(ctx context.Context, caller *kernel.Caller, id string, 
 	if err != nil {
 		return nil, err
 	}
-	ec := caller.Context(kernel.EntryStudio, approval.TraceID)
+	ec := caller.ContextFrom(ctx, kernel.EntryStudio, approval.TraceID)
 	if approval.Status != "pending" {
 		return nil, kernel.InvalidState("Approval is already %s", approval.Status).WithTrace(ec.TraceID)
 	}

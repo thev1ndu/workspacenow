@@ -105,6 +105,27 @@ func (c *Caller) Context(entry EntryPoint, traceID string) ExecutionContext {
 	}
 }
 
+type traceKey struct{}
+
+// WithTraceID stores the request's trace id so audit records and spans share it.
+func WithTraceID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, traceKey{}, id)
+}
+
+// TraceIDFrom returns the trace id in ctx, if one was set.
+func TraceIDFrom(ctx context.Context) string {
+	id, _ := ctx.Value(traceKey{}).(string)
+	return id
+}
+
+// ContextFrom is Context, falling back to the request's trace id when traceID is empty.
+func (c *Caller) ContextFrom(ctx context.Context, entry EntryPoint, traceID string) ExecutionContext {
+	if traceID == "" {
+		traceID = TraceIDFrom(ctx)
+	}
+	return c.Context(entry, traceID)
+}
+
 type callerKey struct{}
 
 func WithCaller(ctx context.Context, c *Caller) context.Context {

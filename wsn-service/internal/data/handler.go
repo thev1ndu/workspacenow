@@ -41,7 +41,7 @@ func (h *Handler) CreateEntity(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, err)
 		return
 	}
-	e, err := h.svc.CreateEntity(r.Context(), httpx.Caller(r).Context(kernel.EntryStudio, ""), in)
+	e, err := h.svc.CreateEntity(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), in)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -55,7 +55,7 @@ func (h *Handler) UpdateEntity(w http.ResponseWriter, r *http.Request, name stri
 		httpx.Error(w, r, err)
 		return
 	}
-	e, err := h.svc.UpdateEntity(r.Context(), httpx.Caller(r).Context(kernel.EntryStudio, ""), name, in)
+	e, err := h.svc.UpdateEntity(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name, in)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -64,7 +64,7 @@ func (h *Handler) UpdateEntity(w http.ResponseWriter, r *http.Request, name stri
 }
 
 func (h *Handler) ListRecords(w http.ResponseWriter, r *http.Request, name string) {
-	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).Context(kernel.EntryStudio, ""), name+".list", nil)
+	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name+".list", nil)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -89,7 +89,7 @@ func (h *Handler) DeleteRecord(w http.ResponseWriter, r *http.Request, name, id 
 		httpx.Error(w, r, err)
 		return
 	}
-	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).Context(kernel.EntryStudio, ""), name+".delete", map[string]any{"id": id})
+	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name+".delete", map[string]any{"id": id})
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -111,7 +111,7 @@ func (h *Handler) write(w http.ResponseWriter, r *http.Request, name, verb strin
 	if id != nil {
 		input["id"] = *id
 	}
-	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).Context(kernel.EntryStudio, ""), name+"."+verb, input)
+	out, err := h.engine.Invoke(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, ""), name+"."+verb, input)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

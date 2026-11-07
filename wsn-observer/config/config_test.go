@@ -2,8 +2,8 @@ package config
 
 import "testing"
 
-func env(pairs map[string]string) func(string) string {
-	return func(key string) string { return pairs[key] }
+func env(pairs map[string]string) func(string) (string, bool) {
+	return func(key string) (string, bool) { v, ok := pairs[key]; return v, ok }
 }
 
 func TestDefaults(t *testing.T) {
@@ -11,36 +11,63 @@ func TestDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("defaults must load: %v", err)
 	}
-	if cfg.Port != 9098 || cfg.Retention != 10000 || cfg.LogLevel != "INFO" || cfg.Token != "" {
+	if cfg.Port != 9098 || cfg.LogLevel != "INFO" || cfg.Token != "" {
 		t.Fatalf("unexpected defaults: %+v", cfg)
+	}
+	if cfg.DataDir != "./data" || cfg.RetentionBytes != 256<<20 || cfg.SegmentBytes != 32<<20 || cfg.ScanLimit != 100000 {
+		t.Fatalf("storage defaults: %+v", cfg)
 	}
 }
 
 func TestOverrides(t *testing.T) {
 	cfg, err := load(env(map[string]string{
-		"WSN_OBSERVER_PORT":      "9999",
-		"WSN_OBSERVER_RETENTION": "42",
-		"WSN_OBSERVER_TOKEN":     "tok",
-		"WSN_OBSERVER_LOG_LEVEL": "DEBUG",
+		"WSN_OBSERVER_PORT":            "9999",
+		"WSN_OBSERVER_TOKEN":           "tok",
+		"WSN_OBSERVER_LOG_LEVEL":       "DEBUG",
+		"WSN_OBSERVER_DATA_DIR":        "/var/lib/wsn-observer",
+		"WSN_OBSERVER_RETENTION_BYTES": "1024",
+		"WSN_OBSERVER_SEGMENT_BYTES":   "512",
+		"WSN_OBSERVER_SCAN_LIMIT":      "42",
 	}))
 	if err != nil {
 		t.Fatalf("valid env must load: %v", err)
 	}
-	if cfg.Port != 9999 || cfg.Retention != 42 || cfg.Token != "tok" || cfg.LogLevel != "DEBUG" {
+	if cfg.Port != 9999 || cfg.Token != "tok" || cfg.LogLevel != "DEBUG" {
 		t.Fatalf("unexpected config: %+v", cfg)
+	}
+	if cfg.DataDir != "/var/lib/wsn-observer" || cfg.RetentionBytes != 1024 || cfg.SegmentBytes != 512 || cfg.ScanLimit != 42 {
+		t.Fatalf("storage config: %+v", cfg)
 	}
 }
 
 func TestInvalidValuesAreJoinedErrors(t *testing.T) {
 	_, err := load(env(map[string]string{
-		"WSN_OBSERVER_PORT":      "not-a-port",
-		"WSN_OBSERVER_RETENTION": "-3",
+		"WSN_OBSERVER_PORT":            "not-a-port",
+		"WSN_OBSERVER_RETENTION_BYTES": "-3",
 	}))
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	if got := err.Error(); !contains(got, "WSN_OBSERVER_PORT") || !contains(got, "WSN_OBSERVER_RETENTION") {
+	if got := err.Error(); !contains(got, "WSN_OBSERVER_PORT") || !contains(got, "WSN_OBSERVER_RETENTION_BYTES") {
 		t.Fatalf("both problems should be reported, got: %v", err)
+	}
+}
+
+func TestEmptyDataDirIsRejected(t *testing.T) {
+	if _, err := load(env(map[string]string{"WSN_OBSERVER_DATA_DIR": ""})); err == nil {
+		t.Fatal("telemetry must not fall back to memory or a database: empty data dir must be rejected")
+	}
+}
+
+func TestInvalidStorageValuesAreRejected(t *testing.T) {
+	for key, v := range map[string]string{
+		"WSN_OBSERVER_RETENTION_BYTES": "0",
+		"WSN_OBSERVER_SEGMENT_BYTES":   "-1",
+		"WSN_OBSERVER_SCAN_LIMIT":      "zero",
+	} {
+		if _, err := load(env(map[string]string{key: v})); err == nil {
+			t.Fatalf("%s=%s must be rejected", key, v)
+		}
 	}
 }
 

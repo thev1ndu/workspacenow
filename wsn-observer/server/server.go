@@ -2,9 +2,11 @@
 package server
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -22,14 +24,17 @@ const (
 	defaultLimit = 50
 )
 
+// errStorage marks a store failure, answered as 500 instead of 400.
+var errStorage = errors.New("telemetry store failed")
+
 // Server wires the routes; errors use the platform's ErrorBody shape.
 type Server struct {
 	cfg   config.Config
-	store *telemetry.Store
+	store telemetry.Store
 }
 
-// New builds the root handler.
-func New(cfg config.Config, store *telemetry.Store) http.Handler {
+// New builds the root handler; every signal is read from and written to store.
+func New(cfg config.Config, store telemetry.Store) http.Handler {
 	s := &Server{cfg: cfg, store: store}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
@@ -41,34 +46,45 @@ func New(cfg config.Config, store *telemetry.Store) http.Handler {
 	mux.HandleFunc("GET /api/v1/logs", s.auth(s.listLogs))
 	mux.HandleFunc("GET /api/v1/metrics", s.auth(s.listMetrics))
 	mux.HandleFunc("GET /api/v1/overview", s.auth(s.overview))
+	mux.HandleFunc("POST /api/v1/traces/query", s.auth(s.queryTraces))
+	mux.HandleFunc("POST /api/v1/traces/{traceId}/spans/query", s.auth(s.queryTraceSpans))
+	mux.HandleFunc("GET /api/v1/traces/{traceId}/spans/{spanId}", s.auth(s.getSpanDetails))
+	mux.HandleFunc("POST /api/v1/logs/query", s.auth(s.queryLogs))
+	mux.HandleFunc("POST /api/v1/metrics/query", s.auth(s.queryMetrics))
 	mux.HandleFunc("/", s.notFound)
 	return logRequests(mux)
 }
 
-func (s *Server) storeSpans(data []byte) (int, error) {
+func (s *Server) storeSpans(ctx context.Context, data []byte) (int, error) {
 	spans, err := telemetry.ParseTraces(data)
 	if err != nil {
 		return 0, err
 	}
-	s.store.AddSpans(spans)
+	if err := s.store.AddSpans(ctx, spans); err != nil {
+		return 0, fmt.Errorf("%w: %w", errStorage, err)
+	}
 	return len(spans), nil
 }
 
-func (s *Server) storeLogs(data []byte) (int, error) {
+func (s *Server) storeLogs(ctx context.Context, data []byte) (int, error) {
 	logs, err := telemetry.ParseLogs(data)
 	if err != nil {
 		return 0, err
 	}
-	s.store.AddLogs(logs)
+	if err := s.store.AddLogs(ctx, logs); err != nil {
+		return 0, fmt.Errorf("%w: %w", errStorage, err)
+	}
 	return len(logs), nil
 }
 
-func (s *Server) storeMetrics(data []byte) (int, error) {
+func (s *Server) storeMetrics(ctx context.Context, data []byte) (int, error) {
 	metrics, err := telemetry.ParseMetrics(data)
 	if err != nil {
 		return 0, err
 	}
-	s.store.AddMetrics(metrics)
+	if err := s.store.AddMetrics(ctx, metrics); err != nil {
+		return 0, fmt.Errorf("%w: %w", errStorage, err)
+	}
 	return len(metrics), nil
 }
 
@@ -104,15 +120,19 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	writeError(w, http.StatusNotFound, "NOT_FOUND", r.Method+" "+r.URL.Path+" does not exist")
 }
 
-func (s *Server) ingest(accept func([]byte) (int, error)) http.HandlerFunc {
+func (s *Server) ingest(accept func(context.Context, []byte) (int, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := readBody(w, r)
 		if err != nil {
 			return // readBody already wrote the error
 		}
-		n, err := accept(body)
+		n, err := accept(r.Context(), body)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", "invalid OTLP payload: "+err.Error())
+			status, code := http.StatusBadRequest, "VALIDATION_FAILED"
+			if errors.Is(err, errStorage) {
+				status, code = http.StatusInternalServerError, "STORAGE_FAILED"
+			}
+			writeError(w, status, code, err.Error())
 			return
 		}
 		writeJSON(w, http.StatusAccepted, map[string]int{"accepted": n})
@@ -133,13 +153,22 @@ func readBody(w http.ResponseWriter, r *http.Request) ([]byte, error) {
 	return body, nil
 }
 
+// storageErr answers a failed store call as 500 STORAGE_FAILED.
+func storageErr(w http.ResponseWriter, err error) {
+	writeError(w, http.StatusInternalServerError, "STORAGE_FAILED", err.Error())
+}
+
 func (s *Server) listTraces(w http.ResponseWriter, r *http.Request) {
 	service, start, end, limit, offset, desc, err := listParams(r, "desc")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	traces, total := s.store.ListTraces(service, start, end, limit, offset, desc)
+	traces, total, err := s.store.ListTraces(r.Context(), service, start, end, limit, offset, desc)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"traces": traces, "totalCount": total})
 }
 
@@ -156,7 +185,11 @@ func (s *Server) getTrace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	desc := q.Get("sortOrder") == "desc" // spans default to chronological (asc)
-	spans, total := s.store.Spans(traceID, q.Get("serviceName"), limit, !desc)
+	spans, total, err := s.store.Spans(r.Context(), traceID, q.Get("serviceName"), limit, !desc)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "totalCount": total})
 }
 
@@ -167,8 +200,10 @@ func (s *Server) listLogs(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	logs, total := s.store.ListLogs(service, q.Get("level"), q.Get("q"), start, end, limit, offset, desc)
-	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "totalCount": total})
+	s.serveLogs(w, r, telemetry.LogFilter{
+		Service: service, Level: q.Get("level"), Q: q.Get("q"), TraceID: q.Get("traceId"),
+		Start: start, End: end, Limit: limit, Offset: offset, Desc: desc,
+	})
 }
 
 func (s *Server) listMetrics(w http.ResponseWriter, r *http.Request) {
@@ -178,18 +213,185 @@ func (s *Server) listMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	metrics, total := s.store.ListMetrics(service, q.Get("name"), start, end, limit, offset, desc)
+	metrics, total, err := s.store.ListMetrics(r.Context(), service, q.Get("name"), start, end, limit, offset, desc)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"metrics": metrics, "totalCount": total})
 }
 
-func (s *Server) overview(w http.ResponseWriter, _ *http.Request) {
-	services, spans, logs, metrics := s.store.Overview()
+// serveLogs runs one logs query against the store.
+func (s *Server) serveLogs(w http.ResponseWriter, r *http.Request, f telemetry.LogFilter) {
+	logs, total, err := s.store.ListLogs(r.Context(), f)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "totalCount": total})
+}
+
+func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
+	services, spans, logs, metrics, err := s.store.Overview(r.Context())
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"services": services,
 		"spans":    spans,
 		"logs":     logs,
 		"metrics":  metrics,
 	})
+}
+
+// queryBody is the POST filter body shared by the /api/v1/*/query endpoints (agent-manager style).
+type queryBody struct {
+	ServiceName string `json:"serviceName"`
+	StartTime   string `json:"startTime"` // RFC3339
+	EndTime     string `json:"endTime"`
+	Limit       *int   `json:"limit"`
+	Offset      *int   `json:"offset"`
+	SortOrder   string `json:"sortOrder"` // asc or desc, default desc
+	Level       string `json:"level"`     // logs
+	Q           string `json:"q"`         // logs: case-insensitive body substring
+	TraceID     string `json:"traceId"`   // logs
+	Name        string `json:"name"`      // metrics
+}
+
+// decodeQuery reads and validates a query body; on failure it writes the error and returns false.
+func decodeQuery(w http.ResponseWriter, r *http.Request) (queryBody, bool) {
+	var q queryBody
+	body, err := readBody(w, r)
+	if err != nil {
+		return q, false
+	}
+	if err := json.Unmarshal(body, &q); err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", "invalid query body: "+err.Error())
+		return q, false
+	}
+	return q, true
+}
+
+// bounds converts the body's time/sort fields into store arguments.
+func (q queryBody) bounds(defaultSort string) (start, end time.Time, limit, offset int, desc bool, err error) {
+	if q.StartTime != "" {
+		start, err = time.Parse(time.RFC3339Nano, q.StartTime)
+		if err != nil {
+			return time.Time{}, time.Time{}, 0, 0, false, errors.New("startTime must be RFC3339")
+		}
+	}
+	if q.EndTime != "" {
+		end, err = time.Parse(time.RFC3339Nano, q.EndTime)
+		if err != nil {
+			return time.Time{}, time.Time{}, 0, 0, false, errors.New("endTime must be RFC3339")
+		}
+	}
+	limit = defaultLimit
+	if q.Limit != nil {
+		limit = *q.Limit
+	}
+	if limit < 1 || limit > maxLimit {
+		return time.Time{}, time.Time{}, 0, 0, false, errors.New("limit must be between 1 and 1000")
+	}
+	offset = 0
+	if q.Offset != nil {
+		offset = *q.Offset
+	}
+	if offset < 0 {
+		return time.Time{}, time.Time{}, 0, 0, false, errors.New("offset must be zero or more")
+	}
+	order := q.SortOrder
+	if order == "" {
+		order = defaultSort
+	}
+	if order != "asc" && order != "desc" {
+		return time.Time{}, time.Time{}, 0, 0, false, errors.New("sortOrder must be asc or desc")
+	}
+	return start, end, limit, offset, order == "desc", nil
+}
+
+func (s *Server) queryTraces(w http.ResponseWriter, r *http.Request) {
+	q, ok := decodeQuery(w, r)
+	if !ok {
+		return
+	}
+	start, end, limit, offset, desc, err := q.bounds("desc")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	traces, total, err := s.store.ListTraces(r.Context(), q.ServiceName, start, end, limit, offset, desc)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"traces": traces, "totalCount": total})
+}
+
+func (s *Server) queryTraceSpans(w http.ResponseWriter, r *http.Request) {
+	q, ok := decodeQuery(w, r)
+	if !ok {
+		return
+	}
+	_, _, limit, _, desc, err := q.bounds("asc")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	spans, total, err := s.store.Spans(r.Context(), r.PathValue("traceId"), q.ServiceName, limit, !desc)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "totalCount": total})
+}
+
+func (s *Server) getSpanDetails(w http.ResponseWriter, r *http.Request) {
+	span, ok, err := s.store.GetSpan(r.Context(), r.PathValue("traceId"), r.PathValue("spanId"))
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "span not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, span)
+}
+
+func (s *Server) queryLogs(w http.ResponseWriter, r *http.Request) {
+	q, ok := decodeQuery(w, r)
+	if !ok {
+		return
+	}
+	start, end, limit, offset, desc, err := q.bounds("desc")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	s.serveLogs(w, r, telemetry.LogFilter{
+		Service: q.ServiceName, Level: q.Level, Q: q.Q, TraceID: q.TraceID,
+		Start: start, End: end, Limit: limit, Offset: offset, Desc: desc,
+	})
+}
+
+func (s *Server) queryMetrics(w http.ResponseWriter, r *http.Request) {
+	q, ok := decodeQuery(w, r)
+	if !ok {
+		return
+	}
+	start, end, limit, offset, desc, err := q.bounds("desc")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	metrics, total, err := s.store.ListMetrics(r.Context(), q.ServiceName, q.Name, start, end, limit, offset, desc)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"metrics": metrics, "totalCount": total})
 }
 
 // listParams parses the shared query parameters: serviceName, startTime, endTime (RFC3339),

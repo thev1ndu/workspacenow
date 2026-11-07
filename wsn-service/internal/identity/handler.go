@@ -72,7 +72,7 @@ func (h *Handler) UpdateGroupMappings(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, err)
 		return
 	}
-	ec := httpx.Caller(r).Context(kernel.EntryControl, "")
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
 	mappings, err := h.svc.UpdateGroupMappings(r.Context(), ec, body.Mappings)
 	if err != nil {
 		httpx.Error(w, r, err)

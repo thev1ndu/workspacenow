@@ -100,6 +100,7 @@ Every setting is an environment variable; `.env.example` lists them with local d
 | `OPENBAO_ADDR`, `OPENBAO_ROLE` (or `OPENBAO_TOKEN` locally) | Secrets manager |
 | `OIDC_ISSUER`, `OIDC_AUDIENCE`, `OIDC_JWKS_URL`, `OIDC_GROUPS_CLAIM` | Identity provider; required outside demo mode |
 | `AI_SERVICE_URL`, `AI_SERVICE_TOKEN`, `RUN_GRANT_KEY` | wsn-ai-service and the key that signs agent run grants |
+| `WSN_OBSERVER_URL`, `WSN_OBSERVER_TOKEN`, `WSN_OBSERVER_SERVICE_NAME` | wsn-observer; empty URL disables OTLP export of spans, logs and metrics |
 
 ## Build
 
@@ -118,5 +119,7 @@ CI does the same with docker buildx (linux/amd64 + arm64) and pushes to `ghcr.io
 | Identity, data, business operations, connect, studio, event stream | Written, compiles, unit tested |
 | Workflows (`internal/flow`) | Written; needs `go mod tidy` to fetch Temporal's dependencies, then the `-worker` role |
 | AI endpoints (agents, runs, Sidekick, model providers), internal tool endpoint, run grants | Not started; answer 501 |
-| Observability endpoints (audit, traces, health, search, analytics, overview, resources) | Not started; answer 501 |
+| Observability endpoints: events, audit, traces, health | Written, unit tested; traces enrich with span counts from wsn-observer |
+| Search, analytics, overview, resources | Not started; answer 501 |
+| OTLP export of spans, logs and metrics to wsn-observer | Wired (`WSN_OBSERVER_URL`); one span + request metrics per HTTP request, all logs as OTLP records |
 | Integration tests against real infrastructure | Not started |

@@ -1,19 +1,24 @@
 import { Chip, Table } from "@heroui/react";
 import { useListTraces } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { NoDataFound, PageLayout, QueryState, SectionCard, TextLink, formatRelative } from "@workspacenow/views";
+import { NoDataFound, PageLayout, QueryState, SectionCard, TablePager, TextInput, TextLink, formatRelative, usePagedSearch } from "@workspacenow/views";
 import { formatSpan } from "./utils";
 
 export function TracesPage() {
   const traces = useListTraces();
+  const paged = usePagedSearch(traces.data?.items, 15, (t) => [t.traceId, t.title, t.actors.join(" ")].join(" "));
   return (
     <PageLayout title="Traces" description="One trace follows a request across Studio, APIs, MCP tools, agents and workflows.">
-      <SectionCard flush>
-        <QueryState query={traces}>
-          {(data) =>
-            data.items.length === 0 ? (
-              <NoDataFound message="No traces yet." />
-            ) : (
+      <div className="grid gap-5">
+        <div className="max-w-sm">
+          <TextInput label="Search traces" value={paged.search} onChange={paged.setSearch} placeholder="Trace id, title or actor" />
+        </div>
+        <SectionCard flush>
+          <QueryState query={traces}>
+            {(data) =>
+              data.items.length === 0 ? (
+                <NoDataFound message="No traces yet." />
+              ) : (
               <Table variant="secondary">
                 <Table.ScrollContainer>
                   <Table.Content aria-label="Traces" className="min-w-[880px]">
@@ -26,7 +31,7 @@ export function TracesPage() {
                       <Table.Column>Duration</Table.Column>
                     </Table.Header>
                     <Table.Body>
-                      {data.items.map((trace) => (
+                      {paged.pageItems.map((trace) => (
                         <Table.Row key={trace.traceId} id={trace.traceId}>
                           <Table.Cell>
                             <TextLink to={buildPath(routes.control.trace, { traceId: trace.traceId })}>{trace.title}</TextLink>
@@ -62,7 +67,9 @@ export function TracesPage() {
             )
           }
         </QueryState>
+        <TablePager page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPageChange={paged.setPage} />
       </SectionCard>
+      </div>
     </PageLayout>
   );
 }

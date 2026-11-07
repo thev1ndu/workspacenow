@@ -2,11 +2,12 @@ import asyncio
 import contextlib
 import hmac
 import logging
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any
 
 import uvicorn
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from .config import Settings, get_settings
@@ -17,12 +18,16 @@ from .models import DiscoverRequest, DiscoverResult, PlanRequest, RunRequest, Ru
 from .planner import Planner
 from .platform import PlatformClient
 from .runtime import AgentRuntime
+from .telemetry import ObserverLogHandler, OtlpExporter, Span
 
 log = logging.getLogger("wsn_ai_service")
 
 
 def create_app(
-    settings: Settings | None = None, llm: ChatModel | None = None, platform: PlatformClient | None = None
+    settings: Settings | None = None,
+    llm: ChatModel | None = None,
+    platform: PlatformClient | None = None,
+    exporter: OtlpExporter | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     platform = platform or PlatformClient(
@@ -32,7 +37,12 @@ def create_app(
         timeout=settings.request_timeout_seconds,
     )
     llm = llm or MistralChat(settings)
-    runtime = AgentRuntime(llm, platform)
+    exporter = exporter or OtlpExporter(
+        settings.observer_url,
+        settings.observer_token.get_secret_value(),
+        settings.observer_service_name,
+    )
+    runtime = AgentRuntime(llm, platform, exporter)
     planner = Planner(llm, settings.planner_model)
     mcp = build_server()
     mcp_app = mcp.http_app(path="/", stateless_http=True, json_response=True)
@@ -40,10 +50,15 @@ def create_app(
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         sync = asyncio.create_task(keep_tools_in_sync(mcp, platform, settings.mcp_tool_refresh_seconds))
+        service_log = logging.getLogger("wsn_ai_service")
+        log_handler = ObserverLogHandler(exporter)
+        service_log.addHandler(log_handler)
         async with mcp_app.lifespan(mcp_app):
             yield
+        service_log.removeHandler(log_handler)
         sync.cancel()
         await platform.close()
+        await exporter.aclose()
 
     app = FastAPI(title="wsn-ai-service", lifespan=lifespan)
 
@@ -58,6 +73,33 @@ def create_app(
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.middleware("http")
+    async def export_request_telemetry(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        # One span plus request-count and duration metrics per request, exported to wsn-observer.
+        if not exporter.enabled:
+            return await call_next(request)
+        async with Span(
+            exporter,
+            f"{request.method} {request.url.path}",
+            {"http.method": request.method, "http.path": request.url.path},
+        ) as sp:
+            response = await call_next(request)
+            sp.attributes["http.status_code"] = str(response.status_code)
+        await exporter.export_metric(
+            "http.server.requests",
+            1,
+            attributes={"http.method": request.method, "http.status_code": sp.attributes["http.status_code"]},
+        )
+        await exporter.export_metric(
+            "http.server.duration_ms",
+            (time.time() - sp.start) * 1000,
+            type="histogram",
+            attributes={"http.method": request.method},
+        )
+        return response
 
     @app.post("/v1/runs", dependencies=internal, response_model_by_alias=True)
     async def run_agent(req: RunRequest) -> RunResult:

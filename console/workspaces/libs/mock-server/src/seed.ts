@@ -112,9 +112,9 @@ export function createSeedState(at: Date): PlatformState {
       { group: "internal-audit", roleId: "role-auditor" },
     ],
     environments: [
-      { key: "development", name: "Development", description: "Builders iterate freely.", requiresApproval: false, resourceLimits: { cpu: "2 vCPU", memory: "4 GiB" } },
-      { key: "staging", name: "Staging", description: "Release candidates verified against copies of production integrations.", requiresApproval: false, resourceLimits: { cpu: "4 vCPU", memory: "8 GiB" } },
-      { key: "production", name: "Production", description: "Live store operations. Promotion needs a Release Manager.", requiresApproval: true, resourceLimits: { cpu: "8 vCPU", memory: "16 GiB" } },
+      { key: "development", name: "Development", description: "Builders iterate freely.", requiresApproval: false },
+      { key: "staging", name: "Staging", description: "Release candidates verified against copies of production integrations.", requiresApproval: false },
+      { key: "production", name: "Production", description: "Live store operations. Promotion needs a Release Manager.", requiresApproval: true },
     ],
     applications: [
       {

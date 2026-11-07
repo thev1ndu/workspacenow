@@ -55,7 +55,7 @@ func (h *Handler) UpdateMcpExposure(w http.ResponseWriter, r *http.Request, id s
 		httpx.Error(w, r, err)
 		return
 	}
-	op, err := h.svc.UpdateExposure(r.Context(), httpx.Caller(r).Context(kernel.EntryControl, ""), id, body.Enabled, body.ToolName, body.Description)
+	op, err := h.svc.UpdateExposure(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), id, body.Enabled, body.ToolName, body.Description)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -71,7 +71,7 @@ func (h *Handler) InvokeApiOperation(w http.ResponseWriter, r *http.Request, id 
 		httpx.Error(w, r, err)
 		return
 	}
-	ec := httpx.Caller(r).Context(kernel.EntryAPI, "")
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
 	out, err := h.svc.InvokeOperation(r.Context(), ec, id, body.Input)
 	if err != nil {
 		httpx.Error(w, r, err)
@@ -90,7 +90,7 @@ func (h *Handler) RegisterMcpServer(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, err)
 		return
 	}
-	srv, err := h.svc.RegisterServer(r.Context(), httpx.Caller(r).Context(kernel.EntryControl, ""), body.Name, body.URL, body.Auth)
+	srv, err := h.svc.RegisterServer(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), body.Name, body.URL, body.Auth)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -99,7 +99,7 @@ func (h *Handler) RegisterMcpServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) TestIntegration(w http.ResponseWriter, r *http.Request, id string) {
-	in, err := h.svc.TestIntegration(r.Context(), httpx.Caller(r).Context(kernel.EntryControl, ""), id)
+	in, err := h.svc.TestIntegration(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), id)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

@@ -91,7 +91,7 @@ func (h *Handler) CreateDeployment(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	ec := httpx.Caller(r).Context(kernel.EntryControl, "")
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
 	reply(w, r, http.StatusCreated)(h.svc.Deploy(r.Context(), ec, body.ApplicationID, body.Environment, body.Version))
 }
 
@@ -108,7 +108,7 @@ func (h *Handler) UnpinApplication(w http.ResponseWriter, r *http.Request, id st
 }
 
 func studioContext(r *http.Request) kernel.ExecutionContext {
-	return httpx.Caller(r).Context(kernel.EntryStudio, "")
+	return httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryStudio, "")
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {

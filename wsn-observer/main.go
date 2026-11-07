@@ -1,5 +1,6 @@
-// Command wsn-observer ingests OTLP telemetry (traces, logs, metrics) from the platform's
-// services and serves the query API the console's observability views call.
+// Command wsn-observer ingests OTLP telemetry from the platform's services and serves the
+// query API the console's observability views call. All signals are appended to segment
+// files under WSN_OBSERVER_DATA_DIR — no database, no in-memory payload.
 package main
 
 import (
@@ -15,7 +16,7 @@ import (
 
 	"github.com/thev1ndu/workspacenow/wsn-observer/config"
 	"github.com/thev1ndu/workspacenow/wsn-observer/server"
-	"github.com/thev1ndu/workspacenow/wsn-observer/telemetry"
+	"github.com/thev1ndu/workspacenow/wsn-observer/walstore"
 )
 
 func main() {
@@ -24,19 +25,25 @@ func main() {
 		log.Printf("wsn-observer: invalid configuration: %v", err)
 		os.Exit(1)
 	}
-	log.Printf("wsn-observer %s listening on :%d", config.Version, cfg.Port)
+	log.Printf("wsn-observer %s listening on :%d, storing telemetry in %s", config.Version, cfg.Port, cfg.DataDir)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := serve(ctx, cfg); err != nil {
+	store, err := walstore.Open(cfg.DataDir, cfg.RetentionBytes, cfg.SegmentBytes, cfg.ScanLimit)
+	if err != nil {
+		log.Printf("wsn-observer: %v", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+	if err := serve(ctx, cfg, store); err != nil {
 		log.Printf("wsn-observer: %v", err)
 		os.Exit(1)
 	}
 }
 
-func serve(ctx context.Context, cfg config.Config) error {
+func serve(ctx context.Context, cfg config.Config, store *walstore.Store) error {
 	srv := &http.Server{
 		Addr:              ":" + strconv.Itoa(cfg.Port),
-		Handler:           server.New(cfg, telemetry.NewStore(cfg.Retention)),
+		Handler:           server.New(cfg, store),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

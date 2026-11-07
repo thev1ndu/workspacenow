@@ -10,12 +10,19 @@ import (
 	"testing"
 
 	"github.com/thev1ndu/workspacenow/wsn-observer/config"
-	"github.com/thev1ndu/workspacenow/wsn-observer/telemetry"
+	"github.com/thev1ndu/workspacenow/wsn-observer/walstore"
 )
 
-func newServer(token string) *httptest.Server {
-	cfg := config.Config{Port: 0, Token: token, Retention: 100}
-	return httptest.NewServer(New(cfg, telemetry.NewStore(cfg.Retention)))
+// newServer serves the API with a real segment store under a temp dir.
+func newServer(t *testing.T, token string) *httptest.Server {
+	t.Helper()
+	store, err := walstore.Open(t.TempDir(), 16<<20, 1<<16, 10000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	cfg := config.Config{Port: 0, Token: token}
+	return httptest.NewServer(New(cfg, store))
 }
 
 func do(t *testing.T, method, url, token, body string) (int, map[string]any) {
@@ -55,7 +62,7 @@ const metricsPayload = `{"resourceMetrics":[{"resource":{"attributes":[{"key":"s
 "scopeMetrics":[{"metrics":[{"name":"requests","sum":{"dataPoints":[{"timeUnixNano":"1000","asInt":3}]}}]}]}]}`
 
 func TestHealthzIsOpen(t *testing.T) {
-	srv := newServer("tok")
+	srv := newServer(t, "tok")
 	defer srv.Close()
 	status, body := do(t, "GET", srv.URL+"/healthz", "", "")
 	if status != 200 || body["status"] != "ok" {
@@ -64,7 +71,7 @@ func TestHealthzIsOpen(t *testing.T) {
 }
 
 func TestIngestAndQueryRoundTrip(t *testing.T) {
-	srv := newServer("")
+	srv := newServer(t, "")
 	defer srv.Close()
 
 	for path, payload := range map[string]string{
@@ -118,7 +125,7 @@ func TestIngestAndQueryRoundTrip(t *testing.T) {
 }
 
 func TestAuthIsEnforcedWhenTokenIsSet(t *testing.T) {
-	srv := newServer("secret")
+	srv := newServer(t, "secret")
 	defer srv.Close()
 	for _, path := range []string{"/v1/traces", "/api/v1/traces", "/api/v1/overview"} {
 		method := "POST"
@@ -138,7 +145,7 @@ func TestAuthIsEnforcedWhenTokenIsSet(t *testing.T) {
 }
 
 func TestBadRequestsUseThePlatformErrorShape(t *testing.T) {
-	srv := newServer("")
+	srv := newServer(t, "")
 	defer srv.Close()
 
 	status, body := do(t, "POST", srv.URL+"/v1/traces", "", "{nope")
@@ -183,7 +190,7 @@ func TestBadRequestsUseThePlatformErrorShape(t *testing.T) {
 }
 
 func TestOversizedBodyIsRejected(t *testing.T) {
-	srv := newServer("")
+	srv := newServer(t, "")
 	defer srv.Close()
 	big := bytes.Repeat([]byte("x"), maxBodyBytes+1)
 	status, body := do(t, "POST", srv.URL+"/v1/logs", "", string(big))
@@ -193,7 +200,7 @@ func TestOversizedBodyIsRejected(t *testing.T) {
 }
 
 func TestGetTraceSortAndLimit(t *testing.T) {
-	srv := newServer("")
+	srv := newServer(t, "")
 	defer srv.Close()
 	do(t, "POST", srv.URL+"/v1/traces", "", tracesPayload)
 
@@ -209,5 +216,116 @@ func TestGetTraceSortAndLimit(t *testing.T) {
 	status, body = do(t, "GET", srv.URL+"/api/v1/trace?traceId=t1&limit=banana", "", "")
 	if status != 400 {
 		t.Fatalf("bad limit: %d %v", status, body)
+	}
+}
+
+func TestPostQueryEndpoints(t *testing.T) {
+	srv := newServer(t, "tok")
+	defer srv.Close()
+	do(t, "POST", srv.URL+"/v1/traces", "tok", tracesPayload)
+	do(t, "POST", srv.URL+"/v1/logs", "tok", logsPayload)
+	do(t, "POST", srv.URL+"/v1/metrics", "tok", metricsPayload)
+
+	status, body := do(t, "POST", srv.URL+"/api/v1/traces/query", "tok", `{"serviceName":"wsn-service","limit":10}`)
+	if status != 200 || body["totalCount"] != float64(1) {
+		t.Fatalf("traces query: %d %v", status, body)
+	}
+	traces := body["traces"].([]any)
+	if traces[0].(map[string]any)["traceId"] != "t1" || traces[0].(map[string]any)["spanCount"] != float64(2) {
+		t.Fatalf("trace overview: %v", traces[0])
+	}
+
+	status, body = do(t, "POST", srv.URL+"/api/v1/traces/t1/spans/query", "tok", `{"sortOrder":"desc","limit":1}`)
+	if status != 200 || body["totalCount"] != float64(2) {
+		t.Fatalf("spans query: %d %v", status, body)
+	}
+	spans := body["spans"].([]any)
+	if len(spans) != 1 || spans[0].(map[string]any)["spanId"] != "b" {
+		t.Fatalf("spans page: %v", spans)
+	}
+
+	status, body = do(t, "GET", srv.URL+"/api/v1/traces/t1/spans/a", "tok", "")
+	if status != 200 || body["name"] != "root" {
+		t.Fatalf("span details: %d %v", status, body)
+	}
+	status, body = do(t, "GET", srv.URL+"/api/v1/traces/t1/spans/zz", "tok", "")
+	if status != 404 || body["code"] != "NOT_FOUND" {
+		t.Fatalf("missing span: %d %v", status, body)
+	}
+
+	status, body = do(t, "POST", srv.URL+"/api/v1/logs/query", "tok", `{"level":"error","q":"sale"}`)
+	if status != 200 || body["totalCount"] != float64(1) {
+		t.Fatalf("logs query: %d %v", status, body)
+	}
+	status, body = do(t, "POST", srv.URL+"/api/v1/logs/query", "tok", `{"level":"debug"}`)
+	if status != 200 || body["totalCount"] != float64(0) {
+		t.Fatalf("logs query no match: %d %v", status, body)
+	}
+
+	status, body = do(t, "POST", srv.URL+"/api/v1/metrics/query", "tok", `{"name":"requests"}`)
+	if status != 200 || body["totalCount"] != float64(1) {
+		t.Fatalf("metrics query: %d %v", status, body)
+	}
+	metrics := body["metrics"].([]any)
+	if metrics[0].(map[string]any)["value"] != "3" {
+		t.Fatalf("metric point: %v", metrics[0])
+	}
+}
+
+func TestPostQueryValidationAndAuth(t *testing.T) {
+	srv := newServer(t, "tok")
+	defer srv.Close()
+	for _, tc := range []struct{ path, body string }{
+		{"/api/v1/traces/query", "{nope"},
+		{"/api/v1/traces/query", `{"startTime":"yesterday"}`},
+		{"/api/v1/traces/query", `{"limit":0}`},
+		{"/api/v1/traces/query", `{"limit":1001}`},
+		{"/api/v1/traces/query", `{"offset":-1}`},
+		{"/api/v1/traces/query", `{"sortOrder":"sideways"}`},
+		{"/api/v1/traces/t1/spans/query", `{"endTime":"soon"}`},
+		{"/api/v1/logs/query", `{"limit":"many"}`},
+		{"/api/v1/metrics/query", `{"sortOrder":"up"}`},
+	} {
+		if status, body := do(t, "POST", srv.URL+tc.path, "tok", tc.body); status != 400 || body["code"] != "VALIDATION_FAILED" {
+			t.Fatalf("%s %s: %d %v", tc.path, tc.body, status, body)
+		}
+	}
+	if status, _ := do(t, "POST", srv.URL+"/api/v1/traces/query", "", `{}`); status != 401 {
+		t.Fatalf("query without token: %d", status)
+	}
+	if status, _ := do(t, "POST", srv.URL+"/api/v1/traces/query", "wrong", `{}`); status != 401 {
+		t.Fatalf("query with wrong token: %d", status)
+	}
+}
+
+func TestStorageFailureIs500(t *testing.T) {
+	store, err := walstore.Open(t.TempDir(), 16<<20, 1<<16, 10000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil { // a closed store fails every write
+		t.Fatal(err)
+	}
+	cfg := config.Config{Port: 0}
+	srv := httptest.NewServer(New(cfg, store))
+	defer srv.Close()
+	for _, path := range []string{"/v1/traces", "/v1/logs", "/v1/metrics"} {
+		payload := tracesPayload
+		if path != "/v1/traces" {
+			payload = logsPayload
+		}
+		if path == "/v1/metrics" {
+			payload = metricsPayload
+		}
+		status, body := do(t, "POST", srv.URL+path, "", payload)
+		if status != 500 || body["code"] != "STORAGE_FAILED" {
+			t.Fatalf("%s: %d %v", path, status, body)
+		}
+	}
+	for _, path := range []string{"/api/v1/traces", "/api/v1/logs", "/api/v1/metrics", "/api/v1/overview"} {
+		status, body := do(t, "GET", srv.URL+path, "", "")
+		if status != 500 || body["code"] != "STORAGE_FAILED" {
+			t.Fatalf("%s: %d %v", path, status, body)
+		}
 	}
 }

@@ -5,7 +5,11 @@ metadata:
 data:
   WSN_OBSERVER_PORT: "9098"
   WSN_OBSERVER_LOG_LEVEL: INFO
-  WSN_OBSERVER_RETENTION: "10000"
+  # Telemetry is stored as append-only segment files under /data (no database); a PVC keeps it across restarts.
+  WSN_OBSERVER_DATA_DIR: "/data"
+  WSN_OBSERVER_RETENTION_BYTES: "268435456"
+  WSN_OBSERVER_SEGMENT_BYTES: "33554432"
+  WSN_OBSERVER_SCAN_LIMIT: "100000"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,6 +25,9 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: wsn-observer-data }
       containers:
         - name: observer
           image: wsn-observer
@@ -32,6 +39,8 @@ spec:
             - name: WSN_OBSERVER_TOKEN
               valueFrom:
                 secretKeyRef: { name: wsn-secrets, key: OBSERVER_TOKEN, optional: true }
+          volumeMounts:
+            - { name: data, mountPath: /data }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10
@@ -60,3 +69,11 @@ spec:
   minAvailable: 1
   selector:
     matchLabels: { app.kubernetes.io/name: wsn-observer }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wsn-observer-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 2Gi } }

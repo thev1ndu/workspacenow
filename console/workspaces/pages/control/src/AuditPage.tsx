@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListAudit, type AuditQuery } from "@workspacenow/api-client";
-import { PageLayout, QueryState, SectionCard, SelectInput, TextInput } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, SelectInput, TablePager, TextInput, usePagedSearch } from "@workspacenow/views";
 import { AuditTable } from "./subComponents/AuditTable";
 
 export function AuditPage() {
@@ -13,6 +13,8 @@ export function AuditPage() {
     q: search.trim() || undefined,
   };
   const audit = useListAudit(query);
+  // The server already narrows by q/actorKind/outcome; the pager slices the loaded page.
+  const paged = usePagedSearch(audit.data?.items, 25, () => "");
 
   return (
     <PageLayout title="Audit log" description="Every governed action from every entry point: who, through what, on what, and whether it was allowed.">
@@ -44,7 +46,14 @@ export function AuditPage() {
           <TextInput label="Search" value={search} onChange={setSearch} placeholder="Action, resource, actor or detail" />
         </div>
         <SectionCard title="Records" subtitle={audit.data ? `${audit.data.total} records` : undefined} flush>
-          <QueryState query={audit}>{(data) => <AuditTable records={data.items.slice(0, 300)} />}</QueryState>
+          <QueryState query={audit}>
+            {() => (
+              <>
+                <AuditTable records={paged.pageItems} />
+                <TablePager page={paged.page} totalPages={paged.totalPages} total={paged.total} pageSize={paged.pageSize} onPageChange={paged.setPage} />
+              </>
+            )}
+          </QueryState>
         </SectionCard>
       </div>
     </PageLayout>

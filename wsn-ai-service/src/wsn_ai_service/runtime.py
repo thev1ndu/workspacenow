@@ -5,6 +5,7 @@ from typing import Any
 from .llm import ChatModel, Message, function_tool
 from .models import RunRequest, RunResult, ThoughtStep, ToolCall, ToolStep
 from .platform import PlatformClient
+from .telemetry import OtlpExporter, Span
 
 GUIDANCE = (
     "You act inside WorkspaceNow through the tools you are given. The platform authorizes every call: "
@@ -29,16 +30,33 @@ def _user_prompt(req: RunRequest) -> str:
 class AgentRuntime:
     # Runs one agent turn loop: Mistral proposes tool calls, wsn-service decides each one.
 
-    def __init__(self, llm: ChatModel, platform: PlatformClient) -> None:
+    def __init__(self, llm: ChatModel, platform: PlatformClient, exporter: OtlpExporter | None = None) -> None:
         self._llm = llm
         self._platform = platform
+        self._exporter = exporter
+
+    async def run(self, req: RunRequest) -> RunResult:
+        # With the observer configured, the run is one span with its token metric exported at the end.
+        if self._exporter is None or not self._exporter.enabled:
+            return await self._run(req)
+        async with Span(
+            self._exporter,
+            f"agent.run {req.agent.id}",
+            {"run.id": req.run_id, "agent.id": req.agent.id, "model": req.agent.model},
+        ) as sp:
+            result = await self._run(req)
+            sp.attributes["status"] = result.status
+            sp.attributes["tokens"] = str(result.tokens)
+            sp.attributes["steps"] = str(len(result.steps))
+            await self._exporter.export_metric("agent.run.tokens", result.tokens, attributes={"model": req.agent.model})
+            return result
 
     async def _stream_step(self, run_id: str, step: ThoughtStep | ToolStep) -> None:
         # Sends the step to wsn-service the moment it happens (camelCase on the wire, like the run result);
         # wsn-service republishes it as an AgentRun.Step event. The final result travels in the /v1/runs response.
         await self._platform.stream_run_step(run_id, step.model_dump(by_alias=True, mode="json"))
 
-    async def run(self, req: RunRequest) -> RunResult:
+    async def _run(self, req: RunRequest) -> RunResult:
         started = time.monotonic()
         tools = [function_tool(t.name, t.description, t.input_schema) for t in req.tools]
         messages: list[Message] = [

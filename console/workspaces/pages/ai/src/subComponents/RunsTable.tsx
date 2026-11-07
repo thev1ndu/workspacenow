@@ -25,7 +25,7 @@ export function RunsTable({ runs, agents, showAgent = true }: { runs: AgentRun[]
               const denied = calls.filter((s) => s.kind === "tool" && s.call.outcome === "denied").length;
               return (
                 <Table.Row key={run.id} id={run.id}>
-                  <Table.Cell className="font-mono text-xs">
+                  <Table.Cell className="whitespace-nowrap font-mono text-xs">
                     <TextLink to={buildPath(routes.ai.run, { runId: run.id })}>{run.id}</TextLink>
                   </Table.Cell>
                   {showAgent && <Table.Cell className="whitespace-nowrap">{agents?.find((a) => a.id === run.agentId)?.name ?? run.agentId}</Table.Cell>}

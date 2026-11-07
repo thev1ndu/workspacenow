@@ -111,7 +111,7 @@ func (h *Handler) DecideApproval(w http.ResponseWriter, r *http.Request, id stri
 }
 
 func controlContext(r *http.Request) kernel.ExecutionContext {
-	return httpx.Caller(r).Context(kernel.EntryControl, "")
+	return httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
 }
 
 func reply(w http.ResponseWriter, r *http.Request, status int) func(any, error) {

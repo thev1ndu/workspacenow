@@ -1,7 +1,10 @@
-// Package telemetry models OTLP signals and keeps them in bounded memory.
+// Package telemetry models the OTLP signals and the Store interface that keeps them.
 package telemetry
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Span is one OTLP span, normalized for storage and querying.
 type Span struct {
@@ -49,4 +52,34 @@ type MetricPoint struct {
 	Timestamp  time.Time         `json:"timestamp"`
 	Value      string            `json:"value"`
 	Attributes map[string]string `json:"attributes,omitempty"`
+}
+
+// LogFilter is one logs query: exact match on service, level and trace id, a case-insensitive
+// substring on the body, an inclusive time range, sort order and a page.
+type LogFilter struct {
+	Service string
+	Level   string
+	Q       string
+	TraceID string
+	Start   time.Time
+	End     time.Time
+	Limit   int
+	Offset  int
+	Desc    bool
+}
+
+// Store keeps every telemetry signal durably — no database, no in-memory payload. The
+// reference implementation (walstore) appends JSONL segment files; queries scan at most
+// the newest ScanLimit records per signal.
+type Store interface {
+	AddSpans(ctx context.Context, spans []Span) error
+	AddLogs(ctx context.Context, logs []LogRecord) error
+	AddMetrics(ctx context.Context, points []MetricPoint) error
+	ListTraces(ctx context.Context, service string, start, end time.Time, limit, offset int, desc bool) ([]TraceOverview, int, error)
+	Spans(ctx context.Context, traceID, service string, limit int, asc bool) ([]Span, int, error)
+	GetSpan(ctx context.Context, traceID, spanID string) (Span, bool, error)
+	ListLogs(ctx context.Context, f LogFilter) ([]LogRecord, int, error)
+	ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]MetricPoint, int, error)
+	Overview(ctx context.Context) (services []string, spans, logs, metrics int, err error)
+	Close() error
 }

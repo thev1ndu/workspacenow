@@ -31,6 +31,15 @@ type Config struct {
 	OpenBao  OpenBaoConfig
 	OIDC     OIDCConfig
 	AI       AIConfig
+	Observer ObserverConfig
+}
+
+// ObserverConfig points at wsn-observer, the central telemetry service; empty URL disables export.
+type ObserverConfig struct {
+	URL           string
+	Token         string // shared bearer token for the observer's ingest and query APIs
+	ServiceName   string // resource service.name sent with every signal
+	FlushInterval time.Duration
 }
 
 type DatabaseConfig struct {
@@ -133,6 +142,12 @@ func Load() (*Config, error) {
 			ServiceToken: r.str("AI_SERVICE_TOKEN", ""),
 			RunGrantKey:  r.str("RUN_GRANT_KEY", ""),
 			RunGrantTTL:  r.duration("RUN_GRANT_TTL", 5*time.Minute),
+		},
+		Observer: ObserverConfig{
+			URL:           r.str("WSN_OBSERVER_URL", ""),
+			Token:         r.str("WSN_OBSERVER_TOKEN", ""),
+			ServiceName:   r.str("WSN_OBSERVER_SERVICE_NAME", "wsn-service"),
+			FlushInterval: r.duration("WSN_OBSERVER_FLUSH_INTERVAL", 2*time.Second),
 		},
 	}
 	if len(r.errs) > 0 {

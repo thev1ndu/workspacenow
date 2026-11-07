@@ -29,7 +29,7 @@ post /entities/Product/records '{"values":{"sku":"E2E-1","name":"E2E widget","un
 
 echo "== flagship: sale crosses reorder level -> Stock.LowStockReached =="
 post /business-operations/invoke '{"operation":"inventory.checkout","input":{"store":"Kandy","lines":[{"productId":"prod-oil","quantity":6}],"paymentMethod":"card"}}' \
-  | jq -e '.receipt | startswith("KDY-")' >/dev/null || fail "checkout receipt"
+  | jq -e '.output.sale.values.receipt | startswith("KDY-")' >/dev/null || fail "checkout receipt"
 sleep 3 # let the outbox -> NATS -> hub path deliver
 get "/events?limit=50" | jq -e '[.items[].type] | index("Stock.LowStockReached")' >/dev/null || fail "low-stock event not published"
 

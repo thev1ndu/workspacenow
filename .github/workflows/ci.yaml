@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       service: ${{ steps.filter.outputs.service }}
       observer: ${{ steps.filter.outputs.observer }}
@@ -37,7 +37,7 @@ jobs:
   wsn-service:
     needs: changes
     if: needs.changes.outputs.service == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: wsn-service
@@ -61,7 +61,7 @@ jobs:
   wsn-observer:
     needs: changes
     if: needs.changes.outputs.observer == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: wsn-observer
@@ -80,7 +80,7 @@ jobs:
   console:
     needs: changes
     if: needs.changes.outputs.console == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: console
@@ -104,7 +104,7 @@ jobs:
   e2e:
     needs: changes
     if: needs.changes.outputs.service == 'true' || needs.changes.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
@@ -132,7 +132,7 @@ jobs:
   deploy:
     needs: changes
     if: needs.changes.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: fluxcd/flux2/action@main

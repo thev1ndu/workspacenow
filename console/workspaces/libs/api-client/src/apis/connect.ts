@@ -41,7 +41,8 @@ export async function invokeApiOperation(
   getToken: GetToken,
 ) {
   const { version } = params;
-  return httpPOST<OperationResult>(`${SERVICE_BASE}/api-operations/${enc(params.operationId)}/invoke${qs({ version })}`, {
+  return httpPOST<OperationResult>(`${SERVICE_BASE}/api-operations/${enc(params.operationId)}/invoke`, {
+    searchParams: qs({ version }),
     token: await getToken(),
     body,
   });

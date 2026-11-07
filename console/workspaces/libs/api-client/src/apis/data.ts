@@ -13,7 +13,7 @@ import type {
   SavedViewInput,
   SchemaMigration,
 } from "@workspacenow/types";
-import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, httpPUT, requestRaw, SERVICE_BASE, qs, type GetToken } from "../utils/http";
+import { enc, httpDELETE, httpGET, httpPATCH, httpPOST, httpPUT, queryString, requestRaw, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listEntities(getToken: GetToken) {
   return httpGET<ListResponse<Entity>>(`${SERVICE_BASE}/entities`, { token: await getToken() });
@@ -120,7 +120,7 @@ export async function exportRecords(
   const { entityName, ...query } = params;
   const base = globalConfig.apiBaseUrl?.replace(/\/+$/, "") ?? "";
   const token = await getToken();
-  const res = await fetch(`${base}${SERVICE_BASE}/entities/${enc(entityName)}/records/export${qs(query)}`, {
+  const res = await fetch(`${base}${SERVICE_BASE}/entities/${enc(entityName)}/records/export${queryString(qs(query))}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw await res.json().then((b) => new Error(b.message ?? `export answered ${res.status}`));
@@ -181,10 +181,10 @@ export async function deleteView(params: { entityName: string; viewId: string },
 
 export async function runView(params: { entityName: string; viewId: string; includeDeleted?: boolean }, getToken: GetToken) {
   const { entityName, viewId, ...query } = params;
-  return httpPOST<ListResponse<EntityRecord>>(
-    `${SERVICE_BASE}/entities/${enc(entityName)}/views/${enc(viewId)}/run${qs(query)}`,
-    { token: await getToken() },
-  );
+  return httpPOST<ListResponse<EntityRecord>>(`${SERVICE_BASE}/entities/${enc(entityName)}/views/${enc(viewId)}/run`, {
+    token: await getToken(),
+    searchParams: qs(query),
+  });
 }
 
 export async function listEntityVersions(params: { entityName: string }, getToken: GetToken) {
@@ -192,17 +192,18 @@ export async function listEntityVersions(params: { entityName: string }, getToke
 }
 
 export async function diffEntityVersions(params: { entityName: string; from: number; to: number }, getToken: GetToken) {
-  return httpGET<EntityVersionDiff>(
-    `${SERVICE_BASE}/entities/${enc(params.entityName)}/versions/diff${qs({ from: String(params.from), to: String(params.to) })}`,
-    { token: await getToken() },
-  );
+  return httpGET<EntityVersionDiff>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/versions/diff`, {
+    token: await getToken(),
+    searchParams: qs({ from: params.from, to: params.to }),
+  });
 }
 
 export async function purgeRecords(params: { entityName: string; olderThanDays?: number }, getToken: GetToken) {
-  return httpPOST<{ purged: number }>(
-    `${SERVICE_BASE}/entities/${enc(params.entityName)}/records/purge${qs({ olderThanDays: params.olderThanDays?.toString() })}`,
-    { token: await getToken(), body: {} },
-  );
+  return httpPOST<{ purged: number }>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/records/purge`, {
+    token: await getToken(),
+    body: {},
+    searchParams: qs({ olderThanDays: params.olderThanDays }),
+  });
 }
 
 export async function deleteRecord(params: { entityName: string; recordId: string }, getToken: GetToken) {

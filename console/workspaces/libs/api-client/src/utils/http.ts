@@ -132,3 +132,9 @@ export const enc = encodeURIComponent;
 /** Stringifies a query object for the URL (numbers become strings, undefined dropped). */
 export const qs = (query: Record<string, string | number | boolean | undefined>): Record<string, string> =>
   Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+
+/** qs as a URL query string ("?a=1&b=2", or "" when empty) for direct fetch calls. */
+export const queryString = (query: Record<string, string>): string => {
+  const sp = new URLSearchParams(query);
+  return sp.size ? `?${sp}` : "";
+};

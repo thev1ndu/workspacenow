@@ -7,12 +7,12 @@ import { globalConfig } from "@workspacenow/types";
 import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from "@workspacenow/views";
 
 const DEPENDENCIES = [
-  { name: "PostgreSQL", role: "Entity persistence and platform metadata" },
-  { name: "Redis", role: "Sessions and caching" },
-  { name: "NATS", role: "Event infrastructure" },
-  { name: "Temporal", role: "Durable workflow execution" },
-  { name: "Object storage", role: "Documents and release artifacts" },
-  { name: "Secrets manager", role: "Integration credentials, referenced never copied" },
+  { name: "PostgreSQL", tech: "16 · CloudNativePG in k8s", role: "Entity persistence and platform metadata" },
+  { name: "Redis", tech: "Valkey 8", role: "Sessions and caching" },
+  { name: "NATS", tech: "JetStream", role: "Event infrastructure" },
+  { name: "Temporal", tech: "durable workflows", role: "Durable workflow execution" },
+  { name: "Object storage", tech: "RustFS (S3-compatible)", role: "Documents and release artifacts" },
+  { name: "Secrets manager", tech: "OpenBao", role: "Integration credentials, referenced never copied" },
 ];
 
 export function SettingsPage() {
@@ -55,9 +55,14 @@ export function SettingsPage() {
             {DEPENDENCIES.map((d, i) => (
               <Fragment key={d.name}>
                 {i > 0 && <Separator />}
-                <li className="py-2.5">
-                  <p className="text-sm font-medium">{d.name}</p>
-                  <p className="text-xs text-muted">{d.role}</p>
+                <li className="flex items-start justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{d.name}</p>
+                    <p className="text-xs text-muted">{d.role}</p>
+                  </div>
+                  <Chip size="sm" variant="secondary" className="shrink-0">
+                    {d.tech}
+                  </Chip>
                 </li>
               </Fragment>
             ))}

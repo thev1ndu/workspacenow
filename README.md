@@ -80,8 +80,17 @@ Testing: `cd wsn-ai-service && pip install -e ".[dev]" && ruff check . && ruff f
 Prerequisites: Docker, Go 1.26, Python 3.12, Node 22 with pnpm.
 
 ```sh
-# 1. Infrastructure: postgres, valkey, nats, temporal, minio, openbao
-make -C wsn-service deps
+# 1. Full local stack (infra + all four apps) from the repo root:
+make setup    # creates .env from .env.example — set MISTRAL_API_KEY in it
+make up       # console :8088, wsn-service :8080, temporal UI :8233, observer :9098, ai-service :8090
+make down     # stop (volumes kept; `make clean` wipes them)
+```
+
+Or run the services by hand:
+
+```sh
+# 1. Infrastructure only: postgres, valkey, nats, temporal, minio, openbao
+make deps
 
 # 2. wsn-service on :8080 (demo organization loaded on first start)
 cp wsn-service/.env.example wsn-service/.env
@@ -96,7 +105,7 @@ python -m wsn_ai_service.app
 cd console && pnpm install && pnpm dev
 ```
 
-To point the console at the backend, set `apiBaseUrl: "http://localhost:8080"` in `console/apps/web-ui/public/config.js`. With it empty, the console runs entirely in the browser on the demo platform, which needs nothing else.
+To point the console at the backend when running it by hand, set `apiBaseUrl: "http://localhost:8080"` in `console/apps/web-ui/public/config.js` (the compose stack mounts the ready-made `console-config.js` from the repo root instead). With it empty, the console runs entirely in the browser on the demo platform, which needs nothing else.
 
 Demo mode signs you in as one of the Northwind Retail personas (store manager, procurement officer, procurement manager, auditor, developer, administrator), each with different permissions.
 

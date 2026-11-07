@@ -1,7 +1,7 @@
 # WorkspaceNow platform. Run targets from this directory.
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-COMPOSE := docker compose -f ../deploy/compose/docker-compose.yml
+COMPOSE := docker compose -f ../deploy/compose/docker-compose.yml --env-file ../.env
 OAPI_CODEGEN := go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 MOQ := go run github.com/matryer/moq@latest
@@ -38,13 +38,16 @@ run: ## Run the API server with .env
 migrate: ## Apply migrations with .env and exit
 	set -a; [ -f .env ] && . ./.env; set +a; go run . -migrate -server=false
 
-deps: ## Start local infrastructure (postgres, valkey, nats, temporal, minio, openbao)
+../.env:
+	cp ../.env.example ../.env
+
+deps: ../.env ## Start local infrastructure (postgres, valkey, nats, temporal, minio, openbao)
 	$(COMPOSE) up -d --wait
 
 deps-down: ## Stop local infrastructure
 	$(COMPOSE) down
 
-up: ## Start the full local stack (infra + apps) from GHCR images; build them first with: $(COMPOSE) --profile app build
+up: ../.env ## Start the full local stack (infra + apps) from GHCR images; build them first with: $(COMPOSE) --profile app build
 	$(COMPOSE) --profile app up -d --wait
 
 up-down: ## Stop the full local stack

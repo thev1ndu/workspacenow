@@ -74,7 +74,8 @@ export function layoutRelationships(entities: Entity[]) {
     adj.get(r.from)!.push(r.to);
     adj.get(r.to)!.push(r.from);
   }
-  const components: string[][] = [];
+  const real: string[][] = [];
+  const singles: string[] = [];
   const assigned = new Set<string>();
   for (const e of entities) {
     if (assigned.has(e.name)) continue;
@@ -87,10 +88,12 @@ export function layoutRelationships(entities: Entity[]) {
       comp.push(n);
       stack.push(...adj.get(n)!);
     }
-    components.push(comp);
+    if (comp.length === 1) singles.push(comp[0]);
+    else real.push(comp);
   }
-  // Biggest component first, so the main cluster leads and loose singletons trail.
-  components.sort((a, b) => b.length - a.length || a[0].localeCompare(b[0]));
+  // Biggest component first, so the main cluster leads; isolated entities share one trailing row.
+  real.sort((a, b) => b.length - a.length || a[0].localeCompare(b[0]));
+  const components = singles.length ? [...real, singles] : real;
 
   const rowY = (r: number) => PADDING + NODE_HEIGHT / 2 + r * (NODE_HEIGHT + ROW_GAP);
 
@@ -214,19 +217,31 @@ export function layoutRelationships(entities: Entity[]) {
     return { nodes, width: compWidth, height };
   };
 
-  // Pack the components left to right, top-aligned, into one canvas.
+  if (components.length === 0) {
+    return { nodes: [], relations: relations as Relation[], width: PADDING * 2, height: PADDING * 2 };
+  }
+
+  // Pack components into horizontal bands no wider than TARGET_BAND_WIDTH; a band wraps below the
+  // previous one, so the canvas keeps a page-like aspect instead of one very wide strip.
+  const TARGET_BAND_WIDTH = 1150;
   const nodes: LaidOutNode[] = [];
-  let cursor = PADDING;
+  let bandX = PADDING;
+  let bandTop = 0;
+  let bandHeight = 0;
   let canvasWidth = PADDING;
-  let canvasHeight = 0;
   for (const comp of components) {
     const local = layoutComponent(comp);
-    for (const n of local.nodes) nodes.push({ ...n, x: n.x + cursor });
-    canvasWidth = cursor + local.width + PADDING;
-    cursor = canvasWidth + COMPONENT_GAP;
-    canvasHeight = Math.max(canvasHeight, local.height);
+    if (bandX > PADDING && bandX + local.width > TARGET_BAND_WIDTH) {
+      bandTop += bandHeight + COMPONENT_GAP;
+      bandX = PADDING;
+      bandHeight = 0;
+    }
+    for (const n of local.nodes) nodes.push({ ...n, x: n.x + bandX, y: n.y + bandTop });
+    bandX += local.width + COMPONENT_GAP;
+    bandHeight = Math.max(bandHeight, local.height);
+    canvasWidth = Math.max(canvasWidth, bandX - COMPONENT_GAP + PADDING);
   }
-  return { nodes, relations: relations as Relation[], width: canvasWidth, height: canvasHeight };
+  return { nodes, relations: relations as Relation[], width: canvasWidth, height: bandTop + bandHeight + PADDING };
 }
 
 const ANCHOR_INSET = 14;

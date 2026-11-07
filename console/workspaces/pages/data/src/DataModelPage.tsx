@@ -98,13 +98,13 @@ function RelationshipGraph({ entities }: { entities: Entity[] }) {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-foreground">
+    <div className="text-foreground">
       <svg
         ref={svgRef}
         viewBox={viewBox}
         width="100%"
-        style={{ display: "block", minHeight: 280 }}
-        className={`min-h-0 w-full flex-1 touch-none select-none ${drag ? "cursor-grabbing" : ""}`}
+        style={{ display: "block", maxHeight: "calc(100dvh - 16rem)" }}
+        className={`w-full touch-none select-none ${drag ? "cursor-grabbing" : ""}`}
         role="group"
         aria-label="Entity relationship graph"
         onPointerMove={onPointerMove}
@@ -220,11 +220,11 @@ export function DataModelPage() {
   return (
     <PageLayout title="Data model" description="How the organization's entities relate. Dashed boxes are owned by external systems.">
       <QueryState query={entities} skeleton={
-        <div className="grid gap-6 lg:h-[calc(100dvh-12rem)] lg:grid-cols-[3fr_2fr] lg:grid-rows-1">
-          <SectionCardSkeleton className="lg:h-full">
-            <Skeleton className="h-[28rem] rounded-xl lg:h-full" />
+        <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
+          <SectionCardSkeleton>
+            <Skeleton className="h-[28rem] rounded-xl" />
           </SectionCardSkeleton>
-          <div className="grid content-start gap-4 overflow-y-auto lg:min-h-0 lg:pr-1">
+          <div className="grid content-start gap-4 lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto lg:pr-1">
             <SectionCardSkeleton>
               <DetailSkeleton items={2} columns={1} />
             </SectionCardSkeleton>
@@ -235,17 +235,13 @@ export function DataModelPage() {
         </div>
       }>
         {(data) => (
-          // Fixed height on large screens: adding entities scrolls the list, it never grows the page.
-          <div className="grid gap-6 lg:h-[calc(100dvh-12rem)] lg:grid-cols-[3fr_2fr] lg:grid-rows-1">
-            <SectionCard
-              title="Relationship graph"
-              subtitle="Click an entity to open it"
-              className="flex min-h-0 flex-col lg:h-full"
-              contentClassName="flex min-h-0 flex-1 flex-col"
-            >
+          // The graph card sizes to the graph; the entity list scrolls inside the viewport height,
+          // so adding entities never grows the page.
+          <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
+            <SectionCard title="Relationship graph" subtitle="Click an entity to open it">
               <RelationshipGraph entities={data.items} />
             </SectionCard>
-            <div className="grid content-start gap-4 overflow-y-auto lg:min-h-0 lg:pr-1">
+            <div className="grid content-start gap-4 lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto lg:pr-1">
               {data.items.map((e) => (
                 <SectionCard
                   key={e.name}

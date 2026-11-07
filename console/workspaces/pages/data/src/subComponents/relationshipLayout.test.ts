@@ -66,26 +66,21 @@ describe("layoutRelationships", () => {
     }
   });
 
-  it("keeps each connected component in its own horizontal band (components never share rows)", () => {
-    // The demo's main cluster, the Event/Ticket pair, the Customer/SupportTicket pair and the two
-    // isolated entities are separate components; their x-ranges must not interleave with another
-    // component's rows in a way that mixes them — simplest strong check: component x-ranges are disjoint.
+  it("never lets different connected components overlap in 2D", () => {
+    // Bands wrap vertically, so components may share an x-range — but their nodes must never overlap.
     const componentOf = (name: string) => {
       if (["Supplier", "Product", "PurchaseOrder", "PurchaseRequest", "Stock"].includes(name)) return "main";
       if (name === "Event" || name === "Ticket") return "events";
       if (name === "Customer" || name === "SupportTicket") return "support";
-      return name; // singletons
+      return `single:${name}`;
     };
-    const range = (comp: string) => {
-      const xs = nodes.filter((n) => componentOf(n.name) === comp).map((n) => [n.x - n.width / 2, n.x + n.width / 2] as const);
-      return [Math.min(...xs.map((r) => r[0])), Math.max(...xs.map((r) => r[1]))] as const;
-    };
-    const comps = [...new Set(nodes.map((n) => componentOf(n.name)))];
-    for (let i = 0; i < comps.length; i += 1) {
-      for (let j = i + 1; j < comps.length; j += 1) {
-        const [aLo, aHi] = range(comps[i]);
-        const [bLo, bHi] = range(comps[j]);
-        expect(aHi < bLo || bHi < aLo, `${comps[i]} interleaves ${comps[j]}`).toBe(true);
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        if (componentOf(nodes[i].name) === componentOf(nodes[j].name)) continue;
+        const a = nodes[i];
+        const b = nodes[j];
+        const overlap = Math.abs(a.x - b.x) < (a.width + b.width) / 2 && Math.abs(a.y - b.y) < NODE_HEIGHT;
+        expect(overlap, `${a.name} overlaps ${b.name} across components`).toBe(false);
       }
     }
   });
@@ -97,5 +92,17 @@ describe("layoutRelationships", () => {
 
   it("deduplicates a pair declared on both sides", () => {
     expect(relations.filter((r) => [r.from, r.to].sort().join("|") === "Product|Supplier")).toHaveLength(1);
+  });
+
+  it("keeps the canvas page-shaped (bands wrap instead of one wide strip)", () => {
+    expect(width).toBeLessThanOrEqual(1150 + 64); // target band width + padding
+    expect(width / height).toBeGreaterThan(0.5); // wider than tall, but not a ribbon
+  });
+
+  it("handles an empty model", () => {
+    const empty = layoutRelationships([]);
+    expect(empty.nodes).toHaveLength(0);
+    expect(empty.width).toBeGreaterThan(0);
+    expect(empty.height).toBeGreaterThan(0);
   });
 });

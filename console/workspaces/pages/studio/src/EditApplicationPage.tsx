@@ -29,7 +29,7 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
     <div className="grid gap-6">
       {!canBuild && <Notice>Editing applications needs studio.manage. Switch to Sahan Gunawardena (Application Developer) or Amaya Perera.</Notice>}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-secondary px-5 py-4">
-        <div className="grid max-w-[60ch] gap-1">
+        <div className="grid min-w-0 flex-1 gap-1">
           <div className="flex items-center gap-2">
             <Chip size="sm" variant="secondary">
               {dirty ? "Unsaved changes" : "No changes"}
@@ -58,7 +58,7 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
       </div>
       <div className="rounded-2xl bg-surface-secondary px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="grid max-w-[60ch] gap-1">
+          <div className="grid min-w-0 flex-1 gap-1">
             <span className="text-sm font-medium">Edit with AI</span>
             <p className="text-sm text-muted">
               Describe the change and the Application Architect revises the plan — nothing is saved until you review and press Save changes.

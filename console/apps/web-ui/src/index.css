@@ -95,7 +95,17 @@
   pre {
     font-family: var(--font-mono);
   }
-  p {
+  p,
+  li,
+  dd,
+  figcaption {
     text-wrap: pretty;
+    overflow-wrap: break-word;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
   }
 }

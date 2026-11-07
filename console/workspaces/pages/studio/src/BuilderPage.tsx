@@ -95,7 +95,7 @@ export function BuilderPage() {
         {plan && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-secondary px-5 py-4">
-              <div className="grid max-w-[60ch] gap-1">
+              <div className="grid min-w-0 flex-1 gap-1">
                 <div className="flex items-center gap-2">
                   <Chip size="sm" variant="secondary">
                     {plan.prompt ? "AI draft" : "Manual design"}

@@ -31,7 +31,7 @@ export function BuilderPage() {
 
   return (
     <PageLayout
-      title="Application builder"
+      title="Builder"
       description="Start from a description and let the Application Architect draft the plan, or design it yourself. Either way you edit the plan, and nothing is created until you approve."
       backHref={routes.studio.applications}
       backLabel="Applications"

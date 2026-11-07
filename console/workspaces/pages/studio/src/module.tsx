@@ -16,7 +16,7 @@ export const studioWorkspace: WorkspaceModule = {
   navigation: [
     { label: "Overview", href: routes.studio.root, end: true },
     { label: "Applications", href: routes.studio.applications },
-    { label: "Application builder", href: routes.studio.builder },
+    { label: "Builder", href: routes.studio.builder },
   ],
   routes: [
     { index: true, element: <StudioOverviewPage /> },

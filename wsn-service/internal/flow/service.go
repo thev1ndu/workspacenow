@@ -220,6 +220,9 @@ func (s *service) syncSchedule(ctx context.Context, w *Workflow) error {
 }
 
 func (s *service) Start(ctx context.Context, caller *kernel.Caller, id string, input map[string]any) (*Execution, error) {
+	if s.temporal == nil {
+		return nil, kernel.InvalidState("Workflow engine is not connected")
+	}
 	w, err := s.Workflow(ctx, id)
 	if err != nil {
 		return nil, err
@@ -240,6 +243,9 @@ func (s *service) Start(ctx context.Context, caller *kernel.Caller, id string, i
 }
 
 func (s *service) StartForEvent(ctx context.Context, e kernel.Event) error {
+	if s.temporal == nil {
+		return kernel.InvalidState("Workflow engine is not connected")
+	}
 	active, err := s.workflows.Where(ctx, "doc->>'status' = 'active' AND doc->'trigger'->>'kind' = 'entity-event' AND doc->'trigger'->>'event' = ?", e.Type)
 	if err != nil {
 		return err

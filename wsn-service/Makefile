@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMPOSE := docker compose -f ../deploy/compose/docker-compose.yml
 OAPI_CODEGEN := go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
-MOQ := go run github.com/matryer/moq@v0.5.3
+MOQ := go run github.com/matryer/moq@latest
 
 .PHONY: help generate build test test-integration lint fmt run migrate deps deps-down seed-export
 
@@ -14,7 +14,8 @@ help: ## List targets
 generate: ## Regenerate API code from ../openapi.yaml, the 501 fallback and mocks
 	$(OAPI_CODEGEN) -config api/oapi-codegen.yaml ../openapi.yaml
 	sh scripts/gen-unimplemented.sh
-	PATH="$$PATH" go generate ./internal/...
+	go install github.com/matryer/moq@latest
+	PATH="$$PATH:$$(go env GOPATH)/bin" go generate ./internal/...
 
 build: ## Build the platform binary
 	go build -ldflags "-X github.com/thev1ndu/workspacenow/wsn-service/config.Version=$(VERSION)" -o bin/wsn-service .

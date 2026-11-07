@@ -33,6 +33,24 @@ func (f *fakeSvc) Audit(context.Context, oapi.ListAuditParams) ([]oapi.AuditReco
 func (f *fakeSvc) Traces(context.Context) ([]oapi.TraceSummary, error) { return f.traces, f.err }
 func (f *fakeSvc) Trace(context.Context, string) (*oapi.Trace, error)  { return f.trace, f.err }
 func (f *fakeSvc) Health(context.Context) ([]oapi.HealthSignal, error) { return f.health, f.err }
+func (f *fakeSvc) Overview(context.Context) (*oapi.OverviewStats, error) {
+	return &oapi.OverviewStats{Applications: 2, Agents: 3}, f.err
+}
+func (f *fakeSvc) Resources(context.Context) ([]oapi.ResourceSummary, error) {
+	return []oapi.ResourceSummary{{Id: "app-1", Type: oapi.ResourceTypeApplication, Name: "Inventory", Workspace: oapi.Studio, Owner: "Stores", Lifecycle: "active"}}, f.err
+}
+func (f *fakeSvc) Search(_ context.Context, _ kernel.ExecutionContext, q string, _ int) ([]oapi.SearchHit, error) {
+	return []oapi.SearchHit{{Type: "application", Id: "app-1", Title: "Inventory", Subtitle: "Application"}}, f.err
+}
+func (f *fakeSvc) Activity(context.Context, int) ([]oapi.ActivityPoint, error) {
+	return []oapi.ActivityPoint{{ApiCalls: 5, Denied: 1}}, f.err
+}
+func (f *fakeSvc) TokenUsage(context.Context, int) ([]oapi.TokenUsagePoint, error) {
+	return []oapi.TokenUsagePoint{{AdditionalProperties: map[string]float32{"mistral_medium_latest": 42}}}, f.err
+}
+func (f *fakeSvc) EntryPoints(context.Context) ([]oapi.EntryPointBreakdown, error) {
+	return []oapi.EntryPointBreakdown{{EntryPoint: "api", Allowed: 9, Denied: 1}}, f.err
+}
 
 type fakeAuditor struct{ denials []string }
 
@@ -159,5 +177,43 @@ func TestListEventsError(t *testing.T) {
 	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions()}), oapi.ListEventsParams{})
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("code %d", rec.Code)
+	}
+}
+
+func TestOverviewResourcesSearchAnalytics(t *testing.T) {
+	h := NewHandler(&fakeSvc{}, &fakeAuditor{})
+	ok := request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions()})
+
+	rec := httptest.NewRecorder()
+	h.GetOverview(rec, ok)
+	if rec.Code != 200 || decode(t, rec)["agents"] != float64(3) {
+		t.Fatalf("overview: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	h.ListResources(rec, ok)
+	if rec.Code != 200 || decode(t, rec)["items"].([]any)[0].(map[string]any)["workspace"] != "studio" {
+		t.Fatalf("resources: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	q := "inventory"
+	h.Search(rec, ok, oapi.SearchParams{Q: q})
+	if rec.Code != 200 || decode(t, rec)["items"].([]any)[0].(map[string]any)["title"] != "Inventory" {
+		t.Fatalf("search: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	h.GetActivity(rec, ok, oapi.GetActivityParams{})
+	if rec.Code != 200 || decode(t, rec)["items"].([]any)[0].(map[string]any)["apiCalls"] != float64(5) {
+		t.Fatalf("activity: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	h.GetTokenUsage(rec, ok, oapi.GetTokenUsageParams{})
+	if rec.Code != 200 {
+		t.Fatalf("tokens: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	h.GetEntryPointBreakdown(rec, ok)
+	body := decode(t, rec)
+	if rec.Code != 200 || body["items"].([]any)[0].(map[string]any)["entryPoint"] != "api" {
+		t.Fatalf("entry points: %d %s", rec.Code, rec.Body.String())
 	}
 }

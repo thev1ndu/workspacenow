@@ -45,7 +45,8 @@ func TestGrantRoundTrip(t *testing.T) {
 
 func TestGrantExpired(t *testing.T) {
 	signer := GenerateSigner()
-	token, err := signer.Sign(testGrant(time.Now().UTC().Add(-time.Minute)))
+	// testGrant adds 5 minutes to the time it is given, so go back 10 to land in the past.
+	token, err := signer.Sign(testGrant(time.Now().UTC().Add(-10 * time.Minute)))
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}

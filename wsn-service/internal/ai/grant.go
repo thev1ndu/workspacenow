@@ -28,7 +28,7 @@ type Grant struct {
 	Permissions   []string  `json:"permissions"`          // agent intersect caller for acts-as-caller
 	Tools         []string  `json:"tools"`                // MCP tool names this run may call
 	ApplicationID string    `json:"applicationId,omitempty"`
-	Budget        int       `json:"budget"`                // tool calls the run may still make
+	Budget        int       `json:"budget"`    // tool calls the run may still make
 	ExpiresAt     time.Time `json:"expiresAt"` // RFC 3339; checked against Verify's clock
 }
 

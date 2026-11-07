@@ -167,3 +167,47 @@ func (nilClient) ListLogs(context.Context, observer.LogQuery) (*observer.LogList
 func (nilClient) ListMetrics(context.Context, observer.MetricQuery) (*observer.MetricList, error) {
 	return nil, context.DeadlineExceeded
 }
+
+func TestScoreTiers(t *testing.T) {
+	terms := []string{"po-1001"}
+	if score(terms, "PO-1001", "") != 100 {
+		t.Fatal("exact match scores 100")
+	}
+	if score(terms, "PO-1001 draft", "") != 60 {
+		t.Fatal("prefix scores 60")
+	}
+	if score(terms, "draft PO-1001", "") != 40 {
+		t.Fatal("word start scores 40")
+	}
+	if score(terms, "xPO-1001", "") != 25 {
+		t.Fatal("mid-word substring in title scores 25")
+	}
+	if score(terms, "order", "ref PO-1001") != 10 {
+		t.Fatal("substring elsewhere scores 10")
+	}
+	if score(terms, "order", "nothing") != 0 {
+		t.Fatal("no match scores 0")
+	}
+	if score([]string{"a", "b"}, "a b", "") != 100 {
+		t.Fatal("all terms must match")
+	}
+}
+
+func TestSanitizeModel(t *testing.T) {
+	if got := sanitizeModel("mistral-medium-latest"); got != "mistral_medium_latest" {
+		t.Fatalf("sanitize: %q", got)
+	}
+	if got := sanitizeModel(""); got != "unknown" {
+		t.Fatalf("empty: %q", got)
+	}
+}
+
+func TestLastDays(t *testing.T) {
+	days := lastDays(3)
+	if len(days) != 3 || !days[2].After(days[0]) {
+		t.Fatalf("days: %v", days)
+	}
+	if days[2].Sub(days[0]) != 48*time.Hour {
+		t.Fatalf("span: %v", days[2].Sub(days[0]))
+	}
+}

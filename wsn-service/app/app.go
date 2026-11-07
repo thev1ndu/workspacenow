@@ -15,15 +15,20 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 
+	"go.temporal.io/sdk/client"
+
 	"github.com/thev1ndu/workspacenow/wsn-service/api"
 	"github.com/thev1ndu/workspacenow/wsn-service/config"
 	"github.com/thev1ndu/workspacenow/wsn-service/db/migrations"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/ai"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/bizops"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/connect"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/data"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/domain"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/flow"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/identity"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/events"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/objectstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/postgres"
@@ -42,6 +47,7 @@ type Options struct {
 	Migrate bool // apply schema migrations before anything else
 	Server  bool // serve the HTTP API and the event stream
 	Relay   bool // move committed events from the outbox to NATS
+	Worker  bool // run the Temporal workflow worker and the event trigger consumer
 }
 
 // Run starts the selected components and blocks until ctx is cancelled or one of them fails.
@@ -60,7 +66,7 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) error {
 		}
 		slog.Info("migrations applied")
 	}
-	if !opts.Server && !opts.Relay {
+	if !opts.Server && !opts.Relay && !opts.Worker {
 		return nil
 	}
 
@@ -70,19 +76,78 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) error {
 	}
 	defer nc.Close()
 
+	// Temporal is required for the worker role; the API only needs it to start workflows.
+	var tc client.Client
+	if c, err := client.Dial(client.Options{HostPort: cfg.Temporal.HostPort, Namespace: cfg.Temporal.Namespace}); err != nil {
+		if opts.Worker {
+			return fmt.Errorf("connect temporal: %w", err)
+		}
+		slog.Warn("temporal not connected; workflow starts will fail", "error", err)
+	} else {
+		tc = c
+		defer tc.Close()
+	}
+
+	core := newCore(db)
+
 	g, ctx := errgroup.WithContext(ctx)
 	if opts.Relay {
 		g.Go(func() error { return events.Relay(ctx, db, js) })
 	}
 	if opts.Server {
-		if err := startServer(ctx, g, cfg, db, nc, exporter, func(hub *stream.Hub) error { return hub.Run(ctx, nc) }); err != nil {
+		if err := startServer(ctx, g, cfg, db, nc, tc, core, exporter, func(hub *stream.Hub) error { return hub.Run(ctx, nc) }); err != nil {
 			return err
 		}
+	}
+	if opts.Worker {
+		if tc == nil {
+			return fmt.Errorf("the -worker role needs a reachable temporal at TEMPORAL_HOSTPORT")
+		}
+		aiClient := ai.NewClient(cfg.AI.ServiceURL, cfg.AI.ServiceToken)
+		signer := newSigner(cfg)
+		flowSvc := flow.NewService(db, core.engine, core.auditor, tc, cfg.Temporal.TaskQueue)
+		acts := flow.NewActivities(db, core.engine, core.auditor, core.publisher, core.runtime,
+			ai.NewRunner(aiClient, signer, docstore.NewCollection(db, "agents", func(a *ai.AgentDoc) string { return a.ID })))
+		g.Go(func() error { return flow.RunWorker(ctx, tc, cfg.Temporal.TaskQueue, acts) })
+		g.Go(func() error { return flow.ConsumeTriggers(ctx, js, cfg.NATS.Stream, flowSvc) })
+		slog.Info("worker role: temporal worker + trigger consumer", "taskQueue", cfg.Temporal.TaskQueue)
 	}
 	return g.Wait()
 }
 
-func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db *gorm.DB, nc *nats.Conn, exporter *observer.Exporter, runHub func(*stream.Hub) error) error {
+// core holds the components every role shares.
+type core struct {
+	auditor   kernel.Auditor
+	publisher kernel.Publisher
+	engine    kernel.Engine
+	runtime   data.Runtime
+}
+
+func newCore(db *gorm.DB) *core {
+	auditor := kernel.NewAuditor(db)
+	publisher := kernel.NewPublisher(db)
+	engine := kernel.NewEngine(db, auditor)
+	runtime := data.NewRuntime(db, publisher)
+	engine.AddSource(data.NewOperationSource(runtime))
+	engine.Register(domain.Operations(runtime, publisher)...)
+	return &core{auditor: auditor, publisher: publisher, engine: engine, runtime: runtime}
+}
+
+// newSigner loads RUN_GRANT_KEY or generates an ephemeral one (development only).
+func newSigner(cfg *config.Config) *ai.Signer {
+	if cfg.AI.RunGrantKey != "" {
+		s, err := ai.LoadSigner(cfg.AI.RunGrantKey)
+		if err != nil {
+			slog.Warn("RUN_GRANT_KEY is invalid; generating an ephemeral key", "error", err)
+			return ai.GenerateSigner()
+		}
+		return s
+	}
+	slog.Warn("RUN_GRANT_KEY is empty; agent run grants use an ephemeral key and do not survive a restart")
+	return ai.GenerateSigner()
+}
+
+func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db *gorm.DB, nc *nats.Conn, tc client.Client, core *core, exporter *observer.Exporter, runHub func(*stream.Hub) error) error {
 	if cfg.DemoMode {
 		if err := seedIfEmpty(ctx, db); err != nil {
 			return err
@@ -103,25 +168,30 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		return exporter.Close(flushCtx)
 	})
 
-	auditor := kernel.NewAuditor(db)
-	publisher := kernel.NewPublisher(db)
-	engine := kernel.NewEngine(db, auditor)
-	runtime := data.NewRuntime(db, publisher)
-	engine.AddSource(data.NewOperationSource(runtime))
-	engine.Register(domain.Operations(runtime, publisher)...)
+	auditor, publisher, engine, runtime := core.auditor, core.publisher, core.engine, core.runtime
 
 	identitySvc := identity.NewService(db, c, auditor)
-	connectSvc := connect.NewService(db, engine, auditor, c, runtime, secrets.NewOpenBao(cfg.OpenBao), unavailableDiscoverer{})
+	aiClient := ai.NewClient(cfg.AI.ServiceURL, cfg.AI.ServiceToken)
+	connectSvc := connect.NewService(db, engine, auditor, c, runtime, secrets.NewOpenBao(cfg.OpenBao), aiClient)
 	artifacts, err := objectstore.Open(ctx, cfg.S3)
 	if err != nil {
 		return err
 	}
-	studioSvc := studio.NewService(db, auditor, publisher, runtime, artifacts, unavailablePlanner{})
+	studioSvc := studio.NewService(db, auditor, publisher, runtime, artifacts, aiClient)
 	hub := stream.NewHub(db, runtime)
 	g.Go(func() error { return runHub(hub) })
 
 	obsClient := observer.NewClient(cfg.Observer.URL, cfg.Observer.Token)
-	obsSvc := obs.NewService(db, c, nc, obsClient, cfg.Observer.ServiceName, cfg.AI.ServiceURL+"/healthz")
+	obsSvc := obs.NewService(obs.Deps{
+		DB: db, Cache: c, NATS: nc, Observer: obsClient, ServiceName: cfg.Observer.ServiceName,
+		AIHealthURL: cfg.AI.ServiceURL + "/healthz", Connect: connectSvc, Runtime: runtime, Identity: identitySvc,
+	})
+
+	aiSvc := ai.NewService(ai.Deps{
+		DB: db, Engine: engine, Auditor: auditor, Publisher: publisher, Cache: c,
+		Signer: newSigner(cfg), Client: aiClient, Connect: connectSvc, GrantTTL: cfg.AI.RunGrantTTL,
+	})
+	flowSvc := flow.NewService(db, engine, auditor, tc, cfg.Temporal.TaskQueue)
 
 	mux := http.NewServeMux()
 	api.Routes(mux, api.Modules{
@@ -133,6 +203,8 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		Stream:   hub,
 		Studio:   studio.NewHandler(studioSvc),
 		Obs:      obs.NewHandler(obsSvc, auditor),
+		AI:       ai.NewHandler(aiSvc, auditor),
+		Flow:     flow.NewHandler(flowSvc),
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /readyz", readiness(db, c))
@@ -158,21 +230,17 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}, cfg.ShutdownTimeout)
+	// The service-to-service API wsn-ai-service calls (tool invocation under run grants,
+	// the managed MCP catalogue, streamed run steps) rides on its own port.
+	serve(ctx, g, &http.Server{
+		Addr:              cfg.InternalAddr,
+		Handler:           ai.InternalMux(cfg, aiSvc, identitySvc),
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}, cfg.ShutdownTimeout)
 	return nil
-}
-
-// unavailableDiscoverer stands in until wsn-ai-service is wired for MCP tool discovery.
-type unavailableDiscoverer struct{}
-
-func (unavailableDiscoverer) Discover(context.Context, string, string) ([]connect.ServerTool, error) {
-	return nil, errors.New("wsn-ai-service is not connected")
-}
-
-// unavailablePlanner stands in until wsn-ai-service is wired as the Application Architect.
-type unavailablePlanner struct{}
-
-func (unavailablePlanner) Plan(context.Context, studio.PlanRequest) (*studio.Plan, error) {
-	return nil, errors.New("wsn-ai-service is not connected")
 }
 
 // serve runs srv until ctx ends, then shuts it down gracefully.

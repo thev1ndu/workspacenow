@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/ai"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/bizops"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/connect"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/data"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/flow"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/identity"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
@@ -33,6 +35,8 @@ type Modules struct {
 	Stream   *stream.Hub
 	Studio   *studio.Handler
 	Obs      *obs.Handler
+	AI       *ai.Handler
+	Flow     *flow.Handler
 }
 
 // Aliases give each embedded module handler a distinct field name.
@@ -45,6 +49,8 @@ type (
 	streamAPI   = stream.Hub
 	studioAPI   = studio.Handler
 	obsAPI      = obs.Handler
+	aiAPI       = ai.Handler
+	flowAPI     = flow.Handler
 )
 
 // Server embeds module handlers above the 501 fallback, so a module's method always wins.
@@ -57,6 +63,8 @@ type Server struct {
 	*streamAPI
 	*studioAPI
 	*obsAPI
+	*aiAPI
+	*flowAPI
 	fallback
 }
 
@@ -66,7 +74,7 @@ var _ oapi.ServerInterface = (*Server)(nil)
 
 // Routes registers the API on mux under BasePath.
 func Routes(mux *http.ServeMux, m Modules) {
-	server := &Server{identityAPI: m.Identity, demoAPI: m.Demo, dataAPI: m.Data, bizopsAPI: m.BizOps, connectAPI: m.Connect, streamAPI: m.Stream, studioAPI: m.Studio, obsAPI: m.Obs}
+	server := &Server{identityAPI: m.Identity, demoAPI: m.Demo, dataAPI: m.Data, bizopsAPI: m.BizOps, connectAPI: m.Connect, streamAPI: m.Stream, studioAPI: m.Studio, obsAPI: m.Obs, aiAPI: m.AI, flowAPI: m.Flow}
 	oapi.HandlerWithOptions(server, oapi.StdHTTPServerOptions{
 		BaseURL:    BasePath,
 		BaseRouter: mux,

@@ -65,3 +65,46 @@ func (h *Handler) GetTrace(w http.ResponseWriter, r *http.Request, traceId strin
 func (h *Handler) ListHealth(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.Health)
 }
+
+func (h *Handler) GetOverview(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.svc.Overview(r.Context())
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, stats)
+}
+
+func (h *Handler) ListResources(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.Resources)
+}
+
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request, params oapi.SearchParams) {
+	limit := 30
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	q := params.Q
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.SearchHit, error) { return h.svc.Search(ctx, ec, q, limit) })
+}
+
+func (h *Handler) GetActivity(w http.ResponseWriter, r *http.Request, params oapi.GetActivityParams) {
+	days := 14
+	if params.Days != nil {
+		days = *params.Days
+	}
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.ActivityPoint, error) { return h.svc.Activity(ctx, days) })
+}
+
+func (h *Handler) GetTokenUsage(w http.ResponseWriter, r *http.Request, params oapi.GetTokenUsageParams) {
+	days := 14
+	if params.Days != nil {
+		days = *params.Days
+	}
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]oapi.TokenUsagePoint, error) { return h.svc.TokenUsage(ctx, days) })
+}
+
+func (h *Handler) GetEntryPointBreakdown(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.EntryPoints)
+}

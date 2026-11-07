@@ -12,6 +12,9 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/db/models"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/connect"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/data"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/identity"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
@@ -31,6 +34,12 @@ type Service interface {
 	Traces(ctx context.Context) ([]oapi.TraceSummary, error)
 	Trace(ctx context.Context, traceID string) (*oapi.Trace, error)
 	Health(ctx context.Context) ([]oapi.HealthSignal, error)
+	Overview(ctx context.Context) (*oapi.OverviewStats, error)
+	Resources(ctx context.Context) ([]oapi.ResourceSummary, error)
+	Search(ctx context.Context, ec kernel.ExecutionContext, q string, limit int) ([]oapi.SearchHit, error)
+	Activity(ctx context.Context, days int) ([]oapi.ActivityPoint, error)
+	TokenUsage(ctx context.Context, days int) ([]oapi.TokenUsagePoint, error)
+	EntryPoints(ctx context.Context) ([]oapi.EntryPointBreakdown, error)
 }
 
 type service struct {
@@ -41,11 +50,31 @@ type service struct {
 	serviceName string
 	aiHealthURL string
 	hc          *http.Client
+	connect     connect.Service
+	runtime     data.Runtime
+	identity    identity.Service
 }
 
-// NewService wires the obs service; nc may be nil when the event bus is not connected.
-func NewService(db *gorm.DB, c cache.Cache, nc *nats.Conn, oc observer.Client, serviceName, aiHealthURL string) Service {
-	return &service{db: db, cache: c, nats: nc, obs: oc, serviceName: serviceName, aiHealthURL: aiHealthURL, hc: &http.Client{Timeout: 3 * time.Second}}
+// Deps are the obs service's collaborators.
+type Deps struct {
+	DB          *gorm.DB
+	Cache       cache.Cache
+	NATS        *nats.Conn // nil when the event bus is not connected
+	Observer    observer.Client
+	ServiceName string
+	AIHealthURL string
+	Connect     connect.Service
+	Runtime     data.Runtime
+	Identity    identity.Service
+}
+
+// NewService wires the obs service.
+func NewService(d Deps) Service {
+	return &service{
+		db: d.DB, cache: d.Cache, nats: d.NATS, obs: d.Observer, serviceName: d.ServiceName,
+		aiHealthURL: d.AIHealthURL, hc: &http.Client{Timeout: 3 * time.Second},
+		connect: d.Connect, runtime: d.Runtime, identity: d.Identity,
+	}
 }
 
 func (s *service) Events(ctx context.Context, limit int) ([]oapi.PlatformEvent, error) {

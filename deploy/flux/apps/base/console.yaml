@@ -40,6 +40,14 @@ spec:
               subPath: config.js
             - name: tmp
               mountPath: /tmp
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-log
+              mountPath: /var/log/nginx
           readinessProbe:
             httpGet: { path: /, port: http }
           resources:
@@ -50,6 +58,14 @@ spec:
         - name: config
           configMap: { name: console }
         - name: tmp
+          emptyDir: {}
+        - name: nginx-conf
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: nginx-log
           emptyDir: {}
 ---
 apiVersion: v1

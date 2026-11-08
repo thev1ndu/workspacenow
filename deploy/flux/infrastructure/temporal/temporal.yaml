@@ -20,6 +20,9 @@ spec:
     prometheus: { enabled: false }
     grafana: { enabled: false }
     server:
+      # server image >= 1.30 uses built-in sprig templating; the dockerize mount is ignored by it
+      setConfigFilePath: true
+      configMapsToMount: "sprig"
       config:
         persistence:
           default:

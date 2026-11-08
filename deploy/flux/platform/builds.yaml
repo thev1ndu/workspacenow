@@ -19,7 +19,7 @@ spec:
           args:
             - --dockerfile=wsn-service/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=registry.workspace.twotakeone.com/wsn-service:dev
+            - --destination=169.58.222.26/wsn-service:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 500m, memory: 1Gi } }
@@ -40,7 +40,7 @@ spec:
           args:
             - --dockerfile=wsn-ai-service/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=registry.workspace.twotakeone.com/wsn-ai-service:dev
+            - --destination=169.58.222.26/wsn-ai-service:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 500m, memory: 1Gi } }
@@ -61,7 +61,7 @@ spec:
           args:
             - --dockerfile=wsn-observer/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=registry.workspace.twotakeone.com/wsn-observer:dev
+            - --destination=169.58.222.26/wsn-observer:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 500m, memory: 1Gi } }
@@ -82,7 +82,7 @@ spec:
           args:
             - --dockerfile=console/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=registry.workspace.twotakeone.com/console:dev
+            - --destination=169.58.222.26/console:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 1, memory: 2Gi } }

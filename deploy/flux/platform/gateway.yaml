@@ -94,5 +94,4 @@ metadata:
 spec:
   secretName: tls-registry
   dnsNames: ["registry.workspace.twotakeone.com"]
-  ipAddresses: ["169.58.222.26"]
   issuerRef: { name: letsencrypt-dns, kind: ClusterIssuer }

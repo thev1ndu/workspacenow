@@ -13,13 +13,15 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      hostAliases:
+        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
             - --dockerfile=wsn-service/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=169.58.222.26/wsn-service:dev
+            - --destination=registry.workspace.twotakeone.com/wsn-service:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 500m, memory: 1Gi } }
@@ -34,13 +36,15 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      hostAliases:
+        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
             - --dockerfile=wsn-ai-service/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=169.58.222.26/wsn-ai-service:dev
+            - --destination=registry.workspace.twotakeone.com/wsn-ai-service:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 500m, memory: 1Gi } }
@@ -55,13 +59,15 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      hostAliases:
+        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
             - --dockerfile=wsn-observer/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=169.58.222.26/wsn-observer:dev
+            - --destination=registry.workspace.twotakeone.com/wsn-observer:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 500m, memory: 1Gi } }
@@ -76,13 +82,15 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      hostAliases:
+        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
             - --dockerfile=console/Dockerfile
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
-            - --destination=169.58.222.26/console:dev
+            - --destination=registry.workspace.twotakeone.com/console:dev
             - --snapshot-mode=redo
             - --verbosity=info
           resources: { requests: { cpu: 1, memory: 2Gi } }

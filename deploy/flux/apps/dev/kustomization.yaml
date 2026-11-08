@@ -6,16 +6,16 @@ resources:
 # in-cluster registry; dev pins the fixed tag "dev" instead of following GHCR.
 images:
   - name: ghcr.io/thev1ndu/wsn-service
-    newName: 169.58.222.26/wsn-service
+    newName: registry.workspace.twotakeone.com/wsn-service
     newTag: dev
   - name: ghcr.io/thev1ndu/wsn-ai-service
-    newName: 169.58.222.26/wsn-ai-service
+    newName: registry.workspace.twotakeone.com/wsn-ai-service
     newTag: dev
   - name: ghcr.io/thev1ndu/wsn-observer
-    newName: 169.58.222.26/wsn-observer
+    newName: registry.workspace.twotakeone.com/wsn-observer
     newTag: dev
   - name: ghcr.io/thev1ndu/console
-    newName: 169.58.222.26/console
+    newName: registry.workspace.twotakeone.com/console
     newTag: dev
 replicas:
   - { name: wsn-service, count: 1 }

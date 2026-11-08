@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"io"
@@ -25,7 +26,15 @@ func InternalMux(cfg *config.Config, svc Service, resolver middleware.CallerReso
 	mux.HandleFunc("POST "+InternalBasePath+"/tools/invoke", serviceToken(cfg, invokeWithGrant(svc)))
 	mux.HandleFunc("GET "+InternalBasePath+"/mcp/tools", serviceToken(cfg, listTools(svc)))
 	mux.HandleFunc("POST "+InternalBasePath+"/runs/{runId}/steps", serviceToken(cfg, appendStep(svc)))
-	userAuth := middleware.Authenticate(cfg.OIDC, cfg.DemoMode, resolver, func(*http.Request) bool { return false }, nil)
+	var sessionAuth func(ctx context.Context, token string) (string, error)
+	if cfg.LocalAuthEnabled() {
+		if s, ok := resolver.(interface {
+			SessionUser(ctx context.Context, token string) (string, error)
+		}); ok {
+			sessionAuth = s.SessionUser
+		}
+	}
+	userAuth := middleware.Authenticate(cfg.OIDC, cfg.DemoMode, resolver, func(*http.Request) bool { return false }, nil, sessionAuth)
 	mux.Handle("POST "+InternalBasePath+"/mcp/invoke", forwardAuth(userAuth(http.HandlerFunc(invokeAsUser(svc)))))
 	return mux
 }

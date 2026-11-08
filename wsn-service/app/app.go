@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/data"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/domain"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/flow"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/identity"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
@@ -188,7 +190,12 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 
 	auditor, publisher, engine, runtime := core.auditor, core.publisher, core.engine, core.runtime
 
-	identitySvc := identity.NewService(db, c, auditor, identity.Bootstrap{AdminEmails: cfg.Bootstrap.AdminEmails, AdminRole: cfg.Bootstrap.AdminRole})
+	identitySvc := identity.NewService(db, c, auditor, identity.Bootstrap{
+		AdminEmails:        cfg.Bootstrap.AdminEmails,
+		AdminRole:          cfg.Bootstrap.AdminRole,
+		LocalAdminEmail:    cfg.Bootstrap.LocalAdminEmail,
+		LocalAdminPassword: cfg.Bootstrap.LocalAdminPassword,
+	})
 	aiClient := ai.NewClient(cfg.AI.ServiceURL, cfg.AI.ServiceToken)
 	connectSvc := connect.NewService(db, engine, auditor, c, runtime, secrets.NewOpenBao(cfg.OpenBao), aiClient)
 	g.Go(func() error { return connectSvc.RunWebhookDispatcher(ctx) }) // startServer runs only in the server role
@@ -262,12 +269,14 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		AI:       ai.NewHandler(aiSvc, auditor),
 		Flow:     flow.NewHandler(flowSvc),
 	})
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc("GET /healthz", health(db, c, nc, tc, artifacts, cfg))
 	mux.HandleFunc("GET /readyz", readiness(db, c))
+	// Local system login (used when no OIDC is configured); registered directly on the mux.
+	mux.HandleFunc("POST "+api.BasePath+"/auth/login", identity.NewHandler(identitySvc, cfg.DemoMode).Login)
 
 	public := func(r *http.Request) bool {
 		p := strings.TrimPrefix(r.URL.Path, api.BasePath)
-		return !strings.HasPrefix(r.URL.Path, api.BasePath+"/") || p == "/personas" || p == "/demo/reset" || p == "/status"
+		return !strings.HasPrefix(r.URL.Path, api.BasePath+"/") || p == "/personas" || p == "/demo/reset" || p == "/status" || p == "/auth/login"
 	}
 	handler := middleware.Chain(mux,
 		middleware.Recover(),
@@ -281,7 +290,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 				return "", "", nil, err
 			}
 			return "key:" + key.ID, "API key " + key.Name, kernel.NewPermissions(key.Permissions...), nil
-		}),
+		}, sessionLookup(cfg, identitySvc)),
 	)
 	serve(ctx, g, &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -351,6 +360,92 @@ func readiness(db *gorm.DB, c cache.Cache) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// sessionLookup resolves a local login session token when no OIDC is configured; nil otherwise.
+func sessionLookup(cfg *config.Config, resolver any) func(ctx context.Context, token string) (string, error) {
+	if !cfg.LocalAuthEnabled() {
+		return nil
+	}
+	if s, ok := resolver.(interface {
+		SessionUser(ctx context.Context, token string) (string, error)
+	}); ok {
+		return s.SessionUser
+	}
+	return nil
+}
+
+// health reports the platform's own liveness plus every backing service (database, cache,
+// NATS, Temporal, object storage, OpenBao, AI service, observer) as a JSON dependency report.
+func health(db *gorm.DB, c cache.Cache, nc *nats.Conn, tc client.Client, store objectstore.Store, cfg *config.Config) http.HandlerFunc {
+	hc := &http.Client{Timeout: 3 * time.Second}
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		checks := map[string]string{}
+		ok := true
+		mark := func(name string, err error) {
+			if err != nil {
+				ok = false
+				checks[name] = "down: " + err.Error()
+			} else {
+				checks[name] = "ok"
+			}
+		}
+		sqlDB, err := db.DB()
+		if err == nil {
+			err = sqlDB.PingContext(ctx)
+		}
+		mark("postgres", err)
+		mark("valkey", c.Ping(ctx))
+		if nc != nil {
+			mark("nats", nc.FlushTimeout(2*time.Second))
+		}
+		if tc != nil {
+			_, terr := tc.CheckHealth(ctx, &client.CheckHealthRequest{})
+			mark("temporal", terr)
+		}
+		mark("object-storage", store.Ping(ctx))
+		// OpenBao: any HTTP answer from /v1/sys/health means the server is reachable and unsealed.
+		if resp, herr := hc.Get(cfg.OpenBao.Addr + "/v1/sys/health"); herr != nil {
+			mark("openbao", herr)
+		} else {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode >= 500 && resp.StatusCode != http.StatusNotFound {
+				mark("openbao", fmt.Errorf("status %s", resp.Status))
+			} else {
+				mark("openbao", nil)
+			}
+		}
+		if resp, herr := hc.Get(cfg.AI.ServiceURL + "/healthz"); herr != nil {
+			mark("ai-service", herr)
+		} else {
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				mark("ai-service", fmt.Errorf("status %s", resp.Status))
+			} else {
+				mark("ai-service", nil)
+			}
+		}
+		if cfg.Observer.URL != "" {
+			if resp, herr := hc.Get(cfg.Observer.URL + "/healthz"); herr != nil {
+				mark("observer", herr)
+			} else {
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusOK {
+					mark("observer", fmt.Errorf("status %s", resp.Status))
+				} else {
+					mark("observer", nil)
+				}
+			}
+		}
+		status := http.StatusOK
+		if !ok {
+			status = http.StatusServiceUnavailable
+		}
+		httpx.JSON(w, status, map[string]any{"status": map[bool]string{true: "ok", false: "degraded"}[ok], "checks": checks})
 	}
 }
 

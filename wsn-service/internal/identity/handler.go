@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
@@ -15,6 +16,25 @@ type Handler struct {
 }
 
 func NewHandler(svc Service, demoMode bool) *Handler { return &Handler{svc: svc, demoMode: demoMode} }
+
+// Login serves POST /api/v1/auth/login: the local system user signs in with the credentials
+// from the wsn-secrets Secret when no OIDC is configured, and receives a session token.
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		httpx.Error(w, r, kernel.Invalid("email and password are required"))
+		return
+	}
+	token, err := h.svc.LocalLogin(r.Context(), in.Email, in.Password)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, map[string]string{"token": token})
+}
 
 func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 	c := httpx.Caller(r)

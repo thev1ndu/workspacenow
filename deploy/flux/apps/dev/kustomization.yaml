@@ -27,7 +27,7 @@ patches:
   - target: { kind: ConfigMap, name: wsn-service }
     patch: |
       - { op: replace, path: /data/WSN_ENV, value: development }
-      - { op: replace, path: /data/WSN_DEMO_MODE, value: "true" }
+      - { op: replace, path: /data/WSN_DEMO_MODE, value: "false" }
       - { op: replace, path: /data/LOG_LEVEL, value: DEBUG }
       - { op: replace, path: /data/CORS_ALLOWED_ORIGINS, value: https://workspace.twotakeone.com }
   - target: { kind: ConfigMap, name: console }
@@ -35,7 +35,7 @@ patches:
       - op: replace
         path: /data/config.js
         value: |
-          window.__RUNTIME_CONFIG__ = { organizationName: "Northwind Retail", installationName: "WorkspaceNow (dev)", version: "dev", mockLatencyMs: 0, apiBaseUrl: "https://api.workspace.twotakeone.com" };
+          window.__RUNTIME_CONFIG__ = { organizationName: "WorkspaceNow North", installationName: "WorkspaceNow North", version: "dev", mockLatencyMs: 0, apiBaseUrl: "https://api.workspace.twotakeone.com" };
   - target: { kind: HTTPRoute, name: console }
     patch: |
       - { op: replace, path: /spec/hostnames, value: [workspace.twotakeone.com] }

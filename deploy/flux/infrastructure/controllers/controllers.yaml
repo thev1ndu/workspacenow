@@ -173,3 +173,19 @@ spec:
   values:
     dataStorage: { enabled: true, requestedSize: 5Gi }
 ---
+# Gateway load-balancer IPs: workspacenow owns the node IP on this single-node cluster.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: workspacenow-pool
+  namespace: metallb-system
+spec:
+  addresses: ["169.58.222.25/32"]
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: workspacenow-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools: ["workspacenow-pool"]

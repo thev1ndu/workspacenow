@@ -20,7 +20,7 @@ data:
   OIDC_AUDIENCE: ""
   OIDC_JWKS_URL: ""
   # First administrators: users with these IdP emails get WSN_BOOTSTRAP_ADMIN_ROLE on first login.
-  WSN_BOOTSTRAP_ADMIN_ROLE: role-admin
+  WSN_BOOTSTRAP_ADMIN_ROLE: workspacenow-admin
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -48,7 +48,9 @@ spec:
         - name: migrate
           image: wsn-service
           args: ["-migrate", "-server=false"]
-          envFrom: [{ configMapRef: { name: wsn-service } }]
+          envFrom:
+            - configMapRef: { name: wsn-service }
+            - secretRef: { name: wsn-secrets }
           env:
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }
@@ -82,6 +84,10 @@ spec:
               valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }
             - name: AI_SERVICE_TOKEN
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: AI_SERVICE_TOKEN } }
+            - name: WSN_LOCAL_ADMIN_EMAIL
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_LOCAL_ADMIN_EMAIL } }
+            - name: WSN_LOCAL_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_LOCAL_ADMIN_PASSWORD } }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 10
@@ -112,7 +118,9 @@ spec:
         - name: relay
           image: wsn-service
           args: ["-server=false", "-relay"]
-          envFrom: [{ configMapRef: { name: wsn-service } }]
+          envFrom:
+            - configMapRef: { name: wsn-service }
+            - secretRef: { name: wsn-secrets }
           env:
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }

@@ -21,6 +21,8 @@ import (
 type Store interface {
 	Put(ctx context.Context, key, contentType string, body []byte) error
 	Get(ctx context.Context, key string) ([]byte, error)
+	// Ping reports whether the object store answers (any HTTP status counts as reachable).
+	Ping(ctx context.Context) error
 }
 
 // s3Store speaks the S3 REST API with path-style addressing and Signature Version 4.
@@ -55,6 +57,15 @@ func Open(ctx context.Context, cfg config.S3Config) (Store, error) {
 		return nil, fmt.Errorf("check bucket %s: %s", cfg.Bucket, resp.Status)
 	}
 	return s, nil
+}
+
+func (s *s3Store) Ping(ctx context.Context) error {
+	resp, err := s.do(ctx, http.MethodHead, "/"+s.cfg.Bucket, "", nil)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	return nil
 }
 
 func (s *s3Store) Put(ctx context.Context, key, contentType string, body []byte) error {

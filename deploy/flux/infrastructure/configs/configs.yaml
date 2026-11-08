@@ -60,6 +60,8 @@ spec:
     - { secretKey: RUN_GRANT_KEY, remoteRef: { key: workspacenow/run-grant, property: privateKey } }
     - { secretKey: S3_ACCESS_KEY, remoteRef: { key: workspacenow/object-storage, property: accessKey } }
     - { secretKey: S3_SECRET_KEY, remoteRef: { key: workspacenow/object-storage, property: secretKey } }
+    - { secretKey: WSN_LOCAL_ADMIN_EMAIL, remoteRef: { key: workspacenow/local-admin, property: email } }
+    - { secretKey: WSN_LOCAL_ADMIN_PASSWORD, remoteRef: { key: workspacenow/local-admin, property: password } }
 ---
 # Object-storage credentials for the RustFS deployment, pulled from OpenBao.
 apiVersion: external-secrets.io/v1
@@ -176,4 +178,5 @@ spec:
               bao kv put -mount=secret workspacenow/run-grant privateKey=change-me >/dev/null
               bao kv put -mount=secret workspacenow/object-storage accessKey=workspacenow secretKey=workspacenow-secret >/dev/null
               bao kv put -mount=secret workspacenow/temporal-db password=temporal-dev >/dev/null
+              bao kv put -mount=secret workspacenow/local-admin email=admin@workspacenow.local password=change-me >/dev/null
               echo "openbao configured"

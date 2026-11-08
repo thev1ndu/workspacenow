@@ -51,6 +51,9 @@ func NewPermissions(names ...string) Permissions {
 }
 
 func (p Permissions) Has(name string) bool {
+	if _, ok := p["*"]; ok { // wildcard: the bootstrap admin role holds every permission
+		return true
+	}
 	_, ok := p[name]
 	return ok
 }

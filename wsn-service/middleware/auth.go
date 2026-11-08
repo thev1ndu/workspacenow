@@ -36,7 +36,8 @@ type APIKeyAuth func(ctx context.Context, rawKey string) (userID, name string, p
 
 // Authenticate puts the bearer token's caller in the context; demo mode also accepts demo.<userId>.
 // keyAuth, when set, also accepts the X-API-Key header (developer portal keys).
-func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver, public func(r *http.Request) bool, keyAuth APIKeyAuth) Middleware {
+// sessionAuth, when set (local system login, no OIDC), resolves a local session token to a user ID.
+func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver, public func(r *http.Request) bool, keyAuth APIKeyAuth, sessionAuth func(ctx context.Context, token string) (string, error)) Middleware {
 	var verifier *jwtVerifier
 	if cfg.JWKSURL != "" {
 		verifier = newJWTVerifier(cfg)
@@ -77,7 +78,15 @@ func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver,
 					caller, err = resolver.CallerFromClaims(r.Context(), claims)
 				}
 			default:
-				err = kernel.Unauthenticated("Sign in to continue")
+				if sessionAuth != nil {
+					var userID string
+					userID, err = sessionAuth(r.Context(), token)
+					if err == nil {
+						caller, err = resolver.Caller(r.Context(), userID)
+					}
+				} else {
+					err = kernel.Unauthenticated("Sign in to continue")
+				}
 			}
 			if err != nil {
 				if _, isAPI := kernel.AsError(err); !isAPI {

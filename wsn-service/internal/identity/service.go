@@ -5,6 +5,9 @@ package identity
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,11 +34,17 @@ type Claims struct {
 	Groups  []string
 }
 
-// Bootstrap names the first administrators (by IdP email), so installation never needs an IdP group.
+// Bootstrap names the first administrators (by IdP email or the local system user), so
+// installation never needs an IdP group.
 type Bootstrap struct {
-	AdminEmails []string
-	AdminRole   string
+	AdminEmails        []string
+	AdminRole          string
+	LocalAdminEmail    string
+	LocalAdminPassword string
 }
+
+// localEnabled reports whether the local system user login is configured.
+func (b Bootstrap) localEnabled() bool { return b.LocalAdminEmail != "" && b.LocalAdminPassword != "" }
 
 // Service resolves callers and manages organization and access data.
 type Service interface {
@@ -43,6 +52,11 @@ type Service interface {
 	Caller(ctx context.Context, userID string) (*kernel.Caller, error)
 	// CallerFromClaims records the user an access token describes and resolves them.
 	CallerFromClaims(ctx context.Context, claims Claims) (*kernel.Caller, error)
+	// LocalLogin checks the system-user credentials (no OIDC configured), provisions the admin
+	// user on first login and returns a session token.
+	LocalLogin(ctx context.Context, email, password string) (token string, err error)
+	// SessionUser resolves a session token issued by LocalLogin to its user ID.
+	SessionUser(ctx context.Context, token string) (userID string, err error)
 	// PermissionsForGroups returns the permissions a set of group claims grants, without caching.
 	PermissionsForGroups(ctx context.Context, groups []string) (kernel.Permissions, error)
 
@@ -156,9 +170,70 @@ func (s *service) CallerFromClaims(ctx context.Context, claims Claims) (*kernel.
 	return s.resolve(ctx, user)
 }
 
-// grants reports whether an IdP email is a bootstrap administrator.
+// grants reports whether an email is a bootstrap administrator (IdP list or local system user).
 func (b Bootstrap) grants(email string) bool {
-	return slices.Contains(b.AdminEmails, strings.ToLower(strings.TrimSpace(email)))
+	e := strings.ToLower(strings.TrimSpace(email))
+	return slices.Contains(b.AdminEmails, e) || (b.localEnabled() && e == strings.ToLower(strings.TrimSpace(b.LocalAdminEmail)))
+}
+
+const sessionKeyPrefix = "wsn:session:"
+
+// LocalLogin authenticates the local system user when no OIDC is configured, provisions the
+// account with the admin role on first login, and returns a bearer session token.
+func (s *service) LocalLogin(ctx context.Context, email, password string) (string, error) {
+	if !s.bootstrap.localEnabled() {
+		return "", kernel.NotFound("local login is not enabled")
+	}
+	emailOK := subtle.ConstantTimeCompare([]byte(strings.ToLower(strings.TrimSpace(email))), []byte(strings.ToLower(strings.TrimSpace(s.bootstrap.LocalAdminEmail)))) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.bootstrap.LocalAdminPassword)) == 1
+	if !emailOK || !passOK {
+		return "", kernel.Unauthenticated("Invalid credentials")
+	}
+	if err := s.ensureAdminRole(ctx); err != nil {
+		return "", err
+	}
+	name := strings.Split(strings.TrimSpace(email), "@")[0]
+	if _, err := s.CallerFromClaims(ctx, Claims{Subject: "local:" + strings.ToLower(strings.TrimSpace(email)), Name: name, Email: strings.TrimSpace(email)}); err != nil {
+		return "", err
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	token := hex.EncodeToString(raw)
+	userID := "local:" + strings.ToLower(strings.TrimSpace(email))
+	if err := s.cache.SetJSON(ctx, sessionKeyPrefix+token, map[string]string{"userId": userID}, 24*time.Hour); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+// SessionUser resolves a local session token to its user ID.
+func (s *service) SessionUser(ctx context.Context, token string) (string, error) {
+	var v map[string]string
+	found, err := s.cache.GetJSON(ctx, sessionKeyPrefix+token, &v)
+	if err != nil {
+		return "", err
+	}
+	if !found || v["userId"] == "" {
+		return "", kernel.Unauthenticated("Sign in to continue")
+	}
+	return v["userId"], nil
+}
+
+// ensureAdminRole creates the bootstrap admin role (all permissions) when it does not exist yet.
+func (s *service) ensureAdminRole(ctx context.Context) error {
+	roleID := s.bootstrap.AdminRole
+	if roleID == "" {
+		roleID = "workspacenow-admin"
+	}
+	if _, err := s.roles.Get(ctx, roleID); err == nil {
+		return nil
+	} else if !errors.Is(err, docstore.ErrNotFound) {
+		return err
+	}
+	role := &oapi.Role{Id: roleID, Name: "Administrator", Description: "Full platform access (system bootstrap role)", Permissions: []oapi.Permission{"*"}}
+	return s.roles.Put(ctx, role)
 }
 
 // nativeGroupNames lists the WorkspaceNow groups the user belongs to.

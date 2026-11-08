@@ -23,3 +23,13 @@ func TestContextFromFallsBackToRequestTrace(t *testing.T) {
 		t.Fatal("no trace id in a bare context")
 	}
 }
+
+func TestPermissionsWildcard(t *testing.T) {
+	p := NewPermissions("*")
+	if !p.Has("anything.at.all") {
+		t.Fatal("wildcard permission should grant every permission")
+	}
+	if NewPermissions("a").Has("b") {
+		t.Fatal("non-wildcard set must not grant unrelated permission")
+	}
+}

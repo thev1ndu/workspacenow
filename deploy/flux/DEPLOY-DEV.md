@@ -84,13 +84,20 @@ OPENBAO_ROOT_TOKEN=root MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... OBSERVER_TOKEN=
 | `local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` |
 
 Non-secret settings are the ConfigMaps `wsn-service`, `wsn-ai-service`, `wsn-observer`, `console`
-(patched per environment in `apps/dev/kustomization.yaml`): hostnames, CORS, `WSN_DEMO_MODE=false`,
+(patched per environment in `apps/dev/kustomization.yaml`): hostnames, CORS, `WSN_DEMO_MODE=true` (persona picker on /login),
 console branding (`WorkspaceNow North`).
 
-## 4. Sign in (no OIDC configured yet)
+## 4. Sign in
 
-Demo mode is **off**. With no `OIDC_*` configured, the system user from `wsn-secrets`
-(default `admin@workspacenow.local` / `change-me` until you seed real values) signs in:
+Dev runs with `WSN_DEMO_MODE=true`: **https://workspace.twotakeone.com/login shows a persona
+picker instead of a credential form** — each person's identity-provider groups map to different
+roles via the seeded group mappings, so each one sees and can do different things
+(`GET /api/v1/personas` is public; the token is `demo.<userId>`).
+
+When you later configure OIDC, set `authMode: "oidc"` + `oidc` in `public/config.js` (see
+`apps/dev/kustomization.yaml`) and `OIDC_ISSUER` / `OIDC_AUDIENCE` / `OIDC_JWKS_URL` in ConfigMap
+`wsn-service` (+ `WSN_BOOTSTRAP_ADMIN_EMAILS` for IdP-based admins). With `WSN_DEMO_MODE=false`
+and no OIDC, the local system user from `wsn-secrets` can sign in instead:
 
 ```sh
 TOKEN=$(curl -s -X POST https://api.workspace.twotakeone.com/api/v1/auth/login \

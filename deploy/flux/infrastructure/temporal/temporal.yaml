@@ -1,0 +1,72 @@
+# Temporal: durable workflows on the wsn-db CloudNativePG cluster (needs infra-configs).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: temporal
+  namespace: temporal
+spec:
+  interval: 5m
+  timeout: 15m
+  chart:
+    spec:
+      chart: temporal
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: temporal, namespace: flux-system }
+  values:
+    cassandra: { enabled: false }
+    mysql: { enabled: false }
+    postgresql: { enabled: true }
+    elasticsearch: { enabled: false }
+    prometheus: { enabled: false }
+    grafana: { enabled: false }
+    server:
+      config:
+        persistence:
+          default:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal
+              user: temporal
+              existingSecret: temporal-db
+          visibility:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal_visibility
+              user: temporal
+              existingSecret: temporal-db
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: temporal-db
+  namespace: workspacenow
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target:
+    name: temporal-db-login
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: temporal
+        password: "{{ .password }}"
+  data:
+    - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: temporal-db
+  namespace: temporal
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target: { name: temporal-db }
+  data:
+    - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }

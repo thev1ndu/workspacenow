@@ -163,7 +163,7 @@ spec:
     server:
       config:
         persistence:
-          default:
+          defaultStore:
             driver: sql
             sql:
               driver: postgres12
@@ -172,7 +172,7 @@ spec:
               database: temporal
               user: temporal
               existingSecret: temporal-db
-          visibility:
+          visibilityStore:
             driver: sql
             sql:
               driver: postgres12

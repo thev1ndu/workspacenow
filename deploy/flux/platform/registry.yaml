@@ -1,6 +1,5 @@
-# In-cluster OCI registry (registry:2) exposed over HTTPS through the kgateway
-# gateway at registry.workspace.twotakeone.com (dev: registry.workspace.twotakeone.com).
-# Kaniko/kpack push here; kubelet pulls from the same public hostname.
+# In-cluster OCI registry (registry:2) behind the kgateway gateway; TLS terminates at the
+# gateway (cert tls-registry), the registry itself serves plain HTTP on 5000.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,15 +18,11 @@ spec:
           image: registry:2
           ports: [{ containerPort: 5000 }]
           env:
-            - { name: REGISTRY_HTTP_TLS_CERTIFICATE, value: /tls/tls.crt }
-            - { name: REGISTRY_HTTP_TLS_KEY, value: /tls/tls.key }
             - { name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true" }
           volumeMounts:
-            - { name: tls, mountPath: /tls, readOnly: true }
             - { name: data, mountPath: /var/lib/registry }
           resources: { requests: { cpu: 100m, memory: 256Mi } }
       volumes:
-        - { name: tls, secret: { secretName: tls-registry } }
         - { name: data, emptyDir: {} }
 ---
 apiVersion: v1

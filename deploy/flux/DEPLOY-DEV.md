@@ -1,97 +1,110 @@
 # Deploy WorkspaceNow to the dev cluster (kgateway + Flux, in-cluster image builds)
 
-Target: the dev cluster in `kube.conf` (single node, containerd, metallb, cert-manager
-with a ready `letsencrypt-dns` ClusterIssuer, kgateway controller + `kgateway` GatewayClass,
-external-secrets, OpenBao). Namespace: `workspacenow`. Domains:
+Cluster: the one in `kube.conf` (single node `2take1`, containerd, metallb, cert-manager with
+`letsencrypt-dns` DNS-01 ClusterIssuer, kgateway controller + `kgateway` GatewayClass,
+external-secrets, OpenBao). Everything lands in namespace `workspacenow`.
 
-| Service | Hostname |
-|---|---|
-| Console | `workspace.twotakeone.com` |
-| Platform API | `api.workspace.twotakeone.com` |
-| AI service / MCP | `ai.workspace.twotakeone.com` |
-| Observer | `obs.workspace.twotakeone.com` |
-| In-cluster registry | `registry.workspace.twotakeone.com` |
+| Service | Hostname | Backend |
+|---|---|---|
+| Console | `workspace.twotakeone.com` | console:8080 |
+| Platform API | `api.workspace.twotakeone.com` | wsn-service:8080 |
+| AI service / MCP | `ai.workspace.twotakeone.com` | wsn-ai-service:8090 |
+| Observer | `obs.workspace.twotakeone.com` | wsn-observer:9098 |
+| OCI registry | `registry.workspace.twotakeone.com` | registry:5000 (TLS via kgateway) |
 
-## 0. DNS (do this first)
+Gateway external IP: **169.58.222.26** (metallb pool `workspacenow-pool`).
 
-Point A records for all five hostnames above at the gateway's external address. After the
-Gateway is created: `kubectl -n workspacenow get gateway workspacenow` → `ADDRESS` column
-(metallb). With DNS-01 (letsencrypt-dns) the certificates are issued automatically once DNS
-resolves.
+## 0. DNS
 
-## 1. Install Flux and bootstrap
+In Cloudflare (twotakeone.com), set the five records above to **DNS-only (gray cloud)** A records
+pointing at `169.58.222.26`. (Orange-cloud proxying also works if the origin is set to
+169.58.222.26, but gray-cloud is simpler.) The TLS certs are issued by `letsencrypt-dns`
+automatically once DNS resolves.
+
+## 1. One-time cluster prep (already done on this cluster)
 
 ```sh
 export KUBECONFIG=kube.conf
-flux install --namespace flux-system          # flux CLI v2.10+
-flux bootstrap github \
-  --owner=thev1ndu --repository=workspacenow --branch=main \
+# metallb pool for our gateway (the openchoreo pool owns the node IP)
+kubectl -n metallb-system apply -f - <<'EOF'
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata: { name: workspacenow-pool, namespace: metallb-system }
+spec: { addresses: ["169.58.222.26/32"] }
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata: { name: workspacenow-l2, namespace: metallb-system }
+spec: { ipAddressPools: ["workspacenow-pool"] }
+EOF
+kubectl -n workspacenow annotate svc workspacenow metallb.universe.tf/address-pool=workspacenow-pool
+# flux
+flux install
+flux bootstrap github --owner=thev1ndu --repository=workspacenow --branch=main \
   --path=deploy/flux/clusters/dev --personal --token-auth <<< "$GITHUB_TOKEN"
-flux get kustomizations -n flux-system         # infra-controllers, infra-configs, platform, workspacenow
 ```
 
-`clusters/dev` reconciles four layers in order: `infrastructure/controllers` (operators:
-CloudNativePG, external-secrets, OpenBao, NATS, Valkey, Temporal), `infrastructure/configs`
-(the `wsn-db` Postgres cluster, OpenBao `ClusterSecretStore`, `ExternalSecret`s, RustFS),
-`platform` (namespace, kgateway Gateway + TLS certificates, in-cluster registry, image-build
-Jobs), then `apps/dev` (the four apps in namespace `workspacenow`).
+`clusters/dev` reconciles: `infra-controllers` (cnpg, external-secrets, openbao, nats, valkey
+operators) → `infra-configs` (wsn-db Postgres cluster, OpenBao ClusterSecretStore + ExternalSecrets,
+RustFS, openbao-config job) → `infra-temporal` (Temporal on wsn-db) → `platform` (namespace,
+kgateway Gateway + TLS certs, in-cluster registry, kaniko build Jobs) → `workspacenow` (the apps).
+Intervals are 5m on dev for fast feedback. If a layer ever wedges on a stale revision:
+`flux suspend kustomization flux-system -n flux-system`, delete the stuck child Kustomization,
+`kubectl -n flux-system rollout restart deploy kustomize-controller`, resume the parent.
 
-## 2. Image builds in the cluster
+## 2. Build all images in the cluster (no GitHub Actions needed)
 
-The deployed images are built **in-cluster** (no GitHub Actions needed): kaniko Jobs in
-`deploy/flux/platform/builds.yaml` compile each component from the public repo with its
-existing `Dockerfile` and push to `registry.workspace.twotakeone.com/<component>:dev`.
-For a buildpacks path instead of Dockerfiles, install kpack (buildpacks) from its current
-release location and create a `Build` per component with
-`spec.source.git.url = https://github.com/thev1ndu/workspacenow`, `subPath` = component dir,
-image `registry.workspace.twotakeone.com/<component>:dev` (the paketo `full-cnb` builder covers
-Go and Python; for the console use its Dockerfile via kaniko, or a Procfile-based node build).
+`deploy/flux/platform/builds.yaml` runs one kaniko Job per component, compiling each
+component's existing `Dockerfile` from the public repo and pushing to
+`registry.workspace.twotakeone.com/<component>:dev`. The build pods pin the registry hostname to
+the gateway IP via `hostAliases`, so pushes do not depend on public DNS.
 
-Rebuild any image: delete its Job (`kubectl -n workspacenow delete job build-wsn-service`) —
-Flux re-creates it and kaniko rebuilds and re-pushes the `dev` tag; then restart the app
-Deployment to pull the new image.
+```sh
+kubectl -n workspacenow get jobs | grep build          # watch
+kubectl -n workspacenow logs -l job-name=build-wsn-service -f
+# rebuild one: kubectl -n workspacenow delete job build-wsn-service && kubectl apply -k deploy/flux/platform
+```
+
+Buildpacks alternative: install kpack and create a `Build` per component
+(`spec.source.git.url=https://github.com/thev1ndu/workspacenow`, `subPath` = component dir,
+image `registry.workspace.twotakeone.com/<component>:dev`); paketo `full-cnb` covers Go/Python,
+use the console Dockerfile via kaniko.
 
 ## 3. Put the values in (the Secret)
 
-Apps read secrets through ExternalSecrets synced from OpenBao (`ClusterSecretStore openbao`,
-KV v2 at `secret/`). Seed them once OpenBao is up (infra-configs):
+Apps read secrets via ExternalSecrets synced from OpenBao KV v2 at `secret/` (the
+`ClusterSecretStore openbao` + `ExternalSecret`s in `infrastructure/configs`). The
+`openbao-config` job enables Kubernetes auth and creates the roles `external-secrets` and
+`wsn-service` and seeds the paths. Fill real values:
 
 ```sh
-./deploy/flux/platform/openbao-seed.sh   # writes the paths below with values from env vars
+OPENBAO_ROOT_TOKEN=root ./deploy/flux/platform/openbao-seed.sh   # with MISTRAL_API_KEY etc. set
 ```
 
-| OpenBao path (KV v2 `secret/`) | Keys | Where used |
-|---|---|---|
-| `workspacenow/mistral` | `apiKey` | wsn-ai-service LLM calls (empty = demo mode still boots) |
-| `workspacenow/ai-service` | `token` | shared bearer wsn-service ↔ ai-service |
-| `workspacenow/observer` | `token` | optional observer bearer |
-| `workspacenow/run-grant` | `privateKey` | base64 Ed25519 seed for agent run grants |
-| `workspacenow/object-storage` | `accessKey`, `secretKey` | RustFS/S3 credentials |
-| `workspacenow/temporal-db` | `password` | Temporal Postgres password |
+| OpenBao path | Keys |
+|---|---|
+| `workspacenow/mistral` | `apiKey` |
+| `workspacenow/ai-service` | `token` |
+| `workspacenow/observer` | `token` |
+| `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed) |
+| `workspacenow/object-storage` | `accessKey`, `secretKey` |
+| `workspacenow/temporal-db` | `password` |
 
-The resulting Kubernetes Secret is `wsn-secrets` (plus `wsn-db-app`) in namespace
-`workspacenow`, created by the `ExternalSecret`s in `infrastructure/configs/configs.yaml`.
-Quick dev alternative: `kubectl -n workspacenow create secret generic wsn-secrets --from-literal=AI_SERVICE_TOKEN=... ...`
-(and delete the ExternalSecret if you manage it by hand). Non-secret settings live in the
-ConfigMaps `wsn-service`, `wsn-ai-service`, `wsn-observer`, `console` (patched per environment
-in `apps/<env>/kustomization.yaml`).
-
-OpenBao Kubernetes auth roles `external-secrets` and `wsn-service` are created by
-`infrastructure/configs` — see `deploy/flux/README.md` for the role policies.
+They land in Kubernetes Secrets `wsn-secrets`, `wsn-rustfs-env`, `temporal-db(-login)` in
+`workspacenow`/`temporal`. Non-secret settings are ConfigMaps `wsn-service`, `wsn-ai-service`,
+`wsn-observer`, `console` (patched per environment in `apps/<env>/kustomization.yaml`).
+Demo mode is on in dev (`WSN_DEMO_MODE=true`): Northwind Retail personas, no IdP needed.
 
 ## 4. Verify
 
 ```sh
-flux get kustomizations -n flux-system --watch
+flux get kustomizations -n flux-system
 kubectl -n workspacenow get pods,svc,gateway,httproute,certificate
-kubectl -n workspacenow get gateway workspacenow   # ADDRESS -> DNS A records
-# smoke:
+kubectl -n workspacenow get gateway workspacenow        # ADDRESS 169.58.222.26
 curl -s https://api.workspace.twotakeone.com/api/v1/session | head -c 200
 curl -s https://obs.workspace.twotakeone.com/healthz
 curl -sI https://workspace.twotakeone.com | head -3
 ```
 
-Demo mode is on (`WSN_DEMO_MODE=true` in dev): the console signs in with the Northwind Retail
-personas, no IdP needed. For real OIDC set `OIDC_ISSUER`/`OIDC_AUDIENCE`/`OIDC_JWKS_URL` in the
-`wsn-service` ConfigMap, `authMode: "oidc"` in the console ConfigMap, `WSN_DEMO_MODE=false`,
-and `WSN_BOOTSTRAP_ADMIN_EMAILS` for the first admin.
+Rebuild + roll: delete a build Job (flux re-creates it), then
+`kubectl -n workspacenow rollout restart deploy wsn-service wsn-service-worker wsn-ai-service wsn-observer console`.

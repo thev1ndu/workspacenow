@@ -24,6 +24,13 @@ OpenBao secret/workspacenow/<path>  --ExternalSecret-->  Secret in namespace wor
 | `workspacenow/temporal-db` | `password` | `temporal-db`, `temporal-db-login` | Temporal SQL persistence on wsn-db |
 | `workspacenow/local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` | System login at `/login` (works with or without OIDC; first login gets role `workspacenow-admin`) |
 
+### Setting the Mistral API key from the console
+
+The **system user only** (actor `local:…`, never OIDC/IdP users) sees a **Mistral API key** card on
+the console's Settings page (https://workspace.twotakeone.com → Control → Settings). Saving writes
+`apiKey` to `secret/workspacenow/mistral` via `PUT /api/v1/secrets/write` (audited as `secret.write`).
+Equivalent CLI: `WSN_LOCAL_ADMIN…`-style seeding via `openbao-seed.sh` with `MISTRAL_API_KEY=...`.
+
 ### System user (local admin)
 
 The system user is always **`admin@workspacenow.local`**. Its password is **generated randomly**

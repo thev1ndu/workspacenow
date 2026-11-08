@@ -1351,6 +1351,21 @@ paths:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SecretPathList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /secrets/write:
+    put:
+      tags: [Connect]
+      operationId: writeSecret
+      summary: Set one key of an OpenBao secret (system admin only)
+      description: "Only the local system user (actor id `local:…`) may call this; it merges the key into the KV v2 secret and is audited as `secret.write`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SecretWrite" }
+      responses:
+        "204": { description: Written }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /secrets/read:
     get:
       tags: [Connect]
@@ -2800,6 +2815,13 @@ components:
       properties:
         path: { type: string }
         values: { type: object, additionalProperties: { type: string } }
+    SecretWrite:
+      type: object
+      required: [path, key, value]
+      properties:
+        path: { type: string, description: "Secret path without the mount, e.g. workspacenow/mistral" }
+        key: { type: string }
+        value: { type: string }
 
     # AI
     ModelProvider:

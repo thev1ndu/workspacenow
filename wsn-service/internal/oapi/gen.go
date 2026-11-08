@@ -862,46 +862,37 @@ func (e InferEntityInputFormat) Valid() bool {
 
 // Defines values for InferredFieldType.
 const (
-	InferredFieldTypeBool      InferredFieldType = "bool"
+	InferredFieldTypeBoolean   InferredFieldType = "boolean"
 	InferredFieldTypeDate      InferredFieldType = "date"
-	InferredFieldTypeDatetime  InferredFieldType = "datetime"
-	InferredFieldTypeEmail     InferredFieldType = "email"
 	InferredFieldTypeEnum      InferredFieldType = "enum"
 	InferredFieldTypeFile      InferredFieldType = "file"
-	InferredFieldTypeFloat     InferredFieldType = "float"
-	InferredFieldTypeInt       InferredFieldType = "int"
+	InferredFieldTypeInteger   InferredFieldType = "integer"
+	InferredFieldTypeNumber    InferredFieldType = "number"
 	InferredFieldTypeReference InferredFieldType = "reference"
 	InferredFieldTypeString    InferredFieldType = "string"
 	InferredFieldTypeText      InferredFieldType = "text"
-	InferredFieldTypeUrl       InferredFieldType = "url"
 )
 
 // Valid indicates whether the value is a known member of the InferredFieldType enum.
 func (e InferredFieldType) Valid() bool {
 	switch e {
-	case InferredFieldTypeBool:
+	case InferredFieldTypeBoolean:
 		return true
 	case InferredFieldTypeDate:
-		return true
-	case InferredFieldTypeDatetime:
-		return true
-	case InferredFieldTypeEmail:
 		return true
 	case InferredFieldTypeEnum:
 		return true
 	case InferredFieldTypeFile:
 		return true
-	case InferredFieldTypeFloat:
+	case InferredFieldTypeInteger:
 		return true
-	case InferredFieldTypeInt:
+	case InferredFieldTypeNumber:
 		return true
 	case InferredFieldTypeReference:
 		return true
 	case InferredFieldTypeString:
 		return true
 	case InferredFieldTypeText:
-		return true
-	case InferredFieldTypeUrl:
 		return true
 	default:
 		return false
@@ -3243,6 +3234,15 @@ type SecretValues struct {
 	Values map[string]string `json:"values"`
 }
 
+// SecretWrite defines model for SecretWrite.
+type SecretWrite struct {
+	Key string `json:"key"`
+
+	// Path Secret path without the mount, e.g. workspacenow/mistral
+	Path  string `json:"path"`
+	Value string `json:"value"`
+}
+
 // ServiceStat defines model for ServiceStat.
 type ServiceStat struct {
 	// ErrorRate errors / spans within the observer's scan window
@@ -4177,6 +4177,9 @@ type RegisterMcpServerJSONRequestBody RegisterMcpServerJSONBody
 // UpdateOrganizationThemeJSONRequestBody defines body for UpdateOrganizationTheme for application/json ContentType.
 type UpdateOrganizationThemeJSONRequestBody = Theme
 
+// WriteSecretJSONRequestBody defines body for WriteSecret for application/json ContentType.
+type WriteSecretJSONRequestBody = SecretWrite
+
 // RunSidekickJSONRequestBody defines body for RunSidekick for application/json ContentType.
 type RunSidekickJSONRequestBody RunSidekickJSONBody
 
@@ -5094,6 +5097,9 @@ type ServerInterface interface {
 	// Read a secret's values from OpenBao (sensitive)
 	// (GET /secrets/read)
 	ReadSecret(w http.ResponseWriter, r *http.Request, params ReadSecretParams)
+	// Set one key of an OpenBao secret (system admin only)
+	// (PUT /secrets/write)
+	WriteSecret(w http.ResponseWriter, r *http.Request)
 	// Per-service telemetry health from wsn-observer (spans, errors, error rate, logs, last seen)
 	// (GET /services)
 	ListObservedServices(w http.ResponseWriter, r *http.Request)
@@ -8563,6 +8569,26 @@ func (siw *ServerInterfaceWrapper) ReadSecret(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// WriteSecret operation middleware
+func (siw *ServerInterfaceWrapper) WriteSecret(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WriteSecret(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListObservedServices operation middleware
 func (siw *ServerInterfaceWrapper) ListObservedServices(w http.ResponseWriter, r *http.Request) {
 
@@ -9544,6 +9570,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/search", wrapper.Search)
 	m.HandleFunc("GET "+options.BaseURL+"/secrets", wrapper.ListSecrets)
 	m.HandleFunc("GET "+options.BaseURL+"/secrets/read", wrapper.ReadSecret)
+	m.HandleFunc("PUT "+options.BaseURL+"/secrets/write", wrapper.WriteSecret)
 	m.HandleFunc("GET "+options.BaseURL+"/services", wrapper.ListObservedServices)
 	m.HandleFunc("GET "+options.BaseURL+"/session", wrapper.GetSession)
 	m.HandleFunc("POST "+options.BaseURL+"/sidekick/runs", wrapper.RunSidekick)

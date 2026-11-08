@@ -1,9 +1,45 @@
-import { useOrganization } from "@workspacenow/api-client";
+import { useState } from "react";
+import { Button } from "@heroui/react";
+import { useOrganization, useSession, useWriteSecret } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
-import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from "@workspacenow/views";
+import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TextInput } from "@workspacenow/views";
+
+/** True only for the local system user (actor id "local:…"), never for OIDC/IdP users. */
+function isSystemUser(session: { actor: { id: string } } | undefined): boolean {
+  return !!session?.actor.id.startsWith("local:");
+}
+
+function MistralApiKeyCard() {
+  const [apiKey, setApiKey] = useState("");
+  const write = useWriteSecret();
+  return (
+    <SectionCard title="Mistral API key" subtitle="Stored in OpenBao (secret/workspacenow/mistral); visible only to the system user.">
+      <div className="flex flex-col gap-3">
+        <TextInput
+          label="API key"
+          type="password"
+          value={apiKey}
+          onChange={setApiKey}
+          placeholder="sk-…"
+        />
+        <div>
+          <Button
+            variant="primary"
+            isDisabled={!apiKey || write.isPending}
+            onPress={() => write.mutate({ path: "workspacenow/mistral", key: "apiKey", value: apiKey }, { onSuccess: () => setApiKey("") })}
+          >
+            {write.isPending ? "Saving…" : "Save API key"}
+          </Button>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
 
 export function SettingsPage() {
   const organization = useOrganization();
+  const session = useSession();
+  const systemUser = isSystemUser(session.data);
 
   return (
     <PageLayout title="Settings" description="Installation details.">
@@ -26,6 +62,7 @@ export function SettingsPage() {
             )}
           </QueryState>
         </SectionCard>
+        {systemUser && <MistralApiKeyCard />}
       </div>
     </PageLayout>
   );

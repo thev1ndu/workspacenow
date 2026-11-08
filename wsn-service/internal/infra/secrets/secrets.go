@@ -35,6 +35,8 @@ type Reader interface {
 	Read(ctx context.Context, path string) (map[string]string, error)
 	// List returns the full references (mount/key) of secrets under prefix, without values.
 	List(ctx context.Context, prefix string) ([]string, error)
+	// Write merges values into the secret at path (KV v2: read-modify-write, so other keys survive).
+	Write(ctx context.Context, path string, values map[string]string) error
 }
 
 // serviceAccountToken is where Kubernetes mounts the pod's service account token.
@@ -140,6 +142,45 @@ func (b *openBao) List(ctx context.Context, prefix string) ([]string, error) {
 		out = append(out, base+"/"+k)
 	}
 	return out, nil
+}
+
+// Write merges values into the KV v2 secret at path without clobbering other keys.
+func (b *openBao) Write(ctx context.Context, path string, values map[string]string) error {
+	token, err := b.login(ctx)
+	if err != nil {
+		return err
+	}
+	path, err = sanitizePath(strings.TrimPrefix(path, b.cfg.Mount+"/"))
+	if err != nil {
+		return err
+	}
+	path = strings.TrimPrefix(path, "vault://")
+	merged, err := b.Read(ctx, b.cfg.Mount+"/"+path)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return err
+	}
+	if merged == nil {
+		merged = map[string]string{}
+	}
+	for k, v := range values {
+		merged[k] = v
+	}
+	body, _ := json.Marshal(map[string]any{"data": merged})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/v1/%s/data/%s", strings.TrimRight(b.cfg.Addr, "/"), b.cfg.Mount, strings.TrimPrefix(path, "/")), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-Vault-Token", token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("write secret: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("write secret: status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // login returns a token, exchanging the pod's service account token for one when a role is set.

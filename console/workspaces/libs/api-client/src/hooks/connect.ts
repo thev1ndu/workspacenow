@@ -22,6 +22,14 @@ export function useListApiOperations(query: { apiId?: string } = {}) {
   return useApiQuery({ queryKey: ["api-operations", query], queryFn: () => api.listApiOperations(query, getToken) });
 }
 
+export function useWriteSecret() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    successMessage: "Secret updated in OpenBao",
+    mutationFn: (body: { path: string; key: string; value: string }) => api.writeSecret(body, getToken),
+  });
+}
+
 export function useUpdateMcpExposure() {
   const { getToken } = useAuthHooks();
   return useApiMutation({

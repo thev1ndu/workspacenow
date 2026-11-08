@@ -131,6 +131,10 @@ export async function listSecrets(query: { prefix?: string }, getToken: GetToken
   });
 }
 
+export async function writeSecret(body: { path: string; key: string; value: string }, getToken: GetToken) {
+  return httpPUT(`${SERVICE_BASE}/secrets/write`, { token: await getToken(), body });
+}
+
 export async function readSecret(query: { path: string }, getToken: GetToken) {
   return httpGET<SecretValues>(`${SERVICE_BASE}/secrets/read`, { token: await getToken(), searchParams: { path: query.path } });
 }

@@ -45,8 +45,14 @@ import (
 //			InvalidateAccessFunc: func(ctx context.Context)  {
 //				panic("mock out the InvalidateAccess method")
 //			},
+//			LocalLoginFunc: func(ctx context.Context, email string, password string) (string, error) {
+//				panic("mock out the LocalLogin method")
+//			},
 //			OrganizationFunc: func(ctx context.Context) (*oapi.Organization, error) {
 //				panic("mock out the Organization method")
+//			},
+//			OrganizationThemeFunc: func(ctx context.Context) (*oapi.Theme, error) {
+//				panic("mock out the OrganizationTheme method")
 //			},
 //			PermissionsForGroupsFunc: func(ctx context.Context, groups []string) (kernel.Permissions, error) {
 //				panic("mock out the PermissionsForGroups method")
@@ -57,6 +63,9 @@ import (
 //			RolesFunc: func(ctx context.Context) ([]oapi.Role, error) {
 //				panic("mock out the Roles method")
 //			},
+//			SessionUserFunc: func(ctx context.Context, token string) (string, error) {
+//				panic("mock out the SessionUser method")
+//			},
 //			TeamsFunc: func(ctx context.Context) ([]oapi.Team, error) {
 //				panic("mock out the Teams method")
 //			},
@@ -65,6 +74,9 @@ import (
 //			},
 //			UpdateGroupMappingsFunc: func(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error) {
 //				panic("mock out the UpdateGroupMappings method")
+//			},
+//			UpdateOrganizationThemeFunc: func(ctx context.Context, ec kernel.ExecutionContext, t oapi.Theme) (*oapi.Theme, error) {
+//				panic("mock out the UpdateOrganizationTheme method")
 //			},
 //			UpdateUserRolesFunc: func(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error) {
 //				panic("mock out the UpdateUserRoles method")
@@ -106,8 +118,14 @@ type ServiceMock struct {
 	// InvalidateAccessFunc mocks the InvalidateAccess method.
 	InvalidateAccessFunc func(ctx context.Context)
 
+	// LocalLoginFunc mocks the LocalLogin method.
+	LocalLoginFunc func(ctx context.Context, email string, password string) (string, error)
+
 	// OrganizationFunc mocks the Organization method.
 	OrganizationFunc func(ctx context.Context) (*oapi.Organization, error)
+
+	// OrganizationThemeFunc mocks the OrganizationTheme method.
+	OrganizationThemeFunc func(ctx context.Context) (*oapi.Theme, error)
 
 	// PermissionsForGroupsFunc mocks the PermissionsForGroups method.
 	PermissionsForGroupsFunc func(ctx context.Context, groups []string) (kernel.Permissions, error)
@@ -118,6 +136,9 @@ type ServiceMock struct {
 	// RolesFunc mocks the Roles method.
 	RolesFunc func(ctx context.Context) ([]oapi.Role, error)
 
+	// SessionUserFunc mocks the SessionUser method.
+	SessionUserFunc func(ctx context.Context, token string) (string, error)
+
 	// TeamsFunc mocks the Teams method.
 	TeamsFunc func(ctx context.Context) ([]oapi.Team, error)
 
@@ -126,6 +147,9 @@ type ServiceMock struct {
 
 	// UpdateGroupMappingsFunc mocks the UpdateGroupMappings method.
 	UpdateGroupMappingsFunc func(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error)
+
+	// UpdateOrganizationThemeFunc mocks the UpdateOrganizationTheme method.
+	UpdateOrganizationThemeFunc func(ctx context.Context, ec kernel.ExecutionContext, t oapi.Theme) (*oapi.Theme, error)
 
 	// UpdateUserRolesFunc mocks the UpdateUserRoles method.
 	UpdateUserRolesFunc func(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error)
@@ -192,8 +216,22 @@ type ServiceMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// LocalLogin holds details about calls to the LocalLogin method.
+		LocalLogin []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Email is the email argument value.
+			Email string
+			// Password is the password argument value.
+			Password string
+		}
 		// Organization holds details about calls to the Organization method.
 		Organization []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
+		// OrganizationTheme holds details about calls to the OrganizationTheme method.
+		OrganizationTheme []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
@@ -213,6 +251,13 @@ type ServiceMock struct {
 		Roles []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+		}
+		// SessionUser holds details about calls to the SessionUser method.
+		SessionUser []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Token is the token argument value.
+			Token string
 		}
 		// Teams holds details about calls to the Teams method.
 		Teams []struct {
@@ -239,6 +284,15 @@ type ServiceMock struct {
 			// Mappings is the mappings argument value.
 			Mappings []oapi.GroupRoleMapping
 		}
+		// UpdateOrganizationTheme holds details about calls to the UpdateOrganizationTheme method.
+		UpdateOrganizationTheme []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// T is the t argument value.
+			T oapi.Theme
+		}
 		// UpdateUserRoles holds details about calls to the UpdateUserRoles method.
 		UpdateUserRoles []struct {
 			// Ctx is the ctx argument value.
@@ -256,24 +310,28 @@ type ServiceMock struct {
 			Ctx context.Context
 		}
 	}
-	lockCaller               sync.RWMutex
-	lockCallerFromClaims     sync.RWMutex
-	lockCreateGroup          sync.RWMutex
-	lockDeleteGroup          sync.RWMutex
-	lockDepartments          sync.RWMutex
-	lockEnvironments         sync.RWMutex
-	lockGroupMappings        sync.RWMutex
-	lockGroups               sync.RWMutex
-	lockInvalidateAccess     sync.RWMutex
-	lockOrganization         sync.RWMutex
-	lockPermissionsForGroups sync.RWMutex
-	lockPersonas             sync.RWMutex
-	lockRoles                sync.RWMutex
-	lockTeams                sync.RWMutex
-	lockUpdateGroup          sync.RWMutex
-	lockUpdateGroupMappings  sync.RWMutex
-	lockUpdateUserRoles      sync.RWMutex
-	lockUsers                sync.RWMutex
+	lockCaller                  sync.RWMutex
+	lockCallerFromClaims        sync.RWMutex
+	lockCreateGroup             sync.RWMutex
+	lockDeleteGroup             sync.RWMutex
+	lockDepartments             sync.RWMutex
+	lockEnvironments            sync.RWMutex
+	lockGroupMappings           sync.RWMutex
+	lockGroups                  sync.RWMutex
+	lockInvalidateAccess        sync.RWMutex
+	lockLocalLogin              sync.RWMutex
+	lockOrganization            sync.RWMutex
+	lockOrganizationTheme       sync.RWMutex
+	lockPermissionsForGroups    sync.RWMutex
+	lockPersonas                sync.RWMutex
+	lockRoles                   sync.RWMutex
+	lockSessionUser             sync.RWMutex
+	lockTeams                   sync.RWMutex
+	lockUpdateGroup             sync.RWMutex
+	lockUpdateGroupMappings     sync.RWMutex
+	lockUpdateOrganizationTheme sync.RWMutex
+	lockUpdateUserRoles         sync.RWMutex
+	lockUsers                   sync.RWMutex
 }
 
 // Caller calls CallerFunc.
@@ -588,6 +646,46 @@ func (mock *ServiceMock) InvalidateAccessCalls() []struct {
 	return calls
 }
 
+// LocalLogin calls LocalLoginFunc.
+func (mock *ServiceMock) LocalLogin(ctx context.Context, email string, password string) (string, error) {
+	if mock.LocalLoginFunc == nil {
+		panic("ServiceMock.LocalLoginFunc: method is nil but Service.LocalLogin was just called")
+	}
+	callInfo := struct {
+		Ctx      context.Context
+		Email    string
+		Password string
+	}{
+		Ctx:      ctx,
+		Email:    email,
+		Password: password,
+	}
+	mock.lockLocalLogin.Lock()
+	mock.calls.LocalLogin = append(mock.calls.LocalLogin, callInfo)
+	mock.lockLocalLogin.Unlock()
+	return mock.LocalLoginFunc(ctx, email, password)
+}
+
+// LocalLoginCalls gets all the calls that were made to LocalLogin.
+// Check the length with:
+//
+//	len(mockedService.LocalLoginCalls())
+func (mock *ServiceMock) LocalLoginCalls() []struct {
+	Ctx      context.Context
+	Email    string
+	Password string
+} {
+	var calls []struct {
+		Ctx      context.Context
+		Email    string
+		Password string
+	}
+	mock.lockLocalLogin.RLock()
+	calls = mock.calls.LocalLogin
+	mock.lockLocalLogin.RUnlock()
+	return calls
+}
+
 // Organization calls OrganizationFunc.
 func (mock *ServiceMock) Organization(ctx context.Context) (*oapi.Organization, error) {
 	if mock.OrganizationFunc == nil {
@@ -617,6 +715,38 @@ func (mock *ServiceMock) OrganizationCalls() []struct {
 	mock.lockOrganization.RLock()
 	calls = mock.calls.Organization
 	mock.lockOrganization.RUnlock()
+	return calls
+}
+
+// OrganizationTheme calls OrganizationThemeFunc.
+func (mock *ServiceMock) OrganizationTheme(ctx context.Context) (*oapi.Theme, error) {
+	if mock.OrganizationThemeFunc == nil {
+		panic("ServiceMock.OrganizationThemeFunc: method is nil but Service.OrganizationTheme was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockOrganizationTheme.Lock()
+	mock.calls.OrganizationTheme = append(mock.calls.OrganizationTheme, callInfo)
+	mock.lockOrganizationTheme.Unlock()
+	return mock.OrganizationThemeFunc(ctx)
+}
+
+// OrganizationThemeCalls gets all the calls that were made to OrganizationTheme.
+// Check the length with:
+//
+//	len(mockedService.OrganizationThemeCalls())
+func (mock *ServiceMock) OrganizationThemeCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockOrganizationTheme.RLock()
+	calls = mock.calls.OrganizationTheme
+	mock.lockOrganizationTheme.RUnlock()
 	return calls
 }
 
@@ -717,6 +847,42 @@ func (mock *ServiceMock) RolesCalls() []struct {
 	mock.lockRoles.RLock()
 	calls = mock.calls.Roles
 	mock.lockRoles.RUnlock()
+	return calls
+}
+
+// SessionUser calls SessionUserFunc.
+func (mock *ServiceMock) SessionUser(ctx context.Context, token string) (string, error) {
+	if mock.SessionUserFunc == nil {
+		panic("ServiceMock.SessionUserFunc: method is nil but Service.SessionUser was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Token string
+	}{
+		Ctx:   ctx,
+		Token: token,
+	}
+	mock.lockSessionUser.Lock()
+	mock.calls.SessionUser = append(mock.calls.SessionUser, callInfo)
+	mock.lockSessionUser.Unlock()
+	return mock.SessionUserFunc(ctx, token)
+}
+
+// SessionUserCalls gets all the calls that were made to SessionUser.
+// Check the length with:
+//
+//	len(mockedService.SessionUserCalls())
+func (mock *ServiceMock) SessionUserCalls() []struct {
+	Ctx   context.Context
+	Token string
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Token string
+	}
+	mock.lockSessionUser.RLock()
+	calls = mock.calls.SessionUser
+	mock.lockSessionUser.RUnlock()
 	return calls
 }
 
@@ -833,6 +999,46 @@ func (mock *ServiceMock) UpdateGroupMappingsCalls() []struct {
 	mock.lockUpdateGroupMappings.RLock()
 	calls = mock.calls.UpdateGroupMappings
 	mock.lockUpdateGroupMappings.RUnlock()
+	return calls
+}
+
+// UpdateOrganizationTheme calls UpdateOrganizationThemeFunc.
+func (mock *ServiceMock) UpdateOrganizationTheme(ctx context.Context, ec kernel.ExecutionContext, t oapi.Theme) (*oapi.Theme, error) {
+	if mock.UpdateOrganizationThemeFunc == nil {
+		panic("ServiceMock.UpdateOrganizationThemeFunc: method is nil but Service.UpdateOrganizationTheme was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Ec  kernel.ExecutionContext
+		T   oapi.Theme
+	}{
+		Ctx: ctx,
+		Ec:  ec,
+		T:   t,
+	}
+	mock.lockUpdateOrganizationTheme.Lock()
+	mock.calls.UpdateOrganizationTheme = append(mock.calls.UpdateOrganizationTheme, callInfo)
+	mock.lockUpdateOrganizationTheme.Unlock()
+	return mock.UpdateOrganizationThemeFunc(ctx, ec, t)
+}
+
+// UpdateOrganizationThemeCalls gets all the calls that were made to UpdateOrganizationTheme.
+// Check the length with:
+//
+//	len(mockedService.UpdateOrganizationThemeCalls())
+func (mock *ServiceMock) UpdateOrganizationThemeCalls() []struct {
+	Ctx context.Context
+	Ec  kernel.ExecutionContext
+	T   oapi.Theme
+} {
+	var calls []struct {
+		Ctx context.Context
+		Ec  kernel.ExecutionContext
+		T   oapi.Theme
+	}
+	mock.lockUpdateOrganizationTheme.RLock()
+	calls = mock.calls.UpdateOrganizationTheme
+	mock.lockUpdateOrganizationTheme.RUnlock()
 	return calls
 }
 

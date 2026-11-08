@@ -47,6 +47,8 @@ type Service interface {
 	TestIntegration(ctx context.Context, ec kernel.ExecutionContext, id string) (*Integration, error)
 	// Secrets: OpenBao references only, values are read on demand and never stored or logged.
 	ListSecrets(ctx context.Context, ec kernel.ExecutionContext, prefix string) ([]string, error)
+	// UpdateSecret sets one key of an OpenBao secret; only the local system user may call it.
+	UpdateSecret(ctx context.Context, ec kernel.ExecutionContext, path, key, value string) error
 	ReadSecret(ctx context.Context, ec kernel.ExecutionContext, path string) (map[string]string, error)
 	// InvokeOperation runs an API operation with version lifecycle + request/response transforms.
 	// version is the caller-requested API version ("" = the API's default).
@@ -439,6 +441,21 @@ func (s *service) ListSecrets(ctx context.Context, ec kernel.ExecutionContext, p
 		return nil, err
 	}
 	return s.secrets.List(ctx, prefix)
+}
+
+// UpdateSecret merges one key into an OpenBao secret. Restricted to the local system user
+// (actor id "local:…") — never to OIDC/IdP users — and audited as secret.write.
+func (s *service) UpdateSecret(ctx context.Context, ec kernel.ExecutionContext, path, key, value string) error {
+	if !kernel.IsLocalSystemUser(ec.Actor.ID) {
+		return kernel.Forbidden("Only the system user can change platform secrets")
+	}
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "secret.write", "secret/"+path); err != nil {
+		return err
+	}
+	if err := s.secrets.Write(ctx, path, map[string]string{key: value}); err != nil {
+		return err
+	}
+	return s.auditor.Record(ctx, ec, "secret.write", "secret/"+path, kernel.OutcomeAllowed, "set "+key)
 }
 
 // ReadSecret returns one secret's values to the caller; audited, never logged or stored.

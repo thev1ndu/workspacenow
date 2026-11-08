@@ -19,6 +19,10 @@ const (
 )
 
 // Actor is whoever performed an action.
+// IsLocalSystemUser reports whether the caller is the local system user (the account seeded
+// from WSN_LOCAL_ADMIN_*; its user id always starts with "local:").
+func IsLocalSystemUser(userID string) bool { return strings.HasPrefix(userID, "local:") }
+
 type Actor struct {
 	Kind       ActorKind `json:"kind"`
 	ID         string    `json:"id"`

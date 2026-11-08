@@ -33,3 +33,12 @@ func TestPermissionsWildcard(t *testing.T) {
 		t.Fatal("non-wildcard set must not grant unrelated permission")
 	}
 }
+
+func TestIsLocalSystemUser(t *testing.T) {
+	if !IsLocalSystemUser("local:admin@workspacenow.local") {
+		t.Fatal("local:… ids are the system user")
+	}
+	if IsLocalSystemUser("oidc-user-123") || IsLocalSystemUser("") {
+		t.Fatal("IdP users and empty ids are not the system user")
+	}
+}

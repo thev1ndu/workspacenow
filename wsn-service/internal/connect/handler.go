@@ -160,6 +160,20 @@ func (h *Handler) ListSecrets(w http.ResponseWriter, r *http.Request, params oap
 	httpx.ListTotal(w, out, len(out))
 }
 
+func (h *Handler) WriteSecret(w http.ResponseWriter, r *http.Request) {
+	var body oapi.SecretWrite
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	err := h.svc.UpdateSecret(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), body.Path, body.Key, body.Value)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) ReadSecret(w http.ResponseWriter, r *http.Request, params oapi.ReadSecretParams) {
 	out, err := h.svc.ReadSecret(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), params.Path)
 	if err != nil {

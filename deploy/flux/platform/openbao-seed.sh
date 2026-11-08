@@ -7,7 +7,7 @@
 set -eu
 : "${OPENBAO_NAMESPACE:=openbao}"
 : "${OPENBAO_ROOT_TOKEN:?set OPENBAO_ROOT_TOKEN (dev root token of the OpenBao instance)}"
-BAO="kubectl -n $OPENBAO_NAMESPACE exec deploy/openbao -- bao"
+BAO="kubectl -n $OPENBAO_NAMESPACE exec statefulset/openbao -- bao"
 put() { # put <path> <key=value>...
   path="$1"; shift
   args=""

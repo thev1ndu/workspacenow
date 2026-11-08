@@ -18,14 +18,17 @@ jobs:
   changes:
     runs-on: ubuntu-24.04
     outputs:
-      service: ${{ steps.filter.outputs.service }}
-      observer: ${{ steps.filter.outputs.observer }}
-      console: ${{ steps.filter.outputs.console }}
-      deploy: ${{ steps.filter.outputs.deploy }}
-      ai: ${{ steps.filter.outputs.ai }}
+      service: ${{ steps.publish.outputs.service }}
+      observer: ${{ steps.publish.outputs.observer }}
+      console: ${{ steps.publish.outputs.console }}
+      deploy: ${{ steps.publish.outputs.deploy }}
+      ai: ${{ steps.publish.outputs.ai }}
     steps:
       - uses: actions/checkout@v7
+      # paths-filter only understands pull_request events; on push (branch or release tag)
+      # it fails and would skip every downstream job, so non-PR events mark all changed.
       - uses: dorny/paths-filter@v4
+        if: github.event_name == 'pull_request'
         id: filter
         with:
           filters: |
@@ -34,6 +37,19 @@ jobs:
             ai: ['wsn-ai-service/**']
             console: ['console/**']
             deploy: ['deploy/**']
+      - name: All components changed on non-PR events
+        if: github.event_name != 'pull_request'
+        id: all
+        run: |
+          for k in service observer console deploy ai; do echo "$k=true" >> "$GITHUB_OUTPUT"; done
+      - name: Publish merged outputs
+        id: publish
+        run: |
+          for k in service observer console deploy ai; do
+            v="false"
+            if [ "${{ steps.filter.outputs[k] }}" = "true" ] || [ "${{ steps.all.outputs[k] }}" = "true" ]; then v="true"; fi
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done
 
   # The AI service's gate (ruff + mypy + 100% line coverage) lives here as a job, so one
   # pipeline covers everything; the live Mistral smoke test is opt-in via the secret.

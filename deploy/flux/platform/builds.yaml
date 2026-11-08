@@ -19,7 +19,8 @@ spec:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
-            - --dockerfile=wsn-service/Dockerfile
+            - --dockerfile=Dockerfile
+            - --context-sub-path=wsn-service
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
             - --destination=registry.workspace.twotakeone.com/wsn-service:dev
             - --snapshot-mode=redo
@@ -42,7 +43,8 @@ spec:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
-            - --dockerfile=wsn-ai-service/Dockerfile
+            - --dockerfile=Dockerfile
+            - --context-sub-path=wsn-ai-service
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
             - --destination=registry.workspace.twotakeone.com/wsn-ai-service:dev
             - --snapshot-mode=redo
@@ -65,7 +67,8 @@ spec:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
-            - --dockerfile=wsn-observer/Dockerfile
+            - --dockerfile=Dockerfile
+            - --context-sub-path=wsn-observer
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
             - --destination=registry.workspace.twotakeone.com/wsn-observer:dev
             - --snapshot-mode=redo
@@ -88,7 +91,8 @@ spec:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
           args:
-            - --dockerfile=console/Dockerfile
+            - --dockerfile=Dockerfile
+            - --context-sub-path=console
             - --context=git://github.com/thev1ndu/workspacenow.git#refs/heads/main
             - --destination=registry.workspace.twotakeone.com/console:dev
             - --snapshot-mode=redo

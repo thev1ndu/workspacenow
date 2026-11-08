@@ -48,6 +48,19 @@ Ordered by value per effort. P0 = do first (unblocks selling/operating the platf
 15. Metering/billing per department/app (data exists — tokens are recorded), license management.
 16. i18n: add more locales (the dictionary mechanism is in place); accessibility audit (WCAG 2.2 AA).
 
+## v0.2.0 plan (tracking issue #11; new service in issue #12)
+
+Theme: enterprise AI you can trust, an intelligent builder, retention features.
+
+- **Enterprise AI**: multi-model routing with fallback + per-department budgets and alerts; agent eval suites gated in CI; instruction versioning with rollback; agent long-term memory (pgvector, permission-scoped, audited); plan-then-execute approvals; PII/output guardrails; agent-to-agent delegation under scoped grants; run replay + "explain this run"; per-agent cost/latency/quality dashboards.
+- **Intelligent builder**: prompt-to-preview sandbox deploys; business-language blueprint diffs; schema inference from CSV/JSON/sample API; natural-language saved views and workflow drafts; template marketplace v1 (signed, one-click install); per-role page customization and app/installation theming; workflow simulation.
+- **Retention/UX**: guided onboarding checklist (time-to-first-value < 15 min); per-user customizable dashboards; saved searches and bulk record actions; undo from record history; record comments with @mentions; notification preferences; in-app help; command-palette create actions; scheduled imports.
+- **Enterprise admin/security**: SCIM; signed compliance evidence packs; RBAC policy-as-code + permission simulator; session management, idle timeout, IP allowlists; multi-tenancy isolation review (SaaS gate); PII field classification with automatic redaction in portal/MCP/exports.
+- **Connect/ecosystem**: GraphQL federation; OAuth2 browser flow; webhook verification helper lib; per-API-key consumer analytics; SDK + Postman export; integration templates.
+- **Flow**: schedules UI, retry policies, workflow versioning with running-instance migration, saga compensation, sub-workflows, pause/resume, replay.
+- **Data**: cross-entity query builder, lineage graph, RLS "view as user" preview, data quality rules, read auditing for sensitive entities.
+- **New service (issue #12)**: `wsn-notify-service` for email/SMS/PagerDuty with templates, delivery log, fallback chains and digest modes; replaces webhook-only alerting. Only new component in v0.2.0; memory and evals live in the existing services.
+
 ## Non-goals (deliberate)
 
 - No database inside wsn-observer, ever — WAL segment files only.

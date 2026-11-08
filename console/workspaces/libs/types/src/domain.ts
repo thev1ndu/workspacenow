@@ -83,6 +83,20 @@ export interface GroupRoleMapping {
   roleId: Id;
 }
 
+/** A WorkspaceNow-native group, managed on the Identity and access page (not in the IdP). */
+export interface Group {
+  id: Id;
+  name: string;
+  description: string;
+  memberIds: Id[];
+}
+
+export interface GroupInput {
+  name: string;
+  description?: string;
+  memberIds: Id[];
+}
+
 export type ActorKind = "user" | "agent" | "workflow" | "system";
 
 export interface Actor {

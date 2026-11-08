@@ -168,6 +168,54 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /groups:
+    get:
+      tags: [Control]
+      operationId: listGroups
+      summary: WorkspaceNow groups (managed here, not in the IdP)
+      description: "Native groups belong to WorkspaceNow: admins create them here and assign members; group-to-role mappings match these names exactly like IdP group claims."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/GroupList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Control]
+      operationId: createGroup
+      summary: Create a WorkspaceNow group
+      description: "Requires `control.manage`."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/GroupInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Group" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /groups/{groupId}:
+    parameters: [{ name: groupId, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [Control]
+      operationId: updateGroup
+      summary: Replace a WorkspaceNow group (name, description, members)
+      description: "Requires `control.manage`."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/GroupInput" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Group" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [Control]
+      operationId: deleteGroup
+      summary: Delete a WorkspaceNow group
+      description: "Requires `control.manage`. Users keep their other roles."
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /roles:
     get:
       tags: [Control]
@@ -1889,6 +1937,22 @@ components:
       required: [roles]
       properties:
         roles: { type: array, items: { type: string }, description: "Full list of role IDs to assign explicitly; empty removes all" }
+    Group:
+      type: object
+      required: [id, name, description, memberIds]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        memberIds: { type: array, items: { type: string }, description: "User IDs in this group" }
+    GroupInput:
+      type: object
+      required: [name, memberIds]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        memberIds: { type: array, items: { type: string } }
+    GroupList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Group" } }, total: { type: integer } } }
     Environment:
       type: object
       required: [key, name, description, requiresApproval, resourceLimits]

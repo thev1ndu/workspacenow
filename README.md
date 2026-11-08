@@ -54,6 +54,12 @@ CI runs the same stack plus a smoke suite on every commit (`make up`'s compose p
 
 Flux applies `deploy/flux/`: infrastructure controllers, then their instances, then the apps per environment. Dev follows `main` through image automation; staging and production pin release tags. See [deploy/flux/README.md](deploy/flux/README.md).
 
+## Identity and access model
+
+- **Users provision through the IdP.** In OIDC mode every login upserts the user from the token claims (subject, name, email, group claims) — no manual user creation.
+- **The first administrator needs no IdP group.** Set `WSN_BOOTSTRAP_ADMIN_EMAILS=admin@example.com` (comma-separated) on wsn-service; any user whose IdP email matches gets the admin role (`WSN_BOOTSTRAP_ADMIN_ROLE`, default `role-admin`) on first login, audited as `bootstrap.admin`. In demo mode this is ignored.
+- **Groups and roles are managed in WorkspaceNow** (console → Control → Identity and access): create WorkspaceNow-native groups and assign members there, map group names (native or IdP claims) to roles, and assign roles directly per user (`PUT /users/{id}/roles`). Resolution is the union of all three sources.
+
 ## To start developing WorkspaceNow
 
 Prerequisites: Docker, Go 1.26, Python 3.12, Node 22 with pnpm.

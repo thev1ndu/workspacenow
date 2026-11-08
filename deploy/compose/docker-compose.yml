@@ -33,6 +33,8 @@ x-wsn-service-env: &wsn-service-env
   WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
   CORS_ALLOWED_ORIGINS: http://localhost:8088
   # OIDC_ISSUER / OIDC_JWKS_URL stay empty in demo mode (persona tokens); set them to switch to real OIDC.
+  WSN_BOOTSTRAP_ADMIN_EMAILS: ${WSN_BOOTSTRAP_ADMIN_EMAILS:-}
+  WSN_BOOTSTRAP_ADMIN_ROLE: ${WSN_BOOTSTRAP_ADMIN_ROLE:-role-admin}
 
 services:
   postgres:

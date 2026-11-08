@@ -81,6 +81,49 @@ func (h *Handler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, userId
 	httpx.OK(w, user)
 }
 
+func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.Groups)
+}
+
+func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	var body oapi.CreateGroupJSONRequestBody
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
+	g, err := h.svc.CreateGroup(r.Context(), ec, body)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, g)
+}
+
+func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request, groupId string) {
+	var body oapi.UpdateGroupJSONRequestBody
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
+	g, err := h.svc.UpdateGroup(r.Context(), ec, groupId, body)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, g)
+}
+
+func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request, groupId string) {
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
+	if err := h.svc.DeleteGroup(r.Context(), ec, groupId); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) UpdateGroupMappings(w http.ResponseWriter, r *http.Request) {
 	var body oapi.UpdateGroupMappingsJSONRequestBody
 	if err := httpx.Decode(r, &body); err != nil {

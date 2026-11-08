@@ -3,6 +3,7 @@ import { Alert, Button, Chip, Table } from "@heroui/react";
 import { Pencil } from "@workspacenow/icons";
 import { useListUsers, useOrganization, type UserWithRoles } from "@workspacenow/api-client";
 import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TableSkeleton } from "@workspacenow/views";
+import { GroupEditor } from "./subComponents/GroupEditor";
 import { GroupMappingEditor } from "./subComponents/GroupMappingEditor";
 import { RoleMatrix } from "./subComponents/RoleMatrix";
 import { UserRolesEditor } from "./subComponents/UserRolesEditor";
@@ -57,6 +58,7 @@ export function AccessPage() {
           </SectionCard>
           <GroupMappingEditor />
         </div>
+        <GroupEditor />
         <SectionCard
           title="Users and their roles"
           subtitle="Identities come from the identity provider; assign WorkspaceNow roles directly per user, on top of group mappings."

@@ -102,6 +102,9 @@ export function createSeedState(at: Date): PlatformState {
       { id: "role-proc-approver", name: "Procurement Approver", description: "Approves purchase requests.", permissions: ["procurement.read", "procurement.approve", "inventory.read", "supplier.read"] },
       { id: "role-auditor", name: "Auditor", description: "Reads audit history and business records.", permissions: ["audit.read", "inventory.read", "supplier.read", "procurement.read"] },
     ],
+    groups: [
+      { id: "grp-admins", name: "workspacenow-admins", description: "Platform administrators (native WorkspaceNow group).", memberIds: ["u-amaya"] },
+    ],
     groupMappings: [
       { group: "workspacenow-admins", roleId: "role-admin" },
       { group: "app-developers", roleId: "role-developer" },

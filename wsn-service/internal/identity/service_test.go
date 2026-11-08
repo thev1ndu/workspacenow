@@ -29,3 +29,11 @@ func TestRolesKey(t *testing.T) {
 	assert.Equal(t, rolesKey(&ids), rolesKey(&[]string{"a", "b"})) // order-insensitive
 	assert.Equal(t, "[]", rolesKey(nil))
 }
+
+func TestBootstrapGrants(t *testing.T) {
+	b := Bootstrap{AdminEmails: []string{"admin@example.com"}, AdminRole: "role-admin"}
+	assert.True(t, b.grants("admin@example.com"))
+	assert.True(t, b.grants("  Admin@Example.com ")) // case/space-insensitive
+	assert.False(t, b.grants("other@example.com"))
+	assert.False(t, Bootstrap{}.grants("admin@example.com")) // no list configured
+}

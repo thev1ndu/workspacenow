@@ -399,6 +399,35 @@ describe("user roles", () => {
   });
 });
 
+describe("workspace groups", () => {
+  it("creates, updates and deletes native groups; membership feeds role resolution", () => {
+    const platform = createDemoPlatform();
+    // u-amaya is in the native grp-admins group -> Platform Administrator even without the IdP claim
+    const before = get(platform, "/users", "u-amaya").body as { items: { id: string; roles: string[] }[] };
+    expect(before.items.find((u) => u.id === "u-amaya")!.roles).toContain("Platform Administrator");
+
+    const created = send(platform, "POST", "/groups", "u-amaya", { name: "store-ops", description: "Store ops", memberIds: ["u-nimal"] });
+    expect(created.status).toBe(201);
+    const gid = (created.body as { id: string }).id;
+    // map the native group to Store Operator and check nimal picks it up
+    send(platform, "PUT", "/group-mappings", "u-amaya", { mappings: [{ group: "workspacenow-admins", roleId: "role-admin" }, { group: "store-ops", roleId: "role-store" }] });
+    const after = get(platform, "/users", "u-amaya").body as { items: { id: string; roles: string[] }[] };
+    expect(after.items.find((u) => u.id === "u-nimal")!.roles).toContain("Store Operator");
+
+    expect(send(platform, "PUT", `/groups/${gid}`, "u-amaya", { name: "store-ops-2", memberIds: [] }).status).toBe(200);
+    expect(send(platform, "DELETE", `/groups/${gid}`, "u-amaya").status).toBe(200);
+    expect((get(platform, "/groups", "u-amaya").body as { items: unknown[] }).items).toHaveLength(1);
+  });
+
+  it("rejects bad groups and non-admins", () => {
+    const platform = createDemoPlatform();
+    expect(send(platform, "POST", "/groups", "u-amaya", { name: " ", memberIds: [] }).status).toBe(422);
+    expect(send(platform, "POST", "/groups", "u-amaya", { name: "x", memberIds: ["u-missing"] }).status).toBe(422);
+    expect(send(platform, "DELETE", "/groups/grp-nope", "u-amaya").status).toBe(404);
+    expect(send(platform, "POST", "/groups", "u-nimal", { name: "x", memberIds: [] }).status).toBe(403);
+  });
+});
+
 describe("pinned applications", () => {
   it("keeps each user's pins separate and in pin order", () => {
     const platform = createDemoPlatform();

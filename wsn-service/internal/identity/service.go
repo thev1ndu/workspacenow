@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -28,6 +29,12 @@ type Claims struct {
 	Name    string
 	Email   string
 	Groups  []string
+}
+
+// Bootstrap names the first administrators (by IdP email), so installation never needs an IdP group.
+type Bootstrap struct {
+	AdminEmails []string
+	AdminRole   string
 }
 
 // Service resolves callers and manages organization and access data.
@@ -50,36 +57,44 @@ type Service interface {
 	UpdateGroupMappings(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error)
 	// UpdateUserRoles sets the roles explicitly assigned to a user, on top of group-mapped roles.
 	UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContext, userID string, roleIDs []string) (*oapi.UserWithRoles, error)
+	Groups(ctx context.Context) ([]oapi.Group, error)
+	CreateGroup(ctx context.Context, ec kernel.ExecutionContext, in oapi.GroupInput) (*oapi.Group, error)
+	UpdateGroup(ctx context.Context, ec kernel.ExecutionContext, groupID string, in oapi.GroupInput) (*oapi.Group, error)
+	DeleteGroup(ctx context.Context, ec kernel.ExecutionContext, groupID string) error
 
 	// InvalidateAccess drops every cached permission resolution, on every replica.
 	InvalidateAccess(ctx context.Context)
 }
 
 type service struct {
-	db       *gorm.DB
-	cache    cache.Cache
-	auditor  kernel.Auditor
-	org      *docstore.Collection[oapi.Organization]
-	depts    *docstore.Collection[oapi.Department]
-	teams    *docstore.Collection[oapi.Team]
-	users    *docstore.Collection[oapi.User]
-	roles    *docstore.Collection[oapi.Role]
-	mappings *docstore.Collection[oapi.GroupRoleMapping]
-	envs     *docstore.Collection[oapi.Environment]
+	db        *gorm.DB
+	cache     cache.Cache
+	auditor   kernel.Auditor
+	bootstrap Bootstrap
+	org       *docstore.Collection[oapi.Organization]
+	depts     *docstore.Collection[oapi.Department]
+	teams     *docstore.Collection[oapi.Team]
+	groups    *docstore.Collection[oapi.Group]
+	users     *docstore.Collection[oapi.User]
+	roles     *docstore.Collection[oapi.Role]
+	mappings  *docstore.Collection[oapi.GroupRoleMapping]
+	envs      *docstore.Collection[oapi.Environment]
 }
 
-func NewService(db *gorm.DB, c cache.Cache, auditor kernel.Auditor) Service {
+func NewService(db *gorm.DB, c cache.Cache, auditor kernel.Auditor, bootstrap Bootstrap) Service {
 	return &service{
-		db:       db,
-		cache:    c,
-		auditor:  auditor,
-		org:      docstore.NewCollection(db, "organization", func(*oapi.Organization) string { return seed.OrganizationID }),
-		depts:    docstore.NewCollection(db, "departments", func(d *oapi.Department) string { return d.Id }),
-		teams:    docstore.NewCollection(db, "teams", func(t *oapi.Team) string { return t.Id }),
-		users:    docstore.NewCollection(db, "users", func(u *oapi.User) string { return u.Id }),
-		roles:    docstore.NewCollection(db, "roles", func(r *oapi.Role) string { return r.Id }),
-		mappings: docstore.NewCollection(db, "group_mappings", func(m *oapi.GroupRoleMapping) string { return m.Group + "|" + m.RoleId }),
-		envs:     docstore.NewCollection(db, "environments", func(e *oapi.Environment) string { return string(e.Key) }),
+		db:        db,
+		cache:     c,
+		auditor:   auditor,
+		bootstrap: bootstrap,
+		org:       docstore.NewCollection(db, "organization", func(*oapi.Organization) string { return seed.OrganizationID }),
+		depts:     docstore.NewCollection(db, "departments", func(d *oapi.Department) string { return d.Id }),
+		groups:    docstore.NewCollection(db, "groups", func(g *oapi.Group) string { return g.Id }),
+		teams:     docstore.NewCollection(db, "teams", func(t *oapi.Team) string { return t.Id }),
+		users:     docstore.NewCollection(db, "users", func(u *oapi.User) string { return u.Id }),
+		roles:     docstore.NewCollection(db, "roles", func(r *oapi.Role) string { return r.Id }),
+		mappings:  docstore.NewCollection(db, "group_mappings", func(m *oapi.GroupRoleMapping) string { return m.Group + "|" + m.RoleId }),
+		envs:      docstore.NewCollection(db, "environments", func(e *oapi.Environment) string { return string(e.Key) }),
 	}
 }
 
@@ -118,11 +133,43 @@ func (s *service) CallerFromClaims(ctx context.Context, claims Claims) (*kernel.
 		if user.Groups == nil {
 			user.Groups = []string{}
 		}
+	}
+	// Bootstrap: a listed email gets the admin role on first login — no IdP group setup needed.
+	if s.bootstrap.grants(claims.Email) && !slices.Contains(deref(user.RoleIds), s.bootstrap.AdminRole) {
+		ids := append(deref(user.RoleIds), s.bootstrap.AdminRole)
+		user.RoleIds = &ids
+		changed = true
+		if err := s.auditor.Record(ctx, kernel.ExecutionContext{Actor: kernel.Actor{Kind: kernel.ActorSystem, ID: "bootstrap", Name: "Bootstrap"}, TraceID: kernel.TraceIDFrom(ctx)}, "bootstrap.admin", "user/"+user.Id, kernel.OutcomeAllowed, "granted "+s.bootstrap.AdminRole); err != nil {
+			return nil, err
+		}
+	}
+	if changed {
 		if err := s.users.Put(ctx, user); err != nil {
 			return nil, err
 		}
 	}
 	return s.resolve(ctx, user)
+}
+
+// grants reports whether an IdP email is a bootstrap administrator.
+func (b Bootstrap) grants(email string) bool {
+	return slices.Contains(b.AdminEmails, strings.ToLower(strings.TrimSpace(email)))
+}
+
+// nativeGroupNames lists the WorkspaceNow groups the user belongs to.
+func (s *service) nativeGroupNames(ctx context.Context, userID string) []string {
+	groups, err := s.groups.List(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "list groups for resolution", "error", err)
+		return nil
+	}
+	names := []string{}
+	for _, g := range groups {
+		if slices.Contains(g.MemberIds, userID) {
+			names = append(names, g.Name)
+		}
+	}
+	return names
 }
 
 // resolve returns the user's roles and permissions, cached per user until access data changes.
@@ -131,14 +178,16 @@ func (s *service) resolve(ctx context.Context, user *oapi.User) (*kernel.Caller,
 	if err != nil {
 		slog.WarnContext(ctx, "access cache unavailable; resolving from the database", "error", err)
 	}
-	key := fmt.Sprintf("wsn:access:%s:%s:%s:%s", version, user.Id, groupsKey(user.Groups), rolesKey(user.RoleIds))
+	native := s.nativeGroupNames(ctx, user.Id)
+	allGroups := append(slices.Clone(user.Groups), native...)
+	key := fmt.Sprintf("wsn:access:%s:%s:%s:%s", version, user.Id, groupsKey(allGroups), rolesKey(user.RoleIds))
 	var a access
 	found := false
 	if err == nil {
 		found, _ = s.cache.GetJSON(ctx, key, &a)
 	}
 	if !found {
-		roles, perms, err := s.rolesAndPermissions(ctx, user)
+		roles, perms, err := s.rolesAndPermissions(ctx, &oapi.User{Id: user.Id, Groups: allGroups, RoleIds: user.RoleIds})
 		if err != nil {
 			return nil, err
 		}
@@ -253,6 +302,90 @@ func deref(p *[]string) []string {
 		return nil
 	}
 	return *p
+}
+
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+func (s *service) Groups(ctx context.Context) ([]oapi.Group, error) { return s.groups.List(ctx) }
+
+func (s *service) validateGroup(ctx context.Context, in oapi.GroupInput) error {
+	if strings.TrimSpace(in.Name) == "" {
+		return kernel.Invalid("A group needs a name")
+	}
+	users, err := s.users.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, id := range in.MemberIds {
+		if !slices.ContainsFunc(users, func(u oapi.User) bool { return u.Id == id }) {
+			return kernel.Invalid("Unknown member %s", id)
+		}
+	}
+	return nil
+}
+
+func (s *service) CreateGroup(ctx context.Context, ec kernel.ExecutionContext, in oapi.GroupInput) (*oapi.Group, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "group.create", "groups"); err != nil {
+		return nil, err
+	}
+	if err := s.validateGroup(ctx, in); err != nil {
+		return nil, err
+	}
+	g := &oapi.Group{Id: kernel.NewID("grp"), Name: strings.TrimSpace(in.Name), Description: derefStr(in.Description), MemberIds: in.MemberIds}
+	if err := s.groups.Put(ctx, g); err != nil {
+		return nil, err
+	}
+	s.InvalidateAccess(ctx)
+	if err := s.auditor.Record(ctx, ec, "group.create", "group/"+g.Id, kernel.OutcomeAllowed, g.Name); err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
+func (s *service) UpdateGroup(ctx context.Context, ec kernel.ExecutionContext, groupID string, in oapi.GroupInput) (*oapi.Group, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "group.update", "group/"+groupID); err != nil {
+		return nil, err
+	}
+	if err := s.validateGroup(ctx, in); err != nil {
+		return nil, err
+	}
+	g, err := s.groups.Get(ctx, groupID)
+	if errors.Is(err, docstore.ErrNotFound) {
+		return nil, kernel.NotFound("No group %s", groupID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	g.Name, g.Description, g.MemberIds = strings.TrimSpace(in.Name), derefStr(in.Description), in.MemberIds
+	if err := s.groups.Put(ctx, g); err != nil {
+		return nil, err
+	}
+	s.InvalidateAccess(ctx)
+	if err := s.auditor.Record(ctx, ec, "group.update", "group/"+g.Id, kernel.OutcomeAllowed, g.Name); err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
+func (s *service) DeleteGroup(ctx context.Context, ec kernel.ExecutionContext, groupID string) error {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "group.delete", "group/"+groupID); err != nil {
+		return err
+	}
+	if _, err := s.groups.Get(ctx, groupID); errors.Is(err, docstore.ErrNotFound) {
+		return kernel.NotFound("No group %s", groupID)
+	} else if err != nil {
+		return err
+	}
+	if err := s.groups.Delete(ctx, groupID); err != nil {
+		return err
+	}
+	s.InvalidateAccess(ctx)
+	return s.auditor.Record(ctx, ec, "group.delete", "group/"+groupID, kernel.OutcomeAllowed, "")
 }
 
 func (s *service) Organization(ctx context.Context) (*oapi.Organization, error) {

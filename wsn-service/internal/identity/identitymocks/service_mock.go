@@ -24,6 +24,12 @@ import (
 //			CallerFromClaimsFunc: func(ctx context.Context, claims identity.Claims) (*kernel.Caller, error) {
 //				panic("mock out the CallerFromClaims method")
 //			},
+//			CreateGroupFunc: func(ctx context.Context, ec kernel.ExecutionContext, in oapi.GroupInput) (*oapi.Group, error) {
+//				panic("mock out the CreateGroup method")
+//			},
+//			DeleteGroupFunc: func(ctx context.Context, ec kernel.ExecutionContext, groupID string) error {
+//				panic("mock out the DeleteGroup method")
+//			},
 //			DepartmentsFunc: func(ctx context.Context) ([]oapi.Department, error) {
 //				panic("mock out the Departments method")
 //			},
@@ -32,6 +38,9 @@ import (
 //			},
 //			GroupMappingsFunc: func(ctx context.Context) ([]oapi.GroupRoleMapping, error) {
 //				panic("mock out the GroupMappings method")
+//			},
+//			GroupsFunc: func(ctx context.Context) ([]oapi.Group, error) {
+//				panic("mock out the Groups method")
 //			},
 //			InvalidateAccessFunc: func(ctx context.Context)  {
 //				panic("mock out the InvalidateAccess method")
@@ -50,6 +59,9 @@ import (
 //			},
 //			TeamsFunc: func(ctx context.Context) ([]oapi.Team, error) {
 //				panic("mock out the Teams method")
+//			},
+//			UpdateGroupFunc: func(ctx context.Context, ec kernel.ExecutionContext, groupID string, in oapi.GroupInput) (*oapi.Group, error) {
+//				panic("mock out the UpdateGroup method")
 //			},
 //			UpdateGroupMappingsFunc: func(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error) {
 //				panic("mock out the UpdateGroupMappings method")
@@ -73,6 +85,12 @@ type ServiceMock struct {
 	// CallerFromClaimsFunc mocks the CallerFromClaims method.
 	CallerFromClaimsFunc func(ctx context.Context, claims identity.Claims) (*kernel.Caller, error)
 
+	// CreateGroupFunc mocks the CreateGroup method.
+	CreateGroupFunc func(ctx context.Context, ec kernel.ExecutionContext, in oapi.GroupInput) (*oapi.Group, error)
+
+	// DeleteGroupFunc mocks the DeleteGroup method.
+	DeleteGroupFunc func(ctx context.Context, ec kernel.ExecutionContext, groupID string) error
+
 	// DepartmentsFunc mocks the Departments method.
 	DepartmentsFunc func(ctx context.Context) ([]oapi.Department, error)
 
@@ -81,6 +99,9 @@ type ServiceMock struct {
 
 	// GroupMappingsFunc mocks the GroupMappings method.
 	GroupMappingsFunc func(ctx context.Context) ([]oapi.GroupRoleMapping, error)
+
+	// GroupsFunc mocks the Groups method.
+	GroupsFunc func(ctx context.Context) ([]oapi.Group, error)
 
 	// InvalidateAccessFunc mocks the InvalidateAccess method.
 	InvalidateAccessFunc func(ctx context.Context)
@@ -99,6 +120,9 @@ type ServiceMock struct {
 
 	// TeamsFunc mocks the Teams method.
 	TeamsFunc func(ctx context.Context) ([]oapi.Team, error)
+
+	// UpdateGroupFunc mocks the UpdateGroup method.
+	UpdateGroupFunc func(ctx context.Context, ec kernel.ExecutionContext, groupID string, in oapi.GroupInput) (*oapi.Group, error)
 
 	// UpdateGroupMappingsFunc mocks the UpdateGroupMappings method.
 	UpdateGroupMappingsFunc func(ctx context.Context, ec kernel.ExecutionContext, mappings []oapi.GroupRoleMapping) ([]oapi.GroupRoleMapping, error)
@@ -125,6 +149,24 @@ type ServiceMock struct {
 			// Claims is the claims argument value.
 			Claims identity.Claims
 		}
+		// CreateGroup holds details about calls to the CreateGroup method.
+		CreateGroup []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// In is the in argument value.
+			In oapi.GroupInput
+		}
+		// DeleteGroup holds details about calls to the DeleteGroup method.
+		DeleteGroup []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// GroupID is the groupID argument value.
+			GroupID string
+		}
 		// Departments holds details about calls to the Departments method.
 		Departments []struct {
 			// Ctx is the ctx argument value.
@@ -137,6 +179,11 @@ type ServiceMock struct {
 		}
 		// GroupMappings holds details about calls to the GroupMappings method.
 		GroupMappings []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+		}
+		// Groups holds details about calls to the Groups method.
+		Groups []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
@@ -172,6 +219,17 @@ type ServiceMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
+		// UpdateGroup holds details about calls to the UpdateGroup method.
+		UpdateGroup []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// GroupID is the groupID argument value.
+			GroupID string
+			// In is the in argument value.
+			In oapi.GroupInput
+		}
 		// UpdateGroupMappings holds details about calls to the UpdateGroupMappings method.
 		UpdateGroupMappings []struct {
 			// Ctx is the ctx argument value.
@@ -200,15 +258,19 @@ type ServiceMock struct {
 	}
 	lockCaller               sync.RWMutex
 	lockCallerFromClaims     sync.RWMutex
+	lockCreateGroup          sync.RWMutex
+	lockDeleteGroup          sync.RWMutex
 	lockDepartments          sync.RWMutex
 	lockEnvironments         sync.RWMutex
 	lockGroupMappings        sync.RWMutex
+	lockGroups               sync.RWMutex
 	lockInvalidateAccess     sync.RWMutex
 	lockOrganization         sync.RWMutex
 	lockPermissionsForGroups sync.RWMutex
 	lockPersonas             sync.RWMutex
 	lockRoles                sync.RWMutex
 	lockTeams                sync.RWMutex
+	lockUpdateGroup          sync.RWMutex
 	lockUpdateGroupMappings  sync.RWMutex
 	lockUpdateUserRoles      sync.RWMutex
 	lockUsers                sync.RWMutex
@@ -283,6 +345,86 @@ func (mock *ServiceMock) CallerFromClaimsCalls() []struct {
 	mock.lockCallerFromClaims.RLock()
 	calls = mock.calls.CallerFromClaims
 	mock.lockCallerFromClaims.RUnlock()
+	return calls
+}
+
+// CreateGroup calls CreateGroupFunc.
+func (mock *ServiceMock) CreateGroup(ctx context.Context, ec kernel.ExecutionContext, in oapi.GroupInput) (*oapi.Group, error) {
+	if mock.CreateGroupFunc == nil {
+		panic("ServiceMock.CreateGroupFunc: method is nil but Service.CreateGroup was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Ec  kernel.ExecutionContext
+		In  oapi.GroupInput
+	}{
+		Ctx: ctx,
+		Ec:  ec,
+		In:  in,
+	}
+	mock.lockCreateGroup.Lock()
+	mock.calls.CreateGroup = append(mock.calls.CreateGroup, callInfo)
+	mock.lockCreateGroup.Unlock()
+	return mock.CreateGroupFunc(ctx, ec, in)
+}
+
+// CreateGroupCalls gets all the calls that were made to CreateGroup.
+// Check the length with:
+//
+//	len(mockedService.CreateGroupCalls())
+func (mock *ServiceMock) CreateGroupCalls() []struct {
+	Ctx context.Context
+	Ec  kernel.ExecutionContext
+	In  oapi.GroupInput
+} {
+	var calls []struct {
+		Ctx context.Context
+		Ec  kernel.ExecutionContext
+		In  oapi.GroupInput
+	}
+	mock.lockCreateGroup.RLock()
+	calls = mock.calls.CreateGroup
+	mock.lockCreateGroup.RUnlock()
+	return calls
+}
+
+// DeleteGroup calls DeleteGroupFunc.
+func (mock *ServiceMock) DeleteGroup(ctx context.Context, ec kernel.ExecutionContext, groupID string) error {
+	if mock.DeleteGroupFunc == nil {
+		panic("ServiceMock.DeleteGroupFunc: method is nil but Service.DeleteGroup was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		Ec      kernel.ExecutionContext
+		GroupID string
+	}{
+		Ctx:     ctx,
+		Ec:      ec,
+		GroupID: groupID,
+	}
+	mock.lockDeleteGroup.Lock()
+	mock.calls.DeleteGroup = append(mock.calls.DeleteGroup, callInfo)
+	mock.lockDeleteGroup.Unlock()
+	return mock.DeleteGroupFunc(ctx, ec, groupID)
+}
+
+// DeleteGroupCalls gets all the calls that were made to DeleteGroup.
+// Check the length with:
+//
+//	len(mockedService.DeleteGroupCalls())
+func (mock *ServiceMock) DeleteGroupCalls() []struct {
+	Ctx     context.Context
+	Ec      kernel.ExecutionContext
+	GroupID string
+} {
+	var calls []struct {
+		Ctx     context.Context
+		Ec      kernel.ExecutionContext
+		GroupID string
+	}
+	mock.lockDeleteGroup.RLock()
+	calls = mock.calls.DeleteGroup
+	mock.lockDeleteGroup.RUnlock()
 	return calls
 }
 
@@ -379,6 +521,38 @@ func (mock *ServiceMock) GroupMappingsCalls() []struct {
 	mock.lockGroupMappings.RLock()
 	calls = mock.calls.GroupMappings
 	mock.lockGroupMappings.RUnlock()
+	return calls
+}
+
+// Groups calls GroupsFunc.
+func (mock *ServiceMock) Groups(ctx context.Context) ([]oapi.Group, error) {
+	if mock.GroupsFunc == nil {
+		panic("ServiceMock.GroupsFunc: method is nil but Service.Groups was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+	}{
+		Ctx: ctx,
+	}
+	mock.lockGroups.Lock()
+	mock.calls.Groups = append(mock.calls.Groups, callInfo)
+	mock.lockGroups.Unlock()
+	return mock.GroupsFunc(ctx)
+}
+
+// GroupsCalls gets all the calls that were made to Groups.
+// Check the length with:
+//
+//	len(mockedService.GroupsCalls())
+func (mock *ServiceMock) GroupsCalls() []struct {
+	Ctx context.Context
+} {
+	var calls []struct {
+		Ctx context.Context
+	}
+	mock.lockGroups.RLock()
+	calls = mock.calls.Groups
+	mock.lockGroups.RUnlock()
 	return calls
 }
 
@@ -575,6 +749,50 @@ func (mock *ServiceMock) TeamsCalls() []struct {
 	mock.lockTeams.RLock()
 	calls = mock.calls.Teams
 	mock.lockTeams.RUnlock()
+	return calls
+}
+
+// UpdateGroup calls UpdateGroupFunc.
+func (mock *ServiceMock) UpdateGroup(ctx context.Context, ec kernel.ExecutionContext, groupID string, in oapi.GroupInput) (*oapi.Group, error) {
+	if mock.UpdateGroupFunc == nil {
+		panic("ServiceMock.UpdateGroupFunc: method is nil but Service.UpdateGroup was just called")
+	}
+	callInfo := struct {
+		Ctx     context.Context
+		Ec      kernel.ExecutionContext
+		GroupID string
+		In      oapi.GroupInput
+	}{
+		Ctx:     ctx,
+		Ec:      ec,
+		GroupID: groupID,
+		In:      in,
+	}
+	mock.lockUpdateGroup.Lock()
+	mock.calls.UpdateGroup = append(mock.calls.UpdateGroup, callInfo)
+	mock.lockUpdateGroup.Unlock()
+	return mock.UpdateGroupFunc(ctx, ec, groupID, in)
+}
+
+// UpdateGroupCalls gets all the calls that were made to UpdateGroup.
+// Check the length with:
+//
+//	len(mockedService.UpdateGroupCalls())
+func (mock *ServiceMock) UpdateGroupCalls() []struct {
+	Ctx     context.Context
+	Ec      kernel.ExecutionContext
+	GroupID string
+	In      oapi.GroupInput
+} {
+	var calls []struct {
+		Ctx     context.Context
+		Ec      kernel.ExecutionContext
+		GroupID string
+		In      oapi.GroupInput
+	}
+	mock.lockUpdateGroup.RLock()
+	calls = mock.calls.UpdateGroup
+	mock.lockUpdateGroup.RUnlock()
 	return calls
 }
 

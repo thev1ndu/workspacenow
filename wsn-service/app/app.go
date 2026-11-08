@@ -188,7 +188,7 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 
 	auditor, publisher, engine, runtime := core.auditor, core.publisher, core.engine, core.runtime
 
-	identitySvc := identity.NewService(db, c, auditor)
+	identitySvc := identity.NewService(db, c, auditor, identity.Bootstrap{AdminEmails: cfg.Bootstrap.AdminEmails, AdminRole: cfg.Bootstrap.AdminRole})
 	aiClient := ai.NewClient(cfg.AI.ServiceURL, cfg.AI.ServiceToken)
 	connectSvc := connect.NewService(db, engine, auditor, c, runtime, secrets.NewOpenBao(cfg.OpenBao), aiClient)
 	g.Go(func() error { return connectSvc.RunWebhookDispatcher(ctx) }) // startServer runs only in the server role

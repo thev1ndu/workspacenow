@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuthHooks } from "@workspacenow/auth";
-import type { GroupRoleMapping } from "@workspacenow/types";
+import type { GroupInput, GroupRoleMapping } from "@workspacenow/types";
 import * as api from "../apis/platform";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
 
@@ -74,6 +74,35 @@ export function useUpdateUserRoles() {
   return useApiMutation({
     action: { verb: "update", target: "user roles" },
     mutationFn: ({ userId, roleIds }: { userId: string; roleIds: string[] }) => api.updateUserRoles(userId, roleIds, getToken),
+  });
+}
+
+export function useListGroups() {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["groups"], queryFn: () => api.listGroups(getToken) });
+}
+
+export function useCreateGroup() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "create", target: "group" },
+    mutationFn: (input: GroupInput) => api.createGroup(input, getToken),
+  });
+}
+
+export function useUpdateGroup() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "update", target: "group" },
+    mutationFn: ({ groupId, input }: { groupId: string; input: GroupInput }) => api.updateGroup(groupId, input, getToken),
+  });
+}
+
+export function useDeleteGroup() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    action: { verb: "delete", target: "group" },
+    mutationFn: (groupId: string) => api.deleteGroup(groupId, getToken),
   });
 }
 

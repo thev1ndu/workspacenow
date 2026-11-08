@@ -8,7 +8,7 @@ import {
   type EntryPoint,
   type EnvironmentKey,
   type FieldValue,
-  type GroupRoleMapping,
+  type Group, GroupInput, GroupRoleMapping,
   type HealthSignal,
   type Integration,
   type IntegrationInput,
@@ -206,6 +206,42 @@ route("PUT", "/users/:userId/roles", ({ platform, ctx, params, body }) => {
 route("GET", "/personas", ({ platform }) => list(platform.state.users), { public: true });
 route("GET", "/roles", ({ platform }) => list(platform.state.roles));
 route("GET", "/group-mappings", ({ platform }) => list(platform.state.groupMappings));
+route("GET", "/groups", ({ platform }) => list(platform.state.groups));
+route("POST", "/groups", ({ platform, ctx, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "group.create", "groups");
+  const input = body as unknown as GroupInput;
+  if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "A group needs a name");
+  for (const id of input.memberIds ?? []) {
+    if (!platform.state.users.some((u) => u.id === id)) fail(422, "VALIDATION_FAILED", `Unknown member ${id}`);
+  }
+  const g: Group = { id: platform.nextId("grp"), name: input.name.trim(), description: input.description ?? "", memberIds: input.memberIds ?? [] };
+  platform.state.groups.push(g);
+  platform.audit(c, "group.create", `group/${g.id}`, "allowed", g.name);
+  return g;
+});
+route("PUT", "/groups/:groupId", ({ platform, ctx, params, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "group.update", `group/${params.groupId}`);
+  const g = platform.state.groups.find((x) => x.id === params.groupId);
+  if (!g) fail(404, "NOT_FOUND", `No group ${params.groupId}`);
+  const input = body as unknown as GroupInput;
+  if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "A group needs a name");
+  g.name = input.name.trim();
+  g.description = input.description ?? "";
+  g.memberIds = input.memberIds ?? [];
+  platform.audit(c, "group.update", `group/${g.id}`, "allowed", g.name);
+  return g;
+});
+route("DELETE", "/groups/:groupId", ({ platform, ctx, params }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "group.delete", `group/${params.groupId}`);
+  const i = platform.state.groups.findIndex((x) => x.id === params.groupId);
+  if (i < 0) fail(404, "NOT_FOUND", `No group ${params.groupId}`);
+  platform.state.groups.splice(i, 1);
+  platform.audit(c, "group.delete", `group/${params.groupId}`, "allowed", "");
+  return { deleted: true };
+});
 route("PUT", "/group-mappings", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "access.update", "group-mappings");

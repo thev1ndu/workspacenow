@@ -12,6 +12,7 @@ import type {
   Entity, EntityVersion,
   EntityRecord,
   Environment,
+  Group,
   GroupRoleMapping,
   Integration,
   McpServer,
@@ -45,6 +46,7 @@ export interface PlatformState {
   users: User[];
   roles: Role[];
   groupMappings: GroupRoleMapping[];
+  groups: Group[];
   environments: Environment[];
   applications: Application[];
   releases: Release[];

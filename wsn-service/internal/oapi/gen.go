@@ -2405,6 +2405,29 @@ type FilterOp struct {
 // FilterOpOp defines model for FilterOp.Op.
 type FilterOpOp string
 
+// Group defines model for Group.
+type Group struct {
+	Description string `json:"description"`
+	Id          string `json:"id"`
+
+	// MemberIds User IDs in this group
+	MemberIds []string `json:"memberIds"`
+	Name      string   `json:"name"`
+}
+
+// GroupInput defines model for GroupInput.
+type GroupInput struct {
+	Description *string  `json:"description,omitempty"`
+	MemberIds   []string `json:"memberIds"`
+	Name        string   `json:"name"`
+}
+
+// GroupList defines model for GroupList.
+type GroupList struct {
+	Items []Group `json:"items"`
+	Total int     `json:"total"`
+}
+
 // GroupRoleMapping defines model for GroupRoleMapping.
 type GroupRoleMapping struct {
 	Group  string `json:"group"`
@@ -3736,6 +3759,12 @@ type ExecuteGraphQLJSONRequestBody ExecuteGraphQLJSONBody
 // UpdateGroupMappingsJSONRequestBody defines body for UpdateGroupMappings for application/json ContentType.
 type UpdateGroupMappingsJSONRequestBody UpdateGroupMappingsJSONBody
 
+// CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
+type CreateGroupJSONRequestBody = GroupInput
+
+// UpdateGroupJSONRequestBody defines body for UpdateGroup for application/json ContentType.
+type UpdateGroupJSONRequestBody = GroupInput
+
 // CreateIntegrationJSONRequestBody defines body for CreateIntegration for application/json ContentType.
 type CreateIntegrationJSONRequestBody = IntegrationInput
 
@@ -4557,6 +4586,18 @@ type ServerInterface interface {
 	// Replace all group to role mappings
 	// (PUT /group-mappings)
 	UpdateGroupMappings(w http.ResponseWriter, r *http.Request)
+	// WorkspaceNow groups (managed here, not in the IdP)
+	// (GET /groups)
+	ListGroups(w http.ResponseWriter, r *http.Request)
+	// Create a WorkspaceNow group
+	// (POST /groups)
+	CreateGroup(w http.ResponseWriter, r *http.Request)
+	// Delete a WorkspaceNow group
+	// (DELETE /groups/{groupId})
+	DeleteGroup(w http.ResponseWriter, r *http.Request, groupId string)
+	// Replace a WorkspaceNow group (name, description, members)
+	// (PUT /groups/{groupId})
+	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId string)
 	// Health signals for applications, APIs, MCP servers, integrations, databases and workflows
 	// (GET /health)
 	ListHealth(w http.ResponseWriter, r *http.Request)
@@ -7179,6 +7220,108 @@ func (siw *ServerInterfaceWrapper) UpdateGroupMappings(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ListGroups operation middleware
+func (siw *ServerInterfaceWrapper) ListGroups(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGroups(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateGroup operation middleware
+func (siw *ServerInterfaceWrapper) CreateGroup(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateGroup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", r.PathValue("groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteGroup(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateGroup operation middleware
+func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupId" -------------
+	var groupId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupId", r.PathValue("groupId"), &groupId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateGroup(w, r, groupId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListHealth operation middleware
 func (siw *ServerInterfaceWrapper) ListHealth(w http.ResponseWriter, r *http.Request) {
 
@@ -8513,6 +8656,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/graphql", wrapper.ExecuteGraphQL)
 	m.HandleFunc("GET "+options.BaseURL+"/group-mappings", wrapper.ListGroupMappings)
 	m.HandleFunc("PUT "+options.BaseURL+"/group-mappings", wrapper.UpdateGroupMappings)
+	m.HandleFunc("GET "+options.BaseURL+"/groups", wrapper.ListGroups)
+	m.HandleFunc("POST "+options.BaseURL+"/groups", wrapper.CreateGroup)
+	m.HandleFunc("DELETE "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
+	m.HandleFunc("PUT "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc("GET "+options.BaseURL+"/health", wrapper.ListHealth)
 	m.HandleFunc("GET "+options.BaseURL+"/integrations", wrapper.ListIntegrations)
 	m.HandleFunc("POST "+options.BaseURL+"/integrations", wrapper.CreateIntegration)

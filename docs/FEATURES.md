@@ -14,7 +14,7 @@ Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers 
 - ✅ Session (`GET /session`) with caller profile + effective permissions
 - ✅ Demo mode: persona tokens (`demo.u-*`), `POST /demo/reset` reseeds the demo org
 - ✅ Real OIDC: JWKS validation in wsn-service; console login with Authorization Code + PKCE (`/login/callback`, `authMode: "oidc"` in `config.js`)
-- ✅ Organization model: users (synced from the IdP on login), roles, group→role mappings (GET/PUT) **and roles assigned directly per user** (`PUT /users/{id}/roles`, unioned with group grants); the Organization page shows the installation and IdP, access management lives on the Identity and access page
+- ✅ Organization model: users sync from the IdP on login; **first admin via `WSN_BOOTSTRAP_ADMIN_EMAILS`** (no IdP group setup); WorkspaceNow-native **groups CRUD** (`/groups`) managed on the Identity and access page; group→role mappings (GET/PUT) match native group names and IdP claims alike; roles assignable directly per user (`PUT /users/{id}/roles`); resolution unions all three; the Organization page shows installation + IdP
 - ✅ Per-endpoint permission guards (`kernel.RequirePermission`), 403s audited as denials with trace id
 - ✅ Environments (Development / Staging / Production)
 - ⬜ SCIM / user provisioning against a real IdP

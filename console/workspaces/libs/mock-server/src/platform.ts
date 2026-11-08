@@ -88,8 +88,10 @@ export class Platform {
   rolesForUser(userId: string) {
     const user = this.state.users.find((u) => u.id === userId);
     if (!user) return [];
+    const nativeGroups = this.state.groups.filter((g) => g.memberIds.includes(userId)).map((g) => g.name);
+    const allGroups = [...user.groups, ...nativeGroups];
     const roleIds = new Set([
-      ...this.state.groupMappings.filter((m) => user.groups.includes(m.group)).map((m) => m.roleId),
+      ...this.state.groupMappings.filter((m) => allGroups.includes(m.group)).map((m) => m.roleId),
       ...(user.roleIds ?? []),
     ]);
     return this.state.roles.filter((role) => roleIds.has(role.id));

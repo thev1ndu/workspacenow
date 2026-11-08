@@ -3,7 +3,7 @@ import type {
   Department,
   EntryPointBreakdown,
   Environment,
-  GroupRoleMapping,
+  Group, GroupInput, GroupRoleMapping,
   HealthSignal,
   ListResponse,
   Organization,
@@ -17,7 +17,7 @@ import type {
   TokenUsagePoint,
   User,
 } from "@workspacenow/types";
-import { httpGET, httpPOST, httpPUT, SERVICE_BASE, qs, type GetToken } from "../utils/http";
+import { httpDELETE, httpGET, httpPOST, httpPUT, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export type UserWithRoles = User & { roles: string[] };
 
@@ -77,6 +77,22 @@ export async function updateUserRoles(userId: string, roleIds: string[], getToke
     token: await getToken(),
     body: { roles: roleIds },
   });
+}
+
+export async function listGroups(getToken: GetToken) {
+  return httpGET<ListResponse<Group>>(`${SERVICE_BASE}/groups`, { token: await getToken() });
+}
+
+export async function createGroup(input: GroupInput, getToken: GetToken) {
+  return httpPOST<Group>(`${SERVICE_BASE}/groups`, { token: await getToken(), body: input });
+}
+
+export async function updateGroup(groupId: string, input: GroupInput, getToken: GetToken) {
+  return httpPUT<Group>(`${SERVICE_BASE}/groups/${encodeURIComponent(groupId)}`, { token: await getToken(), body: input });
+}
+
+export async function deleteGroup(groupId: string, getToken: GetToken) {
+  return httpDELETE(`${SERVICE_BASE}/groups/${encodeURIComponent(groupId)}`, { token: await getToken() });
 }
 
 export async function updateGroupMappings(mappings: GroupRoleMapping[], getToken: GetToken) {

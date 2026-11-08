@@ -23,15 +23,16 @@ type Config struct {
 	ShutdownTimeout time.Duration
 	CORSOrigins     []string
 
-	Database DatabaseConfig
-	Redis    RedisConfig
-	NATS     NATSConfig
-	Temporal TemporalConfig
-	S3       S3Config
-	OpenBao  OpenBaoConfig
-	OIDC     OIDCConfig
-	AI       AIConfig
-	Observer ObserverConfig
+	Database  DatabaseConfig
+	Redis     RedisConfig
+	NATS      NATSConfig
+	Temporal  TemporalConfig
+	S3        S3Config
+	OpenBao   OpenBaoConfig
+	OIDC      OIDCConfig
+	Bootstrap BootstrapConfig
+	AI        AIConfig
+	Observer  ObserverConfig
 }
 
 // ObserverConfig points at wsn-observer, the central telemetry service; empty URL disables export.
@@ -86,6 +87,13 @@ type OIDCConfig struct {
 	GroupsClaim string // token claim that lists the user's groups
 }
 
+// BootstrapConfig names the first administrators: any user whose IdP email is listed gets the
+// admin role on first login, so installation never requires creating an IdP group.
+type BootstrapConfig struct {
+	AdminEmails []string // WSN_BOOTSTRAP_ADMIN_EMAILS, comma-separated
+	AdminRole   string   // WSN_BOOTSTRAP_ADMIN_ROLE, the role ID granted (default role-admin)
+}
+
 type AIConfig struct {
 	ServiceURL   string
 	ServiceToken string // shared token the platform presents to the ai-service internal API
@@ -136,6 +144,10 @@ func Load() (*Config, error) {
 			Audience:    r.str("OIDC_AUDIENCE", ""),
 			JWKSURL:     r.str("OIDC_JWKS_URL", ""),
 			GroupsClaim: r.str("OIDC_GROUPS_CLAIM", "groups"),
+		},
+		Bootstrap: BootstrapConfig{
+			AdminEmails: r.list("WSN_BOOTSTRAP_ADMIN_EMAILS", nil),
+			AdminRole:   r.str("WSN_BOOTSTRAP_ADMIN_ROLE", "role-admin"),
 		},
 		AI: AIConfig{
 			ServiceURL:   r.str("AI_SERVICE_URL", "http://localhost:8090"),

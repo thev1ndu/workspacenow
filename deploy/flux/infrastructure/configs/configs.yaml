@@ -13,7 +13,7 @@ spec:
       database: workspacenow
       owner: workspacenow
       postInitSQL:
-        - CREATE ROLE temporal LOGIN
+        - CREATE ROLE temporal LOGIN CREATEDB
         - CREATE DATABASE temporal OWNER temporal
         - CREATE DATABASE temporal_visibility OWNER temporal
   managed:

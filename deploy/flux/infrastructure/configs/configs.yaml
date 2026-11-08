@@ -227,6 +227,8 @@ spec:
       containers:
         - name: bao
           image: openbao/openbao:2.1.0
+          env:
+            - { name: BAO_ADDR, value: "http://openbao.openbao.svc:8200" }
           command: ["/bin/sh", "-c"]
           args:
             - |

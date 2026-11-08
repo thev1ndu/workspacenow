@@ -15,6 +15,7 @@ spec:
       containers:
         - name: ai
           image: wsn-ai-service
+          imagePullPolicy: Always
           ports:
             - { name: http, containerPort: 8090 }
           env:

@@ -30,6 +30,7 @@ spec:
       containers:
         - name: console
           image: console
+          imagePullPolicy: Always
           ports:
             - { name: http, containerPort: 8080 }
           env:

@@ -47,6 +47,7 @@ spec:
       containers:
         - name: migrate
           image: wsn-service
+          imagePullPolicy: Always
           args: ["-migrate", "-server=false"]
           envFrom:
             - configMapRef: { name: wsn-service }
@@ -73,6 +74,7 @@ spec:
       containers:
         - name: api
           image: wsn-service
+          imagePullPolicy: Always
           ports:
             - { name: http, containerPort: 8080 }
             - { name: internal, containerPort: 8081 }
@@ -117,6 +119,7 @@ spec:
       containers:
         - name: relay
           image: wsn-service
+          imagePullPolicy: Always
           args: ["-server=false", "-relay"]
           envFrom:
             - configMapRef: { name: wsn-service }
@@ -147,6 +150,7 @@ spec:
       containers:
         - name: worker
           image: wsn-service
+          imagePullPolicy: Always
           args: ["-server=false", "-worker"]
           envFrom:
             - configMapRef: { name: wsn-service }

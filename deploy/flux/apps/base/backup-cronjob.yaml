@@ -20,6 +20,7 @@ spec:
           containers:
             - name: backup
               image: wsn-service
+              imagePullPolicy: Always
               args: ["-backup"]
               envFrom: [{ configMapRef: { name: wsn-service } }]
               env:

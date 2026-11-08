@@ -97,15 +97,18 @@ both on the same page. With `WSN_DEMO_MODE=false` and no OIDC, the local system 
 `wsn-secrets` signs in via `POST /api/v1/auth/login`:
 
 ```sh
+PW=$(kubectl -n openbao exec statefulset/openbao -- sh -c \
+  'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/local-admin')
 TOKEN=$(curl -s -X POST https://api.workspace.twotakeone.com/api/v1/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@workspacenow.local","password":"change-me"}' | jq -r .token)
+  -d "{"email":"admin@workspacenow.local","password":"$PW"}" | jq -r .token)
 curl -s https://api.workspace.twotakeone.com/api/v1/session -H "Authorization: Bearer $TOKEN"
 ```
 
-First login provisions the user with the **`workspacenow-admin`** role (all permissions).
-Later, set `OIDC_ISSUER` / `OIDC_AUDIENCE` / `OIDC_JWKS_URL` in ConfigMap `wsn-service` and
-`WSN_BOOTSTRAP_ADMIN_EMAILS` for IdP-based admins; local login is then disabled.
+First login provisions the user with the **`workspacenow-admin`** role (all permissions, `*`).
+The system user stays available when OIDC is configured too (both options on `/login`). To connect
+OIDC later, set `OIDC_ISSUER` / `OIDC_AUDIENCE` / `OIDC_JWKS_URL` in ConfigMap `wsn-service`,
+`WSN_BOOTSTRAP_ADMIN_EMAILS` for IdP-based admins, and `authMode: "oidc"` in `public/config.js`.
 Open `https://workspace.twotakeone.com` in the browser and use the same credentials.
 
 ## 5. Health

@@ -28,6 +28,9 @@ spec:
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: MISTRAL_API_KEY } }
             - name: AI_SERVICE_TOKEN
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: AI_SERVICE_TOKEN } }
+            - { name: WSN_OBSERVER_URL, value: http://wsn-observer:9098 }
+            - { name: WSN_OBSERVER_TOKEN
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: OBSERVER_TOKEN } } }
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
           readinessProbe:

@@ -14,7 +14,7 @@ spec:
     spec:
       restartPolicy: Never
       hostAliases:
-        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
+        - { ip: 169.58.222.25, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
@@ -38,7 +38,7 @@ spec:
     spec:
       restartPolicy: Never
       hostAliases:
-        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
+        - { ip: 169.58.222.25, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
@@ -62,7 +62,7 @@ spec:
     spec:
       restartPolicy: Never
       hostAliases:
-        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
+        - { ip: 169.58.222.25, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2
@@ -86,7 +86,7 @@ spec:
     spec:
       restartPolicy: Never
       hostAliases:
-        - { ip: 169.58.222.26, hostnames: ["registry.workspace.twotakeone.com"] }
+        - { ip: 169.58.222.25, hostnames: ["registry.workspace.twotakeone.com"] }
       containers:
         - name: kaniko
           image: gcr.io/kaniko-project/executor:v1.23.2

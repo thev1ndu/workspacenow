@@ -12,13 +12,13 @@ external-secrets, OpenBao). Everything lands in namespace `workspacenow`.
 | Observer | `obs.workspace.twotakeone.com` | wsn-observer:9098 |
 | OCI registry | `registry.workspace.twotakeone.com` | registry:5000 (TLS via kgateway) |
 
-Gateway external IP: **169.58.222.26** (metallb pool `workspacenow-pool`).
+Gateway external IP: **169.58.222.25** (metallb pool `workspacenow-pool`).
 
 ## 0. DNS
 
 In Cloudflare (twotakeone.com), set the five records above to **DNS-only (gray cloud)** A records
-pointing at `169.58.222.26`. (Orange-cloud proxying also works if the origin is set to
-169.58.222.26, but gray-cloud is simpler.) The TLS certs are issued by `letsencrypt-dns`
+pointing at `169.58.222.25`. (Orange-cloud proxying also works if the origin is set to
+169.58.222.25, but gray-cloud is simpler.) The TLS certs are issued by `letsencrypt-dns`
 automatically once DNS resolves.
 
 ## 1. One-time cluster prep (already done on this cluster)
@@ -30,7 +30,7 @@ kubectl -n metallb-system apply -f - <<'EOF'
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata: { name: workspacenow-pool, namespace: metallb-system }
-spec: { addresses: ["169.58.222.26/32"] }
+spec: { addresses: ["169.58.222.25/32"] }
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
@@ -100,7 +100,7 @@ Demo mode is on in dev (`WSN_DEMO_MODE=true`): Northwind Retail personas, no IdP
 ```sh
 flux get kustomizations -n flux-system
 kubectl -n workspacenow get pods,svc,gateway,httproute,certificate
-kubectl -n workspacenow get gateway workspacenow        # ADDRESS 169.58.222.26
+kubectl -n workspacenow get gateway workspacenow        # ADDRESS 169.58.222.25
 curl -s https://api.workspace.twotakeone.com/api/v1/session | head -c 200
 curl -s https://obs.workspace.twotakeone.com/healthz
 curl -sI https://workspace.twotakeone.com | head -3

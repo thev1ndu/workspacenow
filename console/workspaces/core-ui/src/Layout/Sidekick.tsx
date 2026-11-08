@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Form, Input, Spinner, TextField } from "@heroui/react";
 import { ArrowUp, CircleCheck, CircleXmark, SparklesFill, Xmark } from "@workspacenow/icons";
 import { useAuthHooks } from "@workspacenow/auth";
-import { useListApiOperations, useListApis, useRunSidekick, useSession } from "@workspacenow/api-client";
+import { useListApiOperations, useListApis, useRunSidekick, useSession , hasPermission } from "@workspacenow/api-client";
 import { buildPath, routes, type AgentRun, type Application, type Permission } from "@workspacenow/types";
 import { TextLink } from "@workspacenow/views";
 
@@ -75,7 +75,7 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
   const [turns, setTurns] = useState<Turn[]>([]);
   const end = useRef<HTMLDivElement>(null);
   const permissions = session?.permissions ?? [];
-  const suggestions = SUGGESTIONS.filter((s) => (!s.needs || permissions.includes(s.needs)) && (!scope || scope.tools?.has(s.tool)));
+  const suggestions = SUGGESTIONS.filter((s) => (!s.needs || hasPermission(permissions, s.needs)) && (!scope || scope.tools?.has(s.tool)));
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end", behavior: "smooth" });

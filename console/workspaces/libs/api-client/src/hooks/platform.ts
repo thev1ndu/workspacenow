@@ -9,10 +9,15 @@ export function useSession() {
   return useApiQuery({ queryKey: ["session", userInfo?.id], queryFn: () => api.getSession(getToken), enabled: !!userInfo });
 }
 
-/** Whether the signed-in user holds a permission; the platform still enforces it on every call. */
+/** Whether the signed-in user holds a permission; the platform still enforces it on every call.
+ *  The "*" wildcard (system bootstrap role) grants everything. */
+export function hasPermission(permissions: string[] | undefined, permission: string): boolean {
+  return !!permissions && (permissions.includes("*") || permissions.includes(permission));
+}
+
 export function useCan(permission: string): boolean {
   const { data } = useSession();
-  return !!data?.permissions.includes(permission);
+  return hasPermission(data?.permissions, permission);
 }
 
 export function useListPersonas() {

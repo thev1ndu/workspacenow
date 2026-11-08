@@ -15,7 +15,7 @@ put() { # put <path> <key=value>...
   $BAO kv put -mount=secret "$path" $args
   echo "seeded secret/$path"
 }
-$BAO login -no-color "$OPENBAO_ROOT_TOKEN" >/dev/null
+$BAO login "$OPENBAO_ROOT_TOKEN" >/dev/null
 put workspacenow/mistral "apiKey=${MISTRAL_API_KEY:-}"
 put workspacenow/ai-service "token=${AI_SERVICE_TOKEN:-dev-service-token}"
 put workspacenow/observer "token=${OBSERVER_TOKEN:-}"
@@ -24,5 +24,5 @@ put workspacenow/object-storage "accessKey=${OBJECT_STORAGE_ACCESS_KEY:-workspac
 put workspacenow/temporal-db "password=${TEMPORAL_DB_PASSWORD:-temporal}"
 # System login used when no OIDC is configured: POST /api/v1/auth/login with these credentials,
 # first login provisions the user with the workspacenow-admin role.
-put workspacenow/local-admin "email=${WSN_LOCAL_ADMIN_EMAIL:-admin@workspacenow.local}" "password=${WSN_LOCAL_ADMIN_PASSWORD:-change-me}"
+put workspacenow/local-admin "email=${WSN_LOCAL_ADMIN_EMAIL:-admin@workspacenow.local}" "password=${WSN_LOCAL_ADMIN_PASSWORD:-$(head -c 24 /dev/urandom | base64 | tr -d '\n')}"
 echo "done — ExternalSecrets in namespace workspacenow will sync them into Secrets wsn-secrets / wsn-db-app"

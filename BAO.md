@@ -22,7 +22,23 @@ OpenBao secret/workspacenow/<path>  --ExternalSecret-->  Secret in namespace wor
 | `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed) | `wsn-secrets` → `RUN_GRANT_KEY` | wsn-service signs agent run grants |
 | `workspacenow/object-storage` | `accessKey`, `secretKey` | `wsn-secrets` (`S3_*`) and `wsn-rustfs-env` | RustFS (S3) + wsn-service object store |
 | `workspacenow/temporal-db` | `password` | `temporal-db`, `temporal-db-login` | Temporal SQL persistence on wsn-db |
-| `workspacenow/local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` | System login when no OIDC: `POST /api/v1/auth/login` (first login gets role `workspacenow-admin`) |
+| `workspacenow/local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` | System login at `/login` (works with or without OIDC; first login gets role `workspacenow-admin`) |
+
+### System user (local admin)
+
+The system user is always **`admin@workspacenow.local`**. Its password is **generated randomly**
+on first install (and by `openbao-seed.sh` when `WSN_LOCAL_ADMIN_PASSWORD` is unset) — view it with:
+
+```sh
+kubectl -n openbao exec statefulset/openbao -- sh -c \
+  'bao login root >/dev/null && bao kv get -mount=secret workspacenow/local-admin'
+# or just the password:
+kubectl -n openbao exec statefulset/openbao -- sh -c \
+  'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/local-admin'
+```
+
+Set a known password instead: `WSN_LOCAL_ADMIN_PASSWORD='...' ./deploy/flux/platform/openbao-seed.sh`,
+then `kubectl -n workspacenow delete secret wsn-secrets` to force a re-sync.
 
 Non-secret settings (hostnames, CORS, `WSN_DEMO_MODE`, branding, log level) are **ConfigMaps**
 (`wsn-service`, `wsn-ai-service`, `wsn-observer`, `console`) — edit them in

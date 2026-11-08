@@ -36,19 +36,16 @@ CloudNativePG, external-secrets, OpenBao, NATS, Valkey, Temporal), `infrastructu
 `platform` (namespace, kgateway Gateway + TLS certificates, in-cluster registry, image-build
 Jobs), then `apps/dev` (the four apps in namespace `workspacenow`).
 
-## 2. Buildpacks (kpack) in the cluster
+## 2. Image builds in the cluster
 
-```sh
-kubectl apply -f https://github.com/paketo-buildpacks/kpack/releases/download/v0.16.0/release.yaml
-# wait for kpack controller
-kubectl -n kpack wait --for=condition=available deploy/kpack-controller --timeout=300s
-```
-
-The default path for the deployed images is kaniko Jobs (`deploy/flux/platform/builds.yaml`)
-using each component's existing `Dockerfile`, pushing to `registry.workspace.twotakeone.com/<component>:dev`.
-With kpack instead, create a ClusterStore/ClusterStack/ClusterBuilder (paketo full-cnb) and a
-`Build` per component with `spec.source.git.url = https://github.com/thev1ndu/workspacenow`,
-`subPath` = component dir, image `registry.workspace.twotakeone.com/<component>:dev`.
+The deployed images are built **in-cluster** (no GitHub Actions needed): kaniko Jobs in
+`deploy/flux/platform/builds.yaml` compile each component from the public repo with its
+existing `Dockerfile` and push to `registry.workspace.twotakeone.com/<component>:dev`.
+For a buildpacks path instead of Dockerfiles, install kpack (buildpacks) from its current
+release location and create a `Build` per component with
+`spec.source.git.url = https://github.com/thev1ndu/workspacenow`, `subPath` = component dir,
+image `registry.workspace.twotakeone.com/<component>:dev` (the paketo `full-cnb` builder covers
+Go and Python; for the console use its Dockerfile via kaniko, or a Procfile-based node build).
 
 Rebuild any image: delete its Job (`kubectl -n workspacenow delete job build-wsn-service`) —
 Flux re-creates it and kaniko rebuilds and re-pushes the `dev` tag; then restart the app

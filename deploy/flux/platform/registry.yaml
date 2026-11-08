@@ -23,7 +23,7 @@ spec:
             - { name: data, mountPath: /var/lib/registry }
           resources: { requests: { cpu: 100m, memory: 256Mi } }
       volumes:
-        - { name: data, emptyDir: {} }
+        - { name: data, persistentVolumeClaim: { claimName: registry-data } }
 ---
 apiVersion: v1
 kind: Service
@@ -46,3 +46,15 @@ spec:
   rules:
     - matches: [{ path: { type: PathPrefix, value: / } }]
       backendRefs: [{ name: registry, port: 5000 }]
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-data
+  namespace: workspacenow
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi

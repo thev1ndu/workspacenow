@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ApiError, planFromApplication, type AgentRun, type AlertFire, type AlertRule, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type SavedView, type Slo, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
+import { SCHEMA_VERSION, clearState, loadState, saveState } from "./state";
 import { createDemoPlatform } from "./runtime";
 import { applyPlan, createRelease, deploy, planApplication, planApplicationEdit, updateApplication } from "./studio";
 import { decideApproval, runManually, saveWorkflow } from "./workflows";
@@ -715,5 +716,40 @@ describe("deleting records", () => {
     const platform = createDemoPlatform();
     const supplier = platform.records("Supplier")[0];
     expect(send(platform, "DELETE", `/entities/Supplier/records/${supplier.id}`, "u-nimal").status).toBe(403);
+  });
+});
+
+describe("platform surface (read endpoints and state persistence)", () => {
+  it("serves the read-only surface with 200s", () => {
+    const platform = createDemoPlatform();
+    const paths = [
+      "/session", "/overview", "/resources", "/search?q=product&limit=5", "/status", "/health",
+      "/analytics/activity?days=7", "/analytics/tokens?days=7", "/analytics/entry-points", "/analytics/log-metrics?days=3",
+      "/audit?limit=5", "/traces", "/events?limit=5", "/organization", "/departments", "/teams", "/users", "/roles",
+      "/group-mappings", "/environments", "/connections", "/applications", "/entities", "/business-operations",
+      "/apis", "/api-operations", "/portal/apis", "/mcp/tools", "/mcp/servers", "/integrations", "/webhooks",
+      "/model-providers", "/agents", "/agent-runs", "/workflows", "/executions", "/approvals", "/alerts", "/slos",
+    ];
+    for (const path of paths) {
+      expect(get(platform, path).status, path).toBe(200);
+    }
+  });
+
+  it("persists, reloads and clears demo state via localStorage", () => {
+    const platform = createDemoPlatform();
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    saveState(platform.state);
+    expect(loadState()?.schemaVersion).toBe(SCHEMA_VERSION);
+    store.set("workspacenow-demo-state", JSON.stringify({ ...platform.state, schemaVersion: 0 }));
+    expect(loadState()).toBeUndefined(); // stale schema is discarded
+    clearState();
+    expect(store.size).toBe(0);
+    saveState(platform.state); // storage failure paths are covered by the no-localStorage run above
+    vi.unstubAllGlobals();
   });
 });

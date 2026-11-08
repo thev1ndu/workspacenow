@@ -4,3 +4,4 @@ resources:
   - gateway.yaml
   - registry.yaml
   - builds.yaml
+  - host-aliases.yaml

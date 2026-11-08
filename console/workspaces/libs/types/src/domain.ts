@@ -234,6 +234,11 @@ export interface DatabaseConnection {
 
 /* Studio */
 
+export interface Theme {
+  primaryColor?: string;
+  logoUrl?: string;
+}
+
 export interface Application {
   id: Id;
   name: string;
@@ -244,6 +249,7 @@ export interface Application {
   version: string;
   entityNames: string[];
   pages: AppPage[];
+  theme?: Theme;
   createdAt: IsoDate;
   updatedAt: IsoDate;
 }
@@ -272,6 +278,8 @@ export interface Release {
   notes: string;
   createdAt: IsoDate;
   createdBy: string;
+  /** Blueprint snapshot frozen at release time (used by the diff viewer). */
+  plan?: ApplicationPlan;
 }
 
 export interface Deployment {
@@ -280,8 +288,98 @@ export interface Deployment {
   environment: EnvironmentKey;
   version: string;
   status: "active" | "superseded";
+  preview?: boolean;
   deployedAt: IsoDate;
   deployedBy: string;
+}
+
+/** One marketplace template: a versioned, publisher-signed blueprint. */
+export interface Template {
+  id: Id;
+  name: string;
+  description: string;
+  category: "inventory" | "procurement" | "crm" | "hr" | "operations" | "custom";
+  version: string;
+  signature: string;
+  blueprint: ApplicationPlan;
+}
+
+export interface BlueprintChange {
+  kind: "entity" | "field" | "page" | "operation" | "workflow" | "permission" | "application";
+  change: "added" | "removed" | "changed";
+  name: string;
+  detail: string;
+}
+
+export interface BlueprintDiff {
+  from: string;
+  to: string;
+  summary: string[];
+  changes: BlueprintChange[];
+}
+
+export interface PreviewResult {
+  deployment: Deployment;
+  recordsSeeded: number;
+  url: string;
+}
+
+export interface SimStep {
+  name: string;
+  kind: string;
+  outcome: "would-run" | "would-wait-approval" | "would-skip" | "condition-true" | "condition-false";
+  detail: string;
+}
+
+export interface WorkflowSimulation {
+  traceId: string;
+  summary: string;
+  steps: SimStep[];
+}
+
+export interface SimulateWorkflowInput {
+  event?: Record<string, unknown>;
+}
+
+export interface InferEntityInput {
+  name?: string;
+  format: "json" | "csv";
+  data: string;
+}
+
+export interface InferredField {
+  name: string;
+  label: string;
+  type: "string" | "text" | "integer" | "number" | "boolean" | "date" | "enum" | "reference" | "file";
+  required: boolean;
+  unique: boolean;
+  enumValues?: string[];
+}
+
+export interface ImportMapping {
+  column: string;
+  field: string;
+}
+
+export interface EntityInference {
+  name: string;
+  fields: InferredField[];
+  importMapping: ImportMapping[];
+  rows: number;
+}
+
+export interface ViewFromTextInput {
+  text: string;
+}
+
+export interface ViewFromTextResult {
+  view: SavedView;
+  explanation: string;
+}
+
+export interface InstallTemplateInput {
+  name?: string;
+  environment?: string;
 }
 
 export interface Environment {

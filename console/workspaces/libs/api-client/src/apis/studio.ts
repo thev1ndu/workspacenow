@@ -1,4 +1,4 @@
-import type { Application, ApplicationPlan, Deployment, EnvironmentKey, ListResponse, Release } from "@workspacenow/types";
+import type { Application, ApplicationPlan, BlueprintDiff, Deployment, EnvironmentKey, InstallTemplateInput, ListResponse, PreviewResult, Release, Template, Theme } from "@workspacenow/types";
 import { enc, httpDELETE, httpGET, httpPOST, httpPUT, SERVICE_BASE, type GetToken } from "../utils/http";
 
 export async function listApplications(getToken: GetToken) {
@@ -62,4 +62,28 @@ export async function pinApplication(params: { appId: string }, getToken: GetTok
 
 export async function unpinApplication(params: { appId: string }, getToken: GetToken) {
   return httpDELETE<ListResponse<string>>(`${SERVICE_BASE}/me/pinned-applications/${enc(params.appId)}`, { token: await getToken() });
+}
+
+export async function listTemplates(getToken: GetToken) {
+  return httpGET<ListResponse<Template>>(`${SERVICE_BASE}/templates`, { token: await getToken() });
+}
+
+export async function getTemplate(params: { templateId: string }, getToken: GetToken) {
+  return httpGET<Template>(`${SERVICE_BASE}/templates/${enc(params.templateId)}`, { token: await getToken() });
+}
+
+export async function installTemplate(params: { templateId: string }, body: InstallTemplateInput, getToken: GetToken) {
+  return httpPOST<Application>(`${SERVICE_BASE}/templates/${enc(params.templateId)}/install`, { token: await getToken(), body });
+}
+
+export async function diffApplication(params: { appId: string; from: string; to: string }, getToken: GetToken) {
+  return httpGET<BlueprintDiff>(`${SERVICE_BASE}/applications/${enc(params.appId)}/diff?from=${enc(params.from)}&to=${enc(params.to)}`, { token: await getToken() });
+}
+
+export async function previewApplication(params: { appId: string }, getToken: GetToken) {
+  return httpPOST<PreviewResult>(`${SERVICE_BASE}/applications/${enc(params.appId)}/preview`, { token: await getToken(), body: {} });
+}
+
+export async function setApplicationTheme(params: { appId: string }, body: Theme, getToken: GetToken) {
+  return httpPUT<Application>(`${SERVICE_BASE}/applications/${enc(params.appId)}/theme`, { token: await getToken(), body });
 }

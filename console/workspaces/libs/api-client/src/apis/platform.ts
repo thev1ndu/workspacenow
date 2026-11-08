@@ -1,4 +1,4 @@
-import type {
+import type { Theme,
   ActivityPoint, LogMetricPoint,
   Department,
   EntryPointBreakdown,
@@ -46,6 +46,14 @@ export async function listEvents(query: { applicationId?: string; limit?: number
 
 export async function listHealth(getToken: GetToken) {
   return httpGET<ListResponse<HealthSignal>>(`${SERVICE_BASE}/health`, { token: await getToken() });
+}
+
+export async function getOrganizationTheme(getToken: GetToken) {
+  return httpGET<Theme>(`${SERVICE_BASE}/organization/theme`, { token: await getToken() });
+}
+
+export async function updateOrganizationTheme(body: Theme, getToken: GetToken) {
+  return httpPUT<Theme>(`${SERVICE_BASE}/organization/theme`, { token: await getToken(), body });
 }
 
 export async function getOrganization(getToken: GetToken) {

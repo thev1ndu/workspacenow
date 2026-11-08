@@ -7,8 +7,9 @@ import { LinkButton, PageLayout, QueryState } from "@workspacenow/views";
 import { AppApisTab, AppDataTab, AppOverviewTab, AppWorkflowsTab } from "./subComponents/ApplicationTabs";
 import { PinButton } from "./apps/PinButton";
 import { DeploymentsTab, ReleasesTab } from "./subComponents/ReleaseTabs";
+import { BuilderTools } from "./subComponents/BuilderTools";
 
-const TABS = ["Overview", "Data", "APIs", "Workflows", "Releases", "Deployments"] as const;
+const TABS = ["Overview", "Build", "Data", "APIs", "Workflows", "Releases", "Deployments"] as const;
 
 export function ApplicationDetailPage() {
   const { appId } = useParams();
@@ -55,6 +56,9 @@ export function ApplicationDetailPage() {
             </Tabs.ListContainer>
             <Tabs.Panel className="mt-0" id="Overview">
               <AppOverviewTab app={app} />
+            </Tabs.Panel>
+            <Tabs.Panel className="mt-0" id="Build">
+              <BuilderTools app={app} />
             </Tabs.Panel>
             <Tabs.Panel className="mt-0" id="Data">
               <AppDataTab app={app} />

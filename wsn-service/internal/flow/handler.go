@@ -134,3 +134,19 @@ func reply(w http.ResponseWriter, r *http.Request, status int) func(any, error) 
 		httpx.JSON(w, status, v)
 	}
 }
+
+// SimulateWorkflow answers POST /workflows/{workflowId}/simulate.
+func (h *Handler) SimulateWorkflow(w http.ResponseWriter, r *http.Request, id string) {
+	var body SimulateInput
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryWorkflow, "")
+	sim, err := h.svc.Simulate(r.Context(), ec, id, body.Event)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, sim)
+}

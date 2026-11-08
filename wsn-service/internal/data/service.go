@@ -50,6 +50,10 @@ type Service interface {
 	// Views are named saved queries over one entity.
 	Views(ctx context.Context, ec kernel.ExecutionContext, entity string) ([]SavedView, error)
 	CreateView(ctx context.Context, ec kernel.ExecutionContext, entity string, v SavedView) (*SavedView, error)
+	// CreateViewFromText turns a natural-language phrase into a saved view (rule-based).
+	CreateViewFromText(ctx context.Context, ec kernel.ExecutionContext, entity, text string) (*ViewFromTextResult, error)
+	// InferEntitySchema proposes an entity from sample CSV/JSON data (deterministic).
+	InferEntitySchema(ctx context.Context, ec kernel.ExecutionContext, in InferInput) (*EntityInference, error)
 	UpdateView(ctx context.Context, ec kernel.ExecutionContext, entity, id string, v SavedView) (*SavedView, error)
 	DeleteView(ctx context.Context, ec kernel.ExecutionContext, entity, id string) error
 	RunView(ctx context.Context, ec kernel.ExecutionContext, entity, id string, includeDeleted bool) ([]Record, int, error)

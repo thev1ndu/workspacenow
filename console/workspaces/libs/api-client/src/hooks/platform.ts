@@ -157,3 +157,15 @@ export function useSearch(q: string) {
     placeholderData: (previous) => previous,
   });
 }
+
+export function useOrganizationTheme() {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["organization-theme"], queryFn: () => api.getOrganizationTheme(getToken) });
+}
+
+export function useUpdateOrganizationTheme() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: (body: import("@workspacenow/types").Theme) => api.updateOrganizationTheme(body, getToken),
+  });
+}

@@ -3,6 +3,10 @@ import type {
   BusinessOperationDescriptor,
   DatabaseConnection,
   Entity,
+  EntityInference,
+  InferEntityInput,
+  ViewFromTextInput,
+  ViewFromTextResult,
   EntityRecord, EntityVersion, EntityVersionDiff,
   EntryPoint,
   FieldValue,
@@ -210,4 +214,12 @@ export async function deleteRecord(params: { entityName: string; recordId: strin
   return httpDELETE<{ id: string; deleted: true }>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/records/${enc(params.recordId)}`, {
     token: await getToken(),
   });
+}
+
+export async function inferEntity(body: InferEntityInput, getToken: GetToken) {
+  return httpPOST<EntityInference>(`${SERVICE_BASE}/entities/infer`, { token: await getToken(), body });
+}
+
+export async function createViewFromText(params: { entityName: string }, body: ViewFromTextInput, getToken: GetToken) {
+  return httpPOST<ViewFromTextResult>(`${SERVICE_BASE}/entities/${enc(params.entityName)}/views/from-text`, { token: await getToken(), body });
 }

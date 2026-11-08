@@ -349,3 +349,35 @@ func (h *Handler) writable(ctx context.Context, name string) error {
 	}
 	return nil
 }
+
+// InferEntitySchema answers POST /entities/infer.
+func (h *Handler) InferEntitySchema(w http.ResponseWriter, r *http.Request) {
+	var in InferInput
+	if err := httpx.Decode(r, &in); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.InferEntitySchema(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, ""), in)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, out)
+}
+
+// CreateViewFromText answers POST /entities/{entityName}/views/from-text.
+func (h *Handler) CreateViewFromText(w http.ResponseWriter, r *http.Request, name oapi.EntityName) {
+	var in struct {
+		Text string `json:"text"`
+	}
+	if err := httpx.Decode(r, &in); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	out, err := h.svc.CreateViewFromText(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, ""), string(name), in.Text)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, out)
+}

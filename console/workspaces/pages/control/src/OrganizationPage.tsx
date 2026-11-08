@@ -1,7 +1,9 @@
-import { Chip } from "@heroui/react";
-import { useOrganization } from "@workspacenow/api-client";
+import { useState } from "react";
+import { Alert, Button, Chip } from "@heroui/react";
+import { Gear } from "@workspacenow/icons";
+import { useOrganization, useOrganizationTheme, useUpdateOrganizationTheme } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
-import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from "@workspacenow/views";
+import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TextInput } from "@workspacenow/views";
 
 /**
  * One WorkspaceNow installation serves one organization — there are no tenants. Users, roles and
@@ -9,6 +11,15 @@ import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton } from 
  */
 export function OrganizationPage() {
   const organization = useOrganization();
+  const theme = useOrganizationTheme();
+  const updateTheme = useUpdateOrganizationTheme();
+  const [color, setColor] = useState("");
+  const [logo, setLogo] = useState("");
+  const initial = theme.data;
+  const themeErr = updateTheme.error as Error | null;
+  const themeSaved = updateTheme.data;
+  const effectiveColor = color || initial?.primaryColor || "";
+  const effectiveLogo = logo || initial?.logoUrl || "";
   return (
     <PageLayout
       title="Organization"
@@ -42,6 +53,28 @@ export function OrganizationPage() {
               />
             )}
           </QueryState>
+        </SectionCard>
+        <SectionCard
+          title="White-label theme"
+          subtitle="Logo and primary color applied across this installation's console."
+          actions={
+            <Button
+              size="sm"
+              variant="secondary"
+              isPending={updateTheme.isPending}
+              onPress={() => updateTheme.mutate({ primaryColor: effectiveColor, logoUrl: effectiveLogo })}
+            >
+              <Gear className="size-3.5" aria-hidden />
+              Save theme
+            </Button>
+          }
+        >
+          <div className="grid max-w-md gap-3">
+            <TextInput label="Primary color (hex)" value={effectiveColor} onChange={setColor} placeholder="#6d28d9" />
+            <TextInput label="Logo URL" value={effectiveLogo} onChange={setLogo} placeholder="https://example.com/logo.svg" />
+            {themeErr && <Alert color="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Invalid theme</Alert.Title><Alert.Description>{themeErr.message}</Alert.Description></Alert.Content></Alert>}
+            {themeSaved && <Alert color="success"><Alert.Indicator /><Alert.Content><Alert.Title>Theme saved</Alert.Title><Alert.Description>{themeSaved.primaryColor}</Alert.Description></Alert.Content></Alert>}
+          </div>
         </SectionCard>
       </div>
     </PageLayout>

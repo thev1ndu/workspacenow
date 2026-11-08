@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -312,3 +313,37 @@ func coerce(typ, raw string) any {
 }
 
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
+
+// CreateViewFromText parses a natural-language phrase into a saved view and stores it.
+func (s *service) CreateViewFromText(ctx context.Context, ec kernel.ExecutionContext, entity, text string) (*ViewFromTextResult, error) {
+	e, err := s.rt.Entity(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil, kernel.Invalid("text must not be empty")
+	}
+	v, explanation, err := ViewFromText(*e, text)
+	if err != nil {
+		return nil, kernel.Invalid("%s", err.Error())
+	}
+	saved, err := s.CreateView(ctx, ec, entity, *v)
+	if err != nil {
+		return nil, err
+	}
+	return &ViewFromTextResult{View: saved, Explanation: explanation}, nil
+}
+
+// InferEntitySchema proposes an entity from sample data. Requires data.manage.
+func (s *service) InferEntitySchema(ctx context.Context, ec kernel.ExecutionContext, in InferInput) (*EntityInference, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "data.manage", "entity.infer", "entities"); err != nil {
+		return nil, err
+	}
+	out, err := InferEntity(in)
+	if err != nil {
+		return nil, kernel.Invalid("%s", err.Error())
+	}
+	_ = s.auditor.Record(ctx, ec, "entity.infer", "entities", kernel.OutcomeAllowed,
+		fmt.Sprintf("%s: %d fields from %d rows", out.Name, len(out.Fields), out.Rows))
+	return out, nil
+}

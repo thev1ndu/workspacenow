@@ -12,6 +12,7 @@ export const routes = {
     application: "/studio/applications/:appId",
     applicationEdit: "/studio/applications/:appId/edit",
     builder: "/studio/builder",
+    templates: "/studio/templates",
   },
   connect: {
     root: "/connect",

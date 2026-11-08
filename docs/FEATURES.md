@@ -5,7 +5,7 @@ Status as of 2026-11-07. Legend: ✅ implemented + unit tested · 🟡 partial �
 compose stack (`make setup && make up`) is the first live run. `TODO.md` is the task list with test
 steps; `COVERAGE.md` has per-package test coverage numbers.
 
-Scope: 95 paths / 121 operations in `openapi.yaml`, all served by real handlers in wsn-service
+Scope: 105 paths / 132 operations in `openapi.yaml`, all served by real handlers in wsn-service
 (the generated 501 fallback has 0 stubs). Console: 7 workspaces, ~35 pages.
 
 ---
@@ -34,7 +34,9 @@ Scope: 95 paths / 121 operations in `openapi.yaml`, all served by real handlers 
 - ✅ **Visual query-builder UI for saved views**: records page "Views" dialog — filter rows (field/op/value), sort, limit, shared; runs via the existing views API
 - ✅ **Record purge job**: `POST /entities/{name}/records/purge?olderThanDays=30` hard-deletes soft-deleted rows (audited); a nightly job in the server role purges every non-external entity
 - ✅ **Entity diff/history UI**: `GET /entities/{name}/versions` + `GET .../versions/diff?from=&to=` (field-level added/removed/changed); the entity detail page has a Schema history card with a version table and diff chips
-- ✅ **CSV/JSON import UI**: records page "Import" dialog (paste or load a file, JSON or CSV) on top of the existing import API
+- ✅ **CSV/JSON import UI**: records page "Import" dialog
+- ✅ **Schema inference from data (v0.1.1)**: `POST /entities/infer` infers fields/types/rules/import mapping from CSV or JSON samples (deterministic, no LLM); console Data → "New from data" dialog
+- ✅ **NL query builder (v0.1.1)**: `POST /entities/{name}/views/from-text` turns phrases like "unitPrice below 1000 ordered by name desc, limit 20" into a saved view with a plain-language explanation; console records page "Ask" (paste or load a file, JSON or CSV) on top of the existing import API
 
 ## 3. Business operations
 - ✅ Operation catalog (`/business-operations`) and invocation (`/business-operations/invoke`)
@@ -61,6 +63,7 @@ Scope: 95 paths / 121 operations in `openapi.yaml`, all served by real handlers 
 - ⬜ Full GraphQL schema/federation; OAuth2 authorization-code flow with browser redirect; webhook signature verification helper lib for receivers
 
 ## 5. Studio — application lifecycle (plan → build → release → deploy)
+- ✅ **Builder pack (v0.1.1)**: template marketplace v1 (`GET /templates`, `POST /templates/{id}/install` with HMAC-signed blueprints, 4 seeded templates: inventory, procurement, CRM, HR); prompt-to-preview (`POST /applications/{id}/preview` deploys a sandbox with 5 seeded sample records per entity); business-language release diffs (`GET /applications/{id}/diff`); app theming (`PUT /applications/{id}/theme`); workflow simulation (`POST /workflows/{id}/simulate`, dry-run trace, no side effects); installation white-label theme (`GET/PUT /organization/theme`). Console: Studio → Templates page, app detail "Build" tab (preview, diff, theme), Flow → Simulate button, Control → Organization white-label card
 - ✅ Applications list/detail/update, pins (`/me/pinned-applications`)
 - ✅ **Plan with AI**: `POST /applications/plan` via the Application Architect agent (entities, pages, operations, workflows, permissions from a prompt), `POST /applications/apply` to materialize
 - ✅ **Edit with AI**: `POST /applications/{appId}/plan` sends the current blueprint + change prompt to the Architect and returns the revised plan; validated with the same additive change rules, applied via `PUT /applications/{appId}`; "Ask the Architect" panel in the console's edit page
@@ -138,7 +141,7 @@ Scope: 95 paths / 121 operations in `openapi.yaml`, all served by real handlers 
 
 | Area | Written | Live-verified |
 |---|---|---|
-| API contract + wsn-service (121/121 endpoints, tests, lint clean) | 100% | 0% |
+| API contract + wsn-service (132/132 endpoints, tests, lint clean) | 100% | 0% |
 | wsn-ai-service (100% line coverage, CI-gated) | 100% | 0% (live smoke opt-in) |
 | wsn-observer (WAL store + query API) | ~95% | 0% |
 | Console (7 workspaces, SSE, OIDC, coverage gate) | ~95% | demo platform only |

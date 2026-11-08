@@ -1,4 +1,5 @@
 import type { ApiOperation, Entity, EntityField, EntityRecord, FieldValue, Permission } from "@workspacenow/types";
+import { seedTemplates } from "./builder";
 import { SCHEMA_VERSION, type PlatformState } from "./state";
 
 const ALL_PERMISSIONS: Permission[] = [
@@ -634,5 +635,7 @@ export function createSeedState(at: Date): PlatformState {
       "u-kavya": ["app-procurement", "app-supplier"],
       "u-ruwan": ["app-procurement"],
     },
+    templates: seedTemplates(),
+    orgTheme: {},
   };
 }

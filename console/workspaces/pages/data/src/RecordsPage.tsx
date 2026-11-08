@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert, Button, ListBox, Select } from "@heroui/react";
-import { ArrowDownToLine, ArrowUp, Plus, SquareListUl } from "@workspacenow/icons";
+import { ArrowDownToLine, ArrowUp, Plus, Sparkles, SquareListUl } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
 import { exportRecords, useCreateRecord, useGetEntity, useListEntities, useListRecords, useListViews } from "@workspacenow/api-client";
@@ -9,6 +9,7 @@ import { PageLayout, QueryState, SectionCard, useDebouncedValue } from "@workspa
 import { ImportDialog } from "./subComponents/ImportDialog";
 import { RecordFormDialog, useReferenceLabels } from "./subComponents/RecordForm";
 import { ViewBuilderDialog } from "./subComponents/ViewBuilderDialog";
+import { AskViewDialog } from "./subComponents/AskViewDialog";
 import { RecordsManager } from "./subComponents/RecordsManager";
 
 const PAGE_SIZE = 15;
@@ -40,6 +41,7 @@ export function RecordsPage() {
   const createRecord = useCreateRecord();
   const [creating, setCreating] = useState(false);
   const [viewsOpen, setViewsOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const readOnly = entity.data?.scope === "external";
 
@@ -107,6 +109,10 @@ export function RecordsPage() {
             <SquareListUl className="size-4" aria-hidden />
             Views
           </Button>
+          <Button variant="secondary" onPress={() => setAskOpen(true)} isDisabled={!entity.data}>
+            <Sparkles className="size-4" aria-hidden />
+            Ask
+          </Button>
           {!readOnly && (
             <Button variant="tertiary" onPress={() => setImportOpen(true)} isDisabled={!entity.data}>
               <ArrowUp className="size-4" aria-hidden />
@@ -168,6 +174,13 @@ export function RecordsPage() {
         />
       )}
       {viewsOpen && entity.data && <ViewBuilderDialog entity={entity.data} onClose={() => setViewsOpen(false)} />}
+      {askOpen && entity.data && (
+        <AskViewDialog
+          entity={entity.data}
+          onClose={() => setAskOpen(false)}
+          onCreated={(view) => { setViewId(view.id); setPage(1); }}
+        />
+      )}
       {importOpen && entity.data && <ImportDialog entity={entity.data} onClose={() => setImportOpen(false)} />}
     </PageLayout>
   );

@@ -64,6 +64,9 @@ type Service interface {
 
 	// InvalidateAccess drops every cached permission resolution, on every replica.
 	InvalidateAccess(ctx context.Context)
+	// OrganizationTheme is the installation's white-label theme (GET/PUT /organization/theme).
+	OrganizationTheme(ctx context.Context) (*oapi.Theme, error)
+	UpdateOrganizationTheme(ctx context.Context, ec kernel.ExecutionContext, t oapi.Theme) (*oapi.Theme, error)
 }
 
 type service struct {
@@ -79,6 +82,7 @@ type service struct {
 	roles     *docstore.Collection[oapi.Role]
 	mappings  *docstore.Collection[oapi.GroupRoleMapping]
 	envs      *docstore.Collection[oapi.Environment]
+	settings  *docstore.Collection[map[string]any]
 }
 
 func NewService(db *gorm.DB, c cache.Cache, auditor kernel.Auditor, bootstrap Bootstrap) Service {
@@ -95,6 +99,7 @@ func NewService(db *gorm.DB, c cache.Cache, auditor kernel.Auditor, bootstrap Bo
 		roles:     docstore.NewCollection(db, "roles", func(r *oapi.Role) string { return r.Id }),
 		mappings:  docstore.NewCollection(db, "group_mappings", func(m *oapi.GroupRoleMapping) string { return m.Group + "|" + m.RoleId }),
 		envs:      docstore.NewCollection(db, "environments", func(e *oapi.Environment) string { return string(e.Key) }),
+		settings:  docstore.NewCollection(db, "org_settings", func(*map[string]any) string { return themeSettingsKey }),
 	}
 }
 

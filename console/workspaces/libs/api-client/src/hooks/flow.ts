@@ -71,3 +71,11 @@ export function useSaveWorkflow() {
     mutationFn: ({ workflowId, definition }: { workflowId?: string; definition: WorkflowDefinition }) => api.saveWorkflow({ workflowId }, { definition }, getToken),
   });
 }
+
+export function useSimulateWorkflow() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: ({ workflowId, event }: { workflowId: string; event?: Record<string, unknown> }) =>
+      api.simulateWorkflow({ workflowId }, { event }, getToken),
+  });
+}

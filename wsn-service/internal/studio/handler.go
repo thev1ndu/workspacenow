@@ -148,3 +148,41 @@ func pins(w http.ResponseWriter, r *http.Request) func([]string, error) {
 		httpx.List(w, ids)
 	}
 }
+
+// ListTemplates answers GET /templates.
+func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
+	httpx.ListFrom(w, r, h.svc.ListTemplates)
+}
+
+// GetTemplate answers GET /templates/{templateId}.
+func (h *Handler) GetTemplate(w http.ResponseWriter, r *http.Request, templateId string) {
+	reply(w, r, http.StatusOK)(h.svc.GetTemplate(r.Context(), templateId))
+}
+
+// InstallTemplate answers POST /templates/{templateId}/install.
+func (h *Handler) InstallTemplate(w http.ResponseWriter, r *http.Request, templateId string) {
+	var body InstallTemplateInput
+	if !decode(w, r, &body) {
+		return
+	}
+	reply(w, r, http.StatusCreated)(h.svc.InstallTemplate(r.Context(), studioContext(r), templateId, body))
+}
+
+// DiffApplicationVersions answers GET /applications/{appId}/diff.
+func (h *Handler) DiffApplicationVersions(w http.ResponseWriter, r *http.Request, appId string, params oapi.DiffApplicationVersionsParams) {
+	reply(w, r, http.StatusOK)(h.svc.DiffVersions(r.Context(), studioContext(r), appId, params.From, params.To))
+}
+
+// PreviewApplication answers POST /applications/{appId}/preview.
+func (h *Handler) PreviewApplication(w http.ResponseWriter, r *http.Request, appId string) {
+	reply(w, r, http.StatusCreated)(h.svc.Preview(r.Context(), studioContext(r), appId))
+}
+
+// SetApplicationTheme answers PUT /applications/{appId}/theme.
+func (h *Handler) SetApplicationTheme(w http.ResponseWriter, r *http.Request, appId string) {
+	var body Theme
+	if !decode(w, r, &body) {
+		return
+	}
+	reply(w, r, http.StatusOK)(h.svc.SetTheme(r.Context(), studioContext(r), appId, body))
+}

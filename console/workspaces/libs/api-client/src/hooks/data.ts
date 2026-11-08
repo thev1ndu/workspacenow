@@ -1,5 +1,5 @@
 import { useAuthHooks } from "@workspacenow/auth";
-import type { Entity, EntryPoint, FieldValue, SavedViewInput, SchemaMigration } from "@workspacenow/types";
+import type { Entity, EntryPoint, FieldValue, InferEntityInput, SavedViewInput, SchemaMigration } from "@workspacenow/types";
 import * as api from "../apis/data";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
 
@@ -195,5 +195,19 @@ export function useInvokeBusinessOperation(options: { successMessage?: string } 
     successMessage: options.successMessage,
     mutationFn: (body: { operation: string; input: Record<string, unknown>; entryPoint: EntryPoint }) =>
       api.invokeBusinessOperation(body, getToken),
+  });
+}
+
+export function useInferEntity() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: (body: InferEntityInput) => api.inferEntity(body, getToken),
+  });
+}
+
+export function useCreateViewFromText() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: ({ entityName, text }: { entityName: string; text: string }) => api.createViewFromText({ entityName }, { text }, getToken),
   });
 }

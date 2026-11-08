@@ -15,6 +15,7 @@ import {
   type McpServer,
   type OverviewStats,
   type Permission,
+  planFromApplication,
   type ResourceSummary,
   type SavedView,
   type SavedViewInput,
@@ -33,11 +34,21 @@ import {
   type WebhookInput,
   type AlertRule,
   type AlertRuleInput,
+  type BlueprintDiff,
+  type EntityInference,
+  type InferEntityInput,
+  type InstallTemplateInput,
+  type PreviewResult,
+  type SimulateWorkflowInput,
+  type Theme,
+  type ViewFromTextInput,
+  type WorkflowSimulation,
   type Slo,
   type SloInput
 } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { activitySeries, entryPointBreakdown, logSeries, tokenSeries } from "./analytics";
+import { diffBlueprints, inferEntity, installTemplate, previewApplication, simulateWorkflow, viewFromText } from "./builder";
 import { listMcpTools } from "./mcp";
 import { fail, type ExecutionContext, type Platform } from "./platform";
 import { search } from "./search";
@@ -228,6 +239,18 @@ route("GET", "/analytics/log-metrics", ({ platform, query }) => list(logSeries(p
 /* Control: organization and access */
 
 route("GET", "/organization", ({ platform }) => platform.state.organization);
+route("GET", "/organization/theme", ({ platform }): Theme => platform.state.orgTheme);
+route("PUT", "/organization/theme", ({ platform, ctx, body }) => {
+  const c = ctx("control");
+  platform.requirePermission(c, "control.manage", "organization.theme", "organization/theme");
+  const input = body as Theme;
+  if (input.primaryColor && !/^#[0-9a-fA-F]{6}$/.test(input.primaryColor)) {
+    fail(422, "VALIDATION_FAILED", "primaryColor must be a hex color like #6d28d9");
+  }
+  platform.state.orgTheme = { primaryColor: input.primaryColor, logoUrl: input.logoUrl };
+  platform.audit(c, "organization.theme", "organization/theme", "allowed", input.primaryColor ?? "");
+  return platform.state.orgTheme;
+});
 route("GET", "/departments", ({ platform }) => list(platform.state.departments));
 route("GET", "/teams", ({ platform }) => list(platform.state.teams));
 route("GET", "/users", ({ platform }) =>
@@ -351,8 +374,60 @@ route("POST", "/deployments", ({ platform, ctx, body }) =>
   deploy(platform, ctx("control"), String(body.applicationId), body.environment as EnvironmentKey, String(body.version)),
 );
 
+/* Studio builder pack: templates, diff, preview, theme */
+
+route("GET", "/templates", ({ platform }) => list(platform.state.templates));
+route("GET", "/templates/:id", ({ platform, params }) => find(platform.state.templates, params.id, "Template"));
+route("POST", "/templates/:id/install", ({ platform, ctx, params, body }): ReturnType<typeof applyPlan> => {
+  const input = (body ?? {}) as InstallTemplateInput;
+  return installTemplate(platform, ctx("studio"), params.id, input.name);
+});
+route("GET", "/applications/:id/diff", ({ platform, ctx, params, query }): BlueprintDiff => {
+  const app = find(platform.state.applications, params.id, "Application");
+  const c = ctx("studio");
+  platform.requirePermission(c, "studio.manage", "application.diff", `application/${params.id}`);
+  const from = query.get("from") ?? "";
+  const to = query.get("to") ?? "";
+  const resolve = (ref: string) => {
+    if (ref === "current" || ref === "") {
+      return planFromApplication(app, platform.state.entities.filter((e) => e.ownerApplicationId === app.id));
+    }
+    const rel = platform.state.releases.find((r) => r.applicationId === app.id && (r.id === ref || r.version === ref));
+    if (!rel || !rel.plan) fail(404, "NOT_FOUND", `No stored blueprint for ${ref}`);
+    return rel.plan!;
+  };
+  return diffBlueprints(from, to, resolve(from), resolve(to));
+});
+route("POST", "/applications/:id/preview", ({ platform, ctx, params }): PreviewResult =>
+  previewApplication(platform, ctx("studio"), params.id),
+);
+route("PUT", "/applications/:id/theme", ({ platform, ctx, params, body }) => {
+  const app = find(platform.state.applications, params.id, "Application");
+  const c = ctx("studio");
+  platform.requirePermission(c, "studio.manage", "application.theme", `application/${params.id}`);
+  const input = body as Theme;
+  if (input.primaryColor && !/^#[0-9a-fA-F]{6}$/.test(input.primaryColor)) {
+    fail(422, "VALIDATION_FAILED", "primaryColor must be a hex color like #6d28d9");
+  }
+  app.theme = { primaryColor: input.primaryColor, logoUrl: input.logoUrl };
+  app.updatedAt = platform.now();
+  platform.audit(c, "application.theme", `application/${params.id}`, "allowed", input.primaryColor ?? "");
+  return app;
+});
+
 /* Data */
 
+route("POST", "/entities/infer", ({ platform, ctx, body }): EntityInference => {
+  const c = ctx("studio");
+  platform.requirePermission(c, "data.manage", "entity.infer", "entities");
+  try {
+    const out = inferEntity(body as unknown as InferEntityInput);
+    platform.audit(c, "entity.infer", "entities", "allowed", `${out.name}: ${out.fields.length} fields from ${out.rows} rows`);
+    return out;
+  } catch (e) {
+    fail(422, "VALIDATION_FAILED", (e as Error).message);
+  }
+});
 route("GET", "/entities", ({ platform }) => list(platform.state.entities));
 route("GET", "/entities/:name", ({ platform, params }) => platform.entity(params.name));
 route("POST", "/entities", ({ platform, ctx, body }) => {
@@ -586,6 +661,19 @@ route("POST", "/entities/:name/views", ({ platform, ctx, params, body }) => {
   platform.state.views.push(view);
   platform.audit(c, `${params.name}.view.create`, `entity/${params.name}/${view.id}`, "allowed", view.name);
   return view;
+});
+route("POST", "/entities/:name/views/from-text", ({ platform, ctx, params, body }): ReturnType<typeof viewFromText> => {
+  const c = ctx("studio");
+  const entity = platform.entity(params.name);
+  platform.requirePermission(c, entity.readPermission, `${params.name}.view.create`, `entity/${params.name}`);
+  try {
+    const out = viewFromText(platform, params.name, String(((body ?? {}) as unknown as ViewFromTextInput).text ?? ""));
+    out.view.ownerId = c.actor.id;
+    platform.audit(c, `${params.name}.view.create`, `entity/${params.name}/${out.view.id}`, "allowed", out.view.name);
+    return out;
+  } catch (e) {
+    fail(422, "VALIDATION_FAILED", (e as Error).message);
+  }
 });
 route("PUT", "/entities/:name/views/:viewId", ({ platform, ctx, params, body }) => {
   const c = ctx("studio");
@@ -965,6 +1053,12 @@ route("PATCH", "/workflows/:id", ({ platform, ctx, params, body }) => {
   return workflow;
 });
 route("POST", "/workflows", ({ platform, ctx, body }) => saveWorkflow(platform, ctx("control"), undefined, body.definition as WorkflowDefinition));
+route("POST", "/workflows/:id/simulate", ({ platform, ctx, params, body }): WorkflowSimulation => {
+  const wf = find(platform.state.workflows, params.id, "Workflow");
+  const c = ctx("control");
+  platform.requirePermission(c, "flow.manage", "workflow.simulate", `workflow/${params.id}`);
+  return simulateWorkflow(platform, wf, (body as SimulateWorkflowInput | undefined)?.event);
+});
 route("POST", "/workflows/:id/executions", ({ platform, userId, params, body }) =>
   runManually(platform, userId, params.id, (body.input as Record<string, unknown>) ?? {}),
 );

@@ -1,5 +1,5 @@
 import { useAuthHooks } from "@workspacenow/auth";
-import type { ApplicationPlan, EnvironmentKey } from "@workspacenow/types";
+import type { ApplicationPlan, EnvironmentKey, InstallTemplateInput, Theme } from "@workspacenow/types";
 import * as api from "../apis/studio";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
 
@@ -95,5 +95,40 @@ export function useSetApplicationPinned() {
     successMessage: (_pins, { name, pinned }) => (pinned ? `Pinned ${name}` : `Unpinned ${name}`),
     mutationFn: ({ appId, pinned }: { appId: string; name: string; pinned: boolean }) =>
       pinned ? api.pinApplication({ appId }, getToken) : api.unpinApplication({ appId }, getToken),
+  });
+}
+
+export function useListTemplates() {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["templates"], queryFn: () => api.listTemplates(getToken) });
+}
+
+export function useInstallTemplate() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: ({ templateId, body }: { templateId: string; body: InstallTemplateInput }) => api.installTemplate({ templateId }, body, getToken),
+  });
+}
+
+export function useDiffApplication(params: { appId?: string; from: string; to: string }) {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({
+    queryKey: ["app-diff", params],
+    queryFn: () => api.diffApplication({ appId: params.appId!, from: params.from, to: params.to }, getToken),
+    enabled: !!params.appId && !!params.from && !!params.to,
+  });
+}
+
+export function usePreviewApplication() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: ({ appId }: { appId: string }) => api.previewApplication({ appId }, getToken),
+  });
+}
+
+export function useSetApplicationTheme() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    mutationFn: ({ appId, body }: { appId: string; body: Theme }) => api.setApplicationTheme({ appId }, body, getToken),
   });
 }

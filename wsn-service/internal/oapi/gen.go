@@ -320,6 +320,60 @@ func (e AuditRecordOutcome) Valid() bool {
 	}
 }
 
+// Defines values for BlueprintChangeChange.
+const (
+	Added   BlueprintChangeChange = "added"
+	Changed BlueprintChangeChange = "changed"
+	Removed BlueprintChangeChange = "removed"
+)
+
+// Valid indicates whether the value is a known member of the BlueprintChangeChange enum.
+func (e BlueprintChangeChange) Valid() bool {
+	switch e {
+	case Added:
+		return true
+	case Changed:
+		return true
+	case Removed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BlueprintChangeKind.
+const (
+	BlueprintChangeKindApplication BlueprintChangeKind = "application"
+	BlueprintChangeKindEntity      BlueprintChangeKind = "entity"
+	BlueprintChangeKindField       BlueprintChangeKind = "field"
+	BlueprintChangeKindOperation   BlueprintChangeKind = "operation"
+	BlueprintChangeKindPage        BlueprintChangeKind = "page"
+	BlueprintChangeKindPermission  BlueprintChangeKind = "permission"
+	BlueprintChangeKindWorkflow    BlueprintChangeKind = "workflow"
+)
+
+// Valid indicates whether the value is a known member of the BlueprintChangeKind enum.
+func (e BlueprintChangeKind) Valid() bool {
+	switch e {
+	case BlueprintChangeKindApplication:
+		return true
+	case BlueprintChangeKindEntity:
+		return true
+	case BlueprintChangeKindField:
+		return true
+	case BlueprintChangeKindOperation:
+		return true
+	case BlueprintChangeKindPage:
+		return true
+	case BlueprintChangeKindPermission:
+		return true
+	case BlueprintChangeKindWorkflow:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BusinessOperationDescriptorKind.
 const (
 	Read  BusinessOperationDescriptorKind = "read"
@@ -610,37 +664,37 @@ func (e ExecutionStepStatus) Valid() bool {
 
 // Defines values for FieldType.
 const (
-	Boolean   FieldType = "boolean"
-	Date      FieldType = "date"
-	Enum      FieldType = "enum"
-	File      FieldType = "file"
-	Integer   FieldType = "integer"
-	Number    FieldType = "number"
-	Reference FieldType = "reference"
-	String    FieldType = "string"
-	Text      FieldType = "text"
+	FieldTypeBoolean   FieldType = "boolean"
+	FieldTypeDate      FieldType = "date"
+	FieldTypeEnum      FieldType = "enum"
+	FieldTypeFile      FieldType = "file"
+	FieldTypeInteger   FieldType = "integer"
+	FieldTypeNumber    FieldType = "number"
+	FieldTypeReference FieldType = "reference"
+	FieldTypeString    FieldType = "string"
+	FieldTypeText      FieldType = "text"
 )
 
 // Valid indicates whether the value is a known member of the FieldType enum.
 func (e FieldType) Valid() bool {
 	switch e {
-	case Boolean:
+	case FieldTypeBoolean:
 		return true
-	case Date:
+	case FieldTypeDate:
 		return true
-	case Enum:
+	case FieldTypeEnum:
 		return true
-	case File:
+	case FieldTypeFile:
 		return true
-	case Integer:
+	case FieldTypeInteger:
 		return true
-	case Number:
+	case FieldTypeNumber:
 		return true
-	case Reference:
+	case FieldTypeReference:
 		return true
-	case String:
+	case FieldTypeString:
 		return true
-	case Text:
+	case FieldTypeText:
 		return true
 	default:
 		return false
@@ -782,6 +836,72 @@ func (e IdentityProviderConfigType) Valid() bool {
 	case Oidc:
 		return true
 	case Okta:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InferEntityInputFormat.
+const (
+	InferEntityInputFormatCsv  InferEntityInputFormat = "csv"
+	InferEntityInputFormatJson InferEntityInputFormat = "json"
+)
+
+// Valid indicates whether the value is a known member of the InferEntityInputFormat enum.
+func (e InferEntityInputFormat) Valid() bool {
+	switch e {
+	case InferEntityInputFormatCsv:
+		return true
+	case InferEntityInputFormatJson:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InferredFieldType.
+const (
+	InferredFieldTypeBool      InferredFieldType = "bool"
+	InferredFieldTypeDate      InferredFieldType = "date"
+	InferredFieldTypeDatetime  InferredFieldType = "datetime"
+	InferredFieldTypeEmail     InferredFieldType = "email"
+	InferredFieldTypeEnum      InferredFieldType = "enum"
+	InferredFieldTypeFile      InferredFieldType = "file"
+	InferredFieldTypeFloat     InferredFieldType = "float"
+	InferredFieldTypeInt       InferredFieldType = "int"
+	InferredFieldTypeReference InferredFieldType = "reference"
+	InferredFieldTypeString    InferredFieldType = "string"
+	InferredFieldTypeText      InferredFieldType = "text"
+	InferredFieldTypeUrl       InferredFieldType = "url"
+)
+
+// Valid indicates whether the value is a known member of the InferredFieldType enum.
+func (e InferredFieldType) Valid() bool {
+	switch e {
+	case InferredFieldTypeBool:
+		return true
+	case InferredFieldTypeDate:
+		return true
+	case InferredFieldTypeDatetime:
+		return true
+	case InferredFieldTypeEmail:
+		return true
+	case InferredFieldTypeEnum:
+		return true
+	case InferredFieldTypeFile:
+		return true
+	case InferredFieldTypeFloat:
+		return true
+	case InferredFieldTypeInt:
+		return true
+	case InferredFieldTypeReference:
+		return true
+	case InferredFieldTypeString:
+		return true
+	case InferredFieldTypeText:
+		return true
+	case InferredFieldTypeUrl:
 		return true
 	default:
 		return false
@@ -1232,6 +1352,63 @@ func (e SearchHitType) Valid() bool {
 	}
 }
 
+// Defines values for SimStepOutcome.
+const (
+	ConditionFalse    SimStepOutcome = "condition-false"
+	ConditionTrue     SimStepOutcome = "condition-true"
+	WouldRun          SimStepOutcome = "would-run"
+	WouldSkip         SimStepOutcome = "would-skip"
+	WouldWaitApproval SimStepOutcome = "would-wait-approval"
+)
+
+// Valid indicates whether the value is a known member of the SimStepOutcome enum.
+func (e SimStepOutcome) Valid() bool {
+	switch e {
+	case ConditionFalse:
+		return true
+	case ConditionTrue:
+		return true
+	case WouldRun:
+		return true
+	case WouldSkip:
+		return true
+	case WouldWaitApproval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TemplateCategory.
+const (
+	Crm         TemplateCategory = "crm"
+	Custom      TemplateCategory = "custom"
+	Hr          TemplateCategory = "hr"
+	Inventory   TemplateCategory = "inventory"
+	Operations  TemplateCategory = "operations"
+	Procurement TemplateCategory = "procurement"
+)
+
+// Valid indicates whether the value is a known member of the TemplateCategory enum.
+func (e TemplateCategory) Valid() bool {
+	switch e {
+	case Crm:
+		return true
+	case Custom:
+		return true
+	case Hr:
+		return true
+	case Inventory:
+		return true
+	case Operations:
+		return true
+	case Procurement:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ToolCallOutcome.
 const (
 	ToolCallOutcomeAllowed ToolCallOutcome = "allowed"
@@ -1594,16 +1771,16 @@ func (e ExportRecordsParamsFormat) Valid() bool {
 
 // Defines values for ImportRecordsJSONBodyFormat.
 const (
-	ImportRecordsJSONBodyFormatCsv  ImportRecordsJSONBodyFormat = "csv"
-	ImportRecordsJSONBodyFormatJson ImportRecordsJSONBodyFormat = "json"
+	Csv  ImportRecordsJSONBodyFormat = "csv"
+	Json ImportRecordsJSONBodyFormat = "json"
 )
 
 // Valid indicates whether the value is a known member of the ImportRecordsJSONBodyFormat enum.
 func (e ImportRecordsJSONBodyFormat) Valid() bool {
 	switch e {
-	case ImportRecordsJSONBodyFormatCsv:
+	case Csv:
 		return true
-	case ImportRecordsJSONBodyFormatJson:
+	case Json:
 		return true
 	default:
 		return false
@@ -1961,6 +2138,7 @@ type Application struct {
 	OwnerDepartmentId string         `json:"ownerDepartmentId"`
 	Pages             []AppPage      `json:"pages"`
 	Slug              string         `json:"slug"`
+	Theme             *Theme         `json:"theme,omitempty"`
 	UpdatedAt         IsoDate        `json:"updatedAt"`
 
 	// Version Semantic version, e.g. 1.2.0
@@ -2041,6 +2219,30 @@ type AuditRecordOutcome string
 type AuditRecordList struct {
 	Items []AuditRecord `json:"items"`
 	Total int           `json:"total"`
+}
+
+// BlueprintChange defines model for BlueprintChange.
+type BlueprintChange struct {
+	Change BlueprintChangeChange `json:"change"`
+	Detail string                `json:"detail"`
+	Kind   BlueprintChangeKind   `json:"kind"`
+	Name   string                `json:"name"`
+}
+
+// BlueprintChangeChange defines model for BlueprintChange.Change.
+type BlueprintChangeChange string
+
+// BlueprintChangeKind defines model for BlueprintChange.Kind.
+type BlueprintChangeKind string
+
+// BlueprintDiff defines model for BlueprintDiff.
+type BlueprintDiff struct {
+	Changes []BlueprintChange `json:"changes"`
+	From    string            `json:"from"`
+
+	// Summary One business-language sentence per change
+	Summary []string `json:"summary"`
+	To      string   `json:"to"`
 }
 
 // BusinessOperationDescriptor defines model for BusinessOperationDescriptor.
@@ -2163,13 +2365,16 @@ type DepartmentList struct {
 
 // Deployment defines model for Deployment.
 type Deployment struct {
-	ApplicationId string           `json:"applicationId"`
-	DeployedAt    IsoDate          `json:"deployedAt"`
-	DeployedBy    string           `json:"deployedBy"`
-	Environment   EnvironmentKey   `json:"environment"`
-	Id            string           `json:"id"`
-	Status        DeploymentStatus `json:"status"`
-	Version       string           `json:"version"`
+	ApplicationId string         `json:"applicationId"`
+	DeployedAt    IsoDate        `json:"deployedAt"`
+	DeployedBy    string         `json:"deployedBy"`
+	Environment   EnvironmentKey `json:"environment"`
+	Id            string         `json:"id"`
+
+	// Preview Sandbox deployment of the current draft with seeded sample data
+	Preview *bool            `json:"preview,omitempty"`
+	Status  DeploymentStatus `json:"status"`
+	Version string           `json:"version"`
 }
 
 // DeploymentStatus defines model for Deployment.Status.
@@ -2235,6 +2440,16 @@ type EntityFieldDefaultValue2 = bool
 // EntityField_DefaultValue defines model for EntityField.DefaultValue.
 type EntityField_DefaultValue struct {
 	union json.RawMessage
+}
+
+// EntityInference defines model for EntityInference.
+type EntityInference struct {
+	Fields        []InferredField `json:"fields"`
+	ImportMapping []ImportMapping `json:"importMapping"`
+	Name          string          `json:"name"`
+
+	// Rows Number of sample rows parsed
+	Rows int `json:"rows"`
 }
 
 // EntityList defines model for EntityList.
@@ -2502,6 +2717,53 @@ type IdentityProviderConfig struct {
 
 // IdentityProviderConfigType defines model for IdentityProviderConfig.Type.
 type IdentityProviderConfigType string
+
+// ImportMapping defines model for ImportMapping.
+type ImportMapping struct {
+	// Column Source column in the uploaded data
+	Column string `json:"column"`
+
+	// Field Target entity field
+	Field string `json:"field"`
+}
+
+// InferEntityInput defines model for InferEntityInput.
+type InferEntityInput struct {
+	// Data JSON array of objects, or CSV text with a header row
+	Data   string                 `json:"data"`
+	Format InferEntityInputFormat `json:"format"`
+
+	// Name Proposed PascalCase entity name; defaults to a name derived from the data
+	Name *string `json:"name,omitempty"`
+}
+
+// InferEntityInputFormat defines model for InferEntityInput.Format.
+type InferEntityInputFormat string
+
+// InferredField defines model for InferredField.
+type InferredField struct {
+	EnumValues *[]string `json:"enumValues,omitempty"`
+	Label      *string   `json:"label,omitempty"`
+	Name       string    `json:"name"`
+
+	// References Target entity when type is reference
+	References *string           `json:"references,omitempty"`
+	Required   bool              `json:"required"`
+	Type       InferredFieldType `json:"type"`
+	Unique     bool              `json:"unique"`
+}
+
+// InferredFieldType defines model for InferredField.Type.
+type InferredFieldType string
+
+// InstallTemplateInput defines model for InstallTemplateInput.
+type InstallTemplateInput struct {
+	// Environment When set, deploy a preview to this environment right away
+	Environment *string `json:"environment,omitempty"`
+
+	// Name Application name; defaults to the template name
+	Name *string `json:"name,omitempty"`
+}
 
 // Integration defines model for Integration.
 type Integration struct {
@@ -2777,6 +3039,15 @@ type PortalCatalogList struct {
 	TotalCount int                  `json:"totalCount"`
 }
 
+// PreviewResult defines model for PreviewResult.
+type PreviewResult struct {
+	Deployment    Deployment `json:"deployment"`
+	RecordsSeeded int        `json:"recordsSeeded"`
+
+	// Url Full-screen app URL with the preview flag
+	Url string `json:"url"`
+}
+
 // PromptBody defines model for PromptBody.
 type PromptBody struct {
 	Prompt string `json:"prompt"`
@@ -2998,6 +3269,23 @@ type Session struct {
 	Roles []string `json:"roles"`
 }
 
+// SimStep defines model for SimStep.
+type SimStep struct {
+	Detail  string         `json:"detail"`
+	Kind    string         `json:"kind"`
+	Name    string         `json:"name"`
+	Outcome SimStepOutcome `json:"outcome"`
+}
+
+// SimStepOutcome defines model for SimStep.Outcome.
+type SimStepOutcome string
+
+// SimulateWorkflowInput defines model for SimulateWorkflowInput.
+type SimulateWorkflowInput struct {
+	// Event Sample event payload used to evaluate conditions
+	Event *map[string]interface{} `json:"event,omitempty"`
+}
+
 // SloInput defines model for SloInput.
 type SloInput struct {
 	Operation     string  `json:"operation"`
@@ -3044,6 +3332,36 @@ type Team struct {
 type TeamList struct {
 	Items []Team `json:"items"`
 	Total int    `json:"total"`
+}
+
+// Template defines model for Template.
+type Template struct {
+	Blueprint   ApplicationPlan  `json:"blueprint"`
+	Category    TemplateCategory `json:"category"`
+	Description string           `json:"description"`
+	Id          string           `json:"id"`
+	Name        string           `json:"name"`
+
+	// Signature HMAC-SHA256 hex over the canonical blueprint JSON; verified on install
+	Signature string `json:"signature"`
+	Version   string `json:"version"`
+}
+
+// TemplateCategory defines model for Template.Category.
+type TemplateCategory string
+
+// TemplateList defines model for TemplateList.
+type TemplateList struct {
+	Items []Template `json:"items"`
+	Total int        `json:"total"`
+}
+
+// Theme defines model for Theme.
+type Theme struct {
+	LogoUrl *string `json:"logoUrl,omitempty"`
+
+	// PrimaryColor Hex color, e.g. #6d28d9
+	PrimaryColor *string `json:"primaryColor,omitempty"`
 }
 
 // TokenUsagePoint defines model for TokenUsagePoint.
@@ -3153,6 +3471,19 @@ type UserWithRolesList struct {
 	Total int             `json:"total"`
 }
 
+// ViewFromTextInput defines model for ViewFromTextInput.
+type ViewFromTextInput struct {
+	// Text e.g. "products below reorder level ordered by supplier, limit 20"
+	Text string `json:"text"`
+}
+
+// ViewFromTextResult defines model for ViewFromTextResult.
+type ViewFromTextResult struct {
+	// Explanation Plain-language restatement of what the view does
+	Explanation string    `json:"explanation"`
+	View        SavedView `json:"view"`
+}
+
 // Webhook defines model for Webhook.
 type Webhook struct {
 	Active    bool    `json:"active"`
@@ -3244,6 +3575,13 @@ type WorkflowExecutionList struct {
 type WorkflowList struct {
 	Items []Workflow `json:"items"`
 	Total int        `json:"total"`
+}
+
+// WorkflowSimulation defines model for WorkflowSimulation.
+type WorkflowSimulation struct {
+	Steps   []SimStep `json:"steps"`
+	Summary string    `json:"summary"`
+	TraceId string    `json:"traceId"`
 }
 
 // WorkflowStep defines model for WorkflowStep.
@@ -3503,6 +3841,12 @@ type PlanApplicationJSONBody struct {
 // UpdateApplicationJSONBody defines parameters for UpdateApplication.
 type UpdateApplicationJSONBody struct {
 	Plan ApplicationPlan `json:"plan"`
+}
+
+// DiffApplicationVersionsParams defines parameters for DiffApplicationVersions.
+type DiffApplicationVersionsParams struct {
+	From string `form:"from" json:"from"`
+	To   string `form:"to" json:"to"`
 }
 
 // PlanApplicationEditJSONBody defines parameters for PlanApplicationEdit.
@@ -3767,6 +4111,9 @@ type PlanApplicationEditJSONRequestBody PlanApplicationEditJSONBody
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
+// SetApplicationThemeJSONRequestBody defines body for SetApplicationTheme for application/json ContentType.
+type SetApplicationThemeJSONRequestBody = Theme
+
 // DecideApprovalJSONRequestBody defines body for DecideApproval for application/json ContentType.
 type DecideApprovalJSONRequestBody DecideApprovalJSONBody
 
@@ -3778,6 +4125,9 @@ type CreateDeploymentJSONRequestBody CreateDeploymentJSONBody
 
 // CreateEntityJSONRequestBody defines body for CreateEntity for application/json ContentType.
 type CreateEntityJSONRequestBody = CreateEntityBody
+
+// InferEntitySchemaJSONRequestBody defines body for InferEntitySchema for application/json ContentType.
+type InferEntitySchemaJSONRequestBody = InferEntityInput
 
 // UpdateEntityJSONRequestBody defines body for UpdateEntity for application/json ContentType.
 type UpdateEntityJSONRequestBody UpdateEntityJSONBody
@@ -3796,6 +4146,9 @@ type UpdateRecordJSONRequestBody = RecordInput
 
 // CreateViewJSONRequestBody defines body for CreateView for application/json ContentType.
 type CreateViewJSONRequestBody = SavedViewInput
+
+// CreateViewFromTextJSONRequestBody defines body for CreateViewFromText for application/json ContentType.
+type CreateViewFromTextJSONRequestBody = ViewFromTextInput
 
 // UpdateViewJSONRequestBody defines body for UpdateView for application/json ContentType.
 type UpdateViewJSONRequestBody = SavedViewInput
@@ -3821,11 +4174,17 @@ type UpdateIntegrationJSONRequestBody = IntegrationInput
 // RegisterMcpServerJSONRequestBody defines body for RegisterMcpServer for application/json ContentType.
 type RegisterMcpServerJSONRequestBody RegisterMcpServerJSONBody
 
+// UpdateOrganizationThemeJSONRequestBody defines body for UpdateOrganizationTheme for application/json ContentType.
+type UpdateOrganizationThemeJSONRequestBody = Theme
+
 // RunSidekickJSONRequestBody defines body for RunSidekick for application/json ContentType.
 type RunSidekickJSONRequestBody RunSidekickJSONBody
 
 // CreateSLOJSONRequestBody defines body for CreateSLO for application/json ContentType.
 type CreateSLOJSONRequestBody = SloInput
+
+// InstallTemplateJSONRequestBody defines body for InstallTemplate for application/json ContentType.
+type InstallTemplateJSONRequestBody = InstallTemplateInput
 
 // UpdateUserRolesJSONRequestBody defines body for UpdateUserRoles for application/json ContentType.
 type UpdateUserRolesJSONRequestBody = UserRolesUpdate
@@ -3844,6 +4203,9 @@ type UpdateWorkflowJSONRequestBody UpdateWorkflowJSONBody
 
 // StartWorkflowJSONRequestBody defines body for StartWorkflow for application/json ContentType.
 type StartWorkflowJSONRequestBody StartWorkflowJSONBody
+
+// SimulateWorkflowJSONRequestBody defines body for SimulateWorkflow for application/json ContentType.
+type SimulateWorkflowJSONRequestBody = SimulateWorkflowInput
 
 // Getter for additional properties for TokenUsagePoint. Returns the specified
 // element and whether it was found
@@ -4501,15 +4863,24 @@ type ServerInterface interface {
 	// Apply an edited plan to an existing application
 	// (PUT /applications/{appId})
 	UpdateApplication(w http.ResponseWriter, r *http.Request, appId AppId)
+	// Business-language diff between two releases (or versions) of an application
+	// (GET /applications/{appId}/diff)
+	DiffApplicationVersions(w http.ResponseWriter, r *http.Request, appId string, params DiffApplicationVersionsParams)
 	// Revise an existing application's plan with AI (Application Architect agent)
 	// (POST /applications/{appId}/plan)
 	PlanApplicationEdit(w http.ResponseWriter, r *http.Request, appId AppId)
+	// Prompt-to-preview: deploy the current draft to a sandbox and seed sample records
+	// (POST /applications/{appId}/preview)
+	PreviewApplication(w http.ResponseWriter, r *http.Request, appId string)
 	// An application's releases, newest first
 	// (GET /applications/{appId}/releases)
 	ListReleases(w http.ResponseWriter, r *http.Request, appId AppId)
 	// Cut a release of the current version
 	// (POST /applications/{appId}/releases)
 	CreateRelease(w http.ResponseWriter, r *http.Request, appId AppId)
+	// Set the application's theme (logo, primary color) used when it opens full screen
+	// (PUT /applications/{appId}/theme)
+	SetApplicationTheme(w http.ResponseWriter, r *http.Request, appId string)
 	// Approvals, newest first
 	// (GET /approvals)
 	ListApprovals(w http.ResponseWriter, r *http.Request, params ListApprovalsParams)
@@ -4546,6 +4917,9 @@ type ServerInterface interface {
 	// Create an entity
 	// (POST /entities)
 	CreateEntity(w http.ResponseWriter, r *http.Request)
+	// Infer an entity (fields, types, rules, import mapping) from sample data
+	// (POST /entities/infer)
+	InferEntitySchema(w http.ResponseWriter, r *http.Request)
 	// One entity by name
 	// (GET /entities/{entityName})
 	GetEntity(w http.ResponseWriter, r *http.Request, entityName EntityName)
@@ -4600,6 +4974,9 @@ type ServerInterface interface {
 	// Save a named query (filters, sort, limit) over an entity
 	// (POST /entities/{entityName}/views)
 	CreateView(w http.ResponseWriter, r *http.Request, entityName EntityName)
+	// Natural-language query builder — turn text into a saved view
+	// (POST /entities/{entityName}/views/from-text)
+	CreateViewFromText(w http.ResponseWriter, r *http.Request, entityName EntityName)
 	// Delete a saved view
 	// (DELETE /entities/{entityName}/views/{viewId})
 	DeleteView(w http.ResponseWriter, r *http.Request, entityName EntityName, viewId string)
@@ -4687,6 +5064,12 @@ type ServerInterface interface {
 	// The organization and its identity provider
 	// (GET /organization)
 	GetOrganization(w http.ResponseWriter, r *http.Request)
+	// White-label theme of the installation (applied to the console shell)
+	// (GET /organization/theme)
+	GetOrganizationTheme(w http.ResponseWriter, r *http.Request)
+	// Set the installation's white-label theme
+	// (PUT /organization/theme)
+	UpdateOrganizationTheme(w http.ResponseWriter, r *http.Request)
 	// Counts for the home dashboard
 	// (GET /overview)
 	GetOverview(w http.ResponseWriter, r *http.Request)
@@ -4735,6 +5118,15 @@ type ServerInterface interface {
 	// Teams
 	// (GET /teams)
 	ListTeams(w http.ResponseWriter, r *http.Request)
+	// Marketplace templates (curated, versioned, publisher-signed blueprints)
+	// (GET /templates)
+	ListTemplates(w http.ResponseWriter, r *http.Request)
+	// One marketplace template
+	// (GET /templates/{templateId})
+	GetTemplate(w http.ResponseWriter, r *http.Request, templateId string)
+	// Install a template as a new application (signature verified)
+	// (POST /templates/{templateId}/install)
+	InstallTemplate(w http.ResponseWriter, r *http.Request, templateId string)
 	// Traces built from audit records, newest first
 	// (GET /traces)
 	ListTraces(w http.ResponseWriter, r *http.Request, params ListTracesParams)
@@ -4783,6 +5175,9 @@ type ServerInterface interface {
 	// Start a workflow by hand
 	// (POST /workflows/{workflowId}/executions)
 	StartWorkflow(w http.ResponseWriter, r *http.Request, workflowId WorkflowId)
+	// Dry-run a workflow against a sample event and inspect the would-be trace
+	// (POST /workflows/{workflowId}/simulate)
+	SimulateWorkflow(w http.ResponseWriter, r *http.Request, workflowId string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -5739,6 +6134,70 @@ func (siw *ServerInterfaceWrapper) UpdateApplication(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// DiffApplicationVersions operation middleware
+func (siw *ServerInterfaceWrapper) DiffApplicationVersions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "appId" -------------
+	var appId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "appId", r.PathValue("appId"), &appId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "appId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DiffApplicationVersionsParams
+
+	// ------------- Required query parameter "from" -------------
+
+	if paramValue := r.URL.Query().Get("from"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	if paramValue := r.URL.Query().Get("to"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiffApplicationVersions(w, r, appId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PlanApplicationEdit operation middleware
 func (siw *ServerInterfaceWrapper) PlanApplicationEdit(w http.ResponseWriter, r *http.Request) {
 
@@ -5761,6 +6220,37 @@ func (siw *ServerInterfaceWrapper) PlanApplicationEdit(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PlanApplicationEdit(w, r, appId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewApplication operation middleware
+func (siw *ServerInterfaceWrapper) PreviewApplication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "appId" -------------
+	var appId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "appId", r.PathValue("appId"), &appId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "appId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewApplication(w, r, appId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5823,6 +6313,37 @@ func (siw *ServerInterfaceWrapper) CreateRelease(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateRelease(w, r, appId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetApplicationTheme operation middleware
+func (siw *ServerInterfaceWrapper) SetApplicationTheme(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "appId" -------------
+	var appId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "appId", r.PathValue("appId"), &appId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "appId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetApplicationTheme(w, r, appId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6147,6 +6668,26 @@ func (siw *ServerInterfaceWrapper) CreateEntity(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateEntity(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InferEntitySchema operation middleware
+func (siw *ServerInterfaceWrapper) InferEntitySchema(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InferEntitySchema(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6894,6 +7435,37 @@ func (siw *ServerInterfaceWrapper) CreateView(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateView(w, r, entityName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateViewFromText operation middleware
+func (siw *ServerInterfaceWrapper) CreateViewFromText(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "entityName" -------------
+	var entityName EntityName
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entityName", r.PathValue("entityName"), &entityName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entityName", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateViewFromText(w, r, entityName)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7736,6 +8308,46 @@ func (siw *ServerInterfaceWrapper) GetOrganization(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// GetOrganizationTheme operation middleware
+func (siw *ServerInterfaceWrapper) GetOrganizationTheme(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetOrganizationTheme(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateOrganizationTheme operation middleware
+func (siw *ServerInterfaceWrapper) UpdateOrganizationTheme(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateOrganizationTheme(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetOverview operation middleware
 func (siw *ServerInterfaceWrapper) GetOverview(w http.ResponseWriter, r *http.Request) {
 
@@ -8113,6 +8725,88 @@ func (siw *ServerInterfaceWrapper) ListTeams(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListTeams(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTemplates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTemplate operation middleware
+func (siw *ServerInterfaceWrapper) GetTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", r.PathValue("templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTemplate(w, r, templateId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InstallTemplate operation middleware
+func (siw *ServerInterfaceWrapper) InstallTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "templateId" -------------
+	var templateId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "templateId", r.PathValue("templateId"), &templateId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "templateId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstallTemplate(w, r, templateId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8590,6 +9284,37 @@ func (siw *ServerInterfaceWrapper) StartWorkflow(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// SimulateWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) SimulateWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "workflowId" -------------
+	var workflowId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workflowId", r.PathValue("workflowId"), &workflowId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workflowId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SimulateWorkflow(w, r, workflowId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -8742,9 +9467,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/applications/plan", wrapper.PlanApplication)
 	m.HandleFunc("GET "+options.BaseURL+"/applications/{appId}", wrapper.GetApplication)
 	m.HandleFunc("PUT "+options.BaseURL+"/applications/{appId}", wrapper.UpdateApplication)
+	m.HandleFunc("GET "+options.BaseURL+"/applications/{appId}/diff", wrapper.DiffApplicationVersions)
 	m.HandleFunc("POST "+options.BaseURL+"/applications/{appId}/plan", wrapper.PlanApplicationEdit)
+	m.HandleFunc("POST "+options.BaseURL+"/applications/{appId}/preview", wrapper.PreviewApplication)
 	m.HandleFunc("GET "+options.BaseURL+"/applications/{appId}/releases", wrapper.ListReleases)
 	m.HandleFunc("POST "+options.BaseURL+"/applications/{appId}/releases", wrapper.CreateRelease)
+	m.HandleFunc("PUT "+options.BaseURL+"/applications/{appId}/theme", wrapper.SetApplicationTheme)
 	m.HandleFunc("GET "+options.BaseURL+"/approvals", wrapper.ListApprovals)
 	m.HandleFunc("POST "+options.BaseURL+"/approvals/{approvalId}/decision", wrapper.DecideApproval)
 	m.HandleFunc("GET "+options.BaseURL+"/audit", wrapper.ListAudit)
@@ -8757,6 +9485,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/deployments", wrapper.CreateDeployment)
 	m.HandleFunc("GET "+options.BaseURL+"/entities", wrapper.ListEntities)
 	m.HandleFunc("POST "+options.BaseURL+"/entities", wrapper.CreateEntity)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/infer", wrapper.InferEntitySchema)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}", wrapper.GetEntity)
 	m.HandleFunc("PATCH "+options.BaseURL+"/entities/{entityName}", wrapper.UpdateEntity)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/migrate", wrapper.MigrateEntity)
@@ -8775,6 +9504,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/versions/diff", wrapper.DiffEntityVersions)
 	m.HandleFunc("GET "+options.BaseURL+"/entities/{entityName}/views", wrapper.ListViews)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views", wrapper.CreateView)
+	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views/from-text", wrapper.CreateViewFromText)
 	m.HandleFunc("DELETE "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.DeleteView)
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.RunView)
 	m.HandleFunc("PUT "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.UpdateView)
@@ -8804,6 +9534,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PUT "+options.BaseURL+"/me/pinned-applications/{appId}", wrapper.PinApplication)
 	m.HandleFunc("GET "+options.BaseURL+"/model-providers", wrapper.ListModelProviders)
 	m.HandleFunc("GET "+options.BaseURL+"/organization", wrapper.GetOrganization)
+	m.HandleFunc("GET "+options.BaseURL+"/organization/theme", wrapper.GetOrganizationTheme)
+	m.HandleFunc("PUT "+options.BaseURL+"/organization/theme", wrapper.UpdateOrganizationTheme)
 	m.HandleFunc("GET "+options.BaseURL+"/overview", wrapper.GetOverview)
 	m.HandleFunc("GET "+options.BaseURL+"/personas", wrapper.ListPersonas)
 	m.HandleFunc("GET "+options.BaseURL+"/portal/apis", wrapper.PortalCatalog)
@@ -8820,6 +9552,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/slos/{sloId}/status", wrapper.GetSLOStatus)
 	m.HandleFunc("GET "+options.BaseURL+"/status", wrapper.StatusPage)
 	m.HandleFunc("GET "+options.BaseURL+"/teams", wrapper.ListTeams)
+	m.HandleFunc("GET "+options.BaseURL+"/templates", wrapper.ListTemplates)
+	m.HandleFunc("GET "+options.BaseURL+"/templates/{templateId}", wrapper.GetTemplate)
+	m.HandleFunc("POST "+options.BaseURL+"/templates/{templateId}/install", wrapper.InstallTemplate)
 	m.HandleFunc("GET "+options.BaseURL+"/traces", wrapper.ListTraces)
 	m.HandleFunc("GET "+options.BaseURL+"/traces/{traceId}", wrapper.GetTrace)
 	m.HandleFunc("GET "+options.BaseURL+"/users", wrapper.ListUsers)
@@ -8836,6 +9571,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/workflows/{workflowId}", wrapper.GetWorkflow)
 	m.HandleFunc("PATCH "+options.BaseURL+"/workflows/{workflowId}", wrapper.UpdateWorkflow)
 	m.HandleFunc("POST "+options.BaseURL+"/workflows/{workflowId}/executions", wrapper.StartWorkflow)
+	m.HandleFunc("POST "+options.BaseURL+"/workflows/{workflowId}/simulate", wrapper.SimulateWorkflow)
 
 	return m
 }

@@ -33,6 +33,7 @@ type Application struct {
 	Version           string    `json:"version"`
 	EntityNames       []string  `json:"entityNames"`
 	Pages             []Page    `json:"pages"`
+	Theme             *Theme    `json:"theme,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 }
@@ -74,6 +75,7 @@ type Deployment struct {
 	Environment   string    `json:"environment"`
 	Version       string    `json:"version"`
 	Status        string    `json:"status"`
+	Preview       bool      `json:"preview,omitempty"` // sandbox deployment of the current draft
 	DeployedAt    time.Time `json:"deployedAt"`
 	DeployedBy    string    `json:"deployedBy"`
 }

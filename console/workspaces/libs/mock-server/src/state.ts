@@ -33,7 +33,9 @@ import type {
   WebhookDelivery,
   AlertFire,
   AlertRule,
-  Slo
+  Slo,
+  Template,
+  Theme
 } from "@workspacenow/types";
 
 /** Everything one Installation persists. */
@@ -83,9 +85,13 @@ export interface PlatformState {
   slos: Slo[];
   /** Application ids each user pinned, keyed by user id, in pin order. */
   pins: Record<string, string[]>;
+  /** Marketplace templates (seeded, publisher-signed). */
+  templates: Template[];
+  /** Installation white-label theme. */
+  orgTheme: Theme;
 }
 
-export const SCHEMA_VERSION = 8; // v8: entityVersions snapshots
+export const SCHEMA_VERSION = 9; // v9: marketplace templates + org theme
 
 const STORAGE_KEY = "workspacenow-demo-state";
 

@@ -1,7 +1,7 @@
 import { Button, Chip } from "@heroui/react";
-import { Pause, Pencil, Play } from "@workspacenow/icons";
+import { Pause, Pencil, Play, Rocket } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
-import { useCan, useGetWorkflow, useListApplications, useListExecutions, useStartWorkflow, useUpdateWorkflow } from "@workspacenow/api-client";
+import { useCan, useGetWorkflow, useListApplications, useListExecutions, useSimulateWorkflow, useStartWorkflow, useUpdateWorkflow } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { DetailList, LinkButton, PageLayout, QueryState, SectionCard, StatusChip } from "@workspacenow/views";
 import { ExecutionsTable } from "./subComponents/ExecutionsTable";
@@ -16,6 +16,7 @@ export function WorkflowDetailPage() {
   const { data: applications } = useListApplications();
   const updateWorkflow = useUpdateWorkflow();
   const startWorkflow = useStartWorkflow();
+  const simulate = useSimulateWorkflow();
   const canDesign = useCan("flow.manage");
 
   const wf = workflow.data;
@@ -50,6 +51,14 @@ export function WorkflowDetailPage() {
                 Run now
               </Button>
             )}
+            <Button
+              variant="tertiary"
+              isPending={simulate.isPending}
+              onPress={() => simulate.mutate({ workflowId: wf.id, event: {} })}
+            >
+              <Rocket className="size-4" aria-hidden />
+              Simulate
+            </Button>
             <Button
               variant="secondary"
               isPending={updateWorkflow.isPending}
@@ -94,6 +103,16 @@ export function WorkflowDetailPage() {
                 </SectionCard>
               </div>
             </div>
+            {simulate.data && (
+              <SectionCard title="Dry-run simulation" subtitle={simulate.data.summary}>
+                <DetailList
+                  items={simulate.data.steps.map((s) => ({
+                    label: s.name,
+                    value: `${s.outcome}: ${s.detail}`,
+                  }))}
+                />
+              </SectionCard>
+            )}
             <SectionCard title="Execution history" flush>
               <QueryState query={executions}>{(list) => <ExecutionsTable executions={list.items} hideWorkflow />}</QueryState>
             </SectionCard>

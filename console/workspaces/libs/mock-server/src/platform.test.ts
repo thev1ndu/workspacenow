@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, planFromApplication, type AgentRun, type AlertFire, type AlertRule, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type ErrorGroup, type SavedView, type ServiceStat, type Slo, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
+import { ApiError, planFromApplication, type Application, type BlueprintDiff, type EntityInference, type PreviewResult, type Template, type ViewFromTextResult, type WorkflowSimulation, type AgentRun, type AlertFire, type AlertRule, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type ErrorGroup, type SavedView, type ServiceStat, type Slo, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
 import { SCHEMA_VERSION, clearState, loadState, saveState } from "./state";
@@ -820,5 +820,93 @@ describe("error groups and observed services", () => {
     // u-kavya (procurement officer) has no audit.read
     expect(get(platform, "/errors", "u-kavya").status).toBe(403);
     expect(get(platform, "/services", "u-kavya").status).toBe(403);
+  });
+});
+
+describe("studio builder pack (v0.1.1)", () => {
+  it("lists seeded signed templates and installs one", () => {
+    const platform = createDemoPlatform();
+    const templates = get(platform, "/templates");
+    expect(templates.status).toBe(200);
+    const items = (templates.body as { items: Template[] }).items;
+    expect(items.length).toBe(4);
+    expect(items.every((t) => /^[0-9a-f]{64}$/.test(t.signature))).toBe(true);
+
+    const before = platform.state.applications.length;
+    const installed = post(platform, "/templates/tpl-crm/install", { name: "Northwind CRM" });
+    expect(installed.status, JSON.stringify(installed.body)).toBe(201);
+    expect(platform.state.applications.length).toBe(before + 1);
+    expect(platform.state.entities.some((e) => e.name === "Company" && e.ownerApplicationId === (installed.body as { id: string }).id)).toBe(true);
+  });
+
+  it("infers an entity from CSV and rejects bad input with 422", () => {
+    const platform = createDemoPlatform();
+    const res = post(platform, "/entities/infer", { format: "csv", data: "sku,name,price\nSKU-1,Widget,9.99\nSKU-2,Gadget,3\n" });
+    expect([200, 201]).toContain(res.status); // mock answers 201 to every POST; the contract says 200
+    const inf = res.body as EntityInference;
+    expect(inf.rows).toBe(2);
+    const sku = inf.fields.find((f) => f.name === "sku")!;
+    expect(sku.unique).toBe(true);
+    const price = inf.fields.find((f) => f.name === "price")!;
+    expect(price.type).toBe("number");
+    expect(post(platform, "/entities/infer", { format: "json", data: "{}" }).status).toBe(422);
+  });
+
+  it("builds a saved view from natural language", () => {
+    const platform = createDemoPlatform();
+    const res = post(platform, "/entities/Product/views/from-text", { text: "unitPrice below 1000 ordered by name desc, limit 5" });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    const out = res.body as ViewFromTextResult;
+    expect(out.view.filters[0]).toMatchObject({ field: "unitPrice", op: "lt", value: 1000 });
+    expect(out.view.sortField).toBe("name");
+    expect(out.view.sortDesc).toBe(true);
+    expect(out.view.limit).toBe(5);
+    expect(out.explanation).toContain("unitPrice");
+    expect(post(platform, "/entities/Product/views/from-text", { text: "show everything" }).status).toBe(422);
+  });
+
+  it("simulates a workflow as a dry-run trace", () => {
+    const platform = createDemoPlatform();
+    const wf = platform.state.workflows[0];
+    const res = post(platform, `/workflows/${wf.id}/simulate`, { event: { stock: 2 } });
+    expect([200, 201]).toContain(res.status); // mock answers 201 to every POST; the contract says 200
+    const sim = res.body as WorkflowSimulation;
+    expect(sim.steps.length).toBeGreaterThan(0);
+    expect(sim.traceId).toBeTruthy();
+    expect(sim.steps.some((s) => s.outcome === "would-wait-approval" || s.outcome === "would-run")).toBe(true);
+  });
+
+  it("previews an application with seeded sample records", () => {
+    const platform = createDemoPlatform();
+    const app = platform.state.applications[0];
+    const res = post(platform, `/applications/${app.id}/preview`, {});
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    const preview = res.body as PreviewResult;
+    expect(preview.deployment.preview).toBe(true);
+    expect(preview.recordsSeeded).toBeGreaterThan(0);
+    expect(preview.url).toContain("preview=1");
+  });
+
+  it("diffs two releases of an application in business language", () => {
+    const platform = createDemoPlatform();
+    const app = platform.state.applications[0];
+    post(platform, `/applications/${app.id}/releases`, { notes: "v1" });
+    const res = get(platform, `/applications/${app.id}/diff?from=current&to=current`);
+    expect(res.status).toBe(200);
+    expect((res.body as BlueprintDiff).summary).toEqual(["No changes"]);
+  });
+
+  it("sets application and organization themes with validation", () => {
+    const platform = createDemoPlatform();
+    const app = platform.state.applications[0];
+    const bad = send(platform, "PUT", `/applications/${app.id}/theme`, "u-amaya", { primaryColor: "purple" });
+    expect(bad.status).toBe(422);
+    const ok = send(platform, "PUT", `/applications/${app.id}/theme`, "u-amaya", { primaryColor: "#6d28d9" });
+    expect(ok.status).toBe(200);
+    expect((ok.body as Application).theme?.primaryColor).toBe("#6d28d9");
+    const org = send(platform, "PUT", "/organization/theme", "u-amaya", { primaryColor: "#0ea5e9", logoUrl: "https://example.com/logo.png" });
+    expect(org.status).toBe(200);
+    expect(get(platform, "/organization/theme").body).toMatchObject({ primaryColor: "#0ea5e9" });
+    expect(send(platform, "PUT", "/organization/theme", "u-kavya", { primaryColor: "#000000" }).status).toBe(403);
   });
 });

@@ -138,3 +138,29 @@ func (h *Handler) UpdateGroupMappings(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.List(w, mappings)
 }
+
+// GetOrganizationTheme answers GET /organization/theme.
+func (h *Handler) GetOrganizationTheme(w http.ResponseWriter, r *http.Request) {
+	theme, err := h.svc.OrganizationTheme(r.Context())
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, theme)
+}
+
+// UpdateOrganizationTheme answers PUT /organization/theme.
+func (h *Handler) UpdateOrganizationTheme(w http.ResponseWriter, r *http.Request) {
+	var body oapi.Theme
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
+	theme, err := h.svc.UpdateOrganizationTheme(r.Context(), ec, body)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, theme)
+}

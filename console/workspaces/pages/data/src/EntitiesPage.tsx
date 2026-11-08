@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button, Table } from "@heroui/react";
-import { Plus } from "@workspacenow/icons";
+import { Plus, Sparkles } from "@workspacenow/icons";
 import { useCan, useListApplications, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
 import { NewEntityDialog } from "./subComponents/NewEntityDialog";
+import { InferEntityDialog } from "./subComponents/InferEntityDialog";
 import { ScopeChip } from "./subComponents/ScopeChip";
 
 export function EntitiesPage() {
@@ -12,6 +13,7 @@ export function EntitiesPage() {
   const { data: apps } = useListApplications();
   const canManage = useCan("data.manage");
   const [open, setOpen] = useState(false);
+  const [inferOpen, setInferOpen] = useState(false);
   const appName = (id?: string) => apps?.items.find((a) => a.id === id)?.name ?? "—";
 
   return (
@@ -19,10 +21,18 @@ export function EntitiesPage() {
       title="Entities"
       description="Each entity is a business-level contract. The Entity Runtime decides how it is stored."
       actions={
-        <Button onPress={() => setOpen(true)} isDisabled={!canManage}>
-          <Plus className="size-4" aria-hidden />
-          New entity
-        </Button>
+        <>
+          {canManage && (
+            <Button variant="secondary" onPress={() => setInferOpen(true)}>
+              <Sparkles className="size-4" aria-hidden />
+              New from data
+            </Button>
+          )}
+          <Button onPress={() => setOpen(true)} isDisabled={!canManage}>
+            <Plus className="size-4" aria-hidden />
+            New entity
+          </Button>
+        </>
       }
     >
       <SectionCard flush>
@@ -79,6 +89,7 @@ export function EntitiesPage() {
         </QueryState>
       </SectionCard>
       <NewEntityDialog open={open} onClose={() => setOpen(false)} />
+      {inferOpen && <InferEntityDialog onClose={() => setInferOpen(false)} />}
     </PageLayout>
   );
 }

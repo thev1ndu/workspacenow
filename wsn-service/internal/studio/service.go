@@ -64,6 +64,13 @@ type Service interface {
 	Pins(ctx context.Context, userID string) ([]string, error)
 	Pin(ctx context.Context, userID, appID string) ([]string, error)
 	Unpin(ctx context.Context, userID, appID string) ([]string, error)
+	// Builder pack: marketplace templates, blueprint diffs, sandbox previews, app theming.
+	ListTemplates(ctx context.Context) ([]Template, error)
+	GetTemplate(ctx context.Context, id string) (*Template, error)
+	InstallTemplate(ctx context.Context, ec kernel.ExecutionContext, templateID string, in InstallTemplateInput) (*Application, error)
+	DiffVersions(ctx context.Context, ec kernel.ExecutionContext, appID, from, to string) (*BlueprintDiff, error)
+	Preview(ctx context.Context, ec kernel.ExecutionContext, appID string) (*PreviewResult, error)
+	SetTheme(ctx context.Context, ec kernel.ExecutionContext, appID string, t Theme) (*Application, error)
 }
 
 type service struct {
@@ -81,6 +88,7 @@ type service struct {
 	pins        *docstore.Collection[[]string]
 	apis        *docstore.Collection[connect.API]
 	operations  *docstore.Collection[connect.Operation]
+	templates   *docstore.Collection[Template]
 }
 
 func NewService(db *gorm.DB, auditor kernel.Auditor, events kernel.Publisher, rt data.Runtime, artifacts objectstore.Store, planner Planner) Service {
@@ -94,6 +102,7 @@ func NewService(db *gorm.DB, auditor kernel.Auditor, events kernel.Publisher, rt
 		pins:        docstore.NewCollection(db, "pins", func(*[]string) string { return "" }),
 		apis:        docstore.NewCollection(db, "apis", func(a *connect.API) string { return a.ID }),
 		operations:  docstore.NewCollection(db, "api_operations", func(o *connect.Operation) string { return o.ID }),
+		templates:   docstore.NewCollection(db, "templates", func(t *Template) string { return t.ID }),
 	}
 }
 

@@ -1,4 +1,4 @@
-import type { Approval, ListResponse, Workflow, WorkflowDefinition, WorkflowExecution } from "@workspacenow/types";
+import type { Approval, ListResponse, SimulateWorkflowInput, Workflow, WorkflowDefinition, WorkflowExecution, WorkflowSimulation } from "@workspacenow/types";
 import { enc, httpGET, httpPATCH, httpPOST, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export async function listWorkflows(getToken: GetToken) {
@@ -60,4 +60,8 @@ export async function decideApproval(
     token: await getToken(),
     body,
   });
+}
+
+export async function simulateWorkflow(params: { workflowId: string }, body: SimulateWorkflowInput, getToken: GetToken) {
+  return httpPOST<WorkflowSimulation>(`${SERVICE_BASE}/workflows/${enc(params.workflowId)}/simulate`, { token: await getToken(), body });
 }

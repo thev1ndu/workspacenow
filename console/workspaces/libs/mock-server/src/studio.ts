@@ -384,6 +384,7 @@ export function createRelease(platform: Platform, ctx: ExecutionContext, applica
     notes,
     createdAt: platform.now(),
     createdBy: ctx.actor.name,
+    plan: planFromApplication(app, platform.state.entities.filter((e) => e.ownerApplicationId === app.id)),
   };
   platform.state.releases.push(release);
   app.version = version;

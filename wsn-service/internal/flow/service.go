@@ -29,6 +29,8 @@ type Service interface {
 	Execution(ctx context.Context, id string) (*Execution, error)
 	Approvals(ctx context.Context, status, applicationID string, limit, offset int) ([]Approval, int, error)
 	Decide(ctx context.Context, caller *kernel.Caller, id string, approved bool, comment string) (*Approval, error)
+	// Simulate dry-runs a workflow against a sample event, without side effects.
+	Simulate(ctx context.Context, ec kernel.ExecutionContext, workflowID string, event map[string]any) (*Simulation, error)
 }
 
 type role struct {

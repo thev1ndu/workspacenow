@@ -129,6 +129,27 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Organization" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+  /organization/theme:
+    get:
+      tags: [Control]
+      operationId: getOrganizationTheme
+      summary: White-label theme of the installation (applied to the console shell)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Theme" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    put:
+      tags: [Control]
+      operationId: updateOrganizationTheme
+      summary: Set the installation's white-label theme
+      description: "Requires `control.manage`. Audited."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/Theme" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Theme" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
   /departments:
     get:
       tags: [Control]
@@ -261,6 +282,43 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
 
   # Studio
+  /templates:
+    get:
+      tags: [Studio]
+      operationId: listTemplates
+      summary: Marketplace templates (curated, versioned, publisher-signed blueprints)
+      description: "Signed in: each template carries an HMAC-SHA256 signature over its canonical blueprint JSON; install verifies it."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TemplateList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+  /templates/{templateId}:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Studio]
+      operationId: getTemplate
+      summary: One marketplace template
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Template" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /templates/{templateId}/install:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Studio]
+      operationId: installTemplate
+      summary: Install a template as a new application (signature verified)
+      description: "Requires `studio.manage`. The template's signature is verified against the blueprint before anything is created; a bad signature answers 422. `environment` optionally deploys a preview immediately."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/InstallTemplateInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
   /applications:
     get:
       tags: [Studio]
@@ -389,6 +447,52 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /applications/{appId}/diff:
+    parameters:
+      - { name: appId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Studio]
+      operationId: diffApplicationVersions
+      summary: Business-language diff between two releases (or versions) of an application
+      description: "Requires `studio.read`. Compares the stored blueprints of `from` and `to` (release ids or version strings) and answers human-readable change entries: entities, fields, pages, operations, workflows, permissions."
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/BlueprintDiff" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /applications/{appId}/preview:
+    parameters:
+      - { name: appId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Studio]
+      operationId: previewApplication
+      summary: "Prompt-to-preview: deploy the current draft to a sandbox and seed sample records"
+      description: "Requires `studio.manage`. Creates a deployment flagged `preview` in the Development environment and seeds each application entity with deterministic sample records (skipped when the entity already has records). The returned `url` opens the app full screen."
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/PreviewResult" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /applications/{appId}/theme:
+    parameters:
+      - { name: appId, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [Studio]
+      operationId: setApplicationTheme
+      summary: Set the application's theme (logo, primary color) used when it opens full screen
+      description: "Requires `studio.manage`. Audited."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/Theme" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
   /deployments:
     get:
       tags: [Studio]
@@ -473,6 +577,20 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+  /entities/infer:
+    post:
+      tags: [Data]
+      operationId: inferEntitySchema
+      summary: Infer an entity (fields, types, rules, import mapping) from sample data
+      description: "Requires `data.manage`. Accepts a JSON array of objects or CSV text (first row = headers). Types are inferred per column (bool, int, float, date, email, url, enum, string); fully populated columns become required, all-distinct id-like columns become unique. Deterministic, no LLM involved."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/InferEntityInput" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EntityInference" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
   /entities/{entityName}:
     parameters: [{ $ref: "#/components/parameters/entityName" }]
@@ -798,6 +916,22 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /entities/{entityName}/views/from-text:
+    parameters: [{ $ref: "#/components/parameters/entityName" }]
+    post:
+      tags: [Data]
+      operationId: createViewFromText
+      summary: Natural-language query builder — turn text into a saved view
+      description: "Requires the entity's `readPermission`. Rule-based parse of phrases like \"below reorder level\", \"ordered by supplier\", \"limit 20\" into the view's filters/sort/limit, then saves the view (not shared by default) and returns it with a plain-language explanation. Unparseable text answers 422 with a hint."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ViewFromTextInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/ViewFromTextResult" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
   /connections:
     get:
       tags: [Data]
@@ -1410,6 +1544,23 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+  /workflows/{workflowId}/simulate:
+    parameters:
+      - { name: workflowId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Flow]
+      operationId: simulateWorkflow
+      summary: Dry-run a workflow against a sample event and inspect the would-be trace
+      description: "Requires `flow.read`. Walks the step graph without side effects: operations are reported as would-run, approvals as would-wait-approval, conditions evaluated against the sample event payload. Returns a minted trace id and per-step outcomes."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SimulateWorkflowInput" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowSimulation" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
   /workflows/{workflowId}/executions:
     parameters: [{ $ref: "#/components/parameters/workflowId" }]
     post:
@@ -2007,6 +2158,7 @@ components:
         version: { type: string, description: "Semantic version, e.g. 1.2.0" }
         entityNames: { type: array, items: { type: string } }
         pages: { type: array, items: { $ref: "#/components/schemas/AppPage" } }
+        theme: { $ref: "#/components/schemas/Theme" }
         createdAt: { $ref: "#/components/schemas/IsoDate" }
         updatedAt: { $ref: "#/components/schemas/IsoDate" }
     AppPage:
@@ -2079,6 +2231,7 @@ components:
         environment: { $ref: "#/components/schemas/EnvironmentKey" }
         version: { type: string }
         status: { type: string, enum: [active, superseded] }
+        preview: { type: boolean, description: "Sandbox deployment of the current draft with seeded sample data" }
         deployedAt: { $ref: "#/components/schemas/IsoDate" }
         deployedBy: { type: string }
 
@@ -2202,6 +2355,113 @@ components:
         field: { type: string }
         op: { type: string, enum: [eq, neq, gt, gte, lt, lte, contains, in] }
         value: { $ref: "#/components/schemas/FieldValue" }
+    InferEntityInput:
+      type: object
+      required: [format, data]
+      properties:
+        name: { type: string, description: "Proposed PascalCase entity name; defaults to a name derived from the data" }
+        format: { type: string, enum: [json, csv] }
+        data: { type: string, description: "JSON array of objects, or CSV text with a header row" }
+    InferredField:
+      type: object
+      required: [name, type, required, unique]
+      properties:
+        name: { type: string }
+        type: { type: string, enum: [string, text, integer, number, boolean, date, enum, reference, file] }
+        label: { type: string }
+        required: { type: boolean }
+        unique: { type: boolean }
+        enumValues: { type: array, items: { type: string } }
+        references: { type: string, description: "Target entity when type is reference" }
+    ImportMapping:
+      type: object
+      required: [column, field]
+      properties:
+        column: { type: string, description: "Source column in the uploaded data" }
+        field: { type: string, description: "Target entity field" }
+    EntityInference:
+      type: object
+      required: [name, fields, importMapping, rows]
+      properties:
+        name: { type: string }
+        fields: { type: array, items: { $ref: "#/components/schemas/InferredField" } }
+        importMapping: { type: array, items: { $ref: "#/components/schemas/ImportMapping" } }
+        rows: { type: integer, description: "Number of sample rows parsed" }
+    ViewFromTextInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, description: "e.g. \"products below reorder level ordered by supplier, limit 20\"" }
+    ViewFromTextResult:
+      type: object
+      required: [view, explanation]
+      properties:
+        view: { $ref: "#/components/schemas/SavedView" }
+        explanation: { type: string, description: "Plain-language restatement of what the view does" }
+    BlueprintDiff:
+      type: object
+      required: [from, to, summary, changes]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        summary: { type: array, items: { type: string }, description: "One business-language sentence per change" }
+        changes: { type: array, items: { $ref: "#/components/schemas/BlueprintChange" } }
+    BlueprintChange:
+      type: object
+      required: [kind, change, name, detail]
+      properties:
+        kind: { type: string, enum: [entity, field, page, operation, workflow, permission, application] }
+        change: { type: string, enum: [added, removed, changed] }
+        name: { type: string }
+        detail: { type: string }
+    Theme:
+      type: object
+      properties:
+        primaryColor: { type: string, description: "Hex color, e.g. #6d28d9" }
+        logoUrl: { type: string }
+    Template:
+      type: object
+      required: [id, name, description, category, version, signature, blueprint]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        category: { type: string, enum: [inventory, procurement, crm, hr, operations, custom] }
+        version: { type: string }
+        signature: { type: string, description: "HMAC-SHA256 hex over the canonical blueprint JSON; verified on install" }
+        blueprint: { $ref: "#/components/schemas/ApplicationPlan" }
+    TemplateList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/Template" } }, total: { type: integer } } }
+    InstallTemplateInput:
+      type: object
+      properties:
+        name: { type: string, description: "Application name; defaults to the template name" }
+        environment: { type: string, description: "When set, deploy a preview to this environment right away" }
+    PreviewResult:
+      type: object
+      required: [deployment, recordsSeeded, url]
+      properties:
+        deployment: { $ref: "#/components/schemas/Deployment" }
+        recordsSeeded: { type: integer }
+        url: { type: string, description: "Full-screen app URL with the preview flag" }
+    SimulateWorkflowInput:
+      type: object
+      properties:
+        event: { type: object, additionalProperties: true, description: "Sample event payload used to evaluate conditions" }
+    WorkflowSimulation:
+      type: object
+      required: [traceId, summary, steps]
+      properties:
+        traceId: { type: string }
+        summary: { type: string }
+        steps: { type: array, items: { $ref: "#/components/schemas/SimStep" } }
+    SimStep:
+      type: object
+      required: [name, kind, outcome, detail]
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        outcome: { type: string, enum: [would-run, would-wait-approval, would-skip, condition-true, condition-false] }
+        detail: { type: string }
     SavedView:
       type: object
       required: [id, entity, name, filters, ownerId, createdAt, updatedAt]

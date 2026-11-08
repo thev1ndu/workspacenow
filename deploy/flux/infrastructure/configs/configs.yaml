@@ -25,7 +25,7 @@ spec:
           name: temporal-db-login
 ---
 # OpenBao, reached with the Kubernetes auth role external-secrets.
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ClusterSecretStore
 metadata:
   name: openbao
@@ -44,7 +44,7 @@ spec:
             namespace: external-secrets
 ---
 # Platform secrets; values live in OpenBao under secret/workspacenow and never in git.
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: wsn-secrets
@@ -62,7 +62,7 @@ spec:
     - { secretKey: S3_SECRET_KEY, remoteRef: { key: workspacenow/object-storage, property: secretKey } }
 ---
 # Object-storage credentials for the RustFS deployment, pulled from OpenBao.
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: wsn-rustfs-env
@@ -136,3 +136,77 @@ spec:
   resources:
     requests:
       storage: 20Gi
+
+---
+# Durable workflow execution, persisted in the wsn-db CloudNativePG cluster above.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: temporal
+  namespace: temporal
+spec:
+  interval: 1h
+  timeout: 15m
+  chart:
+    spec:
+      chart: temporal
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: temporal, namespace: flux-system }
+  values:
+    cassandra: { enabled: false }
+    mysql: { enabled: false }
+    postgresql: { enabled: false }
+    elasticsearch: { enabled: false }
+    prometheus: { enabled: false }
+    grafana: { enabled: false }
+    server:
+      config:
+        persistence:
+          default:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal
+              user: temporal
+              existingSecret: temporal-db
+          visibility:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal_visibility
+              user: temporal
+              existingSecret: temporal-db
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: temporal-db
+  namespace: workspacenow
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target:
+    name: temporal-db-login
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: temporal
+        password: "{{ .password }}"
+  data:
+    - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: temporal-db
+  namespace: temporal
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target: { name: temporal-db }
+  data:
+    - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }

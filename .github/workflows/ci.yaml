@@ -45,11 +45,11 @@ jobs:
       - name: Publish merged outputs
         id: publish
         run: |
-          for k in service observer console deploy ai; do
-            v="false"
-            if [ "${{ steps.filter.outputs[k] }}" = "true" ] || [ "${{ steps.all.outputs[k] }}" = "true" ]; then v="true"; fi
-            echo "$k=$v" >> "$GITHUB_OUTPUT"
-          done
+          echo "service=${{ steps.filter.outputs.service == 'true' || steps.all.outputs.service == 'true' }}" >> "$GITHUB_OUTPUT"
+          echo "observer=${{ steps.filter.outputs.observer == 'true' || steps.all.outputs.observer == 'true' }}" >> "$GITHUB_OUTPUT"
+          echo "console=${{ steps.filter.outputs.console == 'true' || steps.all.outputs.console == 'true' }}" >> "$GITHUB_OUTPUT"
+          echo "deploy=${{ steps.filter.outputs.deploy == 'true' || steps.all.outputs.deploy == 'true' }}" >> "$GITHUB_OUTPUT"
+          echo "ai=${{ steps.filter.outputs.ai == 'true' || steps.all.outputs.ai == 'true' }}" >> "$GITHUB_OUTPUT"
 
   # The AI service's gate (ruff + mypy + 100% line coverage) lives here as a job, so one
   # pipeline covers everything; the live Mistral smoke test is opt-in via the secret.

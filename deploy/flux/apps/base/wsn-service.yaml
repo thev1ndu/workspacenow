@@ -15,6 +15,7 @@ data:
   OPENBAO_ADDR: http://openbao.openbao.svc:8200
   OPENBAO_ROLE: wsn-service
   AI_SERVICE_URL: http://wsn-ai-service:8090
+  WSN_OBSERVER_URL: http://wsn-observer:9098
   CORS_ALLOWED_ORIGINS: ""
   OIDC_ISSUER: ""
   OIDC_AUDIENCE: ""
@@ -90,6 +91,8 @@ spec:
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_LOCAL_ADMIN_EMAIL } }
             - name: WSN_LOCAL_ADMIN_PASSWORD
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_LOCAL_ADMIN_PASSWORD } }
+            - name: WSN_OBSERVER_TOKEN
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: OBSERVER_TOKEN } }
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 10

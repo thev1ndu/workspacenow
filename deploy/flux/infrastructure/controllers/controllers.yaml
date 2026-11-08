@@ -194,3 +194,37 @@ spec:
               database: temporal_visibility
               user: temporal
               existingSecret: temporal-db
+---
+# Temporal DB credentials must exist before the temporal HelmRelease installs (dev: seeded from OpenBao once configs run; flux retries apply until the CRDs are registered).
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: temporal-db
+  namespace: workspacenow
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target:
+    name: temporal-db-login
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: temporal
+        password: "{{ .password }}"
+  data:
+    - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }
+
+---
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: temporal-db
+  namespace: temporal
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { kind: ClusterSecretStore, name: openbao }
+  target: { name: temporal-db }
+  data:
+    - { secretKey: password, remoteRef: { key: workspacenow/temporal-db, property: password } }

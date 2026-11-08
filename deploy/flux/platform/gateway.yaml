@@ -18,7 +18,7 @@ spec:
     - name: https-console
       protocol: HTTPS
       port: 443
-      hostname: console.workspace.twotakeone.com
+      hostname: workspace.twotakeone.com
       tls: { mode: Terminate, certificateRefs: [{ name: tls-console }] }
       allowedRoutes: { namespaces: { from: Same } }
     - name: https-api
@@ -53,7 +53,7 @@ metadata:
   namespace: workspacenow
 spec:
   secretName: tls-console
-  dnsNames: ["console.workspace.twotakeone.com"]
+  dnsNames: ["workspace.twotakeone.com"]
   issuerRef: { name: letsencrypt-dns, kind: ClusterIssuer }
 ---
 apiVersion: cert-manager.io/v1

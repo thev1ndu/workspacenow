@@ -178,5 +178,5 @@ spec:
               bao kv put -mount=secret workspacenow/run-grant privateKey=change-me >/dev/null
               bao kv put -mount=secret workspacenow/object-storage accessKey=workspacenow secretKey=workspacenow-secret >/dev/null
               bao kv put -mount=secret workspacenow/temporal-db password=temporal-dev >/dev/null
-              bao kv put -mount=secret workspacenow/local-admin email=admin@workspacenow.local password=$(head -c 24 /dev/urandom | base64 | tr -d '\n') >/dev/null
+              bao kv get -mount=secret workspacenow/local-admin >/dev/null 2>&1 || bao kv put -mount=secret workspacenow/local-admin email=admin@workspacenow.local password=$(head -c 24 /dev/urandom | base64 | tr -d '\n') >/dev/null
               echo "openbao configured"

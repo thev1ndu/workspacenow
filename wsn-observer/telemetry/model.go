@@ -119,17 +119,19 @@ type LogFilter struct {
 
 // Store keeps every telemetry signal durably — no database, no in-memory payload. The
 // reference implementation (walstore) appends JSONL segment files; queries scan at most
-// the newest ScanLimit records per signal.
+// the newest ScanLimit records per signal for the returned page, while totals come from a
+// per-segment index and are exact unless the query is text-filtered or cuts through a
+// segment's time range (those report approximate=true).
 type Store interface {
 	AddSpans(ctx context.Context, spans []Span) error
 	AddLogs(ctx context.Context, logs []LogRecord) error
 	AddMetrics(ctx context.Context, points []MetricPoint) error
-	ListTraces(ctx context.Context, service string, start, end time.Time, limit, offset int, desc bool) ([]TraceOverview, int, error)
-	Spans(ctx context.Context, traceID, service string, limit int, asc bool) ([]Span, int, error)
+	ListTraces(ctx context.Context, service string, start, end time.Time, limit, offset int, desc bool) ([]TraceOverview, int, bool, error)
+	Spans(ctx context.Context, traceID, service string, limit int, asc bool) ([]Span, int, bool, error)
 	GetSpan(ctx context.Context, traceID, spanID string) (Span, bool, error)
-	ListLogs(ctx context.Context, f LogFilter) ([]LogRecord, int, error)
-	ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]MetricPoint, int, error)
-	ListErrors(ctx context.Context, f ErrorFilter) ([]ErrorGroup, int, error)
+	ListLogs(ctx context.Context, f LogFilter) ([]LogRecord, int, bool, error)
+	ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]MetricPoint, int, bool, error)
+	ListErrors(ctx context.Context, f ErrorFilter) ([]ErrorGroup, int, bool, error)
 	Services(ctx context.Context) ([]ServiceStat, error)
 	Overview(ctx context.Context) (services []string, spans, logs, metrics int, err error)
 	Close() error

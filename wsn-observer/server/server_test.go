@@ -401,3 +401,27 @@ func TestErrorAndServiceEndpoints(t *testing.T) {
 		t.Fatalf("services wrong token: %d", status)
 	}
 }
+
+func TestListResponsesCarryApproximateFlag(t *testing.T) {
+	srv := newServer(t, "")
+	defer srv.Close()
+	do(t, "POST", srv.URL+"/v1/logs", "", logsPayload) // 1 log record
+	do(t, "POST", srv.URL+"/v1/traces", "", tracesPayload)
+
+	status, body := do(t, "GET", srv.URL+"/api/v1/logs", "", "")
+	if status != 200 || body["totalCount"] != float64(1) || body["approximate"] != false {
+		t.Fatalf("logs exact: %d %v", status, body)
+	}
+	status, body = do(t, "GET", srv.URL+"/api/v1/logs?q=sale", "", "")
+	if status != 200 || body["approximate"] != true {
+		t.Fatalf("logs q-filtered must be approximate: %d %v", status, body)
+	}
+	status, body = do(t, "GET", srv.URL+"/api/v1/traces", "", "")
+	if status != 200 || body["approximate"] == nil {
+		t.Fatalf("traces must carry approximate: %d %v", status, body)
+	}
+	status, body = do(t, "POST", srv.URL+"/api/v1/logs/query", "", `{"level":"error"}`)
+	if status != 200 || body["approximate"] != true || body["totalCount"] != float64(1) {
+		t.Fatalf("logs query level-filtered: %d %v", status, body)
+	}
+}

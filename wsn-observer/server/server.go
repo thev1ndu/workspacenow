@@ -194,12 +194,12 @@ func (s *Server) listTraces(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	traces, total, err := s.store.ListTraces(r.Context(), service, start, end, limit, offset, desc)
+	traces, total, approx, err := s.store.ListTraces(r.Context(), service, start, end, limit, offset, desc)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"traces": traces, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"traces": traces, "totalCount": total, "approximate": approx})
 }
 
 func (s *Server) getTrace(w http.ResponseWriter, r *http.Request) {
@@ -215,12 +215,12 @@ func (s *Server) getTrace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	desc := q.Get("sortOrder") == "desc" // spans default to chronological (asc)
-	spans, total, err := s.store.Spans(r.Context(), traceID, q.Get("serviceName"), limit, !desc)
+	spans, total, approx, err := s.store.Spans(r.Context(), traceID, q.Get("serviceName"), limit, !desc)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "totalCount": total, "approximate": approx})
 }
 
 func (s *Server) listLogs(w http.ResponseWriter, r *http.Request) {
@@ -243,22 +243,22 @@ func (s *Server) listMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	metrics, total, err := s.store.ListMetrics(r.Context(), service, q.Get("name"), start, end, limit, offset, desc)
+	metrics, total, approx, err := s.store.ListMetrics(r.Context(), service, q.Get("name"), start, end, limit, offset, desc)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"metrics": metrics, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"metrics": metrics, "totalCount": total, "approximate": approx})
 }
 
 // serveLogs runs one logs query against the store.
 func (s *Server) serveLogs(w http.ResponseWriter, r *http.Request, f telemetry.LogFilter) {
-	logs, total, err := s.store.ListLogs(r.Context(), f)
+	logs, total, approx, err := s.store.ListLogs(r.Context(), f)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "totalCount": total, "approximate": approx})
 }
 
 // listErrors serves GET /api/v1/errors: error span groups, newest activity first.
@@ -294,12 +294,12 @@ func (s *Server) queryErrors(w http.ResponseWriter, r *http.Request) {
 
 // serveErrors runs one error-group query against the store.
 func (s *Server) serveErrors(w http.ResponseWriter, r *http.Request, f telemetry.ErrorFilter) {
-	groups, total, err := s.store.ListErrors(r.Context(), f)
+	groups, total, approx, err := s.store.ListErrors(r.Context(), f)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"errors": groups, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"errors": groups, "totalCount": total, "approximate": approx})
 }
 
 // listServices serves GET /api/v1/services: per-service span/error/log counts and error rate.
@@ -402,12 +402,12 @@ func (s *Server) queryTraces(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	traces, total, err := s.store.ListTraces(r.Context(), q.ServiceName, start, end, limit, offset, desc)
+	traces, total, approx, err := s.store.ListTraces(r.Context(), q.ServiceName, start, end, limit, offset, desc)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"traces": traces, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"traces": traces, "totalCount": total, "approximate": approx})
 }
 
 func (s *Server) queryTraceSpans(w http.ResponseWriter, r *http.Request) {
@@ -420,12 +420,12 @@ func (s *Server) queryTraceSpans(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	spans, total, err := s.store.Spans(r.Context(), r.PathValue("traceId"), q.ServiceName, limit, !desc)
+	spans, total, approx, err := s.store.Spans(r.Context(), r.PathValue("traceId"), q.ServiceName, limit, !desc)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "totalCount": total, "approximate": approx})
 }
 
 func (s *Server) getSpanDetails(w http.ResponseWriter, r *http.Request) {
@@ -467,12 +467,12 @@ func (s *Server) queryMetrics(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
 		return
 	}
-	metrics, total, err := s.store.ListMetrics(r.Context(), q.ServiceName, q.Name, start, end, limit, offset, desc)
+	metrics, total, approx, err := s.store.ListMetrics(r.Context(), q.ServiceName, q.Name, start, end, limit, offset, desc)
 	if err != nil {
 		storageErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"metrics": metrics, "totalCount": total})
+	writeJSON(w, http.StatusOK, map[string]any{"metrics": metrics, "totalCount": total, "approximate": approx})
 }
 
 // listParams parses the shared query parameters: serviceName, startTime, endTime (RFC3339),

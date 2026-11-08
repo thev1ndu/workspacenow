@@ -13,9 +13,15 @@ platform's services and serves the query API the console's observability views c
 (one subdirectory per signal, `<seq>.seg`, rolled at `WSN_OBSERVER_SEGMENT_BYTES`). Ingestion is
 one sequential `write` per OTLP batch — the right shape for high-volume telemetry. Retention is
 by bytes (`WSN_OBSERVER_RETENTION_BYTES` per signal): a janitor prunes the oldest segments at
-startup and hourly, never deleting the active segment. Queries scan segment files newest-first,
-at most `WSN_OBSERVER_SCAN_LIMIT` records per signal, so counts and pages are over that window.
-In Kubernetes the data dir is a PVC (`/data`); the pod still runs with a read-only root filesystem.
+startup and hourly, never deleting the active segment.
+
+Every segment carries an index (record count, time bounds, per-service counts), rebuilt at
+startup and kept in memory while appending. Returned **pages** still scan segment files
+newest-first, at most `WSN_OBSERVER_SCAN_LIMIT` records per signal, and time-bounded scans skip
+segments whose indexed bounds lie fully outside the range. **Totals are exact** from the index
+unless the query is text-filtered or cuts through a segment's time range; those responses carry
+`"approximate": true`. In Kubernetes the data dir is a PVC (`/data`); the pod still runs with a
+read-only root filesystem.
 
 
 ## Quick start
@@ -48,7 +54,9 @@ make -C wsn-observer run    # serve on :9098 (WSN_OBSERVER_DATA_DIR=/tmp/wsn-obs
 | `GET /healthz` | Kubernetes | Liveness/readiness |
 
 `startTime`/`endTime` are RFC3339; `limit` is 1–1000 (default 50); `sortOrder` is `asc`/`desc`.
-Errors use the platform's `ErrorBody` shape (`{"status", "code", "message"}`).
+List responses carry `totalCount` and `approximate` (true when the total had to be derived from
+the scan window instead of the segment index). Errors use the platform's `ErrorBody` shape
+(`{"status", "code", "message"}`).
 
 When `WSN_OBSERVER_TOKEN` is set, the ingest and query APIs require
 `Authorization: Bearer $WSN_OBSERVER_TOKEN`; otherwise the Kubernetes NetworkPolicy is the only

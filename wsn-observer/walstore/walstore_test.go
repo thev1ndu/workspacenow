@@ -77,16 +77,16 @@ func TestRoundTripAllSignals(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	traces, total, err := s.ListTraces(ctx, "", time.Time{}, time.Time{}, 50, 0, true)
+	traces, total, _, err := s.ListTraces(ctx, "", time.Time{}, time.Time{}, 50, 0, true)
 	if err != nil || total != 2 || traces[0].TraceID != "t2" || traces[1].SpanCount != 2 || traces[1].RootSpanName != "root" {
 		t.Fatalf("traces: %v %d %v", traces, total, err)
 	}
-	t1, _, err := s.ListTraces(ctx, "wsn-service", time.Time{}, time.Time{}, 50, 0, false)
+	t1, _, _, err := s.ListTraces(ctx, "wsn-service", time.Time{}, time.Time{}, 50, 0, false)
 	if err != nil || len(t1) != 1 || t1[0].TraceID != "t1" || t1[0].SpanCount != 2 || t1[0].RootSpanName != "root" || !t1[0].StartTime.Equal(at(1000)) {
 		t.Fatalf("filtered traces: %v %v", t1, err)
 	}
 
-	spans, total, err := s.Spans(ctx, "t1", "", 1, true)
+	spans, total, _, err := s.Spans(ctx, "t1", "", 1, true)
 	if err != nil || total != 2 || len(spans) != 1 || spans[0].SpanID != "a" {
 		t.Fatalf("spans asc limit 1: %v %d %v", spans, total, err)
 	}
@@ -98,36 +98,36 @@ func TestRoundTripAllSignals(t *testing.T) {
 		t.Fatalf("missing span: %v %v", ok, err)
 	}
 
-	logs, total, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 50, Desc: true})
+	logs, total, _, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 50, Desc: true})
 	if err != nil || total != 3 || logs[0].Body != "note" {
 		t.Fatalf("logs desc: %v %d %v", logs, total, err)
 	}
-	byLevel, total, _ := s.ListLogs(ctx, telemetry.LogFilter{Level: "error", Limit: 50, Desc: true})
+	byLevel, total, _, _ := s.ListLogs(ctx, telemetry.LogFilter{Level: "error", Limit: 50, Desc: true})
 	if total != 1 || byLevel[0].Body != "Sale failed" {
 		t.Fatalf("level filter: %v %d", byLevel, total)
 	}
-	byQ, total, _ := s.ListLogs(ctx, telemetry.LogFilter{Q: "sale", Limit: 50})
+	byQ, total, _, _ := s.ListLogs(ctx, telemetry.LogFilter{Q: "sale", Limit: 50})
 	if total != 1 || byQ[0].Severity != "ERROR" {
 		t.Fatalf("q filter: %v %d", byQ, total)
 	}
-	byTrace, total, _ := s.ListLogs(ctx, telemetry.LogFilter{TraceID: "t1", Limit: 50})
+	byTrace, total, _, _ := s.ListLogs(ctx, telemetry.LogFilter{TraceID: "t1", Limit: 50})
 	if total != 1 || byTrace[0].SpanID != "a" {
 		t.Fatalf("trace filter: %v %d", byTrace, total)
 	}
-	byTime, total, _ := s.ListLogs(ctx, telemetry.LogFilter{Start: at(1500), End: at(2500), Limit: 50})
+	byTime, total, _, _ := s.ListLogs(ctx, telemetry.LogFilter{Start: at(1500), End: at(2500), Limit: 50})
 	if total != 1 || byTime[0].Timestamp != at(2000) {
 		t.Fatalf("time range inclusive: %v %d", byTime, total)
 	}
-	asc, total, _ := s.ListLogs(ctx, telemetry.LogFilter{Limit: 2, Offset: 1, Desc: false})
+	asc, total, _, _ := s.ListLogs(ctx, telemetry.LogFilter{Limit: 2, Offset: 1, Desc: false})
 	if total != 3 || len(asc) != 2 || asc[0].Timestamp != at(2000) {
 		t.Fatalf("asc page: %v %d", asc, total)
 	}
 
-	metrics, total, err := s.ListMetrics(ctx, "", "requests", time.Time{}, time.Time{}, 50, 0, true)
+	metrics, total, _, err := s.ListMetrics(ctx, "", "requests", time.Time{}, time.Time{}, 50, 0, true)
 	if err != nil || total != 2 || metrics[0].Value != "2" {
 		t.Fatalf("metrics: %v %d %v", metrics, total, err)
 	}
-	bySvc, _, _ := s.ListMetrics(ctx, "wsn-ai-service", "", time.Time{}, time.Time{}, 50, 0, true)
+	bySvc, _, _, _ := s.ListMetrics(ctx, "wsn-ai-service", "", time.Time{}, time.Time{}, 50, 0, true)
 	if len(bySvc) != 1 || bySvc[0].Name != "depth" {
 		t.Fatalf("service filter: %v", bySvc)
 	}
@@ -160,14 +160,14 @@ func TestSegmentsRotateAndPersistAcrossReopen(t *testing.T) {
 
 	// Reopen: data, counts and service names survive; appends continue in a new segment.
 	s2 := open(t, dir, 1<<20, 200, 1000)
-	logs, total, err := s2.ListLogs(ctx, telemetry.LogFilter{Limit: 100, Desc: true})
+	logs, total, _, err := s2.ListLogs(ctx, telemetry.LogFilter{Limit: 100, Desc: true})
 	if err != nil || total != 20 || logs[0].Body != "line-19" {
 		t.Fatalf("after reopen: total=%d first=%v err=%v", total, logs[0], err)
 	}
 	if err := s2.AddLogs(ctx, []telemetry.LogRecord{{Timestamp: at(999), Severity: "INFO", Body: "after-reopen", Service: "svc"}}); err != nil {
 		t.Fatal(err)
 	}
-	_, total, err = s2.ListLogs(ctx, telemetry.LogFilter{Limit: 100})
+	_, total, _, err = s2.ListLogs(ctx, telemetry.LogFilter{Limit: 100})
 	if err != nil || total != 21 {
 		t.Fatalf("after reopen + append: total=%d err=%v", total, err)
 	}
@@ -222,9 +222,10 @@ func TestScanCapLimitsNewestFirst(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	logs, total, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 100, Desc: true})
-	if err != nil || total != 5 || logs[0].Body != "line-9" || logs[4].Body != "line-5" {
-		t.Fatalf("scan cap: total=%d first=%v last=%v err=%v", total, logs[0].Body, logs[4].Body, err)
+	logs, total, approx, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 100, Desc: true})
+	// the scan cap bounds the returned page (newest 5); the total is exact from the segment index
+	if err != nil || total != 10 || approx || len(logs) != 5 || logs[0].Body != "line-9" || logs[4].Body != "line-5" {
+		t.Fatalf("scan cap: total=%d approx=%v first=%v last=%v err=%v", total, approx, logs[0].Body, logs[4].Body, err)
 	}
 }
 
@@ -240,7 +241,7 @@ func TestClosedStoreFails(t *testing.T) {
 	if err := s.AddLogs(ctx, sampleLogs()); err == nil {
 		t.Fatal("append on closed store must fail")
 	}
-	if _, _, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 10}); err == nil {
+	if _, _, _, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 10}); err == nil {
 		t.Fatal("query on closed store must fail")
 	}
 	if _, _, _, _, err := s.Overview(ctx); err == nil {
@@ -284,7 +285,7 @@ func TestImportSegmentWritesAndCounts(t *testing.T) {
 	if err := s.ImportSegment("traces", 7, data); err != nil {
 		t.Fatal("duplicate import must be a no-op, not an error:", err)
 	}
-	overviews, total, err := s.ListTraces(context.Background(), "", time.Time{}, time.Now(), 10, 0, false)
+	overviews, total, _, err := s.ListTraces(context.Background(), "", time.Time{}, time.Now(), 10, 0, false)
 	_ = overviews
 	if err != nil || total != 2 {
 		t.Fatalf("total=%d err=%v", total, err)
@@ -304,7 +305,7 @@ func TestListErrorsGroupsByFingerprint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	groups, total, err := s.ListErrors(context.Background(), telemetry.ErrorFilter{Limit: 10, Desc: true})
+	groups, total, _, err := s.ListErrors(context.Background(), telemetry.ErrorFilter{Limit: 10, Desc: true})
 	if err != nil || total != 3 || len(groups) != 3 {
 		t.Fatalf("ListErrors: total=%d groups=%v err=%v", total, groups, err)
 	}
@@ -328,22 +329,22 @@ func TestListErrorsGroupsByFingerprint(t *testing.T) {
 	}
 
 	// q matches message or span name, case-insensitive
-	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Q: "CARD", Limit: 10})
+	groups, total, _, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Q: "CARD", Limit: 10})
 	if err != nil || total != 1 || groups[0].Message != "card declined" {
 		t.Fatalf("q=CARD: total=%d %v err=%v", total, groups, err)
 	}
 	// service filter
-	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Service: "wsn-ai-service", Limit: 10})
+	groups, total, _, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Service: "wsn-ai-service", Limit: 10})
 	if err != nil || total != 1 || groups[0].Message != "llm timeout" {
 		t.Fatalf("service filter: total=%d err=%v", total, err)
 	}
 	// time range excludes everything
-	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Start: at(100000), Limit: 10})
+	groups, total, _, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Start: at(100000), Limit: 10})
 	if err != nil || total != 0 || len(groups) != 0 {
 		t.Fatalf("time filter: total=%d err=%v", total, err)
 	}
 	// pagination over groups sorted by lastSeen desc: [llm@9000, generic@5000, declined@3000]
-	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Limit: 1, Offset: 2, Desc: true})
+	groups, total, _, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Limit: 1, Offset: 2, Desc: true})
 	if err != nil || total != 3 || len(groups) != 1 || groups[0].Message != "card declined" {
 		t.Fatalf("page: total=%d groups=%v err=%v", total, groups, err)
 	}
@@ -378,5 +379,96 @@ func TestServicesAggregatesPerService(t *testing.T) {
 	}
 	if !svc.LastSeen.Equal(at(6500)) {
 		t.Fatalf("last seen: %v", svc.LastSeen)
+	}
+}
+
+func TestExactTotalsBeyondScanCap(t *testing.T) {
+	// scanCap 5, segmentBytes tiny so batches roll into many segments; 30 logs total.
+	s := open(t, t.TempDir(), 16<<20, 300, 5)
+	var logs []telemetry.LogRecord
+	for i := 0; i < 30; i++ {
+		logs = append(logs, telemetry.LogRecord{Timestamp: at(int64(i+1) * 1000), Severity: "INFO", Body: fmt.Sprintf("line %d", i), Service: "wsn-service"})
+	}
+	if err := s.AddLogs(context.Background(), logs); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	// unfiltered: total is exact (30) even though the page only scans the newest 5
+	got, total, approx, err := s.ListLogs(ctx, telemetry.LogFilter{Limit: 10})
+	if err != nil || total != 30 || approx || len(got) != 5 {
+		t.Fatalf("unfiltered: total=%d approx=%v items=%d err=%v", total, approx, len(got), err)
+	}
+	// service-filtered: exact per-service count from the index
+	_, total, approx, err = s.ListLogs(ctx, telemetry.LogFilter{Service: "wsn-service", Limit: 10})
+	if err != nil || total != 30 || approx {
+		t.Fatalf("service filter: total=%d approx=%v err=%v", total, approx, err)
+	}
+	_, total, approx, _ = s.ListLogs(ctx, telemetry.LogFilter{Service: "nope", Limit: 10})
+	if total != 0 || approx {
+		t.Fatalf("unknown service: total=%d approx=%v", total, approx)
+	}
+	// wide time range fully containing every segment: still exact
+	_, total, approx, _ = s.ListLogs(ctx, telemetry.LogFilter{Start: at(0), End: at(1 << 40), Limit: 10})
+	if total != 30 || approx {
+		t.Fatalf("wide range: total=%d approx=%v", total, approx)
+	}
+	// range cutting through a segment: falls back to the window, approximate=true
+	_, total, approx, _ = s.ListLogs(ctx, telemetry.LogFilter{Start: at(15500), Limit: 10})
+	if !approx || total > 5 {
+		t.Fatalf("partial range: total=%d approx=%v", total, approx)
+	}
+	// text filter: approximate, window total (newest 5 are line 25..29, all match "line 2")
+	_, total, approx, _ = s.ListLogs(ctx, telemetry.LogFilter{Q: "line 2", Limit: 50})
+	if !approx || total != 5 {
+		t.Fatalf("q filter: total=%d approx=%v", total, approx)
+	}
+	// metrics: exact totals without a name filter
+	var points []telemetry.MetricPoint
+	for i := 0; i < 20; i++ {
+		points = append(points, telemetry.MetricPoint{Name: "requests", Service: "wsn-service", Type: "sum", Timestamp: at(int64(i+1) * 1000), Value: "1"})
+	}
+	if err := s.AddMetrics(context.Background(), points); err != nil {
+		t.Fatal(err)
+	}
+	_, total, approx, err = s.ListMetrics(ctx, "", "", time.Time{}, time.Time{}, 10, 0, true)
+	if err != nil || total != 20 || approx {
+		t.Fatalf("metrics unfiltered: total=%d approx=%v err=%v", total, approx, err)
+	}
+	_, total, approx, _ = s.ListMetrics(ctx, "wsn-service", "", time.Time{}, time.Time{}, 10, 0, true)
+	if total != 20 || approx {
+		t.Fatalf("metrics service: total=%d approx=%v", total, approx)
+	}
+	// with a name filter the index cannot help: approximate
+	_, total, approx, _ = s.ListMetrics(ctx, "", "requests", time.Time{}, time.Time{}, 10, 0, true)
+	if !approx {
+		t.Fatalf("metrics name filter must be approximate, total=%d", total)
+	}
+}
+
+func TestExactTotalsSurviveReopenAndPrune(t *testing.T) {
+	dir := t.TempDir()
+	s := open(t, dir, 16<<20, 300, 5)
+	// one batch per record so the tiny segment size actually rolls segments
+	for i := 0; i < 30; i++ {
+		if err := s.AddLogs(context.Background(), []telemetry.LogRecord{{Timestamp: at(int64(i+1) * 1000), Severity: "INFO", Body: "x", Service: "wsn-service"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// after reopen the startup pass rebuilds the index: totals stay exact
+	s2 := open(t, dir, 16<<20, 300, 5)
+	_, total, approx, err := s2.ListLogs(context.Background(), telemetry.LogFilter{Service: "wsn-service", Limit: 10})
+	if err != nil || total != 30 || approx {
+		t.Fatalf("reopen: total=%d approx=%v err=%v", total, approx, err)
+	}
+	// pruning old segments drops their index entries: total shrinks exactly, not by rescan
+	s3 := open(t, dir, 700, 300, 5) // retention below the data size forces pruning
+	if _, total, approx, err := s3.ListLogs(context.Background(), telemetry.LogFilter{Limit: 10}); err != nil || approx || total >= 30 {
+		t.Fatalf("pruned: total=%d approx=%v err=%v", total, approx, err)
+	} else if total == 0 {
+		t.Fatalf("pruned: active segment must survive")
 	}
 }

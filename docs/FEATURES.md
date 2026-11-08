@@ -107,7 +107,7 @@ Scope: 95 paths / 121 operations in `openapi.yaml`, all served by real handlers 
 - ✅ **Log-based metric dashboards**: `GET /analytics/log-metrics?days=` aggregates OTLP logs from wsn-observer per severity per day; console overview has a stacked "Log volume" chart
 - ✅ **Backup restore drill**: `-restore` role (`-backup-id` to pick a record, newest done by default) downloads the dump from S3 and `pg_restore --clean --if-exists`; compose service `wsn-service-restore` under the `restore` profile
 - ✅ **Status page HTML skin**: `GET /status` returns the HTML page when the client sends `Accept: text/html`, JSON otherwise
-- ⬜ Alerting channels beyond webhooks (email/SMS/PagerDuty — webhook is the only channel for now); observer exact totals beyond scan limit
+- ⬜ Alerting channels beyond webhooks (email/SMS/PagerDuty — webhook is the only channel for now); observer totals are exact from the per-segment index except text-filtered or mid-segment time-bounded queries, which report `"approximate": true`
 
 ## 9. Console webapp
 - ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces

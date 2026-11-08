@@ -4,11 +4,13 @@
 package walstore
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	neturl "net/url"
@@ -41,6 +43,16 @@ type segment struct {
 	path string
 }
 
+// segIndex summarizes one segment so query totals can be answered without scanning payloads.
+// MinUnix/MaxUnix are the segment's record-time bounds in unix nanos (0 = unknown); Services
+// holds per-service record counts (nil = unknown).
+type segIndex struct {
+	Count    int            `json:"count"`
+	MinUnix  int64          `json:"minUnix,omitempty"`
+	MaxUnix  int64          `json:"maxUnix,omitempty"`
+	Services map[string]int `json:"services,omitempty"`
+}
+
 // Store is the segment-file telemetry.Store.
 type Store struct {
 	dir          string
@@ -48,10 +60,12 @@ type Store struct {
 	segmentBytes int64 // roll the active segment past this size
 	scanCap      int   // max records a query scans, newest first
 
-	mu       sync.Mutex // guards segments, counters and the services set
+	mu       sync.Mutex // guards segments, counters, indexes and the services set
 	segs     map[string]*segment
 	counts   map[string]*atomic.Int64
 	services map[string]struct{}
+	idx      map[string]map[int]*segIndex // signal -> seq -> index (sealed segments + active)
+	active   map[string]*segIndex         // accumulating index of the active segment per signal
 
 	stop chan struct{}
 	wg   sync.WaitGroup
@@ -82,6 +96,8 @@ func Open(dir string, retentionBytes, segmentBytes int64, scanCap int) (*Store, 
 		segs:         map[string]*segment{},
 		counts:       map[string]*atomic.Int64{},
 		services:     map[string]struct{}{},
+		idx:          map[string]map[int]*segIndex{},
+		active:       map[string]*segIndex{},
 		stop:         make(chan struct{}),
 	}
 	for _, sig := range []string{SignalTraces, SignalLogs, SignalMetrics} {
@@ -132,20 +148,139 @@ func (s *Store) recover(sig string) error {
 		seg = &segment{file: f, seq: seq, size: info.Size()}
 	}
 	s.segs[sig] = seg
-	// One startup scan (uncapped) counts records and collects service names.
-	n, err := s.scanLines(sig, -1, func(line []byte) {
-		var head struct {
-			Service string `json:"service"`
+	// One startup pass indexes every segment (count, time bounds, per-service counts) so
+	// query totals do not depend on the scan window.
+	s.idx[sig] = map[int]*segIndex{}
+	var total int64
+	for _, name := range names {
+		seq, err := strconv.Atoi(strings.TrimSuffix(name, segExt))
+		if err != nil {
+			return fmt.Errorf("bad segment name %s: %w", name, err)
 		}
-		if json.Unmarshal(line, &head) == nil && head.Service != "" {
-			s.services[head.Service] = struct{}{}
+		ix, err := indexSegment(filepath.Join(dir, name), sig)
+		if err != nil {
+			return err
 		}
-	})
-	if err != nil {
-		return err
+		s.idx[sig][seq] = ix
+		total += int64(ix.Count)
+		for svc := range ix.Services {
+			s.services[svc] = struct{}{}
+		}
 	}
-	count.Store(int64(n))
+	if len(names) == 0 {
+		s.idx[sig][0] = &segIndex{Services: map[string]int{}}
+	}
+	s.active[sig] = s.idx[sig][seg.seq]
+	count.Store(total)
 	return nil
+}
+
+// indexSegment reads one segment file forward and summarizes it: record count, time bounds
+// (startTime for traces, timestamp for logs and metrics) and per-service counts.
+func indexSegment(path, sig string) (*segIndex, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", path, err)
+	}
+	defer func() { _ = f.Close() }()
+	ix := &segIndex{Services: map[string]int{}}
+	r := bufio.NewReaderSize(f, 64<<10)
+	for {
+		line, err := r.ReadBytes('\n')
+		if len(line) > 0 {
+			var rec struct {
+				Service string    `json:"service"`
+				Start   time.Time `json:"startTime"`
+				TS      time.Time `json:"timestamp"`
+			}
+			if json.Unmarshal(line, &rec) == nil {
+				ix.Count++
+				if rec.Service != "" {
+					ix.Services[rec.Service]++
+				}
+				t := rec.Start
+				if t.IsZero() {
+					t = rec.TS
+				}
+				if !t.IsZero() {
+					ns := t.UnixNano()
+					if ix.MinUnix == 0 || ns < ix.MinUnix {
+						ix.MinUnix = ns
+					}
+					if ns > ix.MaxUnix {
+						ix.MaxUnix = ns
+					}
+				}
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+	}
+	return ix, nil
+}
+
+// track folds one appended batch into the active segment's index.
+func (s *Store) track(sig string, n int, services map[string]int, minT, maxT time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ix := s.active[sig]
+	if ix == nil {
+		return
+	}
+	ix.Count += n
+	if !minT.IsZero() {
+		if ns := minT.UnixNano(); ix.MinUnix == 0 || ns < ix.MinUnix {
+			ix.MinUnix = ns
+		}
+		if ns := maxT.UnixNano(); ns > ix.MaxUnix {
+			ix.MaxUnix = ns
+		}
+	}
+	if ix.Services == nil {
+		ix.Services = map[string]int{}
+	}
+	for svc, c := range services {
+		ix.Services[svc] += c
+	}
+}
+
+// totalExact answers a signal's record total from the segment index without scanning payloads.
+// exact is false when the query cuts through a segment's time range or asks for a per-service
+// count a segment lacks; callers then fall back to the capped scan and report approximate=true.
+func (s *Store) totalExact(sig, service string, start, end time.Time) (total int, exact bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	exact = true
+	for _, ix := range s.idx[sig] {
+		if service != "" && ix.Services == nil {
+			return 0, false
+		}
+		if !start.IsZero() || !end.IsZero() {
+			if ix.MinUnix == 0 {
+				return 0, false
+			}
+			segStart, segEnd := time.Unix(0, ix.MinUnix), time.Unix(0, ix.MaxUnix)
+			if !end.IsZero() && segStart.After(end) {
+				continue // fully after the range
+			}
+			if !start.IsZero() && segEnd.Before(start) {
+				continue // fully before the range
+			}
+			if (!start.IsZero() && segStart.Before(start)) || (!end.IsZero() && segEnd.After(end)) {
+				return 0, false // partial overlap needs a scan
+			}
+		}
+		if service != "" {
+			total += ix.Services[service]
+		} else {
+			total += ix.Count
+		}
+	}
+	return total, exact
 }
 
 func segmentNames(dir string) ([]string, error) {
@@ -203,12 +338,15 @@ func (s *Store) roll(sig string) error {
 	if err := old.file.Close(); err != nil {
 		return fmt.Errorf("close segment: %w", err)
 	}
+	s.idx[sig][old.seq] = s.active[sig] // sealed: index is final now
 	s.replicate(sig, old.seq, old.path) // sealed segment -> replica (best effort, async)
 	seg, err := s.newSegment(sig, old.seq+1)
 	if err != nil {
 		return err
 	}
 	s.segs[sig] = seg
+	s.active[sig] = &segIndex{Services: map[string]int{}}
+	s.idx[sig][seg.seq] = s.active[sig]
 	return nil
 }
 
@@ -261,11 +399,18 @@ func (s *Store) ImportSegment(sig string, seq int, data []byte) error {
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return err
 	}
+	if ix, err := indexSegment(path, sig); err == nil {
+		s.idx[sig][seq] = ix
+		for svc := range ix.Services {
+			s.services[svc] = struct{}{}
+		}
+	}
 	if cur, ok := s.segs[sig]; ok && seq >= cur.seq {
 		// standby ingest: adopt as active if newer
 		if seq > cur.seq {
 			if f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
 				s.segs[sig] = &segment{file: f, seq: seq, path: path, size: int64(len(data))}
+				s.active[sig] = s.idx[sig][seq]
 			}
 		}
 	}
@@ -305,8 +450,25 @@ func (s *Store) AddSpans(_ context.Context, spans []telemetry.Span) error {
 	if err != nil {
 		return err
 	}
+	svc := map[string]int{}
+	var minT, maxT time.Time
+	for _, sp := range spans {
+		if sp.Service != "" {
+			svc[sp.Service]++
+		}
+		if !sp.Start.IsZero() && (minT.IsZero() || sp.Start.Before(minT)) {
+			minT = sp.Start
+		}
+		if sp.End.After(maxT) {
+			maxT = sp.End
+		}
+	}
 	s.rememberServices(spansToServices(spans))
-	return s.append(SignalTraces, payload)
+	if err := s.append(SignalTraces, payload); err != nil {
+		return err
+	}
+	s.track(SignalTraces, len(spans), svc, minT, maxT)
+	return nil
 }
 
 // AddLogs appends log records to the logs signal.
@@ -318,8 +480,25 @@ func (s *Store) AddLogs(_ context.Context, logs []telemetry.LogRecord) error {
 	if err != nil {
 		return err
 	}
+	svc := map[string]int{}
+	var minT, maxT time.Time
+	for _, l := range logs {
+		if l.Service != "" {
+			svc[l.Service]++
+		}
+		if !l.Timestamp.IsZero() && (minT.IsZero() || l.Timestamp.Before(minT)) {
+			minT = l.Timestamp
+		}
+		if l.Timestamp.After(maxT) {
+			maxT = l.Timestamp
+		}
+	}
 	s.rememberServices(recordServices(logs))
-	return s.append(SignalLogs, payload)
+	if err := s.append(SignalLogs, payload); err != nil {
+		return err
+	}
+	s.track(SignalLogs, len(logs), svc, minT, maxT)
+	return nil
 }
 
 // AddMetrics appends metric points to the metrics signal.
@@ -331,8 +510,25 @@ func (s *Store) AddMetrics(_ context.Context, points []telemetry.MetricPoint) er
 	if err != nil {
 		return err
 	}
+	svc := map[string]int{}
+	var minT, maxT time.Time
+	for _, p := range points {
+		if p.Service != "" {
+			svc[p.Service]++
+		}
+		if !p.Timestamp.IsZero() && (minT.IsZero() || p.Timestamp.Before(minT)) {
+			minT = p.Timestamp
+		}
+		if p.Timestamp.After(maxT) {
+			maxT = p.Timestamp
+		}
+	}
 	s.rememberServices(pointServices(points))
-	return s.append(SignalMetrics, payload)
+	if err := s.append(SignalMetrics, payload); err != nil {
+		return err
+	}
+	s.track(SignalMetrics, len(points), svc, minT, maxT)
+	return nil
 }
 
 func spansToServices(spans []telemetry.Span) []string {
@@ -372,6 +568,12 @@ func (s *Store) rememberServices(names []string) {
 // scanLines reads lines of a signal, newest segment first and newest line first within a
 // segment, calling visit per line. cap < 0 means no limit; otherwise at most cap lines.
 func (s *Store) scanLines(sig string, cap int, visit func([]byte)) (int, error) {
+	return s.scanLinesRange(sig, cap, time.Time{}, time.Time{}, visit)
+}
+
+// scanLinesRange is scanLines with segment pruning: segments whose indexed time bounds lie
+// fully outside [start, end] are skipped without reading their payloads.
+func (s *Store) scanLinesRange(sig string, cap int, start, end time.Time, visit func([]byte)) (int, error) {
 	if s.closed.Load() {
 		return 0, errors.New("walstore: store is closed")
 	}
@@ -383,8 +585,23 @@ func (s *Store) scanLines(sig string, cap int, visit func([]byte)) (int, error) 
 	if err != nil {
 		return 0, err
 	}
+	s.mu.Lock()
+	idx := make(map[string]*segIndex, len(s.idx[sig]))
+	for seq, ix := range s.idx[sig] {
+		idx[fmt.Sprintf("%020d%s", seq, segExt)] = ix
+	}
+	s.mu.Unlock()
 	scanned := 0
 	for i := len(names) - 1; i >= 0 && scanned < cap; i-- {
+		if ix := idx[names[i]]; ix != nil && ix.MinUnix != 0 {
+			segStart, segEnd := time.Unix(0, ix.MinUnix), time.Unix(0, ix.MaxUnix)
+			if !end.IsZero() && segStart.After(end) {
+				continue
+			}
+			if !start.IsZero() && segEnd.Before(start) {
+				continue
+			}
+		}
 		n, err := scanFileReverse(filepath.Join(dir, names[i]), cap-scanned, visit)
 		scanned += n
 		if err != nil {
@@ -468,9 +685,11 @@ func page[T any](items []T, limit, offset int) []T {
 }
 
 // ListTraces groups scanned spans into trace overviews, filtered by service and time range.
-func (s *Store) ListTraces(ctx context.Context, service string, start, end time.Time, limit, offset int, desc bool) ([]telemetry.TraceOverview, int, error) {
+// The page is built from the newest scan window; the returned bool is true when the total had
+// to be derived from that window (scan cap reached) instead of the segment index.
+func (s *Store) ListTraces(ctx context.Context, service string, start, end time.Time, limit, offset int, desc bool) ([]telemetry.TraceOverview, int, bool, error) {
 	var spans []telemetry.Span
-	if _, err := s.scanLines(SignalTraces, s.scanCap, func(line []byte) {
+	scanned, err := s.scanLinesRange(SignalTraces, s.scanCap, start, end, func(line []byte) {
 		var sp telemetry.Span
 		if json.Unmarshal(line, &sp) != nil {
 			return
@@ -482,12 +701,13 @@ func (s *Store) ListTraces(ctx context.Context, service string, start, end time.
 			return
 		}
 		spans = append(spans, sp)
-	}); err != nil {
-		return nil, 0, err
+	})
+	if err != nil {
+		return nil, 0, false, err
 	}
 	select {
 	case <-ctx.Done():
-		return nil, 0, ctx.Err()
+		return nil, 0, false, ctx.Err()
 	default:
 	}
 	byTrace := map[string]*telemetry.TraceOverview{}
@@ -523,13 +743,13 @@ func (s *Store) ListTraces(ctx context.Context, service string, start, end time.
 		}
 		return out[i].StartTime.Before(out[j].StartTime)
 	})
-	return page(out, limit, offset), len(out), nil
+	return page(out, limit, offset), len(out), scanned >= s.scanCap, nil
 }
 
 // Spans returns the spans of one trace, filtered by service, sorted and limited.
-func (s *Store) Spans(ctx context.Context, traceID, service string, limit int, asc bool) ([]telemetry.Span, int, error) {
+func (s *Store) Spans(ctx context.Context, traceID, service string, limit int, asc bool) ([]telemetry.Span, int, bool, error) {
 	var out []telemetry.Span
-	if _, err := s.scanLines(SignalTraces, s.scanCap, func(line []byte) {
+	scanned, err := s.scanLines(SignalTraces, s.scanCap, func(line []byte) {
 		var sp telemetry.Span
 		if json.Unmarshal(line, &sp) != nil {
 			return
@@ -541,12 +761,13 @@ func (s *Store) Spans(ctx context.Context, traceID, service string, limit int, a
 			return
 		}
 		out = append(out, sp)
-	}); err != nil {
-		return nil, 0, err
+	})
+	if err != nil {
+		return nil, 0, false, err
 	}
 	select {
 	case <-ctx.Done():
-		return nil, 0, ctx.Err()
+		return nil, 0, false, ctx.Err()
 	default:
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -555,7 +776,7 @@ func (s *Store) Spans(ctx context.Context, traceID, service string, limit int, a
 		}
 		return out[i].Start.After(out[j].Start)
 	})
-	return page(out, limit, 0), len(out), nil
+	return page(out, limit, 0), len(out), scanned >= s.scanCap, nil
 }
 
 // GetSpan returns one span by trace and span id, scanning newest first.
@@ -574,10 +795,16 @@ func (s *Store) GetSpan(_ context.Context, traceID, spanID string) (telemetry.Sp
 	return found, ok, err
 }
 
-// ListLogs filters scanned log records by the LogFilter, sorts and paginates.
-func (s *Store) ListLogs(ctx context.Context, f telemetry.LogFilter) ([]telemetry.LogRecord, int, error) {
+// ListLogs filters scanned log records by the LogFilter, sorts and paginates. The total is
+// exact (from the segment index) unless the query is text/level/trace filtered or cuts through
+// a segment's time range; then the returned bool is true (total over the scan window).
+func (s *Store) ListLogs(ctx context.Context, f telemetry.LogFilter) ([]telemetry.LogRecord, int, bool, error) {
+	total, exact := 0, false
+	if f.Level == "" && f.Q == "" && f.TraceID == "" {
+		total, exact = s.totalExact(SignalLogs, f.Service, f.Start, f.End)
+	}
 	var out []telemetry.LogRecord
-	if _, err := s.scanLines(SignalLogs, s.scanCap, func(line []byte) {
+	if _, err := s.scanLinesRange(SignalLogs, s.scanCap, f.Start, f.End, func(line []byte) {
 		var l telemetry.LogRecord
 		if json.Unmarshal(line, &l) != nil {
 			return
@@ -599,11 +826,11 @@ func (s *Store) ListLogs(ctx context.Context, f telemetry.LogFilter) ([]telemetr
 		}
 		out = append(out, l)
 	}); err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 	select {
 	case <-ctx.Done():
-		return nil, 0, ctx.Err()
+		return nil, 0, false, ctx.Err()
 	default:
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -612,13 +839,21 @@ func (s *Store) ListLogs(ctx context.Context, f telemetry.LogFilter) ([]telemetr
 		}
 		return out[i].Timestamp.Before(out[j].Timestamp)
 	})
-	return page(out, f.Limit, f.Offset), len(out), nil
+	if !exact {
+		total = len(out)
+	}
+	return page(out, f.Limit, f.Offset), total, !exact, nil
 }
 
 // ListMetrics filters scanned metric points by service, name and time range; sorted, paginated.
-func (s *Store) ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]telemetry.MetricPoint, int, error) {
+// The total is exact (segment index) unless a name filter is set or the range cuts a segment.
+func (s *Store) ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]telemetry.MetricPoint, int, bool, error) {
+	total, exact := 0, false
+	if name == "" {
+		total, exact = s.totalExact(SignalMetrics, service, start, end)
+	}
 	var out []telemetry.MetricPoint
-	if _, err := s.scanLines(SignalMetrics, s.scanCap, func(line []byte) {
+	if _, err := s.scanLinesRange(SignalMetrics, s.scanCap, start, end, func(line []byte) {
 		var m telemetry.MetricPoint
 		if json.Unmarshal(line, &m) != nil {
 			return
@@ -634,11 +869,11 @@ func (s *Store) ListMetrics(ctx context.Context, service, name string, start, en
 		}
 		out = append(out, m)
 	}); err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 	select {
 	case <-ctx.Done():
-		return nil, 0, ctx.Err()
+		return nil, 0, false, ctx.Err()
 	default:
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -647,19 +882,22 @@ func (s *Store) ListMetrics(ctx context.Context, service, name string, start, en
 		}
 		return out[i].Timestamp.Before(out[j].Timestamp)
 	})
-	return page(out, limit, offset), len(out), nil
+	if !exact {
+		total = len(out)
+	}
+	return page(out, limit, offset), total, !exact, nil
 }
 
 // ListErrors scans error spans (OTLP status 2) newest first, groups them by fingerprint
 // (service + span name + message) and returns the groups sorted by lastSeen and paged.
 // TraceIDs samples up to 5 of the newest trace ids per group.
-func (s *Store) ListErrors(ctx context.Context, f telemetry.ErrorFilter) ([]telemetry.ErrorGroup, int, error) {
+func (s *Store) ListErrors(ctx context.Context, f telemetry.ErrorFilter) ([]telemetry.ErrorGroup, int, bool, error) {
 	type acc struct {
 		group telemetry.ErrorGroup
 	}
 	groups := map[string]*acc{}
 	order := []string{}
-	if _, err := s.scanLines(SignalTraces, s.scanCap, func(line []byte) {
+	scanned, err := s.scanLinesRange(SignalTraces, s.scanCap, f.Start, f.End, func(line []byte) {
 		var sp telemetry.Span
 		if json.Unmarshal(line, &sp) != nil {
 			return
@@ -704,12 +942,13 @@ func (s *Store) ListErrors(ctx context.Context, f telemetry.ErrorFilter) ([]tele
 		if len(g.group.TraceIDs) < 5 && sp.TraceID != "" { // scan is newest first
 			g.group.TraceIDs = append(g.group.TraceIDs, sp.TraceID)
 		}
-	}); err != nil {
-		return nil, 0, err
+	})
+	if err != nil {
+		return nil, 0, false, err
 	}
 	select {
 	case <-ctx.Done():
-		return nil, 0, ctx.Err()
+		return nil, 0, false, ctx.Err()
 	default:
 	}
 	out := make([]telemetry.ErrorGroup, 0, len(groups))
@@ -722,7 +961,7 @@ func (s *Store) ListErrors(ctx context.Context, f telemetry.ErrorFilter) ([]tele
 		}
 		return out[i].LastSeen.Before(out[j].LastSeen)
 	})
-	return page(out, f.Limit, f.Offset), len(out), nil
+	return page(out, f.Limit, f.Offset), len(out), scanned >= s.scanCap, nil
 }
 
 // Services aggregates per-service span, error and log counts plus the last-seen timestamp
@@ -848,6 +1087,11 @@ func (s *Store) prune(sig string) error {
 		}
 		if err := os.Remove(filepath.Join(dir, seg.name)); err != nil && !os.IsNotExist(err) {
 			return err
+		}
+		if seq, err := strconv.Atoi(strings.TrimSuffix(seg.name, segExt)); err == nil {
+			s.mu.Lock()
+			delete(s.idx[sig], seq)
+			s.mu.Unlock()
 		}
 		total -= seg.size
 	}

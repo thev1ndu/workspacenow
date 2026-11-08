@@ -1,108 +1,91 @@
-# BAO.md — Managing WorkspaceNow deployment secrets in OpenBao
+# BAO.md — OpenBao secrets for the WorkspaceNow deployment
 
-All deployment secrets live in **OpenBao** (Vault-compatible, KV v2 at mount `secret/`), never in
-git. On the dev cluster OpenBao runs standalone in namespace `openbao` with dev root token `root`
-(installed by Flux: `deploy/flux/infrastructure/controllers/controllers.yaml`).
-
-Kubernetes never stores the values directly: external-secrets reads them through the
-`ClusterSecretStore openbao` (Kubernetes auth role `external-secrets`) and syncs them into plain
-Secrets that the pods mount (`deploy/flux/infrastructure/configs/configs.yaml`):
-
-```
-OpenBao secret/workspacenow/<path>  --ExternalSecret-->  Secret in namespace workspacenow/temporal
-```
+All deployment secrets live in OpenBao (KV v2, mount `secret/`), never in git. external-secrets
+syncs them into Kubernetes Secrets via the `ClusterSecretStore openbao`
+(`deploy/flux/infrastructure/configs/configs.yaml`).
 
 ## Secret map
 
-| OpenBao path (`secret/` mount) | Keys | Synced into | Used by |
-|---|---|---|---|
-| `workspacenow/mistral` | `apiKey` | Secret `wsn-secrets` → `MISTRAL_API_KEY` | wsn-service (LLM calls), wsn-ai-service |
-| `workspacenow/ai-service` | `token` | `wsn-secrets` → `AI_SERVICE_TOKEN` | wsn-service → ai-service internal API |
-| `workspacenow/observer` | `token` | `wsn-secrets` → `OBSERVER_TOKEN` | wsn-observer ingest + wsn-service exporter |
-| `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed) | `wsn-secrets` → `RUN_GRANT_KEY` | wsn-service signs agent run grants |
-| `workspacenow/object-storage` | `accessKey`, `secretKey` | `wsn-secrets` (`S3_*`) and `wsn-rustfs-env` | RustFS (S3) + wsn-service object store |
-| `workspacenow/temporal-db` | `password` | `temporal-db`, `temporal-db-login` | Temporal SQL persistence on wsn-db |
-| `workspacenow/local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` | System login at `/login` (works with or without OIDC; first login gets role `workspacenow-admin`) |
+| Path (under mount `secret/`) | Keys | Synced into |
+|---|---|---|
+| `workspacenow/mistral` | `apiKey` | Secret `wsn-secrets` → `MISTRAL_API_KEY` (also settable from the console: Settings → Mistral API key, system user only) |
+| `workspacenow/ai-service` | `token` | `wsn-secrets` → `AI_SERVICE_TOKEN` |
+| `workspacenow/observer` | `token` | `wsn-secrets` → `OBSERVER_TOKEN` |
+| `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed) | `wsn-secrets` → `RUN_GRANT_KEY` |
+| `workspacenow/object-storage` | `accessKey`, `secretKey` | `wsn-secrets` (`S3_*`) + `wsn-rustfs-env` (RustFS) |
+| `workspacenow/temporal-db` | `password` | `temporal-db`, `temporal-db-login` |
+| `workspacenow/local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` |
 
-### Setting the Mistral API key from the console
+System user: always `admin@workspacenow.local`; the password is generated randomly on first install
+(view command below).
 
-The **system user only** (actor `local:…`, never OIDC/IdP users) sees a **Mistral API key** card on
-the console's Settings page (https://workspace.twotakeone.com → Control → Settings). Saving writes
-`apiKey` to `secret/workspacenow/mistral` via `PUT /api/v1/secrets/write` (audited as `secret.write`).
-Equivalent CLI: `WSN_LOCAL_ADMIN…`-style seeding via `openbao-seed.sh` with `MISTRAL_API_KEY=...`.
-
-### System user (local admin)
-
-The system user is always **`admin@workspacenow.local`**. Its password is **generated randomly**
-on first install (and by `openbao-seed.sh` when `WSN_LOCAL_ADMIN_PASSWORD` is unset) — view it with:
+## Get a shell in OpenBao (do this first)
 
 ```sh
-kubectl -n openbao exec statefulset/openbao -- sh -c \
-  'bao login root >/dev/null && bao kv get -mount=secret workspacenow/local-admin'
-# or just the password:
-kubectl -n openbao exec statefulset/openbao -- sh -c \
-  'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/local-admin'
+kubectl -n openbao exec -it statefulset/openbao -- sh
 ```
 
-Set a known password instead: `WSN_LOCAL_ADMIN_PASSWORD='...' ./deploy/flux/platform/openbao-seed.sh`,
-then `kubectl -n workspacenow delete secret wsn-secrets` to force a re-sync.
+All commands below run inside that shell (dev root token: `root`).
 
-Non-secret settings (hostnames, CORS, `WSN_DEMO_MODE`, branding, log level) are **ConfigMaps**
-(`wsn-service`, `wsn-ai-service`, `wsn-observer`, `console`) — edit them in
-`deploy/flux/apps/dev/kustomization.yaml`, commit, push; Flux applies them.
-
-## Seed / update all values (dev)
+## Commands
 
 ```sh
-export KUBECONFIG=kube.conf
-OPENBAO_ROOT_TOKEN=root \
-  MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... OBSERVER_TOKEN=... RUN_GRANT_PRIVATE_KEY=... \
-  OBJECT_STORAGE_ACCESS_KEY=... OBJECT_STORAGE_SECRET_KEY=... TEMPORAL_DB_PASSWORD=... \
-  WSN_LOCAL_ADMIN_EMAIL=... WSN_LOCAL_ADMIN_PASSWORD=... \
-  ./deploy/flux/platform/openbao-seed.sh
+# log in
+bao login root
+
+# list secret paths
+bao kv list -mount=secret workspacenow/
+
+# read a secret (all keys)
+bao kv get -mount=secret workspacenow/mistral
+
+# view the system user's password
+bao kv get -field=password -mount=secret workspacenow/local-admin
+
+# set / rotate one secret
+bao kv put -mount=secret workspacenow/mistral apiKey=sk-...
+bao kv put -mount=secret workspacenow/local-admin email=admin@workspacenow.local password='...'
+bao kv put -mount=secret workspacenow/ai-service token=...
+bao kv put -mount=secret workspacenow/observer token=...
+bao kv put -mount=secret workspacenow/run-grant privateKey=...
+bao kv put -mount=secret workspacenow/object-storage accessKey=... secretKey=...
+bao kv put -mount=secret workspacenow/temporal-db password=...
+
+# version history / rollback (KV v2 keeps every write)
+bao kv metadata get -mount=secret workspacenow/mistral
+bao kv rollback -mount=secret workspacenow/mistral version=2
+
+# delete
+bao kv delete -mount=secret workspacenow/observer
 ```
 
-ExternalSecrets refresh every hour (`refreshInterval: 1h`); to force an immediate sync restart
-the ESO controller or delete the target Secret:
+## Make Kubernetes pick up changes now
+
+ExternalSecrets refresh hourly; force a re-sync from outside the shell:
 
 ```sh
-kubectl -n external-secrets rollout restart deploy external-secrets
-# or force one secret: kubectl -n workspacenow delete secret wsn-secrets
+kubectl -n workspacenow delete secret wsn-secrets   # ESO recreates it within seconds
+# pods read env-from-secret at start, so roll the readers:
+kubectl -n workspacenow delete pod -l app.kubernetes.io/name=wsn-service
+kubectl -n workspacenow delete pod -l app.kubernetes.io/name=wsn-ai-service
 ```
 
-## Day-2 operations with the bao CLI
+## Seed everything from your workstation (alternative to the shell)
 
 ```sh
-# shell into the OpenBao pod (StatefulSet "openbao", namespace openbao)
-BAO="kubectl -n openbao exec statefulset/openbao -- bao"
-
-$BAO login -no-color root                 # dev root token
-$BAO kv list -mount=secret workspacenow/  # list paths
-$BAO kv get -mount=secret workspacenow/mistral
-$BAO kv put -mount=secret workspacenow/mistral apiKey=NEW_VALUE   # rotate one value
-$BAO kv delete -mount=secret workspacenow/observer               # remove
-$BAO kv metadata get -mount=secret workspacenow/run-grant        # versions/history
-$BAO kv rollback -mount=secret workspacenow/run-grant version=3  # rollback
+OPENBAO_ROOT_TOKEN=root MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... OBSERVER_TOKEN=... \
+  RUN_GRANT_PRIVATE_KEY=... OBJECT_STORAGE_ACCESS_KEY=... OBJECT_STORAGE_SECRET_KEY=... \
+  TEMPORAL_DB_PASSWORD=... ./deploy/flux/platform/openbao-seed.sh
 ```
 
-KV v2 keeps every write as a new version, so rotations are non-destructive; `kv rollback` undoes
-them. After changing anything under `workspacenow/*`, the next ExternalSecret refresh (≤1h, or
-forced as above) updates the Kubernetes Secrets and the apps pick them up on their next restart
-(or immediately for values read per-request, e.g. connect-integration credentials read via the
-`wsn-service` Kubernetes auth role).
+## Roles (Kubernetes auth, created by the openbao-config Job)
 
-## Kubernetes auth roles (created by the openbao-config Job)
+- `external-secrets` — bound to SA `external-secrets/external-secrets`, syncs Secrets.
+- `wsn-service` — bound to SA `workspacenow/wsn-service`, reads/lists `secret/data` +
+  `secret/metadata` under `workspacenow/*` at runtime.
 
-| Role | Bound service account | Policy | Purpose |
-|---|---|---|---|
-| `external-secrets` | `external-secrets/external-secrets` | `workspacenow-read` (read/list `secret/data/workspacenow/*`) | ESO syncs Secrets |
-| `wsn-service` | `workspacenow/wsn-service` | `workspacenow-read` | wsn-service reads integration credentials at runtime |
+Policy `workspacenow-read`:
 
-## Production notes
-
-- Do not use `devRootToken: root` outside dev; run OpenBao HA (raft) and unseal properly.
-- Create a dedicated policy per consumer instead of sharing `workspacenow-read`.
-- Rotate `run-grant.privateKey` by writing a new version and restarting `wsn-service` (in-flight
-  grants keep verifying until their TTL).
-- Never commit real values: the repo only contains `change-me` placeholders seeded by the
-  `openbao-config` Job (`deploy/flux/infrastructure/configs/configs.yaml`).
+```sh
+bao policy read workspacenow-read
+```

@@ -229,7 +229,7 @@ Calls it makes to wsn-service's internal API:
 
 ## API contract
 
-The contract between the console and wsn-service is `openapi.yaml` at the repo root: 93 paths / 119 operations, all served by real handlers (the generated 501 fallback is empty). Never hand-edit generated code — `wsn-service/internal/oapi/gen.go` is regenerated with `make -C wsn-service generate`, which also regenerates the fallback and the mocks. The narrative API guide lives in `docs/APIs.md`.
+The contract between the console and wsn-service is `openapi.yaml` at the repo root: 95 paths / 121 operations, all served by real handlers (the generated 501 fallback is empty). Never hand-edit generated code — `wsn-service/internal/oapi/gen.go` is regenerated with `make -C wsn-service generate`, which also regenerates the fallback and the mocks. The narrative API guide lives in `docs/APIs.md`.
 
 ## Identity and access model
 
@@ -305,7 +305,7 @@ The `docs/` directory holds the living documentation: `CONTEXT.md` (the full dom
 
 | Part | State |
 |---|---|
-| API contract + console | Complete; the console switches between the demo platform and the real backend, with live updates over SSE; 93 paths / 119 operations all served by real handlers. |
+| API contract + console | Complete; the console switches between the demo platform and the real backend, with live updates over SSE; 95 paths / 121 operations all served by real handlers. |
 | wsn-service | Unit tested, lint clean; the full compose stack boots in CI and the e2e smoke passes against the live API (session, entities, records, flagship low-stock flow, SLOs/alerts/analytics, status page, SSE). |
 | wsn-ai-service | Complete: agent runtime, planner, discovery, managed MCP server, per-step streaming; 100% line coverage gated in CI; live-verified against real Mistral once a `MISTRAL_API_KEY` is set. |
 | wsn-observer | OTLP ingest + query API in Go, WAL-segment store, unit tested with `-race`; own image and Flux manifests (non-root distroless, NetworkPolicy-limited). |

@@ -650,6 +650,139 @@ func (s *Store) ListMetrics(ctx context.Context, service, name string, start, en
 	return page(out, limit, offset), len(out), nil
 }
 
+// ListErrors scans error spans (OTLP status 2) newest first, groups them by fingerprint
+// (service + span name + message) and returns the groups sorted by lastSeen and paged.
+// TraceIDs samples up to 5 of the newest trace ids per group.
+func (s *Store) ListErrors(ctx context.Context, f telemetry.ErrorFilter) ([]telemetry.ErrorGroup, int, error) {
+	type acc struct {
+		group telemetry.ErrorGroup
+	}
+	groups := map[string]*acc{}
+	order := []string{}
+	if _, err := s.scanLines(SignalTraces, s.scanCap, func(line []byte) {
+		var sp telemetry.Span
+		if json.Unmarshal(line, &sp) != nil {
+			return
+		}
+		msg, failed := telemetry.SpanError(sp)
+		if !failed {
+			return
+		}
+		if f.Service != "" && sp.Service != f.Service {
+			return
+		}
+		if !inRange(sp.Start, f.Start, f.End) {
+			return
+		}
+		if f.Q != "" {
+			hay := strings.ToLower(sp.Name + " " + msg)
+			if !strings.Contains(hay, strings.ToLower(f.Q)) {
+				return
+			}
+		}
+		fp := sp.Service + "\x00" + sp.Name + "\x00" + msg
+		g, ok := groups[fp]
+		if !ok {
+			g = &acc{group: telemetry.ErrorGroup{
+				Fingerprint: fp,
+				Service:     sp.Service,
+				SpanName:    sp.Name,
+				Message:     msg,
+				FirstSeen:   sp.Start,
+				LastSeen:    sp.Start,
+			}}
+			groups[fp] = g
+			order = append(order, fp)
+		}
+		g.group.Count++
+		if sp.Start.Before(g.group.FirstSeen) {
+			g.group.FirstSeen = sp.Start
+		}
+		if sp.Start.After(g.group.LastSeen) {
+			g.group.LastSeen = sp.Start
+		}
+		if len(g.group.TraceIDs) < 5 && sp.TraceID != "" { // scan is newest first
+			g.group.TraceIDs = append(g.group.TraceIDs, sp.TraceID)
+		}
+	}); err != nil {
+		return nil, 0, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
+	default:
+	}
+	out := make([]telemetry.ErrorGroup, 0, len(groups))
+	for _, fp := range order {
+		out = append(out, groups[fp].group)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if f.Desc {
+			return out[i].LastSeen.After(out[j].LastSeen)
+		}
+		return out[i].LastSeen.Before(out[j].LastSeen)
+	})
+	return page(out, f.Limit, f.Offset), len(out), nil
+}
+
+// Services aggregates per-service span, error and log counts plus the last-seen timestamp
+// within the scan window. ErrorRate is errors/spans (0 when the service has no spans).
+func (s *Store) Services(ctx context.Context) ([]telemetry.ServiceStat, error) {
+	stats := map[string]*telemetry.ServiceStat{}
+	order := []string{}
+	bump := func(service string, at time.Time) *telemetry.ServiceStat {
+		st, ok := stats[service]
+		if !ok {
+			st = &telemetry.ServiceStat{Service: service}
+			stats[service] = st
+			order = append(order, service)
+		}
+		if at.After(st.LastSeen) {
+			st.LastSeen = at
+		}
+		return st
+	}
+	if _, err := s.scanLines(SignalTraces, s.scanCap, func(line []byte) {
+		var sp telemetry.Span
+		if json.Unmarshal(line, &sp) != nil || sp.Service == "" {
+			return
+		}
+		st := bump(sp.Service, sp.End)
+		st.Spans++
+		if _, failed := telemetry.SpanError(sp); failed {
+			st.Errors++
+		}
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := s.scanLines(SignalLogs, s.scanCap, func(line []byte) {
+		var l telemetry.LogRecord
+		if json.Unmarshal(line, &l) != nil || l.Service == "" {
+			return
+		}
+		bump(l.Service, l.Timestamp).Logs++
+	}); err != nil {
+		return nil, err
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+	out := make([]telemetry.ServiceStat, 0, len(stats))
+	for _, svc := range order {
+		st := stats[svc]
+		if st.Spans > 0 {
+			st.ErrorRate = float64(st.Errors) / float64(st.Spans)
+		}
+		out = append(out, *st)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Service < out[j].Service
+	})
+	return out, nil
+}
+
 // Overview returns the distinct service names seen and the stored record counts per signal.
 func (s *Store) Overview(context.Context) ([]string, int, int, int, error) {
 	if s.closed.Load() {

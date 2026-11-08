@@ -23,10 +23,20 @@ import (
 )
 
 const (
-	eventsLimitMax = 500
-	auditLimitMax  = 500
-	tracesScanMax  = 1000
+	eventsLimitMax     = 500
+	auditLimitMax      = 500
+	tracesScanMax      = 1000
+	errorGroupsMax     = 200
+	errorGroupsDefault = 50
 )
+
+// ErrorGroupQuery is one error-group query proxied to wsn-observer.
+type ErrorGroupQuery struct {
+	Q       string
+	Service string
+	Limit   int
+	Offset  int
+}
 
 // Service reads the observability data: Postgres for events and audit, wsn-observer for spans.
 type Service interface {
@@ -34,6 +44,8 @@ type Service interface {
 	Audit(ctx context.Context, params oapi.ListAuditParams) ([]oapi.AuditRecord, error)
 	Traces(ctx context.Context, q string, limit, offset int) ([]oapi.TraceSummary, int, error)
 	Trace(ctx context.Context, traceID string) (*oapi.Trace, error)
+	ListErrorGroups(ctx context.Context, q ErrorGroupQuery) ([]oapi.ErrorGroup, int, error)
+	ListObservedServices(ctx context.Context) ([]oapi.ServiceStat, error)
 	Health(ctx context.Context) ([]oapi.HealthSignal, error)
 	Overview(ctx context.Context) (*oapi.OverviewStats, error)
 	Resources(ctx context.Context) ([]oapi.ResourceSummary, error)

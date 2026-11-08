@@ -1564,6 +1564,31 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /errors:
+    get:
+      tags: [Observability]
+      operationId: listErrorGroups
+      summary: Error groups derived from wsn-observer spans (status ERROR), newest activity first
+      description: "Requires `audit.read`. Error spans are grouped by service+span+message with count, first/last seen and a sample of trace ids; `q` matches message or span name. Backed by wsn-observer's `GET /api/v1/errors`."
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: serviceName, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1, maximum: 200 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0, minimum: 0 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorGroupList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /services:
+    get:
+      tags: [Observability]
+      operationId: listObservedServices
+      summary: Per-service telemetry health from wsn-observer (spans, errors, error rate, logs, last seen)
+      description: "Requires `audit.read`. Backed by wsn-observer's `GET /api/v1/services`."
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ServiceStatList" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /analytics/log-metrics:
     get:
       tags: [Overview]
@@ -2923,4 +2948,28 @@ components:
     PlatformEventList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/PlatformEvent" } }, total: { type: integer } } }
     AuditRecordList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/AuditRecord" } }, total: { type: integer } } }
     TraceSummaryList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/TraceSummary" } }, total: { type: integer } } }
+    ErrorGroup:
+      type: object
+      required: [fingerprint, service, spanName, message, count, firstSeen, lastSeen, traceIds]
+      properties:
+        fingerprint: { type: string, description: "service + span name + message, the grouping key" }
+        service: { type: string }
+        spanName: { type: string }
+        message: { type: string }
+        count: { type: integer }
+        firstSeen: { $ref: "#/components/schemas/IsoDate" }
+        lastSeen: { $ref: "#/components/schemas/IsoDate" }
+        traceIds: { type: array, items: { type: string }, description: "Sample of recent trace ids, newest first (max 5)" }
+    ErrorGroupList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ErrorGroup" } }, total: { type: integer } } }
+    ServiceStat:
+      type: object
+      required: [service, spans, errors, logs, errorRate, lastSeen]
+      properties:
+        service: { type: string }
+        spans: { type: integer }
+        errors: { type: integer }
+        logs: { type: integer }
+        errorRate: { type: number, format: double, description: "errors / spans within the observer's scan window" }
+        lastSeen: { $ref: "#/components/schemas/IsoDate" }
+    ServiceStatList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/ServiceStat" } }, total: { type: integer } } }
     HealthSignalList: { type: object, required: [items, total], properties: { items: { type: array, items: { $ref: "#/components/schemas/HealthSignal" } }, total: { type: integer } } }

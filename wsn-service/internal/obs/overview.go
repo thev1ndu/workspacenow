@@ -424,6 +424,59 @@ func (s *service) TokenUsage(ctx context.Context, days int) ([]oapi.TokenUsagePo
 	return out, nil
 }
 
+// ListErrorGroups proxies wsn-observer's error-span groups (status ERROR, grouped by
+// service+span+message), newest activity first. With no observer configured it answers empty.
+func (s *service) ListErrorGroups(ctx context.Context, q ErrorGroupQuery) ([]oapi.ErrorGroup, int, error) {
+	limit, offset := q.Limit, q.Offset
+	if limit < 1 || limit > errorGroupsMax {
+		limit = errorGroupsDefault
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if s.obs == nil {
+		return []oapi.ErrorGroup{}, 0, nil
+	}
+	res, err := s.obs.ListErrors(ctx, observer.ErrorQuery{
+		ServiceName: q.Service, Q: q.Q, Limit: limit, Offset: offset, SortOrder: "desc",
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]oapi.ErrorGroup, 0, len(res.Errors))
+	for _, e := range res.Errors {
+		traceIDs := e.TraceIDs
+		if traceIDs == nil {
+			traceIDs = []string{}
+		}
+		out = append(out, oapi.ErrorGroup{
+			Fingerprint: e.Fingerprint, Service: e.Service, SpanName: e.SpanName, Message: e.Message,
+			Count: e.Count, FirstSeen: e.FirstSeen, LastSeen: e.LastSeen, TraceIds: traceIDs,
+		})
+	}
+	return out, res.TotalCount, nil
+}
+
+// ListObservedServices proxies wsn-observer's per-service telemetry stats. With no observer
+// configured it answers empty.
+func (s *service) ListObservedServices(ctx context.Context) ([]oapi.ServiceStat, error) {
+	if s.obs == nil {
+		return []oapi.ServiceStat{}, nil
+	}
+	res, err := s.obs.Services(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]oapi.ServiceStat, 0, len(res.Services))
+	for _, sv := range res.Services {
+		out = append(out, oapi.ServiceStat{
+			Service: sv.Service, Spans: sv.Spans, Errors: sv.Errors, Logs: sv.Logs,
+			ErrorRate: sv.ErrorRate, LastSeen: sv.LastSeen,
+		})
+	}
+	return out, nil
+}
+
 // EntryPoints aggregates audit outcomes per entry point.
 // logLevels are the OTLP severities counted per day; the observer matches them case-insensitively.
 var logLevels = []string{"debug", "info", "warn", "error"}

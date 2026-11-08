@@ -2,6 +2,7 @@ package observer
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -83,5 +84,46 @@ func TestClientErrors(t *testing.T) {
 	down := NewClient("http://127.0.0.1:1", "")
 	if err := down.Health(context.Background()); err == nil {
 		t.Fatal("unreachable observer must error")
+	}
+}
+
+func TestClientErrorsAndServices(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/errors/query", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer tok" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body["q"] != "card" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Write([]byte(`{"errors":[{"fingerprint":"fp","service":"wsn-service","spanName":"checkout","message":"card declined","count":3,"firstSeen":"2026-01-01T00:00:00Z","lastSeen":"2026-01-01T01:00:00Z","traceIds":["t2","t1"]}],"totalCount":1}`))
+	})
+	mux.HandleFunc("GET /api/v1/services", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`{"services":[{"service":"wsn-service","spans":40,"errors":2,"logs":9,"errorRate":0.05,"lastSeen":"2026-01-01T01:00:00Z"}]}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := NewClient(srv.URL, "tok")
+	ctx := context.Background()
+
+	groups, err := c.ListErrors(ctx, ErrorQuery{Q: "card", Limit: 10, SortOrder: "desc"})
+	if err != nil || groups.TotalCount != 1 || groups.Errors[0].Message != "card declined" ||
+		groups.Errors[0].Count != 3 || len(groups.Errors[0].TraceIDs) != 2 || groups.Errors[0].TraceIDs[0] != "t2" {
+		t.Fatalf("ListErrors: %+v %v", groups, err)
+	}
+	if groups.Errors[0].LastSeen.Hour() != 1 {
+		t.Fatalf("lastSeen not parsed: %v", groups.Errors[0].LastSeen)
+	}
+	if _, err := c.ListErrors(ctx, ErrorQuery{Q: "other"}); err == nil {
+		t.Fatal("expected 400 to surface as error")
+	}
+	svcs, err := c.Services(ctx)
+	if err != nil || len(svcs.Services) != 1 || svcs.Services[0].Service != "wsn-service" ||
+		svcs.Services[0].ErrorRate != 0.05 || svcs.Services[0].Spans != 40 {
+		t.Fatalf("Services: %+v %v", svcs, err)
 	}
 }

@@ -167,6 +167,85 @@ func (nilClient) ListLogs(context.Context, observer.LogQuery) (*observer.LogList
 func (nilClient) ListMetrics(context.Context, observer.MetricQuery) (*observer.MetricList, error) {
 	return nil, context.DeadlineExceeded
 }
+func (nilClient) ListErrors(context.Context, observer.ErrorQuery) (*observer.ErrorGroupList, error) {
+	return nil, context.DeadlineExceeded
+}
+func (nilClient) Services(context.Context) (*observer.ServiceList, error) {
+	return nil, context.DeadlineExceeded
+}
+
+// fakeObserver serves canned error groups and service stats.
+type fakeObserver struct {
+	nilClient
+	errors   *observer.ErrorGroupList
+	services *observer.ServiceList
+	lastQ    observer.ErrorQuery
+}
+
+func (f *fakeObserver) ListErrors(_ context.Context, q observer.ErrorQuery) (*observer.ErrorGroupList, error) {
+	f.lastQ = q
+	return f.errors, nil
+}
+func (f *fakeObserver) Services(context.Context) (*observer.ServiceList, error) {
+	return f.services, nil
+}
+
+func TestListErrorGroupsProxiesObserver(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	fake := &fakeObserver{errors: &observer.ErrorGroupList{
+		Errors: []observer.ErrorGroup{{
+			Fingerprint: "wsn-service\x00checkout\x00card declined",
+			Service:     "wsn-service", SpanName: "checkout", Message: "card declined",
+			Count: 3, FirstSeen: now.Add(-time.Hour), LastSeen: now, TraceIDs: []string{"t2", "t1"},
+		}},
+		TotalCount: 1,
+	}}
+	s := &service{obs: fake}
+	groups, total, err := s.ListErrorGroups(context.Background(), ErrorGroupQuery{Q: "card", Service: "wsn-service", Limit: 10, Offset: 0})
+	if err != nil || total != 1 || len(groups) != 1 {
+		t.Fatalf("ListErrorGroups: total=%d err=%v", total, err)
+	}
+	g := groups[0]
+	if g.Message != "card declined" || g.Count != 3 || g.TraceIds[0] != "t2" || !g.LastSeen.Equal(now) {
+		t.Fatalf("group: %+v", g)
+	}
+	if fake.lastQ.SortOrder != "desc" || fake.lastQ.Q != "card" || fake.lastQ.ServiceName != "wsn-service" || fake.lastQ.Limit != 10 {
+		t.Fatalf("query not proxied: %+v", fake.lastQ)
+	}
+	// defaults and bounds
+	if _, _, err := s.ListErrorGroups(context.Background(), ErrorGroupQuery{Limit: 9999, Offset: -5}); err != nil {
+		t.Fatal(err)
+	}
+	if fake.lastQ.Limit != errorGroupsDefault || fake.lastQ.Offset != 0 {
+		t.Fatalf("limit/offset not clamped: %+v", fake.lastQ)
+	}
+	// no observer configured: empty, no error
+	s2 := &service{obs: nil}
+	groups, total, err = s2.ListErrorGroups(context.Background(), ErrorGroupQuery{})
+	if err != nil || total != 0 || len(groups) != 0 {
+		t.Fatalf("nil observer: %v %d %v", groups, total, err)
+	}
+}
+
+func TestListObservedServicesProxiesObserver(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	fake := &fakeObserver{services: &observer.ServiceList{Services: []observer.ServiceStat{
+		{Service: "wsn-service", Spans: 40, Errors: 2, Logs: 12, ErrorRate: 0.05, LastSeen: now},
+	}}}
+	s := &service{obs: fake}
+	svcs, err := s.ListObservedServices(context.Background())
+	if err != nil || len(svcs) != 1 {
+		t.Fatalf("ListObservedServices: %v %v", svcs, err)
+	}
+	if svcs[0].Service != "wsn-service" || svcs[0].ErrorRate != 0.05 || !svcs[0].LastSeen.Equal(now) {
+		t.Fatalf("stat: %+v", svcs[0])
+	}
+	s2 := &service{obs: nil}
+	svcs, err = s2.ListObservedServices(context.Background())
+	if err != nil || len(svcs) != 0 {
+		t.Fatalf("nil observer: %v %v", svcs, err)
+	}
+}
 
 func TestScoreTiers(t *testing.T) {
 	terms := []string{"po-1001"}

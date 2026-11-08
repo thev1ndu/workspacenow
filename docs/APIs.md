@@ -279,6 +279,8 @@ Executions are durable and must survive restarts.
 | GET | `/audit?actorKind=&outcome=&q=` | Audit records, newest first; `q` searches action, resource, actor and detail | `audit.read` |
 | GET | `/traces` | Trace summaries built from audit records, newest first | `audit.read` |
 | GET | `/traces/{traceId}` | One trace with its audit records and events | `audit.read` |
+| GET | `/errors?q=&serviceName=&limit=&offset=` | Error groups derived from observer error spans (grouped by service+span+message), newest activity first, with trace-id samples | `audit.read` |
+| GET | `/services` | Per-service telemetry health from the observer: spans, errors, error rate, logs, last seen | `audit.read` |
 | GET | `/health` | Health of applications, APIs, MCP servers, integrations, databases and active workflows | signed in |
 
 | GET | `/status` | Public status page (no auth): JSON rollup + components; `Accept: text/html` renders the HTML skin | public |
@@ -304,6 +306,6 @@ The console sees one API, so a backend can split behind a gateway without the co
 | Connect and MCP gateway | `/apis/**`, `/api-operations/**`, `/mcp/**`, `/integrations/**` |
 | AI | `/model-providers`, `/agents/**`, `/agent-runs/**`, `/sidekick/runs`, and the planning behind `/applications/plan` |
 | Flow | `/workflows/**`, `/executions/**`, `/approvals/**` |
-| Audit and observability | `/events`, `/audit`, `/traces/**`, `/health`, `/overview`, `/resources`, `/search`, `/analytics/**` |
+| Audit and observability | `/events`, `/audit`, `/traces/**`, `/errors`, `/services`, `/health`, `/overview`, `/resources`, `/search`, `/analytics/**` |
 
 Whatever the split, authorization, auditing and the Business Operation check must be shared, so that every entry point (console, API, MCP, agent, workflow) is governed the same way.

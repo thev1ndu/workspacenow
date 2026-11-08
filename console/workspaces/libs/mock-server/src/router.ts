@@ -22,6 +22,8 @@ import {
   type Session,
   type Trace,
   type TraceSummary,
+  type ErrorGroup,
+  type ServiceStat,
   type WorkflowDefinition,
   type ApiKey,
   type ApiVersion,
@@ -135,6 +137,48 @@ function traceSummaries(platform: Platform): TraceSummary[] {
       actors: [...new Set(records.map((r) => r.actor.name))],
     }))
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+}
+
+// errorGroups derives demo error groups from failed and denied audit records, grouped by actor
+// service, action and detail — mirroring how wsn-observer groups error spans by fingerprint
+// (denied calls surface as error spans on the API too).
+function errorGroups(platform: Platform): ErrorGroup[] {
+  const failed = platform.state.audit.filter((a) => a.outcome === "failed" || a.outcome === "denied");
+  const groups = new Map<string, ErrorGroup>();
+  for (const record of failed) {
+    const service = record.actor.kind === "agent" ? "wsn-ai-service" : "wsn-service";
+    const fingerprint = `${service} ${record.action} ${record.detail ?? ""}`;
+    const group = groups.get(fingerprint) ?? {
+      fingerprint,
+      service,
+      spanName: record.action,
+      message: record.detail || `operation ${record.action} failed`,
+      count: 0,
+      firstSeen: record.time,
+      lastSeen: record.time,
+      traceIds: [],
+    };
+    group.count += 1;
+    if (record.time < group.firstSeen) group.firstSeen = record.time;
+    if (record.time > group.lastSeen) group.lastSeen = record.time;
+    if (group.traceIds.length < 5 && !group.traceIds.includes(record.traceId)) group.traceIds.push(record.traceId);
+    groups.set(fingerprint, group);
+  }
+  return [...groups.values()].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+}
+
+// serviceStats derives per-service telemetry health from the demo state.
+function serviceStats(platform: Platform): ServiceStat[] {
+  const s = platform.state;
+  const lastSeen = s.audit.length ? s.audit[s.audit.length - 1].time : new Date().toISOString();
+  const spans = s.audit.length + s.events.length;
+  const errors = s.audit.filter((a) => a.outcome === "failed" || a.outcome === "denied").length;
+  return [
+    { service: "wsn-service", spans, errors, logs: s.audit.length, errorRate: spans ? errors / spans : 0, lastSeen },
+    { service: "wsn-ai-service", spans: s.agentRuns.length, errors: s.agentRuns.filter((r) => r.status === "failed").length, logs: s.agentRuns.length, errorRate: 0, lastSeen },
+    { service: "wsn-observer", spans: 0, errors: 0, logs: 0, errorRate: 0, lastSeen },
+    { service: "console", spans: 0, errors: 0, logs: 0, errorRate: 0, lastSeen },
+  ].map((st) => ({ ...st, errorRate: st.spans ? st.errors / st.spans : 0 }));
 }
 
 /* Session and overview */
@@ -1084,6 +1128,21 @@ route("GET", "/traces/:id", ({ platform, ctx, params }): Trace => {
     audit: platform.state.audit.filter((a) => a.traceId === params.id),
     events: platform.state.events.filter((e) => e.traceId === params.id),
   };
+});
+route("GET", "/errors", ({ platform, ctx, query }) => {
+  platform.requirePermission(ctx("control"), "audit.read", "error.list", "errors");
+  const q = query.get("q")?.toLowerCase();
+  const service = query.get("serviceName");
+  return page(
+    errorGroups(platform)
+      .filter((g) => !service || g.service === service)
+      .filter((g) => !q || `${g.message} ${g.spanName}`.toLowerCase().includes(q)),
+    query,
+  );
+});
+route("GET", "/services", ({ platform, ctx }) => {
+  platform.requirePermission(ctx("control"), "audit.read", "service.list", "services");
+  return list(serviceStats(platform));
 });
 route("GET", "/health", ({ platform }) => {
   const s = platform.state;

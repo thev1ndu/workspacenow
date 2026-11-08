@@ -1,4 +1,4 @@
-import type { ActorKind, AuditRecord, ListResponse, Trace, TraceSummary } from "@workspacenow/types";
+import type { ActorKind, AuditRecord, ErrorGroup, ListResponse, ServiceStat, Trace, TraceSummary } from "@workspacenow/types";
 import { enc, httpGET, SERVICE_BASE, qs, type GetToken } from "../utils/http";
 
 export interface AuditQuery {
@@ -22,4 +22,18 @@ export async function listTraces(query: { q?: string; limit?: number; offset?: n
 
 export async function getTrace(params: { traceId: string }, getToken: GetToken) {
   return httpGET<Trace>(`${SERVICE_BASE}/traces/${enc(params.traceId)}`, { token: await getToken() });
+}
+
+export async function listErrorGroups(
+  query: { q?: string; serviceName?: string; limit?: number; offset?: number },
+  getToken: GetToken,
+) {
+  return httpGET<ListResponse<ErrorGroup>>(`${SERVICE_BASE}/errors`, {
+    token: await getToken(),
+    searchParams: qs(query as Record<string, string | number | undefined>),
+  });
+}
+
+export async function listObservedServices(getToken: GetToken) {
+  return httpGET<ListResponse<ServiceStat>>(`${SERVICE_BASE}/services`, { token: await getToken() });
 }

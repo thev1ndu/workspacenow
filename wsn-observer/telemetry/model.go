@@ -32,6 +32,55 @@ type TraceOverview struct {
 	SpanCount    int       `json:"spanCount"`
 }
 
+// SpanError reports whether a span ended in error and extracts a message from the
+// `exception.message` / `error.message` attributes, falling back to a generic status text.
+func SpanError(sp Span) (message string, ok bool) {
+	if sp.Status != "2" { // OTLP status code 2 = ERROR
+		return "", false
+	}
+	if m := sp.Attributes["exception.message"]; m != "" {
+		return m, true
+	}
+	if m := sp.Attributes["error.message"]; m != "" {
+		return m, true
+	}
+	return "span status ERROR", true
+}
+
+// ErrorGroup aggregates error spans by fingerprint (service + span name + message).
+type ErrorGroup struct {
+	Fingerprint string    `json:"fingerprint"`
+	Service     string    `json:"service"`
+	SpanName    string    `json:"spanName"`
+	Message     string    `json:"message"`
+	Count       int       `json:"count"`
+	FirstSeen   time.Time `json:"firstSeen"`
+	LastSeen    time.Time `json:"lastSeen"`
+	TraceIDs    []string  `json:"traceIds"` // sample of recent trace ids, newest first, max 5
+}
+
+// ErrorFilter is one error-group query: exact match on service, case-insensitive substring
+// on message or span name, an inclusive time range, sort by lastSeen and a page.
+type ErrorFilter struct {
+	Service string
+	Q       string
+	Start   time.Time
+	End     time.Time
+	Limit   int
+	Offset  int
+	Desc    bool
+}
+
+// ServiceStat summarizes one service's stored telemetry within the scan window.
+type ServiceStat struct {
+	Service   string    `json:"service"`
+	Spans     int       `json:"spans"`
+	Errors    int       `json:"errors"`
+	Logs      int       `json:"logs"`
+	ErrorRate float64   `json:"errorRate"` // errors / spans, 0 when no spans
+	LastSeen  time.Time `json:"lastSeen"`
+}
+
 // LogRecord is one OTLP log record.
 type LogRecord struct {
 	Timestamp      time.Time         `json:"timestamp"`
@@ -80,6 +129,8 @@ type Store interface {
 	GetSpan(ctx context.Context, traceID, spanID string) (Span, bool, error)
 	ListLogs(ctx context.Context, f LogFilter) ([]LogRecord, int, error)
 	ListMetrics(ctx context.Context, service, name string, start, end time.Time, limit, offset int, desc bool) ([]MetricPoint, int, error)
+	ListErrors(ctx context.Context, f ErrorFilter) ([]ErrorGroup, int, error)
+	Services(ctx context.Context) ([]ServiceStat, error)
 	Overview(ctx context.Context) (services []string, spans, logs, metrics int, err error)
 	Close() error
 	// ImportSegment writes one replicated WAL segment (standby side of segment replication).

@@ -2354,6 +2354,28 @@ type ErrorBody struct {
 // ErrorBodyCode defines model for ErrorBody.Code.
 type ErrorBodyCode string
 
+// ErrorGroup defines model for ErrorGroup.
+type ErrorGroup struct {
+	Count int `json:"count"`
+
+	// Fingerprint service + span name + message, the grouping key
+	Fingerprint string  `json:"fingerprint"`
+	FirstSeen   IsoDate `json:"firstSeen"`
+	LastSeen    IsoDate `json:"lastSeen"`
+	Message     string  `json:"message"`
+	Service     string  `json:"service"`
+	SpanName    string  `json:"spanName"`
+
+	// TraceIds Sample of recent trace ids, newest first (max 5)
+	TraceIds []string `json:"traceIds"`
+}
+
+// ErrorGroupList defines model for ErrorGroupList.
+type ErrorGroupList struct {
+	Items []ErrorGroup `json:"items"`
+	Total int          `json:"total"`
+}
+
 // ExecutionStep defines model for ExecutionStep.
 type ExecutionStep struct {
 	Detail    *string             `json:"detail,omitempty"`
@@ -2948,6 +2970,23 @@ type SecretPathList struct {
 type SecretValues struct {
 	Path   string            `json:"path"`
 	Values map[string]string `json:"values"`
+}
+
+// ServiceStat defines model for ServiceStat.
+type ServiceStat struct {
+	// ErrorRate errors / spans within the observer's scan window
+	ErrorRate float64 `json:"errorRate"`
+	Errors    int     `json:"errors"`
+	LastSeen  IsoDate `json:"lastSeen"`
+	Logs      int     `json:"logs"`
+	Service   string  `json:"service"`
+	Spans     int     `json:"spans"`
+}
+
+// ServiceStatList defines model for ServiceStatList.
+type ServiceStatList struct {
+	Items []ServiceStat `json:"items"`
+	Total int           `json:"total"`
 }
 
 // Session defines model for Session.
@@ -3580,6 +3619,14 @@ type DiffEntityVersionsParams struct {
 // RunViewParams defines parameters for RunView.
 type RunViewParams struct {
 	IncludeDeleted *bool `form:"includeDeleted,omitempty" json:"includeDeleted,omitempty"`
+}
+
+// ListErrorGroupsParams defines parameters for ListErrorGroups.
+type ListErrorGroupsParams struct {
+	Q           *string `form:"q,omitempty" json:"q,omitempty"`
+	ServiceName *string `form:"serviceName,omitempty" json:"serviceName,omitempty"`
+	Limit       *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset      *int    `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // ListEventsParams defines parameters for ListEvents.
@@ -4565,6 +4612,9 @@ type ServerInterface interface {
 	// Deployment environments
 	// (GET /environments)
 	ListEnvironments(w http.ResponseWriter, r *http.Request)
+	// Error groups derived from wsn-observer spans (status ERROR), newest activity first
+	// (GET /errors)
+	ListErrorGroups(w http.ResponseWriter, r *http.Request, params ListErrorGroupsParams)
 	// Platform events, newest first
 	// (GET /events)
 	ListEvents(w http.ResponseWriter, r *http.Request, params ListEventsParams)
@@ -4661,6 +4711,9 @@ type ServerInterface interface {
 	// Read a secret's values from OpenBao (sensitive)
 	// (GET /secrets/read)
 	ReadSecret(w http.ResponseWriter, r *http.Request, params ReadSecretParams)
+	// Per-service telemetry health from wsn-observer (spans, errors, error rate, logs, last seen)
+	// (GET /services)
+	ListObservedServices(w http.ResponseWriter, r *http.Request)
 	// The signed-in user, their roles and effective permissions
 	// (GET /session)
 	GetSession(w http.ResponseWriter, r *http.Request)
@@ -7001,6 +7054,63 @@ func (siw *ServerInterfaceWrapper) ListEnvironments(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListErrorGroups operation middleware
+func (siw *ServerInterfaceWrapper) ListErrorGroups(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListErrorGroupsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "serviceName" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "serviceName", r.URL.Query(), &params.ServiceName, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "serviceName", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", r.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListErrorGroups(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListEvents operation middleware
 func (siw *ServerInterfaceWrapper) ListEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -7841,6 +7951,26 @@ func (siw *ServerInterfaceWrapper) ReadSecret(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListObservedServices operation middleware
+func (siw *ServerInterfaceWrapper) ListObservedServices(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListObservedServices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSession operation middleware
 func (siw *ServerInterfaceWrapper) GetSession(w http.ResponseWriter, r *http.Request) {
 
@@ -8649,6 +8779,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.RunView)
 	m.HandleFunc("PUT "+options.BaseURL+"/entities/{entityName}/views/{viewId}", wrapper.UpdateView)
 	m.HandleFunc("GET "+options.BaseURL+"/environments", wrapper.ListEnvironments)
+	m.HandleFunc("GET "+options.BaseURL+"/errors", wrapper.ListErrorGroups)
 	m.HandleFunc("GET "+options.BaseURL+"/events", wrapper.ListEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/events/stream", wrapper.StreamEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/executions", wrapper.ListExecutions)
@@ -8681,6 +8812,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/search", wrapper.Search)
 	m.HandleFunc("GET "+options.BaseURL+"/secrets", wrapper.ListSecrets)
 	m.HandleFunc("GET "+options.BaseURL+"/secrets/read", wrapper.ReadSecret)
+	m.HandleFunc("GET "+options.BaseURL+"/services", wrapper.ListObservedServices)
 	m.HandleFunc("GET "+options.BaseURL+"/session", wrapper.GetSession)
 	m.HandleFunc("POST "+options.BaseURL+"/sidekick/runs", wrapper.RunSidekick)
 	m.HandleFunc("GET "+options.BaseURL+"/slos", wrapper.ListSLOs)

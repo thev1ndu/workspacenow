@@ -90,6 +90,47 @@ func (h *Handler) GetTrace(w http.ResponseWriter, r *http.Request, traceId strin
 	httpx.OK(w, trace)
 }
 
+func (h *Handler) ListErrorGroups(w http.ResponseWriter, r *http.Request, params oapi.ListErrorGroupsParams) {
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
+	if err := kernel.RequirePermission(r.Context(), h.auditor, ec, AuditReadPermission, "error.list", "errors"); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	q := ErrorGroupQuery{}
+	if params.Q != nil {
+		q.Q = *params.Q
+	}
+	if params.ServiceName != nil {
+		q.Service = *params.ServiceName
+	}
+	if params.Limit != nil {
+		q.Limit = *params.Limit
+	}
+	if params.Offset != nil {
+		q.Offset = *params.Offset
+	}
+	groups, total, err := h.svc.ListErrorGroups(r.Context(), q)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, groups, total)
+}
+
+func (h *Handler) ListObservedServices(w http.ResponseWriter, r *http.Request) {
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
+	if err := kernel.RequirePermission(r.Context(), h.auditor, ec, AuditReadPermission, "service.list", "services"); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	services, err := h.svc.ListObservedServices(r.Context())
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.ListTotal(w, services, len(services))
+}
+
 func (h *Handler) ListHealth(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.Health)
 }

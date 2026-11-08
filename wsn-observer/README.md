@@ -37,6 +37,9 @@ make -C wsn-observer run    # serve on :9098 (WSN_OBSERVER_DATA_DIR=/tmp/wsn-obs
 | `GET /api/v1/logs?serviceName=&level=&q=&startTime=&endTime=&limit=&offset=&sortOrder=` | console | Log records; `q` matches the body case-insensitively |
 | `GET /api/v1/metrics?serviceName=&name=&startTime=&endTime=&limit=&offset=&sortOrder=` | console | Metric points |
 | `GET /api/v1/overview` | console | Distinct service names and stored counts per signal |
+| `GET /api/v1/errors?serviceName=&q=&startTime=&endTime=&limit=&offset=&sortOrder=` | console (proxied by wsn-service) | Error span groups (OTLP status 2), fingerprint = service+span+message: count, first/last seen, newest trace-id samples (max 5) |
+| `POST /api/v1/errors/query` | services (agent-manager-style client) | Same filters in a JSON body; `q` matches message or span name case-insensitively |
+| `GET /api/v1/services` | console (proxied by wsn-service) | Per-service spans, errors, logs, error rate and last seen within the scan window |
 | `POST /api/v1/traces/query` | services (agent-manager-style client) | Same filters as the GET, in a JSON body `{serviceName, startTime, endTime, limit, offset, sortOrder}` |
 | `POST /api/v1/traces/{traceId}/spans/query` | services | One trace's spans from a JSON body |
 | `GET /api/v1/traces/{traceId}/spans/{spanId}` | services | One span's full details, attributes included |

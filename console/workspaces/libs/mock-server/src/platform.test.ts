@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, planFromApplication, type AgentRun, type AlertFire, type AlertRule, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type SavedView, type Slo, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
+import { ApiError, planFromApplication, type AgentRun, type AlertFire, type AlertRule, type ApiVersion, type CreatedApiKey, type Entity, type EntityRecord, type ErrorGroup, type SavedView, type ServiceStat, type Slo, type Webhook, type WebhookDelivery, type WorkflowDefinition } from "@workspacenow/types";
 import { runAgent } from "./agents";
 import { handleRequest } from "./router";
 import { SCHEMA_VERSION, clearState, loadState, saveState } from "./state";
@@ -754,7 +754,7 @@ describe("platform surface (read endpoints and state persistence)", () => {
     const paths = [
       "/session", "/overview", "/resources", "/search?q=product&limit=5", "/status", "/health",
       "/analytics/activity?days=7", "/analytics/tokens?days=7", "/analytics/entry-points", "/analytics/log-metrics?days=3",
-      "/audit?limit=5", "/traces", "/events?limit=5", "/organization", "/departments", "/teams", "/users", "/roles",
+      "/audit?limit=5", "/traces", "/errors", "/services", "/events?limit=5", "/organization", "/departments", "/teams", "/users", "/roles",
       "/group-mappings", "/environments", "/connections", "/applications", "/entities", "/business-operations",
       "/apis", "/api-operations", "/portal/apis", "/mcp/tools", "/mcp/servers", "/integrations", "/webhooks",
       "/model-providers", "/agents", "/agent-runs", "/workflows", "/executions", "/approvals", "/alerts", "/slos",
@@ -780,5 +780,45 @@ describe("platform surface (read endpoints and state persistence)", () => {
     expect(store.size).toBe(0);
     saveState(platform.state); // storage failure paths are covered by the no-localStorage run above
     vi.unstubAllGlobals();
+  });
+});
+
+describe("error groups and observed services", () => {
+  it("serves error groups derived from failed audit records, with q filter and paging", () => {
+    const platform = createDemoPlatform();
+    const res = get(platform, "/errors?limit=5");
+    expect(res.status).toBe(200);
+    const body = res.body as { items: ErrorGroup[]; total: number };
+    expect(body.total).toBeGreaterThan(0);
+    expect(body.items.length).toBeLessThanOrEqual(5);
+    const first = body.items[0];
+    expect(first.fingerprint).toContain(first.spanName);
+    expect(first.count).toBeGreaterThan(0);
+    expect(first.traceIds.length).toBeGreaterThan(0);
+    // sorted newest first
+    for (let i = 1; i < body.items.length; i++) {
+      expect(body.items[i - 1].lastSeen >= body.items[i].lastSeen).toBe(true);
+    }
+    const filtered = get(platform, `/errors?q=${encodeURIComponent(body.items[0].message.split(" ")[0])}`);
+    const fBody = filtered.body as { items: ErrorGroup[] };
+    for (const g of fBody.items) {
+      expect(`${g.message} ${g.spanName}`.toLowerCase()).toContain(body.items[0].message.split(" ")[0].toLowerCase());
+    }
+  });
+
+  it("serves per-service stats and guards both endpoints with audit.read", () => {
+    const platform = createDemoPlatform();
+    const services = get(platform, "/services");
+    expect(services.status).toBe(200);
+    const names = (services.body as { items: ServiceStat[] }).items.map((s) => s.service);
+    expect(names).toContain("wsn-service");
+    expect(names).toContain("wsn-ai-service");
+    for (const s of (services.body as { items: ServiceStat[] }).items) {
+      expect(s.errorRate).toBeGreaterThanOrEqual(0);
+      expect(s.errorRate).toBeLessThanOrEqual(1);
+    }
+    // u-kavya (procurement officer) has no audit.read
+    expect(get(platform, "/errors", "u-kavya").status).toBe(403);
+    expect(get(platform, "/services", "u-kavya").status).toBe(403);
   });
 });

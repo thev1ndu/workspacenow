@@ -48,6 +48,9 @@ func New(cfg config.Config, store telemetry.Store) http.Handler {
 	mux.HandleFunc("GET /api/v1/logs", s.auth(s.listLogs))
 	mux.HandleFunc("GET /api/v1/metrics", s.auth(s.listMetrics))
 	mux.HandleFunc("GET /api/v1/overview", s.auth(s.overview))
+	mux.HandleFunc("GET /api/v1/errors", s.auth(s.listErrors))
+	mux.HandleFunc("POST /api/v1/errors/query", s.auth(s.queryErrors))
+	mux.HandleFunc("GET /api/v1/services", s.auth(s.listServices))
 	mux.HandleFunc("POST /api/v1/traces/query", s.auth(s.queryTraces))
 	mux.HandleFunc("POST /api/v1/traces/{traceId}/spans/query", s.auth(s.queryTraceSpans))
 	mux.HandleFunc("GET /api/v1/traces/{traceId}/spans/{spanId}", s.auth(s.getSpanDetails))
@@ -256,6 +259,57 @@ func (s *Server) serveLogs(w http.ResponseWriter, r *http.Request, f telemetry.L
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"logs": logs, "totalCount": total})
+}
+
+// listErrors serves GET /api/v1/errors: error span groups, newest activity first.
+func (s *Server) listErrors(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	service, start, end, limit, offset, desc, err := listParams(r, "desc")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	s.serveErrors(w, r, telemetry.ErrorFilter{
+		Service: service, Q: q.Get("q"),
+		Start: start, End: end, Limit: limit, Offset: offset, Desc: desc,
+	})
+}
+
+// queryErrors serves POST /api/v1/errors/query (agent-manager-style JSON body).
+func (s *Server) queryErrors(w http.ResponseWriter, r *http.Request) {
+	q, ok := decodeQuery(w, r)
+	if !ok {
+		return
+	}
+	start, end, limit, offset, desc, err := q.bounds("desc")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "VALIDATION_FAILED", err.Error())
+		return
+	}
+	s.serveErrors(w, r, telemetry.ErrorFilter{
+		Service: q.ServiceName, Q: q.Q,
+		Start: start, End: end, Limit: limit, Offset: offset, Desc: desc,
+	})
+}
+
+// serveErrors runs one error-group query against the store.
+func (s *Server) serveErrors(w http.ResponseWriter, r *http.Request, f telemetry.ErrorFilter) {
+	groups, total, err := s.store.ListErrors(r.Context(), f)
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"errors": groups, "totalCount": total})
+}
+
+// listServices serves GET /api/v1/services: per-service span/error/log counts and error rate.
+func (s *Server) listServices(w http.ResponseWriter, r *http.Request) {
+	services, err := s.store.Services(r.Context())
+	if err != nil {
+		storageErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"services": services})
 }
 
 func (s *Server) overview(w http.ResponseWriter, r *http.Request) {

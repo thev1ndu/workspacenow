@@ -20,3 +20,13 @@ export function useGetTrace(params: { traceId?: string }) {
     enabled: !!params.traceId,
   });
 }
+
+export function useListErrorGroups(query: { q?: string; serviceName?: string; limit?: number; offset?: number } = {}) {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["errors", query], queryFn: () => api.listErrorGroups(query, getToken) });
+}
+
+export function useListObservedServices() {
+  const { getToken } = useAuthHooks();
+  return useApiQuery({ queryKey: ["observed-services"], queryFn: () => api.listObservedServices(getToken) });
+}

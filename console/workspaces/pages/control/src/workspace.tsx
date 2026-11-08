@@ -6,6 +6,7 @@ import { AlertsPage } from "./AlertsPage";
 import { AuditPage } from "./AuditPage";
 import { ControlOverview } from "./ControlOverview";
 import { EnvironmentsPage } from "./EnvironmentsPage";
+import { HealthPage } from "./HealthPage";
 import { OrganizationPage } from "./OrganizationPage";
 import { SettingsPage } from "./SettingsPage";
 import { TraceDetailPage } from "./TraceDetailPage";
@@ -25,6 +26,7 @@ export const controlWorkspace: WorkspaceModule = {
     { label: "Audit log", href: routes.control.audit },
     { label: "Alerts and SLOs", href: routes.control.alerts },
     { label: "Traces", href: routes.control.traces },
+    { label: "Health & errors", href: routes.control.health },
     { label: "Settings", href: routes.control.settings },
   ],
   routes: [
@@ -36,6 +38,7 @@ export const controlWorkspace: WorkspaceModule = {
     { path: "alerts", element: <AlertsPage /> },
     { path: "traces", element: <TracesPage /> },
     { path: "traces/:traceId", element: <TraceDetailPage /> },
+    { path: "health", element: <HealthPage /> },
     { path: "settings", element: <SettingsPage /> },
   ],
 };

@@ -14,15 +14,17 @@ import (
 )
 
 type fakeSvc struct {
-	events    []oapi.PlatformEvent
-	audit     []oapi.AuditRecord
-	traces    []oapi.TraceSummary
-	trace     *oapi.Trace
-	health    []oapi.HealthSignal
-	err       error
-	gotLimit  int
-	gotOffset int
-	gotQ      string
+	events       []oapi.PlatformEvent
+	audit        []oapi.AuditRecord
+	traces       []oapi.TraceSummary
+	trace        *oapi.Trace
+	errorGroups  []oapi.ErrorGroup
+	serviceStats []oapi.ServiceStat
+	health       []oapi.HealthSignal
+	err          error
+	gotLimit     int
+	gotOffset    int
+	gotQ         string
 }
 
 func (f *fakeSvc) Events(_ context.Context, _ string, limit, offset int) ([]oapi.PlatformEvent, int, error) {
@@ -37,7 +39,14 @@ func (f *fakeSvc) Traces(_ context.Context, q string, limit, offset int) ([]oapi
 	f.gotQ = q
 	return f.traces, len(f.traces), f.err
 }
-func (f *fakeSvc) Trace(context.Context, string) (*oapi.Trace, error)  { return f.trace, f.err }
+func (f *fakeSvc) Trace(context.Context, string) (*oapi.Trace, error) { return f.trace, f.err }
+func (f *fakeSvc) ListErrorGroups(_ context.Context, q ErrorGroupQuery) ([]oapi.ErrorGroup, int, error) {
+	f.gotQ = q.Q
+	return f.errorGroups, len(f.errorGroups), f.err
+}
+func (f *fakeSvc) ListObservedServices(context.Context) ([]oapi.ServiceStat, error) {
+	return f.serviceStats, f.err
+}
 func (f *fakeSvc) Health(context.Context) ([]oapi.HealthSignal, error) { return f.health, f.err }
 func (f *fakeSvc) Overview(context.Context) (*oapi.OverviewStats, error) {
 	return &oapi.OverviewStats{Applications: 2, Agents: 3}, f.err
@@ -245,3 +254,43 @@ func TestOverviewResourcesSearchAnalytics(t *testing.T) {
 		t.Fatalf("entry points: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestListErrorGroupsAndServicesGuarded(t *testing.T) {
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	h := NewHandler(&fakeSvc{
+		errorGroups:  []oapi.ErrorGroup{{Fingerprint: "fp", Service: "wsn-service", SpanName: "checkout", Message: "card declined", Count: 3, FirstSeen: now, LastSeen: now, TraceIds: []string{"t2"}}},
+		serviceStats: []oapi.ServiceStat{{Service: "wsn-service", Spans: 40, Errors: 3, Logs: 9, ErrorRate: 0.075, LastSeen: now}},
+	}, &fakeAuditor{})
+
+	noPerm := request(t, &kernel.Caller{UserID: "u1", Name: "X", Permissions: kernel.NewPermissions()})
+	rec := httptest.NewRecorder()
+	h.ListErrorGroups(rec, noPerm, oapi.ListErrorGroupsParams{})
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("list errors denied: %d", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	h.ListObservedServices(rec, noPerm)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("list services denied: %d", rec.Code)
+	}
+
+	svc := h.svc.(*fakeSvc)
+	ok := request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions(AuditReadPermission)})
+	rec = httptest.NewRecorder()
+	q := "card"
+	h.ListErrorGroups(rec, ok, oapi.ListErrorGroupsParams{Q: &q, Limit: ptr(10), Offset: ptr(5)})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list errors: %d %s", rec.Code, rec.Body.String())
+	}
+	body := decode(t, rec)
+	if body["total"] != float64(1) || svc.gotQ != "card" {
+		t.Fatalf("errors body: %v q=%q", body, svc.gotQ)
+	}
+	rec = httptest.NewRecorder()
+	h.ListObservedServices(rec, ok)
+	if rec.Code != http.StatusOK || decode(t, rec)["total"] != float64(1) {
+		t.Fatalf("list services: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func ptr[T any](v T) *T { return &v }

@@ -658,6 +658,28 @@ export interface Trace extends TraceSummary {
   events: PlatformEvent[];
 }
 
+/** One error group: error spans (OTLP status ERROR) grouped by service + span name + message. */
+export interface ErrorGroup {
+  fingerprint: string;
+  service: string;
+  spanName: string;
+  message: string;
+  count: number;
+  firstSeen: IsoDate;
+  lastSeen: IsoDate;
+  traceIds: string[];
+}
+
+/** Per-service telemetry health from the observer. */
+export interface ServiceStat {
+  service: string;
+  spans: number;
+  errors: number;
+  logs: number;
+  errorRate: number;
+  lastSeen: IsoDate;
+}
+
 export interface HealthSignal {
   resource: string;
   kind: "application" | "api" | "mcp" | "agent" | "workflow" | "integration" | "database";

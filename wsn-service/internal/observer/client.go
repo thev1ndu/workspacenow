@@ -19,6 +19,8 @@ type Client interface {
 	SpanDetails(ctx context.Context, traceID, spanID string) (*Span, error)
 	ListLogs(ctx context.Context, q LogQuery) (*LogList, error)
 	ListMetrics(ctx context.Context, q MetricQuery) (*MetricList, error)
+	ListErrors(ctx context.Context, q ErrorQuery) (*ErrorGroupList, error)
+	Services(ctx context.Context) (*ServiceList, error)
 }
 
 // TraceQuery is the POST body of the trace and span queries.
@@ -53,6 +55,50 @@ type MetricQuery struct {
 	Limit       int       `json:"limit,omitempty"`
 	Offset      int       `json:"offset,omitempty"`
 	SortOrder   string    `json:"sortOrder,omitempty"`
+}
+
+// ErrorQuery is the POST body of the error-group query.
+type ErrorQuery struct {
+	ServiceName string    `json:"serviceName,omitempty"`
+	Q           string    `json:"q,omitempty"`
+	StartTime   time.Time `json:"startTime,omitempty"`
+	EndTime     time.Time `json:"endTime,omitempty"`
+	Limit       int       `json:"limit,omitempty"`
+	Offset      int       `json:"offset,omitempty"`
+	SortOrder   string    `json:"sortOrder,omitempty"`
+}
+
+// ErrorGroup aggregates the observer's error spans by fingerprint.
+type ErrorGroup struct {
+	Fingerprint string    `json:"fingerprint"`
+	Service     string    `json:"service"`
+	SpanName    string    `json:"spanName"`
+	Message     string    `json:"message"`
+	Count       int       `json:"count"`
+	FirstSeen   time.Time `json:"firstSeen"`
+	LastSeen    time.Time `json:"lastSeen"`
+	TraceIDs    []string  `json:"traceIds"`
+}
+
+// ErrorGroupList is the observer's error-query response.
+type ErrorGroupList struct {
+	Errors     []ErrorGroup `json:"errors"`
+	TotalCount int          `json:"totalCount"`
+}
+
+// ServiceStat summarizes one service's stored telemetry.
+type ServiceStat struct {
+	Service   string    `json:"service"`
+	Spans     int       `json:"spans"`
+	Errors    int       `json:"errors"`
+	Logs      int       `json:"logs"`
+	ErrorRate float64   `json:"errorRate"`
+	LastSeen  time.Time `json:"lastSeen"`
+}
+
+// ServiceList is the observer's services response.
+type ServiceList struct {
+	Services []ServiceStat `json:"services"`
 }
 
 // TraceList is the observer's trace-query response.
@@ -163,6 +209,22 @@ func (c *client) ListMetrics(ctx context.Context, q MetricQuery) (*MetricList, e
 	var out MetricList
 	if err := c.post(ctx, "/api/v1/metrics/query", q, &out); err != nil {
 		return nil, fmt.Errorf("observer.ListMetrics: %w", err)
+	}
+	return &out, nil
+}
+
+func (c *client) ListErrors(ctx context.Context, q ErrorQuery) (*ErrorGroupList, error) {
+	var out ErrorGroupList
+	if err := c.post(ctx, "/api/v1/errors/query", q, &out); err != nil {
+		return nil, fmt.Errorf("observer.ListErrors: %w", err)
+	}
+	return &out, nil
+}
+
+func (c *client) Services(ctx context.Context) (*ServiceList, error) {
+	var out ServiceList
+	if err := c.get(ctx, "/api/v1/services", &out); err != nil {
+		return nil, fmt.Errorf("observer.Services: %w", err)
 	}
 	return &out, nil
 }

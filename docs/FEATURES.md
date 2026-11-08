@@ -5,7 +5,7 @@ Status as of 2026-11-07. Legend: ✅ implemented + unit tested · 🟡 partial �
 compose stack (`make setup && make up`) is the first live run. `TODO.md` is the task list with test
 steps; `COVERAGE.md` has per-package test coverage numbers.
 
-Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers in wsn-service
+Scope: 95 paths / 121 operations in `openapi.yaml`, all served by real handlers in wsn-service
 (the generated 501 fallback has 0 stubs). Console: 7 workspaces, ~35 pages.
 
 ---
@@ -95,6 +95,7 @@ Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers 
 - ✅ Health (`/health` checks Postgres, Valkey, NATS, observer, ai-service)
 - ✅ OTLP export from wsn-service and wsn-ai-service to **wsn-observer**: per-request spans, request metrics, all logs; shared `X-Trace-Id`
 - ✅ wsn-observer: OTLP ingest (traces/logs/metrics) + GET and POST query APIs, stored as append-only JSONL WAL segment files (no DB, no in-memory payload) with byte retention; Dockerfile, CI, Flux + PVC
+- ✅ **Error inbox & service health**: wsn-observer derives error groups from error spans (OTLP status 2; fingerprint = service+span+message; count, first/last seen, newest trace-id samples) via `GET /api/v1/errors` + `POST /api/v1/errors/query`, and per-service stats (spans, errors, logs, error rate, last seen) via `GET /api/v1/services`; wsn-service proxies both as `GET /errors` and `GET /services` under `audit.read`; console Control → **Health & errors** page (services table + searchable error groups linking into traces)
 - ✅ Console control workspace: overview, organization, access (roles/mappings), audit, traces + trace detail, environments, settings, **alerts** (rules CRUD incl. SLO burn-rate source, fires + ack, SLO table)
 - ✅ **Alerting on audit/event patterns and SLO burn rates**: `/alerts` CRUD (source audit|event|slo, action, outcome, threshold, window, webhook), fires + ack, evaluator in the server role fires once per window crossing, calls the webhook (signed) and emits `Alert.Fired`; console control workspace has an Alerts and SLOs page (rules incl. custom webhookUrl, fires, SLOs)
 - ✅ **SLOs per business operation**: `/slos` CRUD + `/slos/{id}/status` — per-minute Valkey counters recorded by an engine OnInvoke hook; success rate + histogram p95 vs targets, `breached` flag
@@ -137,7 +138,7 @@ Scope: 93 paths / 119 operations in `openapi.yaml`, all served by real handlers 
 
 | Area | Written | Live-verified |
 |---|---|---|
-| API contract + wsn-service (119/119 endpoints, tests, lint clean) | 100% | 0% |
+| API contract + wsn-service (121/121 endpoints, tests, lint clean) | 100% | 0% |
 | wsn-ai-service (100% line coverage, CI-gated) | 100% | 0% (live smoke opt-in) |
 | wsn-observer (WAL store + query API) | ~95% | 0% |
 | Console (7 workspaces, SSE, OIDC, coverage gate) | ~95% | demo platform only |

@@ -322,10 +322,82 @@ func TestStorageFailureIs500(t *testing.T) {
 			t.Fatalf("%s: %d %v", path, status, body)
 		}
 	}
-	for _, path := range []string{"/api/v1/traces", "/api/v1/logs", "/api/v1/metrics", "/api/v1/overview"} {
+	for _, path := range []string{"/api/v1/traces", "/api/v1/logs", "/api/v1/metrics", "/api/v1/overview", "/api/v1/errors", "/api/v1/services"} {
 		status, body := do(t, "GET", srv.URL+path, "", "")
 		if status != 500 || body["code"] != "STORAGE_FAILED" {
 			t.Fatalf("%s: %d %v", path, status, body)
 		}
+	}
+}
+
+const errorTracesPayload = `{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"wsn-service"}}]},
+"scopeSpans":[{"spans":[
+ {"traceId":"e1","spanId":"a","name":"checkout","kind":2,"startTimeUnixNano":"1000","endTimeUnixNano":"2000","status":{"code":2},"attributes":[{"key":"exception.message","value":{"stringValue":"card declined"}}]},
+ {"traceId":"e2","spanId":"b","name":"checkout","kind":2,"startTimeUnixNano":"3000","endTimeUnixNano":"4000","status":{"code":2},"attributes":[{"key":"exception.message","value":{"stringValue":"card declined"}}]},
+ {"traceId":"e3","spanId":"c","name":"plan","kind":1,"startTimeUnixNano":"5000","endTimeUnixNano":"6000","status":{"code":2},"attributes":[{"key":"error.message","value":{"stringValue":"llm timeout"}}]},
+ {"traceId":"e4","spanId":"d","name":"root","kind":1,"startTimeUnixNano":"7000","endTimeUnixNano":"8000","status":{"code":1}}
+]}]}]}`
+
+func TestErrorAndServiceEndpoints(t *testing.T) {
+	srv := newServer(t, "tok")
+	defer srv.Close()
+	do(t, "POST", srv.URL+"/v1/traces", "tok", errorTracesPayload)
+	do(t, "POST", srv.URL+"/v1/logs", "tok", logsPayload)
+
+	status, body := do(t, "GET", srv.URL+"/api/v1/errors", "tok", "")
+	if status != 200 || body["totalCount"] != float64(2) {
+		t.Fatalf("list errors: %d %v", status, body)
+	}
+	errs := body["errors"].([]any)
+	first := errs[0].(map[string]any)
+	if first["message"] != "llm timeout" || first["count"] != float64(1) { // newest activity first
+		t.Fatalf("first error group: %v", first)
+	}
+	second := errs[1].(map[string]any)
+	if second["message"] != "card declined" || second["count"] != float64(2) {
+		t.Fatalf("second error group: %v", second)
+	}
+	traceIDs := second["traceIds"].([]any)
+	if len(traceIDs) != 2 || traceIDs[0] != "e2" {
+		t.Fatalf("trace ids: %v", traceIDs)
+	}
+
+	status, body = do(t, "GET", srv.URL+"/api/v1/errors?q=CARD", "tok", "")
+	if status != 200 || body["totalCount"] != float64(1) {
+		t.Fatalf("errors q: %d %v", status, body)
+	}
+	status, body = do(t, "GET", srv.URL+"/api/v1/errors?serviceName=wsn-ai-service", "tok", "")
+	if status != 200 || body["totalCount"] != float64(0) { // all spans are wsn-service here
+		t.Fatalf("errors service filter: %d %v", status, body)
+	}
+	status, body = do(t, "GET", srv.URL+"/api/v1/errors?limit=0", "tok", "")
+	if status != 400 || body["code"] != "VALIDATION_FAILED" {
+		t.Fatalf("errors bad limit: %d %v", status, body)
+	}
+	status, body = do(t, "POST", srv.URL+"/api/v1/errors/query", "tok", `{"q":"timeout","limit":5}`)
+	if status != 200 || body["totalCount"] != float64(1) {
+		t.Fatalf("errors query: %d %v", status, body)
+	}
+	status, _ = do(t, "GET", srv.URL+"/api/v1/errors", "", "")
+	if status != 401 {
+		t.Fatalf("errors without token: %d", status)
+	}
+
+	status, body = do(t, "GET", srv.URL+"/api/v1/services", "tok", "")
+	if status != 200 {
+		t.Fatalf("services: %d %v", status, body)
+	}
+	services := body["services"].([]any)
+	if len(services) != 1 {
+		t.Fatalf("services list: %v", services)
+	}
+	svc := services[0].(map[string]any)
+	if svc["service"] != "wsn-service" || svc["spans"] != float64(4) || svc["errors"] != float64(3) ||
+		svc["logs"] != float64(1) || svc["errorRate"] != 0.75 {
+		t.Fatalf("service stat: %v", svc)
+	}
+	status, _ = do(t, "GET", srv.URL+"/api/v1/services", "wrong", "")
+	if status != 401 {
+		t.Fatalf("services wrong token: %d", status)
 	}
 }

@@ -55,6 +55,7 @@ export const routes = {
     alerts: "/control/alerts",
     traces: "/control/traces",
     trace: "/control/traces/:traceId",
+    health: "/control/health",
     settings: "/control/settings",
   },
 } as const;

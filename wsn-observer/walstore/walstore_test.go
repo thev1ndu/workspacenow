@@ -290,3 +290,93 @@ func TestImportSegmentWritesAndCounts(t *testing.T) {
 		t.Fatalf("total=%d err=%v", total, err)
 	}
 }
+
+func TestListErrorsGroupsByFingerprint(t *testing.T) {
+	s := open(t, t.TempDir(), 16<<20, 1<<16, 10000)
+	spans := []telemetry.Span{
+		{TraceID: "t1", SpanID: "a", Name: "checkout", Service: "wsn-service", Status: "2", Start: at(1000), End: at(2000), Attributes: map[string]string{"exception.message": "card declined"}},
+		{TraceID: "t2", SpanID: "b", Name: "checkout", Service: "wsn-service", Status: "2", Start: at(3000), End: at(4000), Attributes: map[string]string{"exception.message": "card declined"}},
+		{TraceID: "t3", SpanID: "c", Name: "checkout", Service: "wsn-service", Status: "2", Start: at(5000), End: at(6000)}, // no message -> generic status text
+		{TraceID: "t4", SpanID: "d", Name: "root", Service: "wsn-service", Status: "1", Start: at(7000), End: at(8000)},
+		{TraceID: "t5", SpanID: "e", Name: "plan", Service: "wsn-ai-service", Status: "2", Start: at(9000), End: at(9500), Attributes: map[string]string{"error.message": "llm timeout"}},
+	}
+	if err := s.AddSpans(context.Background(), spans); err != nil {
+		t.Fatal(err)
+	}
+
+	groups, total, err := s.ListErrors(context.Background(), telemetry.ErrorFilter{Limit: 10, Desc: true})
+	if err != nil || total != 3 || len(groups) != 3 {
+		t.Fatalf("ListErrors: total=%d groups=%v err=%v", total, groups, err)
+	}
+	// desc by lastSeen: the ai-service error (t5, at 9000) is first
+	if groups[0].Service != "wsn-ai-service" || groups[0].Message != "llm timeout" || groups[0].Count != 1 {
+		t.Fatalf("first group: %+v", groups[0])
+	}
+	generic := groups[1] // t3 at 5000 sorts before the declined group at 3000
+	if generic.Message != "span status ERROR" || generic.Count != 1 {
+		t.Fatalf("generic group: %+v", generic)
+	}
+	declined := groups[2]
+	if declined.SpanName != "checkout" || declined.Message != "card declined" || declined.Count != 2 {
+		t.Fatalf("declined group: %+v", declined)
+	}
+	if len(declined.TraceIDs) != 2 || declined.TraceIDs[0] != "t2" || declined.TraceIDs[1] != "t1" {
+		t.Fatalf("trace sample newest first: %v", declined.TraceIDs)
+	}
+	if !declined.FirstSeen.Equal(at(1000)) || !declined.LastSeen.Equal(at(3000)) {
+		t.Fatalf("first/last seen: %+v", declined)
+	}
+
+	// q matches message or span name, case-insensitive
+	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Q: "CARD", Limit: 10})
+	if err != nil || total != 1 || groups[0].Message != "card declined" {
+		t.Fatalf("q=CARD: total=%d %v err=%v", total, groups, err)
+	}
+	// service filter
+	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Service: "wsn-ai-service", Limit: 10})
+	if err != nil || total != 1 || groups[0].Message != "llm timeout" {
+		t.Fatalf("service filter: total=%d err=%v", total, err)
+	}
+	// time range excludes everything
+	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Start: at(100000), Limit: 10})
+	if err != nil || total != 0 || len(groups) != 0 {
+		t.Fatalf("time filter: total=%d err=%v", total, err)
+	}
+	// pagination over groups sorted by lastSeen desc: [llm@9000, generic@5000, declined@3000]
+	groups, total, err = s.ListErrors(context.Background(), telemetry.ErrorFilter{Limit: 1, Offset: 2, Desc: true})
+	if err != nil || total != 3 || len(groups) != 1 || groups[0].Message != "card declined" {
+		t.Fatalf("page: total=%d groups=%v err=%v", total, groups, err)
+	}
+}
+
+func TestServicesAggregatesPerService(t *testing.T) {
+	s := open(t, t.TempDir(), 16<<20, 1<<16, 10000)
+	spans := append(sampleSpans(),
+		telemetry.Span{TraceID: "t9", SpanID: "z", Name: "checkout", Service: "wsn-service", Status: "2", Start: at(6000), End: at(6500)},
+	)
+	if err := s.AddSpans(context.Background(), spans); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddLogs(context.Background(), sampleLogs()); err != nil {
+		t.Fatal(err)
+	}
+
+	svcs, err := s.Services(context.Background())
+	if err != nil || len(svcs) != 2 {
+		t.Fatalf("Services: %v err=%v", svcs, err)
+	}
+	// sorted by name: wsn-ai-service first
+	ai, svc := svcs[0], svcs[1]
+	if ai.Service != "wsn-ai-service" || ai.Spans != 1 || ai.Errors != 0 || ai.Logs != 1 || ai.ErrorRate != 0 {
+		t.Fatalf("ai-service stat: %+v", ai)
+	}
+	if svc.Service != "wsn-service" || svc.Spans != 3 || svc.Errors != 1 || svc.Logs != 2 {
+		t.Fatalf("wsn-service stat: %+v", svc)
+	}
+	if svc.ErrorRate != 1.0/3.0 {
+		t.Fatalf("error rate: %v", svc.ErrorRate)
+	}
+	if !svc.LastSeen.Equal(at(6500)) {
+		t.Fatalf("last seen: %v", svc.LastSeen)
+	}
+}

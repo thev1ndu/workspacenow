@@ -19,7 +19,7 @@
     "@internationalized/date": "3.12.4",
     "@react-aria/ssr": "3.10.1",
     "@react-aria/utils": "3.34.1",
-    "@tanstack/react-query": "5.105.3",
+    "@tanstack/react-query": "5.106.0",
     "@workspacenow/ai": "workspace:*",
     "@workspacenow/api-client": "workspace:*",
     "@workspacenow/auth": "workspace:*",
@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "typescript": "6.0.3",
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/node": "26.6.6",

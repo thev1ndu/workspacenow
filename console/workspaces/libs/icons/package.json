@@ -27,7 +27,7 @@
     "@types/react-dom": "19.3.0",
     "eslint": "10.14.0",
     "@workspacenow/eslint-config": "workspace:*",
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "@types/node": "26.6.6"
   }
 }

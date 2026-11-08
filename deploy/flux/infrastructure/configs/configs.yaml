@@ -156,14 +156,14 @@ spec:
   values:
     cassandra: { enabled: false }
     mysql: { enabled: false }
-    postgresql: { enabled: false }
+    postgresql: { enabled: true }
     elasticsearch: { enabled: false }
     prometheus: { enabled: false }
     grafana: { enabled: false }
     server:
       config:
         persistence:
-          defaultStore:
+          default:
             driver: sql
             sql:
               driver: postgres12
@@ -172,7 +172,7 @@ spec:
               database: temporal
               user: temporal
               existingSecret: temporal-db
-          visibilityStore:
+          visibility:
             driver: sql
             sql:
               driver: postgres12

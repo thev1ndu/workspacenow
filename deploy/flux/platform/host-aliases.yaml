@@ -20,7 +20,8 @@ spec:
           image: busybox:1.36
           command: ["/bin/sh", "-c"]
           args:
-            - grep -q 'registry.workspace.twotakeone.com' /etc/hosts || echo '169.58.222.25 registry.workspace.twotakeone.com' >> /etc/hosts
+            # /etc/hosts is a bind-mounted file: rewrite in place, and replace any stale IP for the registry host
+            - grep -v 'registry.workspace.twotakeone.com' /etc/hosts > /tmp/hosts.new && echo '169.58.222.25 registry.workspace.twotakeone.com' >> /tmp/hosts.new && cat /tmp/hosts.new > /etc/hosts
           volumeMounts:
             - { name: hosts, mountPath: /etc/hosts }
           securityContext: { privileged: true }

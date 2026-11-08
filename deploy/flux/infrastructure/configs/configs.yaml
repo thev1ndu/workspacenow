@@ -93,7 +93,8 @@ spec:
     metadata:
       labels: { app: rustfs }
     spec:
-      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      # dev cluster: the rustfs image uses a non-numeric user, so runAsNonRoot cannot be verified
+      securityContext: { runAsNonRoot: false, seccompProfile: { type: RuntimeDefault } }
       containers:
         - name: rustfs
           image: docker.io/rustfs/rustfs:1.0.4

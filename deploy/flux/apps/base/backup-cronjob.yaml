@@ -1,6 +1,4 @@
 # Nightly Postgres backup: the -backup role pg_dumps to object storage (backups/) and records
-# it in the backups table in Postgres (no API; query the table directly). PITR itself comes from CloudNativePG's
-# WAL archiving to the same bucket — see deploy/flux/infrastructure.
 apiVersion: batch/v1
 kind: CronJob
 metadata:

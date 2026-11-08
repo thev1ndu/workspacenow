@@ -1,6 +1,4 @@
 # Dependabot keeps every dependency in the repo current: GitHub Actions, Docker base images
-# (component Dockerfiles + the compose stack), Go modules, the console's pnpm/npm workspace
-# and the Python service. All groups update weekly; security updates are always separate.
 version: 2
 updates:
   - package-ecosystem: "github-actions"

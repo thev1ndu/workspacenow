@@ -1,6 +1,4 @@
 # HA overlay for the local stack: postgres primary + streaming replica, valkey + replica,
-# two wsn-service instances, and a standby wsn-observer receiving replicated WAL segments.
-# Usage: docker compose -f deploy/compose/docker-compose.yml -f deploy/compose/docker-compose.ha.yml --profile app up -d
 name: workspacenow
 
 services:

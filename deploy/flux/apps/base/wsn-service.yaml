@@ -20,7 +20,6 @@ data:
   OIDC_AUDIENCE: ""
   OIDC_JWKS_URL: ""
   # First administrators: users with these IdP emails get WSN_BOOTSTRAP_ADMIN_ROLE on first login.
-  # Set via the wsn-service Secret/ExternalSecret, never in this ConfigMap.
   WSN_BOOTSTRAP_ADMIN_ROLE: role-admin
 ---
 apiVersion: v1

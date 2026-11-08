@@ -1,6 +1,4 @@
 # syntax=docker/dockerfile:1
-# wsn-ai-service: Python app in a venv on python:slim, running as a dedicated non-root user.
-# Build: docker build -t wsn-ai-service --build-arg VERSION=0.1.0 wsn-ai-service
 
 FROM python:3.12-slim-bookworm AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1

@@ -1,12 +1,4 @@
 # WorkspaceNow local stack. Production uses deploy/flux. Run it from the repo root:
-#
-#   make setup    create .env from .env.example (first run only)
-#   make up       full stack: infra + observer + wsn-service (+worker) + ai-service + console
-#   make down     stop everything (volumes kept)
-#
-# (.env lives at the repo root and is passed with --env-file; running compose directly from this
-# directory without --env-file falls back to the defaults in each ${VAR:-default} below.)
-# Images default to the GHCR main builds; `make build` builds them locally instead.
 name: wsn
 
 x-wsn-service-env: &wsn-service-env
@@ -68,7 +60,6 @@ services:
     volumes: ["nats:/data"]
 
   # Named volumes are root-owned on first use; temporal and wsn-observer run as non-root
-  # and need write access to their data dirs, so relax the permissions once at boot.
   volume-init:
     container_name: volume-init
     image: alpine:3.21
@@ -86,8 +77,6 @@ services:
       volume-init: { condition: service_completed_successfully }
 
   # S3-compatible object storage: RustFS (MinIO-compatible API) on ports 9000 (API) / 9001
-  # (console). Used both locally and in prod (Flux), so the path-style S3 client in
-  # wsn-service talks to the same API everywhere.
   rustfs:
     container_name: rustfs
     image: rustfs/rustfs:1.0.4
@@ -148,7 +137,6 @@ services:
     restart: "no"
 
   # Backup restore drill: restores Postgres from the newest (or -backup-id) backup in object storage and exits.
-  # Run against a scratch database: docker compose --profile restore run --rm wsn-service-restore
   wsn-service-restore:
     container_name: wsn-service-restore
     profiles: ["restore"]
@@ -200,7 +188,6 @@ services:
       WSN_OBSERVER_TOKEN: ${OBSERVER_TOKEN:-}
     ports: ["8090:8090"]
     # No depends_on wsn-service: wsn-service already waits for this service, and a back-edge
-    # would be a dependency cycle. The AI service calls back to wsn-service's internal API.
 
   console:
     container_name: wsn-console

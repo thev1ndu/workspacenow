@@ -1,5 +1,4 @@
 # Instances of the operators installed by infrastructure/controllers.
-# PostgreSQL for entity persistence and platform metadata, plus Temporal's databases.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -112,7 +111,6 @@ spec:
     - { secretKey: secretKey, remoteRef: { key: workspacenow/object-storage, property: secretKey } }
 ---
 # Object storage for documents and release artifacts: RustFS (S3-compatible, MinIO-compatible
-# API) on a single PVC. The wsn-service object store creates the bucket on first use.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

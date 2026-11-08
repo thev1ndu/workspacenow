@@ -49,7 +49,6 @@ class PlatformClient:
 
     async def stream_run_step(self, run_id: str, step: dict[str, Any]) -> bool:
         # Reports one AgentRunStep to wsn-service as it happens, so it can emit the AgentRun.Step event.
-        # Progress reporting never fails the run: any problem is logged and reported as False.
         try:
             response = await self._internal.post(
                 f"/internal/v1/runs/{run_id}/steps",

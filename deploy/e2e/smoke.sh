@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # Full e2e smoke against the compose stack: boot, auth, data CRUD, the flagship sale -> low-stock
-# event, observability surface. Run after `docker compose --profile app up -d`.
-# Fails fast with a clear message; the CI job dumps compose logs on failure.
 set -euo pipefail
 
 API="${API:-http://localhost:8080/api/v1}"

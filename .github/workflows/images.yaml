@@ -1,10 +1,8 @@
 name: images
 
 # Builds every image from its component Dockerfile (multi-stage, non-root runtime user) with
-# docker buildx and pushes it to GHCR. Flux image automation picks up main-* tags for dev.
 on:
   # Build images only after the ci workflow (unit + e2e) succeeded for that ref —
-  # never publish an image for a commit whose tests failed.
   workflow_run:
     workflows: [ci]
     types: [completed]

@@ -53,7 +53,6 @@ class AgentRuntime:
 
     async def _stream_step(self, run_id: str, step: ThoughtStep | ToolStep) -> None:
         # Sends the step to wsn-service the moment it happens (camelCase on the wire, like the run result);
-        # wsn-service republishes it as an AgentRun.Step event. The final result travels in the /v1/runs response.
         await self._platform.stream_run_step(run_id, step.model_dump(by_alias=True, mode="json"))
 
     async def _run(self, req: RunRequest) -> RunResult:

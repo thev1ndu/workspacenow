@@ -1,7 +1,5 @@
 #!/bin/sh
 # Writes api/unimplemented_gen.go: the 501 fallback for exactly the operations no module
-# serves yet. Module handler methods are discovered by scanning the packages the api.Server
-# aliases point at, so the file shrinks to nothing once every operation has a module.
 set -eu
 cd "$(dirname "$0")/.."
 out=api/unimplemented_gen.go

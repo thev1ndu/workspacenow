@@ -1,10 +1,4 @@
 # WorkspaceNow root Makefile — run the whole local stack from the repo root.
-#
-#   make setup    create .env from .env.example (first run; edit it to set MISTRAL_API_KEY etc.)
-#   make up       start infra + the full app (console :8088, API :8080, Temporal UI :8233, observer :9098)
-#   make down     stop everything (named volumes are kept)
-#
-# Component-level targets (tests, codegen, lint) live in each service's own Makefile.
 
 COMPOSE := docker compose -f deploy/compose/docker-compose.yml --env-file .env
 

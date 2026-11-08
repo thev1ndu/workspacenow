@@ -1,9 +1,4 @@
 # syntax=docker/dockerfile:1
-# console: pnpm build on node, served by the unprivileged nginx image (uid 101, port 8080).
-# Build: docker build -t console --build-arg VERSION=0.1.0 console
-# The build stage pins $BUILDPLATFORM on purpose: the bundle is arch-independent, so node
-# and the native build tools (esbuild, rollup) run on the builder's own CPU. Running them
-# under QEMU for the other target arch SIGILLs (build exits 132).
 
 FROM --platform=$BUILDPLATFORM node:25-alpine AS build
 WORKDIR /app

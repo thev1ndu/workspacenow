@@ -1,6 +1,4 @@
 # syntax=docker/dockerfile:1
-# wsn-observer: static Go binary on distroless, running as the non-root distroless user.
-# Build: docker build -t wsn-observer --build-arg VERSION=dev wsn-observer
 
 ARG GO_VERSION=1.26
 FROM golang:${GO_VERSION}-alpine AS build

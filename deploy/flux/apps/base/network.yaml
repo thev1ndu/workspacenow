@@ -8,6 +8,7 @@ spec:
   parentRefs:
     - name: workspacenow
       namespace: workspacenow
+      sectionName: https-console
   hostnames: ["console.workspacenow.example.com"]
   rules:
     - matches: [{ path: { type: PathPrefix, value: / } }]
@@ -21,6 +22,7 @@ spec:
   parentRefs:
     - name: workspacenow
       namespace: workspacenow
+      sectionName: https-api
   hostnames: ["api.workspacenow.example.com"]
   rules:
     - matches: [{ path: { type: PathPrefix, value: / } }]
@@ -34,6 +36,7 @@ spec:
   parentRefs:
     - name: workspacenow
       namespace: workspacenow
+      sectionName: https-ai
   hostnames: ["ai.workspacenow.example.com"]
   rules:
     - matches: [{ path: { type: PathPrefix, value: / } }]
@@ -47,6 +50,7 @@ spec:
   parentRefs:
     - name: workspacenow
       namespace: workspacenow
+      sectionName: https-obs
   hostnames: ["obs.workspacenow.example.com"]
   rules:
     - matches: [{ path: { type: PathPrefix, value: / } }]

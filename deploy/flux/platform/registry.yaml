@@ -41,7 +41,7 @@ metadata:
   namespace: workspacenow
 spec:
   parentRefs:
-    - { name: workspacenow, namespace: workspacenow }
+    - { name: workspacenow, namespace: workspacenow, sectionName: https-registry }
   hostnames: ["registry.workspace.twotakeone.com"]
   rules:
     - matches: [{ path: { type: PathPrefix, value: / } }]

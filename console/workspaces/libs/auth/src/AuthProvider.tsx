@@ -18,13 +18,17 @@ interface AuthContextValue {
   userInfo: AuthUser | null;
   /** Demo mode: pick a persona. OIDC mode: redirect to the identity provider (arg ignored). */
   signIn: (user?: AuthUser) => void;
+  /** Local mode: sign in with the system user's credentials against POST /api/v1/auth/login. */
+  signInWithCredentials: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string>;
 }
 
 const STORAGE_KEY = "workspacenow-session";
 const OIDC_KEY = "workspacenow-oidc";
+const LOCAL_KEY = "workspacenow-local-token";
 const oidcMode = globalConfig.authMode === "oidc" && !!globalConfig.oidc;
+const localMode = globalConfig.authMode === "local";
 
 interface OidcSession {
   accessToken: string;
@@ -143,13 +147,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void startOidcLogin();
       return;
     }
+    if (localMode) return; // local mode signs in with credentials, not a persona
     writeSession(user ?? null);
     setUserInfo(user ?? null);
+  }, []);
+
+  const signInWithCredentials = useCallback(async (email: string, password: string) => {
+    const base = globalConfig.apiBaseUrl.replace(/\/+$/, "");
+    const res = await fetch(`${base}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      let message = `Sign-in failed (${res.status})`;
+      try {
+        const err = (await res.json()) as { message?: string };
+        if (err.message) message = err.message;
+      } catch { /* keep default */ }
+      throw new Error(message);
+    }
+    const { token } = (await res.json()) as { token: string };
+    localStorage.setItem(LOCAL_KEY, token);
+    const sessionRes = await fetch(`${base}/api/v1/session`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!sessionRes.ok) throw new Error("Could not load the session");
+    const session = (await sessionRes.json()) as { actor: { id: string; name: string } };
+    const user: AuthUser = { id: session.actor.id, name: session.actor.name, email, title: "" };
+    writeSession(user);
+    setUserInfo(user);
   }, []);
 
   const logout = useCallback(async () => {
     writeSession(null);
     sessionStorage.removeItem(OIDC_KEY);
+    localStorage.removeItem(LOCAL_KEY);
     if (oidcMode && globalConfig.oidc) {
       const discovery = await fetch(`${globalConfig.oidc.issuer.replace(/\/$/, "")}/.well-known/openid-configuration`).then((r) => r.json()).catch(() => null);
       if (discovery?.end_session_endpoint) {
@@ -164,14 +195,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const getToken = useCallback(async () => {
     if (oidcMode) return readOidcSession()?.accessToken ?? "";
+    if (localMode) return localStorage.getItem(LOCAL_KEY) ?? "";
     return userInfo ? `demo.${userInfo.id}` : "";
   }, [userInfo]);
 
   // OIDC callback: nothing to do here — the /login/callback route calls completeOidcLogin.
 
   const value = useMemo(
-    () => ({ isAuthenticated: !!userInfo, userInfo, signIn, logout, getToken }),
-    [userInfo, signIn, logout, getToken],
+    () => ({ isAuthenticated: !!userInfo, userInfo, signIn, signInWithCredentials, logout, getToken }),
+    [userInfo, signIn, signInWithCredentials, logout, getToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

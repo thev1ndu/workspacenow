@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { ShieldCheck } from "@workspacenow/icons";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -5,6 +6,7 @@ import { useAuthHooks } from "@workspacenow/auth";
 import { useT } from "@workspacenow/i18n";
 import { useListPersonas } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
+import { TextInput } from "@workspacenow/views";
 import { Brand } from "../Layout/Brand";
 
 export function initials(name: string): string {
@@ -16,17 +18,35 @@ export function initials(name: string): string {
     .toUpperCase();
 }
 
-/** Stand-in for the redirect to the customer's OIDC provider: pick who to sign in as. */
+/** Sign-in page: OIDC redirect, system-user credentials, or demo persona picker. */
 export function LoginPage() {
   const t = useT();
-  const { isAuthenticated, signIn } = useAuthHooks();
+  const { isAuthenticated, signIn, signInWithCredentials } = useAuthHooks();
   const oidcMode = globalConfig.authMode === "oidc" && !!globalConfig.oidc;
+  const localMode = globalConfig.authMode === "local";
   const { data, isLoading } = useListPersonas();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   if (isAuthenticated) return <Navigate to={from} replace />;
+
+  const submitCredentials = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithCredentials(email, password);
+      navigate(from, { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign-in failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-12">
@@ -46,7 +66,19 @@ export function LoginPage() {
               {t("Sign in with your identity provider")}
             </Button>
           </div>
-        ) : (
+        ) : localMode ? (
+          <div className="mb-6 flex flex-col gap-3">
+            <TextInput label={t("Email")} value={email} onChange={setEmail} placeholder="admin@workspacenow.local" />
+            <TextInput label={t("Password")} value={password} onChange={setPassword} type="password" />
+            {error && <p className="text-sm text-danger">{error}</p>}
+            <Button size="lg" variant="primary" isDisabled={busy} onPress={() => void submitCredentials()}>
+              {busy ? t("Signing in…") : t("Sign in")}
+            </Button>
+            <p className="text-center text-xs text-muted">
+              {t("System user sign-in; your administrator provisions the credentials.")}
+            </p>
+          </div>
+        ) : localMode ? null : (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>
@@ -56,7 +88,7 @@ export function LoginPage() {
         </div>
         )}
 
-        {!oidcMode && <div className="grid gap-3 sm:grid-cols-2">
+        {!oidcMode && !localMode && <div className="grid gap-3 sm:grid-cols-2">
           {isLoading
             ? Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
             : data?.items.map((user) => (

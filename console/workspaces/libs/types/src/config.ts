@@ -5,8 +5,9 @@ export interface RuntimeConfig {
   mockLatencyMs: number;
   // Platform API origin; empty runs the in-browser demo platform.
   apiBaseUrl: string;
-  // "demo" picks a persona in the UI; "oidc" redirects to the identity provider (code + PKCE).
-  authMode?: "demo" | "oidc";
+  // "demo" picks a persona in the UI; "oidc" redirects to the identity provider (code + PKCE);
+  // "local" shows a username/password form against the platform's system user (POST /auth/login).
+  authMode?: "demo" | "oidc" | "local";
   oidc?: { issuer: string; clientId: string; redirectUri: string };
 }
 

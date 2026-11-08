@@ -20,10 +20,10 @@ var ErrNotFound = errors.New("document not found")
 
 // Collections lists every document table; migrations create them and the demo reset clears them.
 var Collections = []string{
-	"organization", "departments", "teams", "users", "roles", "group_mappings", "environments",
+	"organization", "departments", "teams", "users", "roles", "groups", "group_mappings", "environments", "org_settings",
 	"applications", "releases", "deployments", "pins",
 	"entities", "connections", "entity_views",
-	"apis", "api_operations", "api_versions", "mcp_servers", "integrations", "webhooks", "webhook_deliveries", "api_keys",
+	"apis", "api_operations", "api_versions", "mcp_servers", "integrations", "webhooks", "webhook_deliveries", "api_keys", "templates",
 	"model_providers", "agents", "agent_runs",
 	"workflows", "executions", "approvals",
 	"alert_rules", "alert_fires", "slos", "backups",

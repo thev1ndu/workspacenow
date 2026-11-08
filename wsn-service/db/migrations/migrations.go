@@ -23,6 +23,21 @@ func Run(db *gorm.DB) error {
 var all = []*gormigrate.Migration{
 	{ID: "001_initial_schema", Migrate: initialSchema},
 	{ID: "002_data_platform_depth", Migrate: dataPlatformDepth},
+	{ID: "003_missing_doc_tables", Migrate: missingDocTables},
+}
+
+// missingDocTables creates any document collection table an older build of 001 did not include
+// (groups, org_settings, templates); guarded so it is a no-op on fresh installs.
+func missingDocTables(tx *gorm.DB) error {
+	m := tx.Migrator()
+	for _, table := range docstore.Collections {
+		if !m.HasTable(table) {
+			if err := tx.Table(table).Migrator().CreateTable(&models.Document{}); err != nil {
+				return fmt.Errorf("create %s: %w", table, err)
+			}
+		}
+	}
+	return nil
 }
 
 // Pending returns the IDs of migrations not yet recorded in migration_history (gormigrate's table).

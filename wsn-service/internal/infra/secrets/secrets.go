@@ -131,11 +131,13 @@ func (b *openBao) List(ctx context.Context, prefix string) ([]string, error) {
 		return nil, fmt.Errorf("decode secret list: %w", err)
 	}
 	out := make([]string, 0, len(body.Data.Keys))
+	base := b.cfg.Mount + "/" + strings.TrimPrefix(prefix, "/")
+	base = strings.TrimSuffix(base, "/")
 	for _, k := range body.Data.Keys {
 		if strings.HasSuffix(k, "/") {
 			continue // subfolder; drill in with a more specific prefix
 		}
-		out = append(out, b.cfg.Mount+"/"+strings.TrimPrefix(prefix, "/")+k)
+		out = append(out, base+"/"+k)
 	}
 	return out, nil
 }

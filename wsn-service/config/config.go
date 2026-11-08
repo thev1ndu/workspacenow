@@ -97,9 +97,10 @@ type BootstrapConfig struct {
 	LocalAdminPassword string // WSN_LOCAL_ADMIN_PASSWORD, its password (from the wsn-secrets Secret)
 }
 
-// LocalAuthEnabled reports whether the local system user can sign in (no OIDC, not demo mode).
+// LocalAuthEnabled reports whether the local system user can sign in. It stays available when
+// OIDC is configured too (Rancher-style: both login options on the same page), unless demo mode.
 func (c *Config) LocalAuthEnabled() bool {
-	return !c.DemoMode && c.OIDC.JWKSURL == "" && c.Bootstrap.LocalAdminEmail != "" && c.Bootstrap.LocalAdminPassword != ""
+	return !c.DemoMode && c.Bootstrap.LocalAdminEmail != "" && c.Bootstrap.LocalAdminPassword != ""
 }
 
 type AIConfig struct {

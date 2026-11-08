@@ -71,6 +71,13 @@ func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver,
 			switch {
 			case demoMode && strings.HasPrefix(token, demoTokenPrefix):
 				caller, err = resolver.Caller(r.Context(), strings.TrimPrefix(token, demoTokenPrefix))
+			case sessionAuth != nil && !strings.Contains(token, "."):
+				// Local system-user session tokens are opaque hex, not JWTs; they work alongside OIDC.
+				var userID string
+				userID, err = sessionAuth(r.Context(), token)
+				if err == nil {
+					caller, err = resolver.Caller(r.Context(), userID)
+				}
 			case verifier != nil:
 				var claims identity.Claims
 				claims, err = verifier.verify(r.Context(), token)

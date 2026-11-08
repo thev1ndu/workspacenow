@@ -59,14 +59,22 @@ export function LoginPage() {
           </div>
         </div>
 
-        {oidcMode ? (
+        {oidcMode && (
           <div className="mb-6 flex flex-col items-center gap-4">
             <Button size="lg" variant="primary" onPress={() => signIn()}>
               <ShieldCheck className="size-4" aria-hidden />
               {t("Sign in with your identity provider")}
             </Button>
           </div>
-        ) : localMode ? (
+        )}
+        {oidcMode && (
+          <div className="mb-6 flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" />
+            {t("or use a system user")}
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        )}
+        {(localMode || oidcMode) ? (
           <div className="mb-6 flex flex-col gap-3">
             <TextInput label={t("Email")} value={email} onChange={setEmail} placeholder="admin@workspacenow.local" />
             <TextInput label={t("Password")} value={password} onChange={setPassword} type="password" />
@@ -78,7 +86,7 @@ export function LoginPage() {
               {t("System user sign-in; your administrator provisions the credentials.")}
             </p>
           </div>
-        ) : localMode ? null : (
+        ) : (localMode || oidcMode) ? null : (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>

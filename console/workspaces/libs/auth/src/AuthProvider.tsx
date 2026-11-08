@@ -106,6 +106,7 @@ export async function completeOidcLogin(code: string, state: string): Promise<Au
   const user = userFromIdToken(tokens.id_token);
   const session: OidcSession = { accessToken: tokens.access_token, idToken: tokens.id_token, user };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  localStorage.removeItem(LOCAL_KEY);
   sessionStorage.setItem(OIDC_KEY, JSON.stringify(session));
   return user;
 }
@@ -194,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getToken = useCallback(async () => {
-    if (oidcMode) return readOidcSession()?.accessToken ?? "";
+    if (oidcMode) return localStorage.getItem(LOCAL_KEY) ?? readOidcSession()?.accessToken ?? "";
     if (localMode) return localStorage.getItem(LOCAL_KEY) ?? "";
     return userInfo ? `demo.${userInfo.id}` : "";
   }, [userInfo]);

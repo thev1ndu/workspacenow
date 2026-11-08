@@ -113,7 +113,28 @@ spec:
   values:
     installCRDs: true
 ---
-# OpenBao is preinstalled on the dev cluster (namespace openbao, helm release openbao); flux manages configs only.
+# Secrets manager: integration credentials and platform secrets; wsn-service keeps only their paths.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: openbao
+  namespace: openbao
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: openbao
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: openbao, namespace: flux-system }
+  values:
+    injector: { enabled: false }
+    server:
+      standalone:
+        enabled: true
+      dev:
+        enabled: true
+        devRootToken: root
+      dataStorage: { size: 5Gi }
 ---
 # Event infrastructure: JetStream carries the outbox events to workflows and live updates.
 apiVersion: helm.toolkit.fluxcd.io/v2

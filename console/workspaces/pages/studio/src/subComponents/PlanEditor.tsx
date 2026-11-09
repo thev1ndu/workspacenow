@@ -18,6 +18,7 @@ const FIELD_TYPES: Array<{ value: FieldType; label: string }> = [
   { value: "enum", label: "Choice" },
   { value: "reference", label: "Reference" },
   { value: "file", label: "File" },
+  { value: "qr", label: "QR code" },
 ];
 
 const PAGE_KINDS: Array<{ value: AppPage["kind"]; label: string }> = [

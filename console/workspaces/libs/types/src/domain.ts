@@ -109,7 +109,7 @@ export interface Actor {
 
 /* Data */
 
-export type FieldType = "string" | "text" | "number" | "integer" | "boolean" | "date" | "enum" | "reference" | "file";
+export type FieldType = "string" | "text" | "number" | "integer" | "boolean" | "date" | "enum" | "reference" | "file" | "qr";
 
 /** A file field's value: an object-storage reference, never the bytes. */
 export interface FileRef {

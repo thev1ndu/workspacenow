@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { Button, Form, Input, Spinner, TextField } from "@heroui/react";
 import { ArrowUp, CircleCheck, CircleXmark, SparklesFill, Xmark } from "@workspacenow/icons";
 import { useAuthHooks } from "@workspacenow/auth";
@@ -33,6 +35,12 @@ interface Turn {
 
 const humanize = (tool: string) => tool.charAt(0).toUpperCase() + tool.slice(1).replace(/_/g, " ");
 
+/** Renders markdown safely (sanitized) for Sidekick answers. */
+function Markdown({ text }: { text: string }) {
+  const html = useMemo(() => DOMPurify.sanitize(marked.parse(text, { async: false }) as string), [text]);
+  return <div className="prose prose-sm max-w-none text-sm leading-relaxed text-foreground dark:prose-invert [&_code]:rounded [&_code]:bg-default [&_code]:px-1 [&_code]:py-0.5 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-default [&_pre]:p-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 function SidekickReply({ run }: { run: AgentRun }) {
   const calls = run.steps.flatMap((step) => (step.kind === "tool" ? [step.call] : []));
   return (
@@ -54,7 +62,7 @@ function SidekickReply({ run }: { run: AgentRun }) {
           ))}
         </ul>
       )}
-      <p className="text-sm leading-relaxed text-foreground">{run.answer}</p>
+      <Markdown text={run.answer} />
       <span className="text-xs">
         <TextLink to={buildPath(routes.control.trace, { traceId: run.traceId })}>View trace</TextLink>
       </span>

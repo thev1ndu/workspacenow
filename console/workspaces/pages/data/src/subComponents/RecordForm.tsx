@@ -1,3 +1,4 @@
+import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { Alert, Button, Modal } from "@heroui/react";
 import { useQueries } from "@tanstack/react-query";
@@ -136,6 +137,18 @@ export function FieldInput({
   recordId?: string;
 }) {
   switch (field.type) {
+    case "qr":
+      // QR fields render as a scannable code of the record id; the value is the record id itself.
+      return (
+        <div className="grid gap-1.5">
+          <span className="text-sm font-medium">{field.label}</span>
+          {recordId ? (
+            <QRCodeSVG value={`${entityName ?? ""}/${recordId}`} size={160} className="rounded-lg bg-white p-2" />
+          ) : (
+            <span className="text-xs text-muted">Save the record first — the QR code is generated from its id</span>
+          )}
+        </div>
+      );
     case "file":
       return <FileInput field={field} value={value} entityName={entityName ?? ""} recordId={recordId} onChange={onChange} />;
     case "reference":

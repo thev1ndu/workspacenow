@@ -670,6 +670,7 @@ const (
 	FieldTypeFile      FieldType = "file"
 	FieldTypeInteger   FieldType = "integer"
 	FieldTypeNumber    FieldType = "number"
+	FieldTypeQr        FieldType = "qr"
 	FieldTypeReference FieldType = "reference"
 	FieldTypeString    FieldType = "string"
 	FieldTypeText      FieldType = "text"
@@ -689,6 +690,8 @@ func (e FieldType) Valid() bool {
 	case FieldTypeInteger:
 		return true
 	case FieldTypeNumber:
+		return true
+	case FieldTypeQr:
 		return true
 	case FieldTypeReference:
 		return true

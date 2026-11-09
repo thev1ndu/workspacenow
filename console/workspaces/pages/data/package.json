@@ -28,6 +28,7 @@
     "@workspacenow/icons": "workspace:*",
     "@workspacenow/types": "workspace:*",
     "@workspacenow/views": "workspace:*",
+    "qrcode.react": "^4.2.0",
     "react": "19.3.1",
     "react-aria": "3.53.1",
     "react-aria-components": "1.22.1",
@@ -35,14 +36,14 @@
     "react-router-dom": "7.18.5"
   },
   "devDependencies": {
-    "typescript": "6.0.3",
-    "vite": "8.3.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@types/node": "26.6.6",
-    "eslint": "10.14.0",
+    "@vitest/coverage-v8": "^5.1.0",
     "@workspacenow/eslint-config": "workspace:*",
-    "vitest": "5.1.0",
-    "@vitest/coverage-v8": "^5.1.0"
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
   }
 }

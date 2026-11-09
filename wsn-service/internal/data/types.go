@@ -13,6 +13,7 @@ const (
 	FieldEnum      = "enum"
 	FieldReference = "reference"
 	FieldFile      = "file" // value is a FileRef JSON: an object-storage reference, never the bytes
+	FieldQR        = "qr"   // rendered client-side as a QR code of the record id (tickets, passes, assets)
 
 	ScopeApplication  = "application"
 	ScopeOrganization = "organization"

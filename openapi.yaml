@@ -2268,7 +2268,7 @@ components:
         deployedBy: { type: string }
 
     # Data
-    FieldType: { type: string, enum: [string, text, number, integer, boolean, date, enum, reference, file] }
+    FieldType: { type: string, enum: [string, text, number, integer, boolean, date, enum, reference, file, qr] }
     FileRef:
       type: object
       description: "Object-storage reference stored as a file field's value"

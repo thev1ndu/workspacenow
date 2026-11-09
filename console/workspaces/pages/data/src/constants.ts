@@ -19,7 +19,7 @@ export const PERMISSIONS: Permission[] = [
   "audit.read",
 ];
 
-export const FIELD_TYPES: FieldType[] = ["string", "text", "number", "integer", "boolean", "date", "enum", "reference", "file"];
+export const FIELD_TYPES: FieldType[] = ["string", "text", "number", "integer", "boolean", "date", "enum", "reference", "file", "qr"];
 
 export const SCOPE_LABEL: Record<EntityScope, string> = {
   application: "Application-scoped",

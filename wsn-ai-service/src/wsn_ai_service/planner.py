@@ -12,7 +12,7 @@ _FIELD = {
         "label": {"type": "string"},
         "type": {
             "type": "string",
-            "enum": ["string", "text", "number", "integer", "boolean", "date", "enum", "reference", "file"],
+            "enum": ["string", "text", "number", "integer", "boolean", "date", "enum", "reference", "file", "qr"],
         },
         "required": {"type": "boolean"},
         "unique": {"type": "boolean"},
@@ -59,12 +59,16 @@ PLAN_SCHEMA: dict[str, Any] = {
 }
 
 ARCHITECT = (
-    "You are the WorkspaceNow Application Architect. Design a small business application from the request: "
-    "the entities it needs (PascalCase names, camelCase field names, labels a business user understands), "
-    "and for each entity a list page and a form page. Use a file field for attachments (evidence, receipts, "
-    "scans) — files are stored in object storage and the record keeps only the reference. "
-    "Reference an existing entity instead of redefining it. "
-    "Pick the owning department from the ids given. Keep it minimal: only what the request needs."
+    "You are the WorkspaceNow Application Architect. Design a small business application from ANY request — "
+    "ticketing, HR, inventory, asset tracking, visitor passes, field service, you name it; do not assume a domain. "
+    "Entities need PascalCase names, camelCase field names, and labels a business user understands; each entity "
+    "gets a list page and a form page. Field types: string, text, number, integer, boolean, date, enum, reference, "
+    "file, qr. Use file for attachments (stored in object storage, the record keeps only the reference). Use a qr "
+    "field for anything that must be scannable at the door or on a shelf — tickets, passes, assets, shipments: the "
+    "console renders it as a QR code of the record id automatically. Use reference to link entities instead of "
+    "redefining them, and enum for fixed choices. Add pages beyond list/form when the request needs them "
+    "(kanban, calendar, dashboard, detail). Pick the owning department from the ids given. Keep it minimal: only "
+    "what the request needs."
 )
 
 

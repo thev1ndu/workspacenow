@@ -1,4 +1,5 @@
 import { useAuthHooks } from "@workspacenow/auth";
+import { ApiError } from "@workspacenow/types";
 import type { ApplicationPlan, EnvironmentKey, InstallTemplateInput, Theme } from "@workspacenow/types";
 import * as api from "../apis/studio";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
@@ -114,7 +115,17 @@ export function useDiffApplication(params: { appId?: string; from: string; to: s
   const { getToken } = useAuthHooks();
   return useApiQuery({
     queryKey: ["app-diff", params],
-    queryFn: () => api.diffApplication({ appId: params.appId!, from: params.from, to: params.to }, getToken),
+    // a draft with no stored blueprint yet has nothing to diff — show an empty diff, not an error
+    queryFn: async () => {
+      try {
+        return await api.diffApplication({ appId: params.appId!, from: params.from, to: params.to }, getToken);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) {
+          return { from: params.from, to: params.to, summary: ["No stored blueprint yet — nothing to compare."], changes: [] };
+        }
+        throw e;
+      }
+    },
     enabled: !!params.appId && !!params.from && !!params.to,
   });
 }

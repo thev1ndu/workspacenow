@@ -173,6 +173,9 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 			return err
 		}
 	}
+	if err := ai.EnsureBuiltins(ctx, db); err != nil { // Sidekick + Application Architect on fresh installs
+		return err
+	}
 	c, err := cache.Open(ctx, cfg.Redis.URL)
 	if err != nil {
 		return err

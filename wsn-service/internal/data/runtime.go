@@ -112,11 +112,7 @@ func (rt *runtime) findAs(ctx context.Context, ec kernel.ExecutionContext, entit
 		conds = append(conds, extra)
 		qargs = append(qargs, args...)
 	}
-	order := "seq"
-	if extra == "" && len(args) == 0 {
-		order = "seq"
-	}
-	return rt.find(ctx, strings.Join(conds, " AND ")+" ORDER BY "+order, qargs...)
+	return rt.find(ctx, strings.Join(conds, " AND "), qargs...)
 }
 
 func (rt *runtime) Match(ctx context.Context, entity string, match map[string]any) ([]Record, error) {

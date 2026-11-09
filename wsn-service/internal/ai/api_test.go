@@ -146,3 +146,24 @@ func TestInternalMuxInvokeAsUserRequiresUserToken(t *testing.T) {
 		t.Fatalf("forwarded user token: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestServiceOrGrantAcceptsGrantJWT(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AI.ServiceToken = "svc-token"
+	called := false
+	mw := serviceOrGrant(cfg, nil, func(w http.ResponseWriter, _ *http.Request) { called = true; w.WriteHeader(http.StatusOK) })
+	req := httptest.NewRequest(http.MethodPost, "/internal/v1/tools/invoke", nil)
+	req.Header.Set("Authorization", "Bearer aaa.bbb.ccc") // grant-shaped JWT
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+	if !called || rec.Code != http.StatusOK {
+		t.Fatalf("grant token should pass through, got code=%d called=%v", rec.Code, called)
+	}
+	req2 := httptest.NewRequest(http.MethodPost, "/internal/v1/tools/invoke", nil)
+	req2.Header.Set("Authorization", "Bearer wrong")
+	rec2 := httptest.NewRecorder()
+	mw.ServeHTTP(rec2, req2)
+	if rec2.Code == http.StatusOK {
+		t.Fatal("non-grant token must be rejected")
+	}
+}

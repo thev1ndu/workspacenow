@@ -20,12 +20,14 @@ function MistralApiKeyCard() {
           type="password"
           value={apiKey}
           onChange={setApiKey}
-          placeholder="sk-…"
+          placeholder="mstrl-… / sk-…"
+          helperText="Paste the key itself (starts with mstrl- or sk-), not a command"
+          error={apiKey.length > 0 && !/^(mstrl|sk)-/.test(apiKey) ? "That does not look like an API key — paste the key value itself" : undefined}
         />
         <div>
           <Button
             variant="primary"
-            isDisabled={!apiKey || write.isPending}
+            isDisabled={!apiKey || !/^(mstrl|sk)-/.test(apiKey) || write.isPending}
             onPress={() => write.mutate({ path: "workspacenow/mistral", key: "apiKey", value: apiKey }, { onSuccess: () => setApiKey("") })}
           >
             {write.isPending ? "Saving…" : "Save API key"}

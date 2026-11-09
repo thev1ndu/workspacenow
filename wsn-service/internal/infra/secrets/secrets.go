@@ -137,7 +137,17 @@ func (b *openBao) List(ctx context.Context, prefix string) ([]string, error) {
 	base = strings.TrimSuffix(base, "/")
 	for _, k := range body.Data.Keys {
 		if strings.HasSuffix(k, "/") {
-			continue // subfolder; drill in with a more specific prefix
+			// subfolder: list one level deeper so callers see full references, not just folders
+			sub, err := b.listKeys(ctx, token, strings.TrimSuffix(prefix, "/")+"/"+strings.TrimSuffix(k, "/"))
+			if err != nil {
+				return nil, err
+			}
+			for _, sk := range sub {
+				if !strings.HasSuffix(sk, "/") {
+					out = append(out, base+"/"+k+sk)
+				}
+			}
+			continue
 		}
 		out = append(out, base+"/"+k)
 	}
@@ -181,6 +191,35 @@ func (b *openBao) Write(ctx context.Context, path string, values map[string]stri
 		return fmt.Errorf("write secret: status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// listKeys returns the raw keys under prefix using the metadata LIST endpoint.
+func (b *openBao) listKeys(ctx context.Context, token, prefix string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "LIST", fmt.Sprintf("%s/v1/%s/metadata/%s", strings.TrimRight(b.cfg.Addr, "/"), b.cfg.Mount, strings.TrimPrefix(prefix, "/")), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Vault-Token", token)
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("list secrets: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list secrets: status %d", resp.StatusCode)
+	}
+	var body struct {
+		Data struct {
+			Keys []string `json:"keys"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("decode secret list: %w", err)
+	}
+	return body.Data.Keys, nil
 }
 
 // login returns a token, exchanging the pod's service account token for one when a role is set.

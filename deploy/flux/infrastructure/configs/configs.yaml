@@ -168,6 +168,7 @@ spec:
               bao read auth/kubernetes/config >/dev/null 2>&1 || bao write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
               bao policy write workspacenow-read - <<'POL'
               path "secret/data/workspacenow/*" { capabilities = ["read", "list", "update"] }
+              path "secret/metadata" { capabilities = ["list"] }
               path "secret/metadata/workspacenow" { capabilities = ["read", "list"] }
               path "secret/metadata/workspacenow/*" { capabilities = ["read", "list"] }
               POL

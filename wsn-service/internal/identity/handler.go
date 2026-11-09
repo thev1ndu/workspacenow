@@ -69,6 +69,20 @@ func (h *Handler) GetOrganization(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListDepartments(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.Departments)
 }
+
+func (h *Handler) CreateDepartment(w http.ResponseWriter, r *http.Request) {
+	var body oapi.DepartmentInput
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	d, err := h.svc.CreateDepartment(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, ""), body)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.Created(w, d)
+}
 func (h *Handler) ListTeams(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.Teams)
 }

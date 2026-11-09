@@ -60,6 +60,10 @@ export async function getOrganization(getToken: GetToken) {
   return httpGET<Organization>(`${SERVICE_BASE}/organization`, { token: await getToken() });
 }
 
+export async function createDepartment(body: { name: string; description?: string }, getToken: GetToken) {
+  return httpPOST<Department>(`${SERVICE_BASE}/departments`, { token: await getToken(), body });
+}
+
 export async function listDepartments(getToken: GetToken) {
   return httpGET<ListResponse<Department>>(`${SERVICE_BASE}/departments`, { token: await getToken() });
 }

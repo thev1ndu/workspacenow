@@ -2348,6 +2348,12 @@ type Department struct {
 	Name        string `json:"name"`
 }
 
+// DepartmentInput defines model for DepartmentInput.
+type DepartmentInput struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+}
+
 // DepartmentList defines model for DepartmentList.
 type DepartmentList struct {
 	Items []Department `json:"items"`
@@ -4120,6 +4126,9 @@ type DecideApprovalJSONRequestBody DecideApprovalJSONBody
 // InvokeBusinessOperationJSONRequestBody defines body for InvokeBusinessOperation for application/json ContentType.
 type InvokeBusinessOperationJSONRequestBody = InvokeOperationRequest
 
+// CreateDepartmentJSONRequestBody defines body for CreateDepartment for application/json ContentType.
+type CreateDepartmentJSONRequestBody = DepartmentInput
+
 // CreateDeploymentJSONRequestBody defines body for CreateDeployment for application/json ContentType.
 type CreateDeploymentJSONRequestBody CreateDeploymentJSONBody
 
@@ -4908,6 +4917,9 @@ type ServerInterface interface {
 	// Departments
 	// (GET /departments)
 	ListDepartments(w http.ResponseWriter, r *http.Request)
+	// Create a department (an application owner)
+	// (POST /departments)
+	CreateDepartment(w http.ResponseWriter, r *http.Request)
 	// Deployments, newest first
 	// (GET /deployments)
 	ListDeployments(w http.ResponseWriter, r *http.Request, params ListDeploymentsParams)
@@ -6581,6 +6593,26 @@ func (siw *ServerInterfaceWrapper) ListDepartments(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListDepartments(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDepartment operation middleware
+func (siw *ServerInterfaceWrapper) CreateDepartment(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDepartment(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9507,6 +9539,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/connections", wrapper.ListConnections)
 	m.HandleFunc("POST "+options.BaseURL+"/demo/reset", wrapper.ResetDemo)
 	m.HandleFunc("GET "+options.BaseURL+"/departments", wrapper.ListDepartments)
+	m.HandleFunc("POST "+options.BaseURL+"/departments", wrapper.CreateDepartment)
 	m.HandleFunc("GET "+options.BaseURL+"/deployments", wrapper.ListDeployments)
 	m.HandleFunc("POST "+options.BaseURL+"/deployments", wrapper.CreateDeployment)
 	m.HandleFunc("GET "+options.BaseURL+"/entities", wrapper.ListEntities)

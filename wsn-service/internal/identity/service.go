@@ -62,6 +62,8 @@ type Service interface {
 
 	Organization(ctx context.Context) (*oapi.Organization, error)
 	Departments(ctx context.Context) ([]oapi.Department, error)
+	// CreateDepartment adds a department (an application owner); requires control.manage.
+	CreateDepartment(ctx context.Context, ec kernel.ExecutionContext, in oapi.DepartmentInput) (*oapi.Department, error)
 	Teams(ctx context.Context) ([]oapi.Team, error)
 	Users(ctx context.Context) ([]oapi.UserWithRoles, error)
 	Personas(ctx context.Context) ([]oapi.User, error)
@@ -474,6 +476,42 @@ func (s *service) Organization(ctx context.Context) (*oapi.Organization, error) 
 
 func (s *service) Departments(ctx context.Context) ([]oapi.Department, error) {
 	return s.depts.List(ctx)
+}
+
+// CreateDepartment adds a department; audited as department.create.
+func (s *service) CreateDepartment(ctx context.Context, ec kernel.ExecutionContext, in oapi.DepartmentInput) (*oapi.Department, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "department.create", "departments"); err != nil {
+		return nil, err
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		return nil, kernel.Invalid("Department name is required")
+	}
+	desc := ""
+	if in.Description != nil {
+		desc = *in.Description
+	}
+	d := &oapi.Department{Id: "dep-" + slugify(name), Name: name, Description: desc}
+	if err := s.depts.Put(ctx, d); err != nil {
+		return nil, err
+	}
+	if err := s.auditor.Record(ctx, ec, "department.create", "department/"+d.Id, kernel.OutcomeAllowed, d.Name); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// slugify lowercases and replaces non-alphanumerics with dashes.
+func slugify(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else if b.Len() > 0 && !strings.HasSuffix(b.String(), "-") {
+			b.WriteByte('-')
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 func (s *service) Teams(ctx context.Context) ([]oapi.Team, error)    { return s.teams.List(ctx) }
 func (s *service) Personas(ctx context.Context) ([]oapi.User, error) { return s.users.List(ctx) }

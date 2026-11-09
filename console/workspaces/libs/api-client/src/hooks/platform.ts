@@ -49,6 +49,14 @@ export function useOrganization() {
   return useApiQuery({ queryKey: ["organization"], queryFn: () => api.getOrganization(getToken) });
 }
 
+export function useCreateDepartment() {
+  const { getToken } = useAuthHooks();
+  return useApiMutation({
+    successMessage: (d) => `Department ${d.name} created`,
+    mutationFn: (body: { name: string; description?: string }) => api.createDepartment(body, getToken),
+  });
+}
+
 export function useListDepartments() {
   const { getToken } = useAuthHooks();
   return useApiQuery({ queryKey: ["departments"], queryFn: () => api.listDepartments(getToken) });

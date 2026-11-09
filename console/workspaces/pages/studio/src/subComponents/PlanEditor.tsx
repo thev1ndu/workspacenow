@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Button, Checkbox, Chip, Input, ListBox, Select, TextField, Tooltip } from "@heroui/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
-import { useListDepartments } from "@workspacenow/api-client";
+import { useCreateDepartment, useListDepartments } from "@workspacenow/api-client";
 import { planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
 import { SectionCard, SelectInput, TextInput } from "@workspacenow/views";
 
@@ -357,6 +358,8 @@ export function PlanEditor({
   saved?: PlannedEntity[];
 }) {
   const departments = useListDepartments();
+  const createDept = useCreateDepartment();
+  const [newDeptName, setNewDeptName] = useState("");
   const entityOptions = plan.entities.filter((e) => e.name).map((e) => ({ value: e.name, label: e.label || e.name }));
   const referenceOptions = [...entityOptions, ...existingEntities.map((e) => ({ value: e.name, label: `${e.label} (existing)` }))];
 
@@ -387,8 +390,33 @@ export function PlanEditor({
             required
             value={plan.ownerDepartmentId}
             onChange={(ownerDepartmentId) => onChange({ ...plan, ownerDepartmentId })}
-            options={(departments.data?.items ?? []).map((d) => ({ value: d.id, label: d.name }))}
+            options={[
+              ...(departments.data?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+              { value: "__new__", label: "+ New department…" },
+            ]}
           />
+          {plan.ownerDepartmentId === "__new__" && (
+            <div className="flex items-end gap-2 md:col-span-2">
+              <TextInput
+                label="New department name"
+                value={newDeptName}
+                onChange={setNewDeptName}
+                placeholder="e.g. Engineering"
+              />
+              <Button
+                variant="primary"
+                isDisabled={!newDeptName.trim() || createDept.isPending}
+                onPress={() =>
+                  createDept.mutate(
+                    { name: newDeptName.trim() },
+                    { onSuccess: (d) => { setNewDeptName(""); onChange({ ...plan, ownerDepartmentId: d.id }); } },
+                  )
+                }
+              >
+                Create
+              </Button>
+            </div>
+          )}
           <div className="md:col-span-2">
             <TextInput label="Description" multiline rows={2} value={plan.description} onChange={(description) => onChange({ ...plan, description })} />
           </div>

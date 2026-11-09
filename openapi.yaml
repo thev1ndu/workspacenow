@@ -158,6 +158,17 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DepartmentList" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [Control]
+      operationId: createDepartment
+      summary: Create a department (an application owner)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DepartmentInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Department" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /teams:
     get:
       tags: [Control]
@@ -2076,6 +2087,12 @@ components:
         type: { type: string, enum: [keycloak, entra-id, okta, oidc] }
         scopes: { type: array, items: { type: string } }
         groupsClaim: { type: string }
+    DepartmentInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
     Department:
       type: object
       required: [id, name, description]

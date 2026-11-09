@@ -17,7 +17,7 @@
     "@animate-ui/react": "2.4.2",
     "@hugeicons/core-free-icons": "4.4.0",
     "@hugeicons/react": "1.1.10",
-    "motion": "14.9.1",
+    "motion": "14.10.1",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
@@ -27,7 +27,7 @@
     "@types/react-dom": "19.3.0",
     "eslint": "10.14.0",
     "@workspacenow/eslint-config": "workspace:*",
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "@types/node": "26.6.6"
   }
 }

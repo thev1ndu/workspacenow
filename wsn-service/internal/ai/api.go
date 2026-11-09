@@ -23,7 +23,7 @@ const InternalBasePath = "/internal/v1"
 // authenticates the forwarded user token instead.
 func InternalMux(cfg *config.Config, svc Service, resolver middleware.CallerResolver) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST "+InternalBasePath+"/tools/invoke", serviceToken(cfg, invokeWithGrant(svc)))
+	mux.HandleFunc("POST "+InternalBasePath+"/tools/invoke", serviceOrGrant(cfg, svc, invokeWithGrant(svc)))
 	mux.HandleFunc("GET "+InternalBasePath+"/mcp/tools", serviceToken(cfg, listTools(svc)))
 	mux.HandleFunc("POST "+InternalBasePath+"/runs/{runId}/steps", serviceToken(cfg, appendStep(svc)))
 	var sessionAuth func(ctx context.Context, token string) (string, error)
@@ -37,6 +37,27 @@ func InternalMux(cfg *config.Config, svc Service, resolver middleware.CallerReso
 	userAuth := middleware.Authenticate(cfg.OIDC, cfg.DemoMode, resolver, func(*http.Request) bool { return false }, nil, sessionAuth)
 	mux.Handle("POST "+InternalBasePath+"/mcp/invoke", forwardAuth(userAuth(http.HandlerFunc(invokeAsUser(svc)))))
 	return mux
+}
+
+// serviceOrGrant accepts the shared AI_SERVICE_TOKEN or a signed run grant (InvokeWithGrant
+// verifies the grant itself); ai-service calls tools/invoke with the grant, not the service token.
+func serviceOrGrant(cfg *config.Config, svc Service, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if !ok || token == "" {
+			httpx.Error(w, r, kernel.Unauthenticated("This API is for wsn-ai-service only"))
+			return
+		}
+		if cfg.AI.ServiceToken != "" && subtle.ConstantTimeCompare([]byte(token), []byte(cfg.AI.ServiceToken)) == 1 {
+			next(w, r)
+			return
+		}
+		if strings.Count(token, ".") == 2 { // grant JWT — verified inside InvokeWithGrant
+			next(w, r)
+			return
+		}
+		httpx.Error(w, r, kernel.Unauthenticated("This API is for wsn-ai-service only"))
+	}
 }
 
 // serviceToken requires the shared AI_SERVICE_TOKEN bearer.

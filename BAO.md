@@ -64,10 +64,15 @@ bao kv delete -mount=secret workspacenow/observer
 ExternalSecrets refresh hourly; force a re-sync from outside the shell:
 
 ```sh
-kubectl -n workspacenow delete secret wsn-secrets   # ESO recreates it within seconds
-# pods read env-from-secret at start, so roll the readers:
+# force ESO to re-sync right now (refreshInterval is 1h otherwise)
+kubectl -n workspacenow annotate es wsn-secrets force-sync="$(date +%s)" --overwrite
+# pods read env-from-secret only at start, so roll the readers:
 kubectl -n workspacenow delete pod -l app.kubernetes.io/name=wsn-service
 kubectl -n workspacenow delete pod -l app.kubernetes.io/name=wsn-ai-service
+
+# verify Bao and the Kubernetes secret agree:
+kubectl -n openbao exec statefulset/openbao -- sh -c 'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/local-admin'
+kubectl -n workspacenow get secret wsn-secrets -o jsonpath='{.data.WSN_LOCAL_ADMIN_PASSWORD}' | base64 -d; echo
 ```
 
 ## Seed everything from your workstation (alternative to the shell)

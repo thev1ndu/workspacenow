@@ -254,6 +254,17 @@ func (s *service) run(ctx context.Context, caller *kernel.Caller, traceID, agent
 	}
 	appName := ""
 	runTools := agent.Tools
+	if len(runTools) == 0 {
+		// a platform agent with no fixed tool list (e.g. Sidekick) may call the whole catalogue
+		catalogue, err := s.ToolCatalogue(ctx)
+		if err != nil {
+			return nil, err
+		}
+		runTools = make([]string, 0, len(catalogue))
+		for _, t := range catalogue {
+			runTools = append(runTools, t.Name)
+		}
+	}
 	if appID != "" {
 		appTools, err := s.tools.ApplicationTools(ctx, appID)
 		if err != nil {

@@ -15,7 +15,7 @@
     "@carbon/styles": "^1.119.0",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
-    "@tanstack/react-query": "5.105.3",
+    "@tanstack/react-query": "5.107.1",
     "@workspacenow/core-ui": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -30,7 +30,7 @@
     "@workspacenow/eslint-config": "workspace:*",
     "eslint": "10.14.0",
     "typescript": "6.0.3",
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "vite-plugin-pwa": "^2.0.0"
   }
 }

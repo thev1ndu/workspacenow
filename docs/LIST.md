@@ -740,6 +740,7 @@ The bar, from the competitor research in section 9: prompt-to-app plus a real vi
 - **FT-073** · Bring-your-own object storage, database and KMS per tenant.
 - **FT-074** · Localization of built apps (builder-managed translations), RTL layouts.
 - **FT-075** · Open-source core with an enterprise edition, the clear differentiator versus Retool's closed model [B2, T1, A1].
+- **FT-076** · Migrate the console UI from HeroUI + Tailwind to IBM Carbon Design System and remove both old stacks entirely. Plan (phases, tiny commits, gates) in [issue #16](https://github.com/thev1ndu/workspacenow/issues/16): adapter layer in `@workspacenow/views` first, shell, then one page area per commit, then dependency removal.
 
 ## 8. Zero-trust identity and OIDC design (Dex, following the Rancher model)
 
@@ -913,4 +914,4 @@ Goal: governed, evaluated, multi-model agents across apps, workflows and MCP.
 
 ### v2.0: Platform breadth
 Goal: external data, extensibility, multi-tenancy and enterprise hosting.
-- Features: FT-018, FT-023..FT-028, FT-050, FT-052..FT-055, FT-067..FT-075.
+- Features: FT-018, FT-023..FT-028, FT-050, FT-052..FT-055, FT-067..FT-076.

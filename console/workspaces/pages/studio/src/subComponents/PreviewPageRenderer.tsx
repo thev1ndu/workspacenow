@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Button, CloseButton } from "@heroui/react";
+import { Button, IconButton, InlineNotification } from "@carbon/react";
+import { Close } from "@carbon/react/icons";
 import { LayoutCells, Plus, QrCode, ShoppingCart } from "@workspacenow/icons";
 import { useCreateRecord, useGetEntity, useListRecords } from "@workspacenow/api-client";
 import type { AppPage, EntityRecord } from "@workspacenow/types";
@@ -35,13 +36,12 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
           return (
             <SectionCard title={page.title} subtitle={`Creates a ${e.label.toLowerCase()} through ${e.name}.create`}>
               {saved && (
-                <Alert status="success" className="mb-4">
-                  <Alert.Indicator />
-                  <Alert.Content>
-                    <Alert.Description>Saved {saved}.</Alert.Description>
-                  </Alert.Content>
-                  <CloseButton aria-label="Dismiss" onPress={() => setSaved(null)} />
-                </Alert>
+                <div className="mb-4 flex items-start gap-2">
+                  <InlineNotification kind="success" lowContrast hideCloseButton title={`Saved ${saved}.`} className="flex-1" />
+                  <IconButton kind="ghost" label="Dismiss" aria-label="Dismiss" onClick={() => setSaved(null)}>
+                    <Close size={16} aria-hidden />
+                  </IconButton>
+                </div>
               )}
               <RecordForm
                 key={formKey}
@@ -80,7 +80,7 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
             title={page.title}
             actions={
               !readOnly && (
-                <Button size="sm" onPress={() => setCreating(true)}>
+                <Button size="sm" onClick={() => setCreating(true)}>
                   <Plus className="size-3.5" aria-hidden />
                   New {e.label.toLowerCase()}
                 </Button>

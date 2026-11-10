@@ -1,18 +1,19 @@
-import { Chip } from "@heroui/react";
+import { Tag } from "@carbon/react";
 import type { HttpMethod } from "@workspacenow/types";
 
-const COLORS: Record<HttpMethod, "accent" | "success" | "warning" | "danger"> = {
-  GET: "accent",
-  POST: "success",
-  PATCH: "warning",
-  PUT: "warning",
-  DELETE: "danger",
+// Carbon Tag types: no yellow, so warning uses warm-gray.
+const TYPES: Record<HttpMethod, "blue" | "green" | "warm-gray" | "red"> = {
+  GET: "blue",
+  POST: "green",
+  PATCH: "warm-gray",
+  PUT: "warm-gray",
+  DELETE: "red",
 };
 
 export function MethodChip({ method }: { method: HttpMethod }) {
   return (
-    <Chip size="sm" variant="soft" color={COLORS[method]} className="w-16 justify-center font-mono font-semibold">
+    <Tag size="sm" type={TYPES[method]} className="w-16 justify-center font-mono font-semibold">
       {method}
-    </Chip>
+    </Tag>
   );
 }

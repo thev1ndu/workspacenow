@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent } from "react";
-import { Alert, Button } from "@heroui/react";
+import { Button, InlineNotification } from "@carbon/react";
 import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type Connection, type EdgeChange, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./flow.css";
@@ -17,15 +17,8 @@ const DRAG_TYPE = "application/x-workflow-step";
 
 const BLANK: WorkflowDefinition = { name: "", description: "", trigger: { kind: "manual" }, steps: [], start: null };
 
-function Notice({ status, children }: { status?: "danger"; children: React.ReactNode }) {
-  return (
-    <Alert status={status}>
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Description>{children}</Alert.Description>
-      </Alert.Content>
-    </Alert>
-  );
+function Notice({ status, children }: { status?: "danger"; children: string }) {
+  return <InlineNotification kind={status === "danger" ? "error" : "info"} lowContrast hideCloseButton subtitle={children} />;
 }
 
 /** The editor proper; lives inside a ReactFlowProvider so it can place new steps where they are dropped. */
@@ -110,14 +103,13 @@ function Editor({ initial, workflowId, options, refs }: { initial: WorkflowDefin
           <TextInput label="Workflow name" required value={definition.name} onChange={(name) => setDefinition((d) => ({ ...d, name }))} placeholder="Low-stock replenishment" />
         </div>
         <div className="flex gap-2">
-          <Button variant="tertiary" onPress={() => navigate(detail)}>
+          <Button kind="tertiary" onClick={() => navigate(detail)}>
             <Xmark className="size-4" aria-hidden />
             {dirty ? "Discard" : "Close"}
           </Button>
           <Button
-            isDisabled={!dirty || problems.length > 0 || !canEdit}
-            isPending={save.isPending}
-            onPress={() => save.mutate({ workflowId, definition }, { onSuccess: (saved) => navigate(buildPath(routes.flow.workflow, { workflowId: saved.id })) })}
+            disabled={!dirty || problems.length > 0 || !canEdit || save.isPending}
+            onClick={() => save.mutate({ workflowId, definition }, { onSuccess: (saved) => navigate(buildPath(routes.flow.workflow, { workflowId: saved.id })) })}
           >
             <Check className="size-4" aria-hidden />
             {workflowId ? "Save new version" : "Create workflow"}
@@ -186,9 +178,9 @@ function Editor({ initial, workflowId, options, refs }: { initial: WorkflowDefin
             <Panel position="top-right">
               <Button
                 size="sm"
-                variant="secondary"
-                isDisabled={definition.steps.length === 0}
-                onPress={() => {
+                kind="secondary"
+                disabled={definition.steps.length === 0}
+                onClick={() => {
                   setDefinition((d) => tidy(d));
                   // Fit once React Flow has the new positions.
                   requestAnimationFrame(() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }));
@@ -274,13 +266,14 @@ export function WorkflowEditorPage() {
       isLoading={workflow.isLoading || !ready}
     >
       {ready && failed.length > 0 && (
-        <Alert status="warning" className="mb-4">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Some choices could not be loaded</Alert.Title>
-            <Alert.Description>Couldn't load {failed.join(", ")}, so those pickers are empty. Steps that need them will show as problems.</Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <InlineNotification
+          kind="warning"
+          lowContrast
+          hideCloseButton
+          className="mb-4"
+          title="Some choices could not be loaded"
+          subtitle={`Couldn't load ${failed.join(", ")}, so those pickers are empty. Steps that need them will show as problems.`}
+        />
       )}
       {ready &&
         (workflowId ? (

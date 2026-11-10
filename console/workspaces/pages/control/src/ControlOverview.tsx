@@ -1,4 +1,4 @@
-import { Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { CircleCheck, CircleExclamation, CircleXmark, Key, Layers, Persons } from "@workspacenow/icons";
 import {
   useListAudit,
@@ -88,35 +88,37 @@ export function ControlOverview() {
           <SectionCard title="Health signals" subtitle="Applications, APIs, MCP servers, integrations, databases and workflows" flush>
             <QueryState query={health}>
               {(data) => (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Health signals" className="min-w-[640px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Resource</Table.Column>
-                        <Table.Column>Kind</Table.Column>
-                        <Table.Column>Status</Table.Column>
-                        <Table.Column>Detail</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
+                <div>
+                  <TableContainer>
+                    <Table aria-label="Health signals" className="min-w-[640px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader scope="row">Resource</TableHeader>
+                          <TableHeader>Kind</TableHeader>
+                          <TableHeader>Status</TableHeader>
+                          <TableHeader>Detail</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
                         {[...data.items]
                           .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status))
                           .map((signal) => {
                             const id = `${signal.kind}-${signal.resource}`;
                             return (
-                              <Table.Row key={id} id={id}>
-                                <Table.Cell className="font-medium">{signal.resource}</Table.Cell>
-                                <Table.Cell className="text-muted">{KIND_LABELS[signal.kind]}</Table.Cell>
-                                <Table.Cell>
+                              <TableRow key={id} id={id}>
+                                <TableCell className="font-medium">{signal.resource}</TableCell>
+                                <TableCell className="text-muted">{KIND_LABELS[signal.kind]}</TableCell>
+                                <TableCell>
                                   <StatusChip status={signal.status} />
-                                </Table.Cell>
-                                <Table.Cell className="font-mono text-[13px] text-muted">{signal.detail}</Table.Cell>
-                              </Table.Row>
+                                </TableCell>
+                                <TableCell className="font-mono text-[13px] text-muted">{signal.detail}</TableCell>
+                              </TableRow>
                             );
                           })}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
               )}
             </QueryState>
           </SectionCard>

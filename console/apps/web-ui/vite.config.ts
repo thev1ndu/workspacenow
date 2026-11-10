@@ -1,12 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'config.js'],
@@ -38,7 +36,7 @@ export default defineConfig({
   ],
   resolve: {
     // Workspace packages ship TypeScript source; one copy of each runtime keeps contexts shared.
-    dedupe: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', '@heroui/react', 'react-aria-components'],
+    dedupe: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query', '@carbon/react'],
   },
   server: {
     port: 3100,

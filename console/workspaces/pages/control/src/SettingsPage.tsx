@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@heroui/react";
+import { Button } from "@carbon/react";
 import { useOrganization, useSession, useWriteSecret } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
 import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TextInput } from "@workspacenow/views";
@@ -26,9 +26,9 @@ function MistralApiKeyCard() {
         />
         <div>
           <Button
-            variant="primary"
-            isDisabled={!apiKey || !/^(mstrl|sk)-/.test(apiKey) || write.isPending}
-            onPress={() => write.mutate({ path: "workspacenow/mistral", key: "apiKey", value: apiKey }, { onSuccess: () => setApiKey("") })}
+            kind="primary"
+            disabled={!apiKey || !/^(mstrl|sk)-/.test(apiKey) || write.isPending}
+            onClick={() => write.mutate({ path: "workspacenow/mistral", key: "apiKey", value: apiKey }, { onSuccess: () => setApiKey("") })}
           >
             {write.isPending ? "Saving…" : "Save API key"}
           </Button>

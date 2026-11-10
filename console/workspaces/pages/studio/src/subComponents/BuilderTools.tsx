@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, Button, ListBox, Select, Table } from "@heroui/react";
+import { useId, useState } from "react";
+import { Button, InlineNotification, Select, SelectItem, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { Gear, Rocket } from "@workspacenow/icons";
 import { useDiffApplication, useListReleases, usePreviewApplication, useSetApplicationTheme } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
@@ -14,6 +14,8 @@ export function BuilderTools({ app }: { app: Application }) {
   const [to, setTo] = useState("");
   const [color, setColor] = useState(app.theme?.primaryColor ?? "#6d28d9");
   const [logoUrl, setLogoUrl] = useState(app.theme?.logoUrl ?? "");
+  const fromId = useId();
+  const toId = useId();
   const diff = useDiffApplication({ appId: app.id, from, to });
   const previewData = preview.data;
   const previewErr = preview.error as Error | null;
@@ -33,9 +35,9 @@ export function BuilderTools({ app }: { app: Application }) {
         actions={
           <Button
             size="sm"
-            variant="secondary"
-            isPending={preview.isPending}
-            onPress={() => preview.mutate({ appId: app.id })}
+            kind="secondary"
+            disabled={preview.isPending}
+            onClick={() => preview.mutate({ appId: app.id })}
           >
             <Rocket className="size-3.5" aria-hidden />
             Preview app
@@ -43,30 +45,33 @@ export function BuilderTools({ app }: { app: Application }) {
         }
       >
         {previewData && (
-          <Alert color="success"><Alert.Indicator /><Alert.Content><Alert.Title>{`Preview deployed: ${previewData.recordsSeeded} sample records seeded`}</Alert.Title><Alert.Description><a className="underline" href={previewData.url}>Open the preview ({previewData.url})</a></Alert.Description></Alert.Content></Alert>
+          <InlineNotification
+            kind="success"
+            lowContrast
+            hideCloseButton
+            title={`Preview deployed: ${previewData.recordsSeeded} sample records seeded`}
+          >
+            <a className="underline" href={previewData.url}>Open the preview ({previewData.url})</a>
+          </InlineNotification>
         )}
-        {previewErr && <Alert color="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Preview failed</Alert.Title><Alert.Description>{previewErr.message}</Alert.Description></Alert.Content></Alert>}
+        {previewErr && (
+          <InlineNotification kind="error" lowContrast hideCloseButton title="Preview failed" subtitle={previewErr.message} />
+        )}
       </SectionCard>
 
       <SectionCard title="Release diff" subtitle="Business-language diff between two releases or the current draft.">
         <div className="mb-3 grid grid-cols-2 gap-3">
-          <Select aria-label="From version" selectedKey={from || null} onChange={(k) => setFrom(String(k))}>
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>{versionOptions.map((o) => (<ListBox.Item key={o.key} id={o.key} textValue={o.label}>{o.label}<ListBox.ItemIndicator /></ListBox.Item>))}</ListBox>
-            </Select.Popover>
+          <Select id={fromId} aria-label="From version" value={from} onChange={(e) => setFrom(e.target.value)}>
+            <SelectItem value="" text="Select…" hidden />
+            {versionOptions.map((o) => (
+              <SelectItem key={o.key} value={o.key} text={o.label} />
+            ))}
           </Select>
-          <Select aria-label="To version" selectedKey={to || null} onChange={(k) => setTo(String(k))}>
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>{versionOptions.map((o) => (<ListBox.Item key={o.key} id={o.key} textValue={o.label}>{o.label}<ListBox.ItemIndicator /></ListBox.Item>))}</ListBox>
-            </Select.Popover>
+          <Select id={toId} aria-label="To version" value={to} onChange={(e) => setTo(e.target.value)}>
+            <SelectItem value="" text="Select…" hidden />
+            {versionOptions.map((o) => (
+              <SelectItem key={o.key} value={o.key} text={o.label} />
+            ))}
           </Select>
         </div>
         {from && to && (
@@ -75,31 +80,31 @@ export function BuilderTools({ app }: { app: Application }) {
               d.changes.length === 0 ? (
                 <NoDataFound message="No changes between the selected versions." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Blueprint diff" className="min-w-[640px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Change</Table.Column>
-                        <Table.Column>Kind</Table.Column>
-                        <Table.Column>Item</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {d.changes.map((c, i) => (
-                          <Table.Row key={`${c.kind}:${c.change}:${c.name}:${i}`} id={`${c.name}-${i}`}>
-                            <Table.Cell>
-                              <StatusChip status={c.change === "added" ? "healthy" : c.change === "removed" ? "down" : "degraded"} label={c.change} />
-                            </Table.Cell>
-                            <Table.Cell className="text-muted">{c.kind}</Table.Cell>
-                            <Table.Cell>
-                              <p className="text-sm font-medium">{c.name}</p>
-                              <p className="text-xs text-muted">{c.detail}</p>
-                            </Table.Cell>
-                          </Table.Row>
-                        ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                <TableContainer aria-label="Blueprint diff">
+                  <Table className="min-w-[640px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader scope="col">Change</TableHeader>
+                        <TableHeader scope="col">Kind</TableHeader>
+                        <TableHeader scope="col">Item</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {d.changes.map((c, i) => (
+                        <TableRow key={`${c.kind}:${c.change}:${c.name}:${i}`} id={`${c.name}-${i}`}>
+                          <TableCell>
+                            <StatusChip status={c.change === "added" ? "healthy" : c.change === "removed" ? "down" : "degraded"} label={c.change} />
+                          </TableCell>
+                          <TableCell className="text-muted">{c.kind}</TableCell>
+                          <TableCell>
+                            <p className="text-sm font-medium">{c.name}</p>
+                            <p className="text-xs text-muted">{c.detail}</p>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )
             }
           </QueryState>
@@ -113,16 +118,18 @@ export function BuilderTools({ app }: { app: Application }) {
           <div>
             <Button
               size="sm"
-              variant="secondary"
-              isPending={setTheme.isPending}
-              onPress={() => setTheme.mutate({ appId: app.id, body: { primaryColor: color, logoUrl } })}
+              kind="secondary"
+              disabled={setTheme.isPending}
+              onClick={() => setTheme.mutate({ appId: app.id, body: { primaryColor: color, logoUrl } })}
             >
               <Gear className="size-3.5" aria-hidden />
               Save theme
             </Button>
           </div>
-          {themeErr && <Alert color="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Invalid theme</Alert.Title><Alert.Description>{themeErr.message}</Alert.Description></Alert.Content></Alert>}
-          {themeSaved && <Alert color="success"><Alert.Indicator /><Alert.Content><Alert.Title>Theme saved</Alert.Title><Alert.Description>{themeSaved.theme?.primaryColor}</Alert.Description></Alert.Content></Alert>}
+          {themeErr && <InlineNotification kind="error" lowContrast hideCloseButton title="Invalid theme" subtitle={themeErr.message} />}
+          {themeSaved && (
+            <InlineNotification kind="success" lowContrast hideCloseButton title="Theme saved" subtitle={themeSaved.theme?.primaryColor} />
+          )}
         </div>
       </SectionCard>
     </div>

@@ -1,4 +1,4 @@
-import { Tabs } from "@heroui/react";
+import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
 import { useParams } from "react-router-dom";
 import { useGetAgent, useListAgentRuns } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -24,42 +24,30 @@ export function AgentDetailPage() {
     >
       <QueryState query={agent}>
         {(data) => (
-          <Tabs variant="secondary" defaultSelectedKey="playground">
-            <Tabs.ListContainer>
-              <Tabs.List aria-label="Agent sections">
-                <Tabs.Tab id="playground">
-                  Playground
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                <Tabs.Tab id="configuration">
-                  Configuration
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                <Tabs.Tab id="access">
-                  Tools and permissions
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                <Tabs.Tab id="runs">
-                  Runs{runs.data ? ` (${runs.data.total})` : ""}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              </Tabs.List>
-            </Tabs.ListContainer>
-            <Tabs.Panel id="playground" className="pt-6">
-              <AgentPlayground agent={data} />
-            </Tabs.Panel>
-            {/* Keyed by version so a saved change resets the form to the stored agent. */}
-            <Tabs.Panel id="configuration" className="pt-6">
-              <AgentConfiguration key={data.version} agent={data} />
-            </Tabs.Panel>
-            <Tabs.Panel id="access" className="pt-6">
-              <AgentAccess key={data.version} agent={data} />
-            </Tabs.Panel>
-            <Tabs.Panel id="runs" className="pt-6">
-              <SectionCard flush>
-                <QueryState query={runs}>{(r) => <RunsTable runs={r.items} showAgent={false} />}</QueryState>
-              </SectionCard>
-            </Tabs.Panel>
+          <Tabs defaultSelectedIndex={0}>
+            <TabList aria-label="Agent sections">
+              <Tab>Playground</Tab>
+              <Tab>Configuration</Tab>
+              <Tab>Tools and permissions</Tab>
+              <Tab>Runs{runs.data ? ` (${runs.data.total})` : ""}</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel className="pt-6">
+                <AgentPlayground agent={data} />
+              </TabPanel>
+              {/* Keyed by version so a saved change resets the form to the stored agent. */}
+              <TabPanel className="pt-6">
+                <AgentConfiguration key={data.version} agent={data} />
+              </TabPanel>
+              <TabPanel className="pt-6">
+                <AgentAccess key={data.version} agent={data} />
+              </TabPanel>
+              <TabPanel className="pt-6">
+                <SectionCard flush>
+                  <QueryState query={runs}>{(r) => <RunsTable runs={r.items} showAgent={false} />}</QueryState>
+                </SectionCard>
+              </TabPanel>
+            </TabPanels>
           </Tabs>
         )}
       </QueryState>

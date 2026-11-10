@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Button, Chip, Skeleton } from "@heroui/react";
+import { Button, SkeletonPlaceholder, Tag } from "@carbon/react";
 import { ArrowRight, ArrowRotateLeft } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useListEntities } from "@workspacenow/api-client";
@@ -205,8 +205,7 @@ function RelationshipGraph({ entities }: { entities: Entity[] }) {
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">1 and N mark one or many at each end. Drag entities to arrange them and drag a connector's dot to bend it.</p>
         {customised && (
-          <Button size="sm" variant="ghost" onPress={() => update({ nodes: {}, bends: {} })}>
-            <ArrowRotateLeft className="size-3.5" aria-hidden />
+          <Button size="sm" kind="ghost" onClick={() => update({ nodes: {}, bends: {} })} renderIcon={(p) => <ArrowRotateLeft className="size-3.5" aria-hidden {...p} />}>
             Reset layout
           </Button>
         )}
@@ -222,7 +221,7 @@ export function DataModelPage() {
       <QueryState query={entities} skeleton={
         <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
           <SectionCardSkeleton>
-            <Skeleton className="h-[28rem] rounded-xl" />
+            <SkeletonPlaceholder className="h-[28rem] rounded-xl" />
           </SectionCardSkeleton>
           <div className="grid content-start gap-4 lg:max-h-[calc(100dvh-12rem)] lg:overflow-y-auto lg:pr-1">
             <SectionCardSkeleton>
@@ -262,9 +261,9 @@ export function DataModelPage() {
                       {e.relationships.map((r) => (
                         <li key={r.name} className="flex flex-wrap items-center gap-2 text-sm">
                           <span>{e.name}</span>
-                          <Chip size="sm" variant="secondary">
+                          <Tag size="sm" type="gray">
                             {r.kind}
-                          </Chip>
+                          </Tag>
                           <ArrowRight className="size-3.5 text-muted" aria-hidden />
                           <TextLink to={buildPath(routes.data.entity, { entityName: r.target })}>{r.target}</TextLink>
                         </li>

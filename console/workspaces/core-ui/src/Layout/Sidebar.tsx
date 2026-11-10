@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Button, Link, Separator, Tooltip } from "@heroui/react";
+import { Button } from "@carbon/react";
 import { House, LayoutSideContentLeft } from "@workspacenow/icons";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useListApplications } from "@workspacenow/api-client";
 import { AppIcon, usePinnedApplicationIds } from "@workspacenow/studio";
 import { buildPath, routes } from "@workspacenow/types";
@@ -37,31 +37,26 @@ function NavRow({
   collapsed?: boolean;
   trailing?: ReactNode;
 }) {
-  if (collapsed) {
-    return (
-      <Tooltip delay={200}>
-        <Tooltip.Trigger className="block">
-          <Link href={href} aria-label={label} aria-current={selected ? "page" : undefined} className={`${rowBase} ${rowState(selected)} h-9 justify-center`}>
-            {icon}
-          </Link>
-        </Tooltip.Trigger>
-        <Tooltip.Content placement="right">{label}</Tooltip.Content>
-      </Tooltip>
-    );
-  }
-  return (
-    <Link href={href} aria-current={selected ? "page" : undefined} className={`${rowBase} ${rowState(selected)} h-8 gap-2.5 px-2.5`}>
+  const row = (
+    <Link
+      to={href}
+      aria-label={collapsed ? label : undefined}
+      aria-current={selected ? "page" : undefined}
+      title={collapsed ? label : undefined}
+      className={`${rowBase} ${rowState(selected)} ${collapsed ? "h-9 justify-center" : "h-8 gap-2.5 px-2.5"}`}
+    >
       {icon}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {trailing}
+      {!collapsed && <span className="min-w-0 flex-1 truncate">{label}</span>}
+      {!collapsed && trailing}
     </Link>
   );
+  return row;
 }
 
 function SubRow({ href, label, selected }: { href: string; label: string; selected: boolean }) {
   return (
     <Link
-      href={href}
+      to={href}
       aria-current={selected ? "page" : undefined}
       className={`${rowBase} ${rowState(selected)} h-7 px-2.5 text-[13px]`}
     >
@@ -80,7 +75,7 @@ function PinnedAppRows({ pathname, collapsed }: { pathname: string; collapsed: b
   return (
     <>
       {!collapsed && <p className="mt-6 mb-1.5 px-2.5 text-xs text-muted">Pinned</p>}
-      {collapsed && <Separator className="my-3" />}
+      {collapsed && <hr className="my-3 border-separator" />}
       <div className="grid gap-0.5">
         {pinned.map((app) => {
           const href = buildPath(routes.app, { appId: app.id });
@@ -111,7 +106,7 @@ export function Sidebar({ workspaces, active, collapsed = false, onToggleCollaps
       <div className={`flex h-14 shrink-0 items-center ${collapsed ? "justify-center" : "justify-between pr-2 pl-4"}`}>
         {collapsed ? <BrandMark /> : <Brand />}
         {!collapsed && onToggleCollapsed && (
-          <Button isIconOnly size="sm" variant="ghost" aria-label="Collapse sidebar" onPress={onToggleCollapsed}>
+          <Button kind="ghost" size="sm" hasIconOnly iconDescription="Collapse sidebar" onClick={onToggleCollapsed}>
             <LayoutSideContentLeft className="size-4" />
           </Button>
         )}
@@ -123,7 +118,7 @@ export function Sidebar({ workspaces, active, collapsed = false, onToggleCollaps
         <PinnedAppRows pathname={pathname} collapsed={collapsed} />
 
         {!collapsed && <p className="mt-6 mb-1.5 px-2.5 text-xs text-muted">Workspaces</p>}
-        {collapsed && <Separator className="my-3" />}
+        {collapsed && <hr className="my-3 border-separator" />}
 
         <div className="grid gap-0.5">
           {workspaces.map((workspace) => {
@@ -150,15 +145,12 @@ export function Sidebar({ workspaces, active, collapsed = false, onToggleCollaps
         </div>
       </nav>
 
-      <Separator />
+      <hr className="border-separator" />
       <div className={collapsed ? "flex flex-col items-center gap-1 p-2" : "p-2"}>
         {collapsed && onToggleCollapsed && (
-          <Tooltip delay={200}>
-            <Button isIconOnly size="sm" variant="ghost" aria-label="Expand sidebar" onPress={onToggleCollapsed}>
-              <LayoutSideContentLeft className="size-4" />
-            </Button>
-            <Tooltip.Content placement="right">Expand sidebar</Tooltip.Content>
-          </Tooltip>
+          <Button kind="ghost" size="sm" hasIconOnly iconDescription="Expand sidebar" onClick={onToggleCollapsed}>
+            <LayoutSideContentLeft className="size-4" />
+          </Button>
         )}
         <UserMenu compact={collapsed} />
       </div>

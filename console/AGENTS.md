@@ -1,6 +1,6 @@
 # WorkspaceNow console — agent guide
 
-React 19 + TypeScript, pnpm workspaces, Vite, TanStack Query, HeroUI v3 on Tailwind v4, EvilCharts on Recharts. Packages are scoped `@workspacenow/*`
+React 19 + TypeScript, pnpm workspaces, Vite, TanStack Query, IBM Carbon (@carbon/react) with a small app utility layer on Carbon theme variables, EvilCharts on Recharts. Packages are scoped `@workspacenow/*`
 and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package build step.
 
 ## File map
@@ -25,7 +25,7 @@ and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package 
 
 ## Rules
 
-- UI comes only from `@heroui/react`, charts from `@workspacenow/charts`, icons from `@workspacenow/icons`. Follow `docs/UI-GUIDE.md`.
+- UI comes only from `@carbon/react` (plus the `@workspacenow/views` primitives), charts from `@workspacenow/charts`, icons from `@workspacenow/icons`. Follow `docs/UI-GUIDE.md`.
 - API calls follow the two-file pattern above. Never call the transport from a component.
 - Mutations refresh every query on settle: platform writes fan out through events, workflows and audit.
 - Forms are manual `useState`; server state is TanStack Query; there is no global store.

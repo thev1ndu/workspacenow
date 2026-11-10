@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Modal } from "@heroui/react";
+import { Button, Modal } from "@carbon/react";
 import { useCreateSLO } from "@workspacenow/api-client";
 import { TextInput } from "@workspacenow/views";
 
@@ -21,14 +21,8 @@ export function SloDialog({ onClose }: { onClose: () => void }) {
   if (!(window > 0)) problems.push("Window must be a positive number of minutes");
 
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="md">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>Define SLO</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
+    <Modal open onRequestClose={onClose} modalHeading="Define SLO" size="md" passiveModal>
+      <div className="grid gap-4">
             <TextInput label="Business operation" required value={operation} onChange={setOperation} placeholder="inventory.checkout" />
             <div className="grid grid-cols-3 gap-4">
               <TextInput label="Success target (0–1)" type="number" required value={targetSuccess} onChange={setTargetSuccess} placeholder="0.999" />
@@ -42,26 +36,24 @@ export function SloDialog({ onClose }: { onClose: () => void }) {
                 ))}
               </ul>
             )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              Cancel
-            </Button>
-            <Button
-              isDisabled={problems.length > 0}
-              isPending={create.isPending}
-              onPress={() =>
-                create.mutate(
-                  { operation: operation.trim(), targetSuccess: success, targetP95Ms: Math.trunc(p95), windowMinutes: Math.trunc(window) },
-                  { onSuccess: onClose },
-                )
-              }
-            >
-              Define SLO
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+      </div>
+      <div className="flex justify-end gap-2 pt-6">
+        <Button kind="tertiary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          kind="primary"
+          disabled={problems.length > 0 || create.isPending}
+          onClick={() =>
+            create.mutate(
+              { operation: operation.trim(), targetSuccess: success, targetP95Ms: Math.trunc(p95), windowMinutes: Math.trunc(window) },
+              { onSuccess: onClose },
+            )
+          }
+        >
+          Define SLO
+        </Button>
+      </div>
+    </Modal>
   );
 }

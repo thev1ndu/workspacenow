@@ -740,7 +740,7 @@ The bar, from the competitor research in section 9: prompt-to-app plus a real vi
 - **FT-073** · Bring-your-own object storage, database and KMS per tenant.
 - **FT-074** · Localization of built apps (builder-managed translations), RTL layouts.
 - **FT-075** · Open-source core with an enterprise edition, the clear differentiator versus Retool's closed model [B2, T1, A1].
-- **FT-076** · Migrate the console UI from HeroUI + Tailwind to IBM Carbon Design System and remove both old stacks entirely. Plan (phases, tiny commits, gates) in [issue #16](https://github.com/thev1ndu/workspacenow/issues/16): adapter layer in `@workspacenow/views` first, shell, then one page area per commit, then dependency removal.
+- **FT-076** ✅ done · Console UI migrated from HeroUI + Tailwind to IBM Carbon Design System (`@carbon/react@1.120.0`, `@carbon/styles`); both old stacks removed (zero `heroui`/`tailwind` references, deps dropped). Carbon theme on `<html>` (`cds--white`/`cds--g100`) + palettes via `--cds-*` overrides; a generated utility layer (`apps/web-ui/src/utilities.scss`) maps the existing class names onto Carbon variables, so pages kept their layout classes. `@workspacenow/views` primitives and the `core-ui` shell rebuilt on Carbon; all 7 page areas migrated. Gates green: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`. Plan was [issue #16](https://github.com/thev1ndu/workspacenow/issues/16) (closed).
 
 ## 8. Zero-trust identity and OIDC design (Dex, following the Rancher model)
 

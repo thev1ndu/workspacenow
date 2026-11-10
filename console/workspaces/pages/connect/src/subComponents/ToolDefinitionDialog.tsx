@@ -1,4 +1,4 @@
-import { Button, Modal } from "@heroui/react";
+import { Modal } from "@carbon/react";
 import type { McpTool } from "@workspacenow/types";
 import { JsonView } from "@workspacenow/views";
 
@@ -23,28 +23,23 @@ export function ToolDefinitionDialog({ tool, onClose }: { tool: McpTool; onClose
       : { "x-workspacenow": { source: "external", server: tool.serverId } }),
   };
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="lg" scroll="inside">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading className="font-mono">{tool.name}</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
-            <p className="text-sm text-muted">
-              {tool.source === "workspacenow"
-                ? "Generated from an API operation. Calling it runs the same business operation, authorization and audit as the REST endpoint."
-                : "Discovered on an external MCP server registered in Connect."}
-            </p>
-            <JsonView value={definition} />
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onPress={onClose}>
-              Close
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <Modal
+      open
+      size="lg"
+      hasScrollingContent
+      modalHeading={<span className="font-mono">{tool.name}</span>}
+      onRequestClose={onClose}
+      secondaryButtonText="Close"
+      onSecondarySubmit={onClose}
+    >
+      <div className="grid gap-4">
+        <p className="text-sm text-muted">
+          {tool.source === "workspacenow"
+            ? "Generated from an API operation. Calling it runs the same business operation, authorization and audit as the REST endpoint."
+            : "Discovered on an external MCP server registered in Connect."}
+        </p>
+        <JsonView value={definition} />
+      </div>
+    </Modal>
   );
 }

@@ -38,12 +38,13 @@ function write(key: string, value: string): void {
 
 const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-/** Applies a mode and palette to <html>: HeroUI's light/dark class and data-theme, plus our data-palette. */
+/** Applies a mode and palette to <html>: Carbon's theme class (cds--white/cds--g100) plus light/dark and data-palette. */
 function apply(mode: ColorMode, palette: PaletteId): void {
   const scheme = mode === "system" ? (systemDark() ? "dark" : "light") : mode;
   const root = document.documentElement;
-  root.classList.remove("light", "dark");
+  root.classList.remove("light", "dark", "cds--white", "cds--g100");
   root.classList.add(scheme);
+  root.classList.add(scheme === "dark" ? "cds--g100" : "cds--white");
   root.dataset.theme = scheme;
   if (palette === "blue") delete root.dataset.palette;
   else root.dataset.palette = palette;

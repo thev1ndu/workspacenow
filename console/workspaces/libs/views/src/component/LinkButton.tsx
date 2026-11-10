@@ -1,9 +1,17 @@
 import type { ReactNode } from "react";
-import { Link, buttonVariants } from "@heroui/react";
+import { Link } from "react-router-dom";
 
 type Variant = "primary" | "secondary" | "tertiary" | "outline" | "ghost";
 
-/** Navigation that looks like a button: a HeroUI Link styled with HeroUI's button variants. */
+const KIND: Record<Variant, string> = {
+  primary: "primary",
+  secondary: "secondary",
+  tertiary: "tertiary",
+  outline: "secondary",
+  ghost: "ghost",
+};
+
+/** Navigation that looks like a button: a router link carrying Carbon's button classes. */
 export function LinkButton({
   href,
   children,
@@ -22,7 +30,11 @@ export function LinkButton({
   "aria-label"?: string;
 }) {
   return (
-    <Link href={href} aria-label={ariaLabel} className={`${buttonVariants({ variant, size, isIconOnly })} gap-2 no-underline ${className ?? ""}`}>
+    <Link
+      to={href}
+      aria-label={ariaLabel}
+      className={`cds--btn cds--btn--${KIND[variant]} cds--btn--${size}${isIconOnly ? " cds--btn--icon-only" : ""} no-underline ${className ?? ""}`}
+    >
       {children}
     </Link>
   );

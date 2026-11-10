@@ -1,4 +1,4 @@
-import { Chip, Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { useListConnections } from "@workspacenow/api-client";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip } from "@workspacenow/views";
 
@@ -15,38 +15,38 @@ export function ConnectionsPage() {
             data.items.length === 0 ? (
               <NoDataFound message="No connections configured." />
             ) : (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Connections" className="min-w-[760px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Name</Table.Column>
-                      <Table.Column>Engine</Table.Column>
-                      <Table.Column>Host</Table.Column>
-                      <Table.Column>Ownership</Table.Column>
-                      <Table.Column>Environment</Table.Column>
-                      <Table.Column>Status</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {data.items.map((c) => (
-                        <Table.Row key={c.id} id={c.id}>
-                          <Table.Cell className="font-medium">{c.name}</Table.Cell>
-                          <Table.Cell>
-                            <Chip size="sm" variant="secondary">
-                              {c.engine}
-                            </Chip>
-                          </Table.Cell>
-                          <Table.Cell className="font-mono text-xs">{c.host}</Table.Cell>
-                          <Table.Cell className="text-muted">{c.managed ? "Managed by WorkspaceNow" : "External"}</Table.Cell>
-                          <Table.Cell className="capitalize">{c.environment}</Table.Cell>
-                          <Table.Cell>
-                            <StatusChip status={c.status} />
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+              <TableContainer aria-label="Connections">
+                <Table className="min-w-[760px]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Name</TableHeader>
+                      <TableHeader>Engine</TableHeader>
+                      <TableHeader>Host</TableHeader>
+                      <TableHeader>Ownership</TableHeader>
+                      <TableHeader>Environment</TableHeader>
+                      <TableHeader>Status</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.items.map((c) => (
+                      <TableRow key={c.id} id={c.id}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>
+                          <Tag size="sm" type="gray">
+                            {c.engine}
+                          </Tag>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{c.host}</TableCell>
+                        <TableCell className="text-muted">{c.managed ? "Managed by WorkspaceNow" : "External"}</TableCell>
+                        <TableCell className="capitalize">{c.environment}</TableCell>
+                        <TableCell>
+                          <StatusChip status={c.status} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )
           }
         </QueryState>

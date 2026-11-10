@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Button } from "@heroui/react";
+import { Button, InlineNotification } from "@carbon/react";
 import { Camera, Magnifier, Stop } from "@workspacenow/icons";
 import jsQR from "jsqr";
 import { useListRecords, useUpdateRecord } from "@workspacenow/api-client";
@@ -125,12 +125,12 @@ export function ScanPage({ title, entity, scan }: { title: string; entity: Entit
         subtitle={scan.onScan ? `Scanning sets ${onScanField?.label.toLowerCase() ?? scan.onScan.field} to ${humanize(scan.onScan.value)}.` : `Scanning opens the matching ${entity.label.toLowerCase()}.`}
         actions={
           camera.state.kind === "on" ? (
-            <Button size="sm" variant="secondary" onPress={camera.stop}>
+            <Button size="sm" kind="secondary" onClick={camera.stop}>
               <Stop className="size-3.5" aria-hidden />
               Stop camera
             </Button>
           ) : (
-            <Button size="sm" isPending={camera.state.kind === "starting"} onPress={() => void camera.start()}>
+            <Button size="sm" disabled={camera.state.kind === "starting"} onClick={() => void camera.start()}>
               <Camera className="size-3.5" aria-hidden />
               Start camera
             </Button>
@@ -159,7 +159,7 @@ export function ScanPage({ title, entity, scan }: { title: string; entity: Entit
             <div className="min-w-0 flex-1">
               <TextInput label="Or enter the code" value={typed} onChange={setTyped} placeholder={scan.matchField === "id" ? "TKT-1001" : undefined} />
             </div>
-            <Button type="submit" variant="secondary" isDisabled={!typed.trim() || !!outcome}>
+            <Button type="submit" kind="secondary" disabled={!typed.trim() || !!outcome}>
               <Magnifier className="size-4" aria-hidden />
               Look up
             </Button>
@@ -186,7 +186,7 @@ export function ScanPage({ title, entity, scan }: { title: string; entity: Entit
           )}
           {outcome && (
             <div>
-              <Button onPress={next}>Scan next</Button>
+              <Button onClick={next}>Scan next</Button>
             </div>
           )}
         </div>
@@ -197,12 +197,12 @@ export function ScanPage({ title, entity, scan }: { title: string; entity: Entit
 
 function ScanAlert({ status, text }: { status: "success" | "warning" | "danger"; text: string }) {
   return (
-    <Alert status={status}>
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Description>{text}</Alert.Description>
-      </Alert.Content>
-    </Alert>
+    <InlineNotification
+      kind={status === "danger" ? "error" : status}
+      lowContrast
+      hideCloseButton
+      title={text}
+    />
   );
 }
 

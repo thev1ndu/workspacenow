@@ -1,4 +1,4 @@
-import { Card, Chip, Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { ShieldCheck } from "@workspacenow/icons";
 import { useListApplications, useListDeployments, useListEnvironments } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -18,18 +18,18 @@ export function EnvironmentsPage() {
           {(data) => (
             <div className="grid gap-3 md:grid-cols-3">
               {data.items.map((env) => (
-                <Card key={env.key} className="gap-2 p-5">
+                <div key={env.key} className="flex flex-col gap-2 rounded-xl border border-separator bg-surface p-5">
                   <div className="flex items-center gap-2">
                     <h3 className="flex-1 text-sm font-semibold">{env.name}</h3>
                     {env.requiresApproval && (
-                      <Chip size="sm" variant="soft" color="warning">
+                      <Tag size="sm" type="warm-gray">
                         <ShieldCheck className="size-3" aria-hidden />
                         Promotion approval
-                      </Chip>
+                      </Tag>
                     )}
                   </div>
                   <p className="text-sm text-muted">{env.description}</p>
-                </Card>
+                </div>
               ))}
             </div>
           )}
@@ -38,47 +38,49 @@ export function EnvironmentsPage() {
         <SectionCard title="Active versions" subtitle="Releases must reach development, then staging, before production." flush>
           <QueryState query={applications}>
             {(apps) => (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Active versions by environment" className="min-w-[640px]">
-                    <Table.Header>
-                      <Table.Column id="application" isRowHeader>
-                        Application
-                      </Table.Column>
-                      {envs.map((env) => (
-                        <Table.Column key={env.key} id={env.key}>
-                          {env.name}
-                        </Table.Column>
-                      ))}
-                    </Table.Header>
-                    <Table.Body>
+              <div>
+                <TableContainer>
+                  <Table aria-label="Active versions by environment" className="min-w-[640px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader id="application" scope="row">
+                          Application
+                        </TableHeader>
+                        {envs.map((env) => (
+                          <TableHeader key={env.key} id={env.key}>
+                            {env.name}
+                          </TableHeader>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {apps.items.map((app) => (
-                        <Table.Row key={app.id} id={app.id}>
-                          <Table.Cell>
+                        <TableRow key={app.id} id={app.id}>
+                          <TableCell>
                             <TextLink to={buildPath(routes.studio.application, { appId: app.id })}>{app.name}</TextLink>
-                          </Table.Cell>
+                          </TableCell>
                           {envs.map((env) => {
                             const active = deployments.data?.items.find(
                               (d) => d.applicationId === app.id && d.environment === env.key && d.status === "active",
                             );
                             return (
-                              <Table.Cell key={env.key}>
+                              <TableCell key={env.key}>
                                 {active ? (
-                                  <Chip size="sm" variant="soft" color="success">
+                                  <Tag size="sm" type="green">
                                     v{active.version}
-                                  </Chip>
+                                  </Tag>
                                 ) : (
                                   <span className="text-sm text-muted">Not deployed</span>
                                 )}
-                              </Table.Cell>
+                              </TableCell>
                             );
                           })}
-                        </Table.Row>
+                        </TableRow>
                       ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </div>
             )}
           </QueryState>
         </SectionCard>
@@ -89,34 +91,36 @@ export function EnvironmentsPage() {
               data.items.length === 0 ? (
                 <NoDataFound message="No deployments yet." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Deployment history" className="min-w-[720px]">
-                      <Table.Header>
-                        <Table.Column>When</Table.Column>
-                        <Table.Column isRowHeader>Application</Table.Column>
-                        <Table.Column>Environment</Table.Column>
-                        <Table.Column>Version</Table.Column>
-                        <Table.Column>Status</Table.Column>
-                        <Table.Column>By</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
+                <div>
+                  <TableContainer>
+                    <Table aria-label="Deployment history" className="min-w-[720px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>When</TableHeader>
+                          <TableHeader scope="row">Application</TableHeader>
+                          <TableHeader>Environment</TableHeader>
+                          <TableHeader>Version</TableHeader>
+                          <TableHeader>Status</TableHeader>
+                          <TableHeader>By</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
                         {data.items.map((d) => (
-                          <Table.Row key={d.id} id={d.id}>
-                            <Table.Cell className="whitespace-nowrap text-muted">{formatDateTime(d.deployedAt)}</Table.Cell>
-                            <Table.Cell className="font-medium">{appName(d.applicationId)}</Table.Cell>
-                            <Table.Cell className="capitalize">{d.environment}</Table.Cell>
-                            <Table.Cell className="tabular-nums">v{d.version}</Table.Cell>
-                            <Table.Cell>
+                          <TableRow key={d.id} id={d.id}>
+                            <TableCell className="whitespace-nowrap text-muted">{formatDateTime(d.deployedAt)}</TableCell>
+                            <TableCell className="font-medium">{appName(d.applicationId)}</TableCell>
+                            <TableCell className="capitalize">{d.environment}</TableCell>
+                            <TableCell className="tabular-nums">v{d.version}</TableCell>
+                            <TableCell>
                               <StatusChip status={d.status} />
-                            </Table.Cell>
-                            <Table.Cell>{d.deployedBy}</Table.Cell>
-                          </Table.Row>
+                            </TableCell>
+                            <TableCell>{d.deployedBy}</TableCell>
+                          </TableRow>
                         ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
               )
             }
           </QueryState>

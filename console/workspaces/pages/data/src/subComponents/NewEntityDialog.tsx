@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Checkbox, Modal } from "@heroui/react";
+import { useId, useState } from "react";
+import { Button, Checkbox, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useCreateEntity, useListApplications, useListEntities } from "@workspacenow/api-client";
@@ -57,9 +57,14 @@ export function FieldRowEditor({
           options={FIELD_TYPES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
         />
         {onRemove ? (
-          <Button isIconOnly variant="ghost" aria-label="Remove field" onPress={onRemove}>
-            <TrashBin className="size-4" />
-          </Button>
+          <Button
+            hasIconOnly
+            kind="ghost"
+            aria-label="Remove field"
+            iconDescription="Remove field"
+            onClick={onRemove}
+            renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+          />
         ) : (
           <span />
         )}
@@ -89,15 +94,15 @@ export function FieldRowEditor({
 }
 
 function FlagCheckbox({ label, isSelected, onChange }: { label: string; isSelected: boolean; onChange: (value: boolean) => void }) {
+  const id = useId();
   return (
-    <Checkbox isSelected={isSelected} onChange={onChange} className="pb-2">
-      <Checkbox.Content>
-        <Checkbox.Control>
-          <Checkbox.Indicator />
-        </Checkbox.Control>
-        <span className="text-sm">{label}</span>
-      </Checkbox.Content>
-    </Checkbox>
+    <Checkbox
+      id={id}
+      labelText={<span className="text-sm">{label}</span>}
+      checked={isSelected}
+      onChange={(e) => onChange(e.target.checked)}
+      className="pb-2"
+    />
   );
 }
 
@@ -137,64 +142,56 @@ export function NewEntityDialog({ open, onClose }: { open: boolean; onClose: () 
     );
 
   return (
-    <Modal.Backdrop isOpen={open} onOpenChange={(next) => !next && onClose()}>
-      <Modal.Container size="lg" scroll="inside">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>New entity</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextInput label="Name" required value={name} onChange={setName} error={nameError} placeholder="Warehouse" />
-              <TextInput label="Label" value={label} onChange={setLabel} placeholder="Warehouse" />
-              <SelectInput
-                label="Scope"
-                required
-                value={scope}
-                onChange={(v) => setScope(v as EntityScope)}
-                options={[
-                  { value: "organization", label: "Organization-shared" },
-                  { value: "application", label: "Application-scoped" },
-                ]}
-              />
-              <SelectInput
-                label="Owning application"
-                value={owner}
-                onChange={setOwner}
-                options={(apps?.items ?? []).map((a) => ({ value: a.id, label: a.name }))}
-                helperText="The application responsible for authoritative writes."
-              />
-            </div>
-            <TextInput label="Description" value={description} onChange={setDescription} multiline rows={2} />
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Fields</h3>
-              <Button size="sm" variant="secondary" onPress={() => setRows((prev) => [...prev, emptyRow()])}>
-                <Plus className="size-3.5" aria-hidden />
-                Add field
-              </Button>
-            </div>
-            {rows.map((row, i) => (
-              <FieldRowEditor
-                key={i}
-                row={row}
-                entityOptions={(entities?.items ?? []).map((e) => e.name)}
-                onChange={(next) => setRows((prev) => prev.map((r, j) => (j === i ? next : r)))}
-                onRemove={rows.length > 1 ? () => setRows((prev) => prev.filter((_, j) => j !== i)) : undefined}
-              />
-            ))}
-            {!!createEntity.error && <ErrorAlert error={createEntity.error} />}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              Cancel
-            </Button>
-            <Button isDisabled={!name || !!nameError || !rowsValid} isPending={createEntity.isPending} onPress={submit}>
-              Create entity
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <ComposedModal open={open} onClose={onClose} size="lg">
+      <ModalHeader title="New entity" closeModal={onClose} />
+      <ModalBody className="grid gap-4" hasScrollingContent>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextInput label="Name" required value={name} onChange={setName} error={nameError} placeholder="Warehouse" />
+          <TextInput label="Label" value={label} onChange={setLabel} placeholder="Warehouse" />
+          <SelectInput
+            label="Scope"
+            required
+            value={scope}
+            onChange={(v) => setScope(v as EntityScope)}
+            options={[
+              { value: "organization", label: "Organization-shared" },
+              { value: "application", label: "Application-scoped" },
+            ]}
+          />
+          <SelectInput
+            label="Owning application"
+            value={owner}
+            onChange={setOwner}
+            options={(apps?.items ?? []).map((a) => ({ value: a.id, label: a.name }))}
+            helperText="The application responsible for authoritative writes."
+          />
+        </div>
+        <TextInput label="Description" value={description} onChange={setDescription} multiline rows={2} />
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Fields</h3>
+          <Button size="sm" kind="secondary" onClick={() => setRows((prev) => [...prev, emptyRow()])} renderIcon={(p) => <Plus className="size-3.5" aria-hidden {...p} />}>
+            Add field
+          </Button>
+        </div>
+        {rows.map((row, i) => (
+          <FieldRowEditor
+            key={i}
+            row={row}
+            entityOptions={(entities?.items ?? []).map((e) => e.name)}
+            onChange={(next) => setRows((prev) => prev.map((r, j) => (j === i ? next : r)))}
+            onRemove={rows.length > 1 ? () => setRows((prev) => prev.filter((_, j) => j !== i)) : undefined}
+          />
+        ))}
+        {!!createEntity.error && <ErrorAlert error={createEntity.error} />}
+      </ModalBody>
+      <ModalFooter>
+        <Button kind="tertiary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button kind="primary" disabled={!name || !!nameError || !rowsValid || createEntity.isPending} onClick={submit}>
+          Create entity
+        </Button>
+      </ModalFooter>
+    </ComposedModal>
   );
 }

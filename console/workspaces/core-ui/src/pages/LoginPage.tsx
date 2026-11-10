@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
+import { Button, SkeletonPlaceholder, Tag } from "@carbon/react";
 import { ShieldCheck } from "@workspacenow/icons";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
@@ -16,6 +16,15 @@ export function initials(name: string): string {
     .map((w) => w.charAt(0))
     .join("")
     .toUpperCase();
+}
+
+/** A round initials badge in place of a photo avatar. */
+function AvatarBadge({ name }: { name: string }) {
+  return (
+    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-default text-xs font-medium text-foreground" aria-hidden>
+      {initials(name)}
+    </span>
+  );
 }
 
 /** Sign-in page: OIDC redirect, system-user credentials, or demo persona picker. */
@@ -61,7 +70,7 @@ export function LoginPage() {
 
         {oidcMode && (
           <div className="mb-6 flex flex-col items-center gap-4">
-            <Button size="lg" variant="primary" onPress={() => signIn()}>
+            <Button kind="primary" size="lg" onClick={() => signIn()}>
               <ShieldCheck className="size-4" aria-hidden />
               {t("Sign in with your identity provider")}
             </Button>
@@ -79,54 +88,54 @@ export function LoginPage() {
             <TextInput label={t("Email")} value={email} onChange={setEmail} placeholder="admin@workspacenow.local" />
             <TextInput label={t("Password")} value={password} onChange={setPassword} type="password" />
             {error && <p className="text-sm text-danger">{error}</p>}
-            <Button size="lg" variant="primary" isDisabled={busy} onPress={() => void submitCredentials()}>
+            <Button kind="primary" size="lg" disabled={busy} onClick={() => void submitCredentials()}>
               {busy ? t("Signing in…") : t("Sign in")}
             </Button>
             <p className="text-center text-xs text-muted">
               {t("System user sign-in; your administrator provisions the credentials.")}
             </p>
           </div>
-        ) : (localMode || oidcMode) ? null : (
-        <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p>
-            This is a demo installation, so you choose a person instead of entering credentials. Each person's identity-provider groups map to
-            different roles, so each one sees and can do different things.
-          </p>
-        </div>
+        ) : (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <p>
+              This is a demo installation, so you choose a person instead of entering credentials. Each person's identity-provider groups map to
+              different roles, so each one sees and can do different things.
+            </p>
+          </div>
         )}
 
-        {!oidcMode && !localMode && <div className="grid gap-3 sm:grid-cols-2">
-          {isLoading
-            ? Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
-            : data?.items.map((user) => (
-                <Card key={user.id} className="gap-0 p-0">
-                  <Button
-                    variant="ghost"
-                    className="h-auto w-full items-start justify-start gap-3 rounded-[inherit] p-4 text-left font-normal whitespace-normal"
-                    onPress={() => {
-                      signIn({ id: user.id, name: user.name, email: user.email, title: user.title });
-                      navigate(from, { replace: true });
-                    }}
-                  >
-                    <Avatar size="sm">
-                      <Avatar.Fallback>{initials(user.name)}</Avatar.Fallback>
-                    </Avatar>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-foreground">{user.name}</span>
-                      <span className="block text-xs text-muted">{user.title}</span>
-                      <span className="mt-2 flex flex-wrap gap-1">
-                        {user.groups.map((g) => (
-                          <Chip key={g} size="sm" variant="secondary">
-                            {g}
-                          </Chip>
-                        ))}
+        {!oidcMode && !localMode && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {isLoading
+              ? Array.from({ length: 6 }, (_, i) => <SkeletonPlaceholder key={i} className="h-24 rounded-2xl" />)
+              : data?.items.map((user) => (
+                  <div key={user.id} className="rounded-xl border border-separator bg-surface">
+                    <Button
+                      kind="ghost"
+                      className="h-auto w-full items-start justify-start gap-3 rounded-xl p-4 text-left font-normal whitespace-normal"
+                      onClick={() => {
+                        signIn({ id: user.id, name: user.name, email: user.email, title: user.title });
+                        navigate(from, { replace: true });
+                      }}
+                    >
+                      <AvatarBadge name={user.name} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-foreground">{user.name}</span>
+                        <span className="block text-xs text-muted">{user.title}</span>
+                        <span className="mt-2 flex flex-wrap gap-1">
+                          {user.groups.map((g) => (
+                            <Tag key={g} size="sm" type="gray">
+                              {g}
+                            </Tag>
+                          ))}
+                        </span>
                       </span>
-                    </span>
-                  </Button>
-                </Card>
-              ))}
-        </div>}
+                    </Button>
+                  </div>
+                ))}
+          </div>
+        )}
       </div>
     </main>
   );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip, Table } from "@heroui/react";
+import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { Plus } from "@workspacenow/icons";
 import { useListMcpServers, useListMcpTools } from "@workspacenow/api-client";
 import type { McpTool } from "@workspacenow/types";
@@ -23,7 +23,7 @@ export function McpPage() {
       title="MCP"
       description="WorkspaceNow is both an MCP server, exposing selected business operations as tools, and an MCP client of external servers."
       actions={
-        <Button onPress={() => setRegistering(true)}>
+        <Button onClick={() => setRegistering(true)}>
           <Plus className="size-4" aria-hidden />
           Register MCP server
         </Button>
@@ -52,48 +52,48 @@ export function McpPage() {
               data.items.length === 0 ? (
                 <NoDataFound message="No tools. Expose an API operation over MCP to create one." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="MCP tools" className="min-w-[900px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Tool</Table.Column>
-                        <Table.Column>Server</Table.Column>
-                        <Table.Column>Business operation</Table.Column>
-                        <Table.Column>Permission</Table.Column>
-                        <Table.Column>Version</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {data.items.map((tool) => {
-                          const id = `${tool.serverId}-${tool.name}`;
-                          return (
-                            <Table.Row key={id} id={id}>
-                              <Table.Cell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-auto px-1 py-0.5 font-mono text-xs font-medium"
-                                  onPress={() => setSelected(tool)}
-                                >
-                                  {tool.name}
-                                </Button>
-                                {/* w-0 min-w-full: the description fills the column the tool name sets instead of widening the table. */}
-                                <p className="mt-0.5 w-0 min-w-full truncate px-1 text-xs text-muted" title={tool.description}>
-                                  {tool.description}
-                                </p>
-                              </Table.Cell>
-                              <Table.Cell>
-                                <McpServerLabel server={serverOf(tool.serverId) ?? { name: tool.serverId, kind: tool.source === "workspacenow" ? "managed" : "external" }} />
-                              </Table.Cell>
-                              <Table.Cell className="font-mono text-xs">{tool.businessOperation ?? "—"}</Table.Cell>
-                              <Table.Cell className="font-mono text-xs">{tool.permission ?? "—"}</Table.Cell>
-                              <Table.Cell className="tabular-nums">{tool.version}</Table.Cell>
-                            </Table.Row>
-                          );
-                        })}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                <TableContainer>
+                  <Table aria-label="MCP tools" className="min-w-[900px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader scope="col">Tool</TableHeader>
+                        <TableHeader scope="col">Server</TableHeader>
+                        <TableHeader scope="col">Business operation</TableHeader>
+                        <TableHeader scope="col">Permission</TableHeader>
+                        <TableHeader scope="col">Version</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {data.items.map((tool) => {
+                        const id = `${tool.serverId}-${tool.name}`;
+                        return (
+                          <TableRow key={id} id={id}>
+                            <TableCell>
+                              <Button
+                                kind="ghost"
+                                size="sm"
+                                className="h-auto px-1 py-0.5 font-mono text-xs font-medium"
+                                onClick={() => setSelected(tool)}
+                              >
+                                {tool.name}
+                              </Button>
+                              {/* w-0 min-w-full: the description fills the column the tool name sets instead of widening the table. */}
+                              <p className="mt-0.5 w-0 min-w-full truncate px-1 text-xs text-muted" title={tool.description}>
+                                {tool.description}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <McpServerLabel server={serverOf(tool.serverId) ?? { name: tool.serverId, kind: tool.source === "workspacenow" ? "managed" : "external" }} />
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{tool.businessOperation ?? "—"}</TableCell>
+                            <TableCell className="font-mono text-xs">{tool.permission ?? "—"}</TableCell>
+                            <TableCell className="tabular-nums">{tool.version}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )
             }
           </QueryState>
@@ -105,44 +105,44 @@ export function McpPage() {
               external.length === 0 ? (
                 <NoDataFound message="No external servers registered." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="External MCP servers" className="min-w-[860px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Name</Table.Column>
-                        <Table.Column>URL</Table.Column>
-                        <Table.Column>Auth</Table.Column>
-                        <Table.Column>Status</Table.Column>
-                        <Table.Column>Discovered tools</Table.Column>
-                        <Table.Column>Registered</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {external.map((server) => (
-                          <Table.Row key={server.id} id={server.id}>
-                            <Table.Cell className="font-medium">
-                              <McpServerLabel server={server} />
-                            </Table.Cell>
-                            <Table.Cell className="font-mono text-xs">{server.url}</Table.Cell>
-                            <Table.Cell>{server.auth}</Table.Cell>
-                            <Table.Cell>
-                              <StatusChip status={server.status} />
-                            </Table.Cell>
-                            <Table.Cell>
-                              <div className="flex flex-wrap gap-1">
-                                {server.tools.map((t) => (
-                                  <Chip key={t.name} size="sm" variant="secondary" className="font-mono">
-                                    {t.name}
-                                  </Chip>
-                                ))}
-                              </div>
-                            </Table.Cell>
-                            <Table.Cell className="text-muted">{formatRelative(server.registeredAt)}</Table.Cell>
-                          </Table.Row>
-                        ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                <TableContainer>
+                  <Table aria-label="External MCP servers" className="min-w-[860px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader scope="col">Name</TableHeader>
+                        <TableHeader scope="col">URL</TableHeader>
+                        <TableHeader scope="col">Auth</TableHeader>
+                        <TableHeader scope="col">Status</TableHeader>
+                        <TableHeader scope="col">Discovered tools</TableHeader>
+                        <TableHeader scope="col">Registered</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {external.map((server) => (
+                        <TableRow key={server.id} id={server.id}>
+                          <TableCell className="font-medium">
+                            <McpServerLabel server={server} />
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{server.url}</TableCell>
+                          <TableCell>{server.auth}</TableCell>
+                          <TableCell>
+                            <StatusChip status={server.status} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {server.tools.map((t) => (
+                                <Tag key={t.name} size="sm" type="gray" className="font-mono">
+                                  {t.name}
+                                </Tag>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted">{formatRelative(server.registeredAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               )
             }
           </QueryState>

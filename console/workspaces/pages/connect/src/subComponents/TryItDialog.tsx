@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Modal } from "@heroui/react";
-import { Play } from "@workspacenow/icons";
+import { InlineNotification, Modal } from "@carbon/react";
 import { useInvokeApiOperation } from "@workspacenow/api-client";
 import { ApiError, buildPath, routes, type Api, type ApiOperation, type OperationResult } from "@workspacenow/types";
 import { JsonView, TextInput, TextLink, errorMessage } from "@workspacenow/views";
@@ -38,68 +37,53 @@ export function TryItDialog({ api, operation, onClose }: TryItDialogProps) {
   const traceId = error instanceof ApiError ? error.body.traceId : result?.traceId;
 
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="lg" scroll="inside">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading className="flex items-center gap-3">
-              <MethodChip method={operation.method} />
-              <span className="font-mono text-sm">
-                {api.basePath}
-                {operation.path}
-              </span>
-            </Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
-            <p className="text-sm text-muted">
-              {operation.summary}. Invokes business operation <code className="text-foreground">{operation.businessOperation}</code>, which
-              requires <code className="text-foreground">{operation.permission}</code>.
-            </p>
-            <TextInput label="Request input (JSON)" value={input} onChange={setInput} multiline rows={8} error={parseError} />
-            {denied && (
-              <Alert status="danger">
-                <Alert.Indicator />
-                <Alert.Content>
-                  <Alert.Title>Denied by policy</Alert.Title>
-                  <Alert.Description>{errorMessage(error)}</Alert.Description>
-                </Alert.Content>
-              </Alert>
-            )}
-            {!!error && !denied && (
-              <Alert status="danger">
-                <Alert.Indicator />
-                <Alert.Content>
-                  <Alert.Description>{errorMessage(error)}</Alert.Description>
-                </Alert.Content>
-              </Alert>
-            )}
-            {result && (
-              <div>
-                <p className="mb-2 text-sm font-medium">Response</p>
-                <JsonView value={result.output} />
-              </div>
-            )}
-            {traceId && (
-              <p className="text-sm">
-                Trace{" "}
-                <TextLink to={buildPath(routes.control.trace, { traceId })} onClick={onClose}>
-                  {traceId}
-                </TextLink>
-              </p>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              Close
-            </Button>
-            <Button isPending={invoke.isPending} onPress={run}>
-              <Play className="size-3.5" aria-hidden />
-              Send request
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <Modal
+      open
+      size="lg"
+      hasScrollingContent
+      modalHeading={
+        <span className="flex items-center gap-3">
+          <MethodChip method={operation.method} />
+          <span className="font-mono text-sm">
+            {api.basePath}
+            {operation.path}
+          </span>
+        </span>
+      }
+      onRequestClose={onClose}
+      primaryButtonText="Send request"
+      loadingStatus={invoke.isPending ? "active" : "inactive"}
+      onRequestSubmit={run}
+      secondaryButtonText="Close"
+      onSecondarySubmit={onClose}
+    >
+      <div className="grid gap-4">
+        <p className="text-sm text-muted">
+          {operation.summary}. Invokes business operation <code className="text-foreground">{operation.businessOperation}</code>, which
+          requires <code className="text-foreground">{operation.permission}</code>.
+        </p>
+        <TextInput label="Request input (JSON)" value={input} onChange={setInput} multiline rows={8} error={parseError} />
+        {denied && (
+          <InlineNotification kind="error" lowContrast hideCloseButton title="Denied by policy" subtitle={errorMessage(error)} />
+        )}
+        {!!error && !denied && (
+          <InlineNotification kind="error" lowContrast hideCloseButton subtitle={errorMessage(error)} />
+        )}
+        {result && (
+          <div>
+            <p className="mb-2 text-sm font-medium">Response</p>
+            <JsonView value={result.output} />
+          </div>
+        )}
+        {traceId && (
+          <p className="text-sm">
+            Trace{" "}
+            <TextLink to={buildPath(routes.control.trace, { traceId })} onClick={onClose}>
+              {traceId}
+            </TextLink>
+          </p>
+        )}
+      </div>
+    </Modal>
   );
 }

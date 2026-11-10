@@ -8,7 +8,7 @@ import { toGraph } from "./graphModel";
 
 /**
  * The console's light or dark mode, kept current. React Flow marks its canvas with this class, and
- * HeroUI reads theme colours from the nearest light/dark class, so it must match the page's.
+ * The workflow canvas reads theme colours from Carbon variables, so it follows the active theme.
  */
 export function useCanvasColorMode(): "light" | "dark" {
   const read = (): "light" | "dark" => (document.documentElement.classList.contains("dark") ? "dark" : "light");

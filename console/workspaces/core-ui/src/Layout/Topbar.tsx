@@ -1,12 +1,25 @@
-import { Badge, Breadcrumbs, Button, Kbd } from "@heroui/react";
+import { Button } from "@carbon/react";
 import { Bars, CircleCheck, DotsNine, Magnifier, SparklesFill } from "@workspacenow/icons";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useListApprovals } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
 import { LinkButton, type WorkspaceModule } from "@workspacenow/views";
 import { useT } from "@workspacenow/i18n";
 import { NotificationsMenu } from "./NotificationsMenu";
 import { activeItem } from "./Sidebar";
+
+function Crumb({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <>
+      <Link to={href} className="text-muted no-underline hover:text-foreground hover:underline">
+        {children}
+      </Link>
+      <span className="text-muted" aria-hidden>
+        /
+      </span>
+    </>
+  );
+}
 
 export function Topbar({
   active,
@@ -28,24 +41,22 @@ export function Topbar({
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-separator bg-background/85 px-4 backdrop-blur lg:px-6">
-      <Button isIconOnly variant="ghost" size="sm" className="lg:hidden" aria-label="Open navigation" onPress={onOpenMenu}>
+      <Button kind="ghost" size="sm" hasIconOnly iconDescription={t("Open navigation")} className="lg:hidden" onClick={onOpenMenu}>
         <Bars className="size-4" />
       </Button>
 
-      <Breadcrumbs className="min-w-0 flex-1 text-sm">
-        <Breadcrumbs.Item href="/">{t("Home")}</Breadcrumbs.Item>
-        {active && <Breadcrumbs.Item href={active.basePath}>{active.title}</Breadcrumbs.Item>}
-        {active && page && !page.end && <Breadcrumbs.Item href={page.href}>{page.label}</Breadcrumbs.Item>}
-      </Breadcrumbs>
+      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+        <Crumb href="/">{t("Home")}</Crumb>
+        {active && <Crumb href={active.basePath}>{active.title}</Crumb>}
+        {active && page && !page.end && <span className="text-foreground">{page.label}</span>}
+      </nav>
 
-      <Button variant="outline" size="sm" className="hidden w-64 justify-start font-normal text-muted md:flex" onPress={onOpenSearch}>
+      <Button kind="tertiary" size="sm" className="hidden w-64 justify-start font-normal text-muted md:flex" onClick={onOpenSearch}>
         <Magnifier className="size-4" aria-hidden />
         <span className="flex-1 text-left">{t("Search")}</span>
-        <Kbd>
-          <Kbd.Abbr keyValue="command" />K
-        </Kbd>
+        <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono text-[10px] text-muted">⌘K</kbd>
       </Button>
-      <Button isIconOnly variant="ghost" size="sm" className="md:hidden" aria-label={t("Search")} onPress={onOpenSearch}>
+      <Button kind="ghost" size="sm" hasIconOnly iconDescription={t("Search")} className="md:hidden" onClick={onOpenSearch}>
         <Magnifier className="size-4" />
       </Button>
 
@@ -55,22 +66,22 @@ export function Topbar({
       </LinkButton>
 
       {sidekick && (
-        <Button size="sm" variant={sidekick.open ? "secondary" : "ghost"} aria-pressed={sidekick.open} onPress={sidekick.onToggle}>
+        <Button kind={sidekick.open ? "secondary" : "ghost"} size="sm" aria-pressed={sidekick.open} onClick={sidekick.onToggle}>
           <SparklesFill className="size-4 text-accent" aria-hidden />
           {t("Sidekick")}
         </Button>
       )}
 
-      <Badge.Anchor>
+      <span className="relative inline-flex">
         <LinkButton isIconOnly variant="ghost" size="sm" aria-label={pending === 1 ? "1 pending approval" : `${pending} pending approvals`} href={routes.flow.approvals}>
           <CircleCheck className="size-4" />
         </LinkButton>
         {pending > 0 && (
-          <Badge color="warning" size="sm">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-foreground">
             {pending}
-          </Badge>
+          </span>
         )}
-      </Badge.Anchor>
+      </span>
 
       <NotificationsMenu />
 

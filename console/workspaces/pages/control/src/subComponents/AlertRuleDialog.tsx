@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Checkbox, Modal } from "@heroui/react";
+import { Button, Checkbox, Modal } from "@carbon/react";
 import { useCreateAlertRule, useListSLOs, useListWebhooks, useUpdateAlertRule } from "@workspacenow/api-client";
 import type { AlertRule, AlertRuleInput } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
@@ -52,14 +52,8 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
   };
 
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="md">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>{rule ? "Edit alert rule" : "New alert rule"}</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
+    <Modal open onRequestClose={onClose} modalHeading={rule ? "Edit alert rule" : "New alert rule"} size="md" passiveModal>
+      <div className="grid gap-4">
             <TextInput label="Name" required value={name} onChange={setName} placeholder="Denied approvals" />
             <SelectInput label="Watches" required value={source} onChange={(v) => setSource(v as AlertRule["source"])} options={SOURCES} />
             {source === "slo" ? (
@@ -113,14 +107,12 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
               placeholder="https://hooks.example.com/alerts (POSTed unsigned when the rule fires)"
               error={webhookUrl.trim() && !/^https?:\/\/.+/.test(webhookUrl.trim()) ? "Must be an absolute http(s) URL" : undefined}
             />
-            <Checkbox isSelected={active} onChange={setActive}>
-              <Checkbox.Content>
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <span className="text-sm">Active</span>
-              </Checkbox.Content>
-            </Checkbox>
+            <Checkbox
+              id="alert-rule-active"
+              checked={active}
+              onChange={(_e, { checked }) => setActive(checked)}
+              labelText={<span className="text-sm">Active</span>}
+            />
             {problems.length > 0 && (
               <ul className="list-disc pl-5 text-sm text-danger">
                 {problems.map((p) => (
@@ -128,23 +120,21 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
                 ))}
               </ul>
             )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              Cancel
-            </Button>
-            <Button
-              isDisabled={problems.length > 0}
-              isPending={pending}
-              onPress={() =>
-                (rule ? update.mutate({ ruleId: rule.id, body }, { onSuccess: onClose }) : create.mutate(body, { onSuccess: onClose }))
-              }
-            >
-              {rule ? "Save changes" : "Create alert"}
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+      </div>
+      <div className="flex justify-end gap-2 pt-6">
+        <Button kind="tertiary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          kind="primary"
+          disabled={problems.length > 0 || pending}
+          onClick={() =>
+            (rule ? update.mutate({ ruleId: rule.id, body }, { onSuccess: onClose }) : create.mutate(body, { onSuccess: onClose }))
+          }
+        >
+          {rule ? "Save changes" : "Create alert"}
+        </Button>
+      </div>
+    </Modal>
   );
 }

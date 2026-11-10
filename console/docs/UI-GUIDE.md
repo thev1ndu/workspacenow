@@ -1,14 +1,14 @@
 # WorkspaceNow console UI guide
 
-Every screen is built from **HeroUI v3** (`@heroui/react`) components and Tailwind utilities that use HeroUI's
-design tokens. Charts are **EvilCharts** (Recharts) from `@workspacenow/charts`. Icons are `@gravity-ui/icons` only.
-No other component or icon library, no raw `<button>`, `<input>`, `<select>` or `<table>`.
-
-## Tokens
-
-Use HeroUI's semantic classes, never hex colours: `text-foreground`, `text-muted`, `bg-background`, `bg-surface`,
-`bg-surface-secondary`, `border-separator`, `bg-default`, and status colours `text-success` / `text-warning` /
-`text-danger` / `text-accent`. Light and dark both come from these tokens.
+Every screen is built from **IBM Carbon** (`@carbon/react`) components. Layout/styling uses the app's own
+utility classes (`apps/web-ui/src/utilities.scss`), which are mapped onto Carbon theme variables
+(`--cds-*`) — e.g. `text-foreground`, `text-muted`, `bg-background`, `bg-surface`, `bg-surface-secondary`,
+`border-separator`, `bg-default`, and status colours `text-success` / `text-warning` / `text-danger` /
+`text-accent`. Never use hex colours; light and dark both come from the Carbon theme (`cds--white` /
+`cds--g100` on `<html>`, plus `data-palette` accent overrides in `themes.scss`).
+Charts are **EvilCharts** (Recharts) from `@workspacenow/charts`. Icons are `@workspacenow/icons` (or
+`@carbon/react/icons` where a Carbon-native icon fits better).
+No raw `<button>`, `<input>`, `<select>` or `<table>` outside Carbon components and the views wrappers.
 
 ## Shared primitives (`@workspacenow/views`)
 
@@ -16,42 +16,49 @@ Use HeroUI's semantic classes, never hex colours: `text-foreground`, `text-muted
 |---|---|
 | Page frame, title, description, back link, actions | `PageLayout` |
 | A titled block; `flush` for tables and lists | `SectionCard` |
-| Headline number | `Metric` (neutral icon from gravity, `size` handled) |
-| Lifecycle / outcome state | `StatusChip status="…"` (soft chip, tone from the status) |
-| Neutral tag | `<Chip size="sm" variant="secondary">` |
+| Headline number | `Metric` (icon from gravity or carbon, `size` handled) |
+| Lifecycle / outcome state | `StatusChip status="…"` (Carbon `Tag`, tone from the status) |
+| Neutral tag | `<Tag size="sm" type="gray">` |
 | Label/value pairs | `DetailList` (`fullWidth` for long values) |
-| Loading / error / forbidden | `QueryState` (skeletons, HeroUI `Alert`) |
-| Empty | `NoDataFound` (HeroUI `EmptyState`) |
+| Loading / error / forbidden | `QueryState` (skeletons, Carbon `InlineNotification`) |
+| Empty | `NoDataFound` |
 | Text and select fields | `TextInput`, `SelectInput` |
 | JSON | `JsonView` |
 | Who acted | `ActorLabel` |
 | In-text navigation | `TextLink to=…` |
-| Navigation styled as a button | `LinkButton href=… variant=…` (HeroUI `Link` + `buttonVariants`) |
-| Notifications | `useSnackBar().pushSnackBar(message, severity)` (HeroUI toast) |
+| Navigation styled as a button | `LinkButton href=… variant=…` (router link with Carbon button classes) |
+| Notifications | `useSnackBar().pushSnackBar(message, severity)` (Carbon `ToastNotification`) |
 
-## HeroUI patterns
+## Carbon patterns
 
-- **Buttons:** `variant` is `primary` (one per context), `secondary`, `tertiary`, `ghost`, `danger`, `danger-soft`.
-  Use `onPress`, `isPending`, `isDisabled`, `isIconOnly` + `aria-label`. HeroUI `Button` has no `href`; use `LinkButton`.
-- **Tables:** `<Table><Table.ScrollContainer><Table.Content aria-label=…>` → `Table.Header` with `Table.Column`
-  (first one `isRowHeader`) → `Table.Body` with `<Table.Row key id>` and `Table.Cell`. Put tables in `SectionCard flush`.
-- **Tabs:** `Tabs` → `Tabs.ListContainer` → `Tabs.List aria-label` → `<Tabs.Tab id>label<Tabs.Indicator /></Tabs.Tab>`,
-  then `<Tabs.Panel id>`.
-- **Dialogs:** `Modal` (trigger as first child), or controlled with `<Modal.Backdrop isOpen onOpenChange>` and no root.
-  Same for `Drawer`. Inside: `Modal.Container` → `Modal.Dialog` → `Modal.Header`/`Modal.Heading`, `Modal.Body`, `Modal.Footer`.
-- **Tooltips:** `<Tooltip><Button…/><Tooltip.Content>…</Tooltip.Content></Tooltip>`; wrap non-pressable content in
-  `Tooltip.Trigger`.
-- **Menus:** `Dropdown` → trigger `Button` → `Dropdown.Popover` → `Dropdown.Menu onAction` → `Dropdown.Item id textValue`
-  with `Label`/`Description`; group with `Dropdown.Section` and `Header`.
-- **Toggles and choices:** HeroUI `Switch`, `Checkbox`, `CheckboxGroup`, `RadioGroup`.
+- **Buttons:** Carbon `Button` with `kind` — `primary` (one per context), `secondary`, `tertiary`,
+  `ghost`, `danger`, `danger--ghost`, `danger--tertiary`. Use `onClick`, `disabled`, and
+  `hasIconOnly` + `iconDescription` for icon-only buttons. Icons as children work; for leading icons
+  use `renderIcon={(p) => <Icon className="size-4" {...p} />}`. No `href` on buttons — use `LinkButton`.
+- **Tables:** `TableContainer` (aria-label) > `Table` > `TableHead` > `TableRow` > `TableHeader scope="col"`
+  (first one `scope="row"` for row headers), `TableBody` > `TableRow key id` > `TableCell`.
+  Put tables in `SectionCard flush` with a `TablePager` under them.
+- **Tabs:** Carbon v11 API — `<Tabs><TabList aria-label><Tab>…</Tab></TabList><TabPanels><TabPanel>…</TabPanel></TabPanels></Tabs>`.
+  Selection is index-based (`selectedIndex`/`onChange` or `defaultSelectedIndex`).
+- **Dialogs:** Carbon `Modal` with `open`, `onRequestClose`, `modalHeading`, `size="md"|"lg"`,
+  `hasScrollingContent` for long bodies, `passiveModal` when you render your own footer buttons.
+  Simple confirmations can use `primaryButtonText`/`secondaryButtonText` + `onRequestSubmit`/`onSecondarySubmit`.
+- **Notifications inline:** `InlineNotification` with `kind` (`info`/`success`/`warning`/`error`),
+  `title`, `subtitle`, `lowContrast`, `hideCloseButton`.
+- **Toasts:** `useSnackBar().pushSnackBar(...)` (see above).
+- **Menus:** Carbon `OverflowMenu` + `OverflowMenuItem`, or `Dropdown` with `items`.
+- **Toggles and choices:** Carbon `Toggle`, `Checkbox`, `CheckboxGroup`, `RadioButtonGroup`, `Select` + `SelectItem`.
+- **Tooltips:** plain `title` attribute for text hints; Carbon `Tooltip` only for icon-only buttons.
+- **Forms:** Carbon `Form`/`TextInput`/`TextArea`/`Select` with `labelText`, `helperText`, `invalid` + `invalidText`
+  (see `views` `FormElements.tsx` for the wrapped pattern).
 
-Read the component's page before using it: the HeroUI v3 docs are mirrored at
-`https://heroui.com/react/llms-full.txt` (one `<page>` per component).
+Read the component's page before using it: the Carbon v11 docs are mirrored in `docs/CARBON.md`
+(install/usage notes for `@carbon/react`, `@carbon/styles`, themes, icons).
 
 ## Charts
 
 ```tsx
-const config = { calls: { label: "Calls", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } } } satisfies ChartConfig;
+const config = { calls: { label: "Calls", colors: { light: ["var(--cds-interactive)"], dark: ["var(--cds-interactive)"] } } } satisfies ChartConfig;
 <EvilBarChart config={config} data={rows} className="aspect-auto h-56 flex-none">
   <EvilBarChart.Grid vertical={false} />
   <EvilBarChart.XAxis dataKey="date" />
@@ -64,7 +71,7 @@ const config = { calls: { label: "Calls", colors: { light: ["var(--accent)"], da
 
 - `flex-none` is required: the chart container is `flex-1` and collapses to zero height inside a card otherwise.
 - Row types must be `type` aliases, not interfaces, to satisfy the chart's data type.
-- Colour series with tokens (`var(--accent)`, `var(--success)`, `var(--warning)`, `var(--danger)`, `var(--muted)`).
+- Colour series with tokens (`var(--cds-interactive)`, `var(--cds-support-success)`, `var(--cds-support-warning)`, `var(--cds-support-error)`, `var(--cds-text-secondary)`).
 - Only chart something a reader would act on; one chart per question.
 
 ## Writing

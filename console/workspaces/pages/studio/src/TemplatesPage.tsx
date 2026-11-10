@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Modal } from "@heroui/react";
+import { Button, Modal } from "@carbon/react";
 import { Layers, Plus } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useCan, useInstallTemplate, useListTemplates } from "@workspacenow/api-client";
@@ -32,7 +32,7 @@ export function TemplatesPage() {
                   title={t.name}
                   subtitle={`${t.category} · v${t.version}`}
                   actions={
-                    <Button size="sm" variant="primary" isDisabled={!canBuild} onPress={() => { setSelected(t); setName(t.name); }}>
+                    <Button size="sm" kind="primary" disabled={!canBuild} onClick={() => { setSelected(t); setName(t.name); }}>
                       <Plus className="size-3.5" aria-hidden />
                       Install
                     </Button>
@@ -47,38 +47,31 @@ export function TemplatesPage() {
         }
       </QueryState>
       {selected && (
-        <Modal.Backdrop isOpen onOpenChange={(o) => !o && setSelected(undefined)}>
-          <Modal.Container size="md">
-            <Modal.Dialog>
-              <Modal.CloseTrigger />
-              <Modal.Header>
-                <Modal.Heading>Install {selected.name}</Modal.Heading>
-              </Modal.Header>
-              <Modal.Body>
-                <TextInput label="Application name" value={name} onChange={setName} />
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="tertiary" onPress={() => setSelected(undefined)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  isPending={install.isPending}
-                  isDisabled={!name.trim()}
-                  onPress={() =>
-                    install.mutate(
-                      { templateId: selected.id, body: { name: name.trim() } },
-                      { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) },
-                    )
-                  }
-                >
-                  <Layers className="size-4" aria-hidden />
-                  Install
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
+        <Modal
+          open
+          size="md"
+          modalHeading={`Install ${selected.name}`}
+          onRequestClose={() => setSelected(undefined)}
+          secondaryButtonText="Cancel"
+          onSecondarySubmit={() => setSelected(undefined)}
+          primaryButtonText={
+            <>
+              <Layers className="size-4" aria-hidden />
+              Install
+            </>
+          }
+          primaryButtonDisabled={!name.trim() || install.isPending}
+          loadingStatus={install.isPending ? "active" : "inactive"}
+          loadingDescription="Installing"
+          onRequestSubmit={() =>
+            install.mutate(
+              { templateId: selected.id, body: { name: name.trim() } },
+              { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) },
+            )
+          }
+        >
+          <TextInput label="Application name" value={name} onChange={setName} />
+        </Modal>
       )}
     </PageLayout>
   );

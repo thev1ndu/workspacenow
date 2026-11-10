@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Alert, Button, Chip, Table } from "@heroui/react";
+import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { Bell, Pencil, Plus, TrashBin } from "@workspacenow/icons";
 import {
   useAckAlertFire,
@@ -16,12 +16,9 @@ import { SloDialog } from "./subComponents/SloDialog";
 
 function Notice({ status, children }: { status?: "default" | "danger"; children: ReactNode }) {
   return (
-    <Alert status={status}>
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Description>{children}</Alert.Description>
-      </Alert.Content>
-    </Alert>
+    <InlineNotification kind={status === "danger" ? "error" : "info"} lowContrast hideCloseButton>
+      {children}
+    </InlineNotification>
   );
 }
 
@@ -49,12 +46,10 @@ export function AlertsPage() {
       description="Alert rules over audit actions, platform events or SLO burn rates. Webhook is the only notification channel for now; fires also appear in the events stream."
       actions={
         <>
-          <Button variant="secondary" isDisabled={!canManage} onPress={() => setDefiningSlo(true)}>
-            <Plus className="size-4" aria-hidden />
+          <Button kind="secondary" disabled={!canManage} onClick={() => setDefiningSlo(true)} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
             Define SLO
           </Button>
-          <Button isDisabled={!canManage} onPress={() => setEditing("new")}>
-            <Plus className="size-4" aria-hidden />
+          <Button kind="primary" disabled={!canManage} onClick={() => setEditing("new")} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
             New alert
           </Button>
         </>
@@ -70,69 +65,74 @@ export function AlertsPage() {
               data.items.length === 0 ? (
                 <NoDataFound message="No alert rules yet. Create one to watch audit actions, events or SLO burn rates." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Alert rules" className="min-w-[900px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Rule</Table.Column>
-                        <Table.Column>Source</Table.Column>
-                        <Table.Column>Match</Table.Column>
-                        <Table.Column>Threshold</Table.Column>
-                        <Table.Column>Window</Table.Column>
-                        <Table.Column>Active</Table.Column>
-                        <Table.Column>Actions</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
+                <div>
+                  <TableContainer>
+                    <Table aria-label="Alert rules" className="min-w-[900px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader scope="row">Rule</TableHeader>
+                          <TableHeader>Source</TableHeader>
+                          <TableHeader>Match</TableHeader>
+                          <TableHeader>Threshold</TableHeader>
+                          <TableHeader>Window</TableHeader>
+                          <TableHeader>Active</TableHeader>
+                          <TableHeader>Actions</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
                         {data.items.map((rule) => (
-                          <Table.Row key={rule.id} id={rule.id} className={selected?.id === rule.id ? "bg-default-hover" : undefined}>
-                            <Table.Cell className="font-medium">{rule.name}</Table.Cell>
-                            <Table.Cell>
-                              <Chip size="sm" variant="secondary">
+                          <TableRow key={rule.id} id={rule.id} className={selected?.id === rule.id ? "bg-default-hover" : undefined}>
+                            <TableCell className="font-medium">{rule.name}</TableCell>
+                            <TableCell>
+                              <Tag size="sm" type="gray">
                                 {SOURCE_LABEL[rule.source]}
-                              </Chip>
-                            </Table.Cell>
-                            <Table.Cell className="font-mono text-xs">
+                              </Tag>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
                               {rule.source === "slo" ? (slos.data?.items.find((s) => s.id === rule.sloId)?.operation ?? rule.action) : rule.action}
                               {rule.outcome ? ` · ${rule.outcome}` : ""}
-                            </Table.Cell>
-                            <Table.Cell className="tabular-nums">{rule.threshold}</Table.Cell>
-                            <Table.Cell className="tabular-nums">{rule.windowMinutes} min</Table.Cell>
-                            <Table.Cell>
+                            </TableCell>
+                            <TableCell className="tabular-nums">{rule.threshold}</TableCell>
+                            <TableCell className="tabular-nums">{rule.windowMinutes} min</TableCell>
+                            <TableCell>
                               <StatusChip status={rule.active ? "active" : "draft"} />
-                            </Table.Cell>
-                            <Table.Cell>
+                            </TableCell>
+                            <TableCell>
                               <div className="flex gap-1">
                                 <Button
-                                  isIconOnly
+                                  hasIconOnly
                                   size="sm"
-                                  variant={selected?.id === rule.id ? "secondary" : "ghost"}
-                                  aria-label={`Show fires of ${rule.name}`}
-                                  onPress={() => setSelected(rule)}
-                                >
-                                  <Bell className="size-4" />
-                                </Button>
-                                <Button isIconOnly size="sm" variant="ghost" aria-label={`Edit ${rule.name}`} isDisabled={!canManage} onPress={() => setEditing(rule)}>
-                                  <Pencil className="size-4" />
-                                </Button>
+                                  kind={selected?.id === rule.id ? "secondary" : "ghost"}
+                                  iconDescription={`Show fires of ${rule.name}`}
+                                  onClick={() => setSelected(rule)}
+                                  renderIcon={(p) => <Bell className="size-4" {...p} />}
+                                />
                                 <Button
-                                  isIconOnly
+                                  hasIconOnly
                                   size="sm"
-                                  variant="ghost"
-                                  aria-label={`Delete ${rule.name}`}
-                                  isDisabled={!canManage}
-                                  isPending={del.isPending}
-                                  onPress={() => del.mutate(rule.id)}
-                                >
-                                  <TrashBin className="size-4" />
-                                </Button>
+                                  kind="ghost"
+                                  iconDescription={`Edit ${rule.name}`}
+                                  disabled={!canManage}
+                                  onClick={() => setEditing(rule)}
+                                  renderIcon={(p) => <Pencil className="size-4" {...p} />}
+                                />
+                                <Button
+                                  hasIconOnly
+                                  size="sm"
+                                  kind="ghost"
+                                  iconDescription={`Delete ${rule.name}`}
+                                  disabled={!canManage || del.isPending}
+                                  onClick={() => del.mutate(rule.id)}
+                                  renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+                                />
                               </div>
-                            </Table.Cell>
-                          </Table.Row>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
               )
             }
           </QueryState>
@@ -149,37 +149,39 @@ export function AlertsPage() {
                 data.items.length === 0 ? (
                   <NoDataFound message="No fires yet — the rule has not crossed its threshold in the window." />
                 ) : (
-                  <Table variant="secondary">
-                    <Table.ScrollContainer>
-                      <Table.Content aria-label="Alert fires" className="min-w-[640px]">
-                        <Table.Header>
-                          <Table.Column>Fired at</Table.Column>
-                          <Table.Column>Count</Table.Column>
-                          <Table.Column>Status</Table.Column>
-                          <Table.Column> </Table.Column>
-                        </Table.Header>
-                        <Table.Body>
+                  <div>
+                    <TableContainer>
+                      <Table aria-label="Alert fires" className="min-w-[640px]">
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader>Fired at</TableHeader>
+                            <TableHeader>Count</TableHeader>
+                            <TableHeader>Status</TableHeader>
+                            <TableHeader> </TableHeader>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
                           {data.items.map((fire) => (
-                            <Table.Row key={fire.id} id={fire.id}>
-                              <Table.Cell className="whitespace-nowrap text-muted">{formatDateTime(fire.firedAt)}</Table.Cell>
-                              <Table.Cell className="tabular-nums">{fire.count}</Table.Cell>
-                              <Table.Cell>
+                            <TableRow key={fire.id} id={fire.id}>
+                              <TableCell className="whitespace-nowrap text-muted">{formatDateTime(fire.firedAt)}</TableCell>
+                              <TableCell className="tabular-nums">{fire.count}</TableCell>
+                              <TableCell>
                                 <StatusChip status={fire.status === "firing" ? "firing" : "acked"} />
                                 {fire.ackedBy ? <span className="text-xs text-muted"> by {fire.ackedBy}</span> : null}
-                              </Table.Cell>
-                              <Table.Cell>
+                              </TableCell>
+                              <TableCell>
                                 {fire.status === "firing" && (
-                                  <Button size="sm" variant="tertiary" isDisabled={!canManage} isPending={ack.isPending} onPress={() => ack.mutate({ ruleId: selected.id, fireId: fire.id })}>
+                                  <Button size="sm" kind="tertiary" disabled={!canManage || ack.isPending} onClick={() => ack.mutate({ ruleId: selected.id, fireId: fire.id })}>
                                     Ack
                                   </Button>
                                 )}
-                              </Table.Cell>
-                            </Table.Row>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </div>
                 )
               }
             </QueryState>
@@ -193,28 +195,30 @@ export function AlertsPage() {
                 data.items.length === 0 ? (
                   <NoDataFound message="No SLOs defined yet." />
                 ) : (
-                  <Table variant="secondary">
-                    <Table.ScrollContainer>
-                      <Table.Content aria-label="SLOs" className="min-w-[520px]">
-                        <Table.Header>
-                          <Table.Column isRowHeader>Operation</Table.Column>
-                          <Table.Column>Success</Table.Column>
-                          <Table.Column>p95</Table.Column>
-                          <Table.Column>Window</Table.Column>
-                        </Table.Header>
-                        <Table.Body>
+                  <div>
+                    <TableContainer>
+                      <Table aria-label="SLOs" className="min-w-[520px]">
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader scope="row">Operation</TableHeader>
+                            <TableHeader>Success</TableHeader>
+                            <TableHeader>p95</TableHeader>
+                            <TableHeader>Window</TableHeader>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
                           {data.items.map((slo) => (
-                            <Table.Row key={slo.id} id={slo.id}>
-                              <Table.Cell className="font-mono text-xs">{slo.operation}</Table.Cell>
-                              <Table.Cell className="tabular-nums">{(slo.targetSuccess * 100).toFixed(1)}%</Table.Cell>
-                              <Table.Cell className="tabular-nums">≤ {slo.targetP95Ms} ms</Table.Cell>
-                              <Table.Cell className="tabular-nums">{slo.windowMinutes} min</Table.Cell>
-                            </Table.Row>
+                            <TableRow key={slo.id} id={slo.id}>
+                              <TableCell className="font-mono text-xs">{slo.operation}</TableCell>
+                              <TableCell className="tabular-nums">{(slo.targetSuccess * 100).toFixed(1)}%</TableCell>
+                              <TableCell className="tabular-nums">≤ {slo.targetP95Ms} ms</TableCell>
+                              <TableCell className="tabular-nums">{slo.windowMinutes} min</TableCell>
+                            </TableRow>
                           ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </div>
                 )
               }
             </QueryState>

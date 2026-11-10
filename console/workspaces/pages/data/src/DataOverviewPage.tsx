@@ -1,4 +1,4 @@
-import { Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { ArrowUpRightFromSquare, Database, Layers, Persons } from "@workspacenow/icons";
 import { EvilPieChart, type ChartConfig } from "@workspacenow/charts";
 import { useListApplications, useListConnections, useListEntities } from "@workspacenow/api-client";
@@ -73,38 +73,38 @@ export function DataOverviewPage() {
                       action={<LinkButton size="sm" variant="secondary" href={routes.data.entities}>Create an entity</LinkButton>}
                     />
                   ) : (
-                  <Table variant="secondary">
-                    <Table.ScrollContainer>
-                      <Table.Content aria-label="Entities" className="min-w-[560px]">
-                        <Table.Header>
-                          <Table.Column isRowHeader>Entity</Table.Column>
-                          <Table.Column>Scope</Table.Column>
-                          <Table.Column>Owner</Table.Column>
-                          <Table.Column className="text-right">Fields</Table.Column>
-                          <Table.Column className="text-right">Records</Table.Column>
-                        </Table.Header>
-                        <Table.Body>
-                          {data.items.map((e) => (
-                            <Table.Row key={e.id} id={e.id}>
-                              <Table.Cell>
-                                <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
-                              </Table.Cell>
-                              <Table.Cell>
-                                <ScopeChip scope={e.scope} />
-                              </Table.Cell>
-                              <Table.Cell className="text-muted">{appName(e.ownerApplicationId)}</Table.Cell>
-                              <Table.Cell className="text-right tabular-nums">{e.fields.length}</Table.Cell>
-                              <Table.Cell className="text-right">
-                                <LinkButton size="sm" variant="ghost" href={buildPath(routes.data.records, { entityName: e.name })}>
-                                  Browse
-                                </LinkButton>
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
+                  <TableContainer aria-label="Entities">
+                    <Table className="min-w-[560px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>Entity</TableHeader>
+                          <TableHeader>Scope</TableHeader>
+                          <TableHeader>Owner</TableHeader>
+                          <TableHeader className="text-right">Fields</TableHeader>
+                          <TableHeader className="text-right">Records</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {data.items.map((e) => (
+                          <TableRow key={e.id} id={e.id}>
+                            <TableCell>
+                              <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
+                            </TableCell>
+                            <TableCell>
+                              <ScopeChip scope={e.scope} />
+                            </TableCell>
+                            <TableCell className="text-muted">{appName(e.ownerApplicationId)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{e.fields.length}</TableCell>
+                            <TableCell className="text-right">
+                              <LinkButton size="sm" variant="ghost" href={buildPath(routes.data.records, { entityName: e.name })}>
+                                Browse
+                              </LinkButton>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                   )}
                 </SectionCard>
 

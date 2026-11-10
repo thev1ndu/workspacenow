@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip, Tabs } from "@heroui/react";
+import { Button, Tab, TabList, TabPanel, TabPanels, Tabs, Tag } from "@carbon/react";
 import { Check, PencilToSquare, Sparkles, Xmark } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useApplyApplicationPlan, useCan, useListEntities, usePlanApplication } from "@workspacenow/api-client";
@@ -41,54 +41,51 @@ export function BuilderPage() {
           <Notice>Building applications needs studio.manage. Switch to Sahan Gunawardena (Application Developer) or Amaya Perera.</Notice>
         )}
         {!plan && (
-          <Tabs variant="secondary" align="start">
-            <Tabs.ListContainer className="self-start">
-              <Tabs.List aria-label="How to start">
-                <Tabs.Tab id="ai">
-                  <Sparkles className="size-4" aria-hidden />
-                  Generate with AI
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-                <Tabs.Tab id="manual">
-                  <PencilToSquare className="size-4" aria-hidden />
-                  Design it yourself
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              </Tabs.List>
-            </Tabs.ListContainer>
-            <Tabs.Panel id="ai" className="mt-5">
-            <SectionCard title="Describe the application" subtitle="Plain language works best: who uses it, what they track, and what needs approval.">
-              <div className="grid gap-4">
-                <TextInput label="What should it do?" value={prompt} onChange={setPrompt} multiline rows={3} placeholder="Build an application that…" />
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted">Start from an example</span>
-                  {EXAMPLES.map((example) => (
-                    <Button key={example.label} size="sm" variant="tertiary" onPress={() => setPrompt(example.prompt)}>
-                      {example.label}
-                    </Button>
-                  ))}
-                </div>
-                {!!planApplication.error && <Notice status="danger">{errorMessage(planApplication.error)}</Notice>}
-                <div>
-                  <Button
-                    isDisabled={!prompt.trim()}
-                    isPending={planApplication.isPending}
-                    onPress={() => planApplication.mutate(prompt, { onSuccess: (result) => setPlan(result) })}
-                  >
-                    {planApplication.isPending ? "Planning…" : "Generate plan"}
+          <Tabs>
+            <TabList aria-label="How to start" className="self-start">
+              <Tab>
+                <Sparkles className="size-4" aria-hidden />
+                Generate with AI
+              </Tab>
+              <Tab>
+                <PencilToSquare className="size-4" aria-hidden />
+                Design it yourself
+              </Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel className="mt-5">
+                <SectionCard title="Describe the application" subtitle="Plain language works best: who uses it, what they track, and what needs approval.">
+                  <div className="grid gap-4">
+                    <TextInput label="What should it do?" value={prompt} onChange={setPrompt} multiline rows={3} placeholder="Build an application that…" />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted">Start from an example</span>
+                      {EXAMPLES.map((example) => (
+                        <Button key={example.label} size="sm" kind="tertiary" onClick={() => setPrompt(example.prompt)}>
+                          {example.label}
+                        </Button>
+                      ))}
+                    </div>
+                    {!!planApplication.error && <Notice status="danger">{errorMessage(planApplication.error)}</Notice>}
+                    <div>
+                      <Button
+                        disabled={!prompt.trim() || planApplication.isPending}
+                        onClick={() => planApplication.mutate(prompt, { onSuccess: (result) => setPlan(result) })}
+                      >
+                        {planApplication.isPending ? "Planning…" : "Generate plan"}
+                      </Button>
+                    </div>
+                  </div>
+                </SectionCard>
+              </TabPanel>
+              <TabPanel className="mt-5">
+                <SectionCard title="Design it yourself" subtitle="Define the entities, fields and pages in the visual editor. The platform generates the CRUD API for you.">
+                  <Button disabled={!canBuild} onClick={() => setPlan(blankPlan())}>
+                    <PencilToSquare className="size-4" aria-hidden />
+                    Open the editor
                   </Button>
-                </div>
-              </div>
-            </SectionCard>
-            </Tabs.Panel>
-            <Tabs.Panel id="manual" className="mt-5">
-              <SectionCard title="Design it yourself" subtitle="Define the entities, fields and pages in the visual editor. The platform generates the CRUD API for you.">
-                <Button isDisabled={!canBuild} onPress={() => setPlan(blankPlan())}>
-                  <PencilToSquare className="size-4" aria-hidden />
-                  Open the editor
-                </Button>
-              </SectionCard>
-            </Tabs.Panel>
+                </SectionCard>
+              </TabPanel>
+            </TabPanels>
           </Tabs>
         )}
 
@@ -97,9 +94,9 @@ export function BuilderPage() {
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-secondary px-5 py-4">
               <div className="grid min-w-0 flex-1 gap-1">
                 <div className="flex items-center gap-2">
-                  <Chip size="sm" variant="secondary">
+                  <Tag size="sm" type="gray">
                     {plan.prompt ? "AI draft" : "Manual design"}
-                  </Chip>
+                  </Tag>
                   <span className="text-sm font-medium">{plan.name || "Untitled application"}</span>
                 </div>
                 <p className="text-sm text-muted">
@@ -108,14 +105,13 @@ export function BuilderPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="tertiary" onPress={() => setPlan(null)}>
+                <Button kind="tertiary" onClick={() => setPlan(null)}>
                   <Xmark className="size-4" aria-hidden />
                   Discard
                 </Button>
                 <Button
-                  isDisabled={problems.length > 0 || !canBuild}
-                  isPending={applyPlan.isPending}
-                  onPress={() => applyPlan.mutate(plan, { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) })}
+                  disabled={problems.length > 0 || !canBuild || applyPlan.isPending}
+                  onClick={() => applyPlan.mutate(plan, { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) })}
                 >
                   <Check className="size-4" aria-hidden />
                   {plan.prompt ? "Approve and create" : "Create application"}

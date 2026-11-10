@@ -1,4 +1,4 @@
-import { Alert } from "@heroui/react";
+import { InlineNotification } from "@carbon/react";
 import { BranchesRight, CircleCheck, CircleExclamation, Hourglass, Play } from "@workspacenow/icons";
 import { EvilAreaChart, type ChartConfig } from "@workspacenow/charts";
 import { useActivity, useListApprovals, useListExecutions, useListWorkflows } from "@workspacenow/api-client";
@@ -37,15 +37,12 @@ export function FlowOverview() {
           <Metric label="Pending approvals" value={approvals.data?.total ?? "—"} icon={<CircleCheck />} />
         </MetricGrid>
 
-        <Alert>
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Description>
-              Workflow execution is deterministic and durable: state survives restarts, and each step runs under the workflow's own service
-              identity. AI helps design workflows and can be a step, but it never decides the control flow.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <InlineNotification
+          kind="info"
+          lowContrast
+          hideCloseButton
+          subtitle="Workflow execution is deterministic and durable: state survives restarts, and each step runs under the workflow's own service identity. AI helps design workflows and can be a step, but it never decides the control flow."
+        />
 
         <SectionCard title="Workflow activity" subtitle="Steps executed and actions denied per day, last 14 days">
           <QueryState query={activity} skeleton={<ChartSkeleton />}>

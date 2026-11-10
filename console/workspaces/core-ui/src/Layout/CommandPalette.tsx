@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Header, Kbd, ListBox, Modal, SearchField, Spinner } from "@heroui/react";
+import { Loading, Modal, Search } from "@carbon/react";
 import {
   BranchesRight,
   Database,
@@ -12,7 +12,6 @@ import {
   Server,
   TextAlignLeft,
 } from "@workspacenow/icons";
-import { Autocomplete } from "react-aria-components";
 import { useNavigate } from "react-router-dom";
 import { useListApplications, useSearch } from "@workspacenow/api-client";
 import { AppIcon, usePinnedApplicationIds } from "@workspacenow/studio";
@@ -101,15 +100,21 @@ function pageItems(workspaces: WorkspaceModule[]): Item[] {
   ];
 }
 
-function Row({ item }: { item: Item }) {
+function Row({ item, onPick }: { item: Item; onPick: (item: Item) => void }) {
   return (
-    <ListBox.Item id={item.id} textValue={item.title} className="gap-3">
-      <span className="text-muted [&_svg]:size-4">{item.icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-foreground">{item.title}</span>
-        {item.subtitle && <span className="block truncate text-xs text-muted">{item.subtitle}</span>}
-      </span>
-    </ListBox.Item>
+    <li>
+      <button
+        type="button"
+        className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left hover:bg-default"
+        onClick={() => onPick(item)}
+      >
+        <span className="text-muted [&_svg]:size-4">{item.icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-foreground">{item.title}</span>
+          {item.subtitle && <span className="block truncate text-xs text-muted">{item.subtitle}</span>}
+        </span>
+      </button>
+    </li>
   );
 }
 
@@ -160,60 +165,62 @@ export function CommandPalette({ workspaces, isOpen, onOpenChange }: { workspace
         { label: "Go to", items: pages },
       ];
   const visible = sections.filter((s) => s.items.length > 0);
-  const byId = new Map(visible.flatMap((s) => s.items.map((i) => [i.id, i] as const)));
+
+  const pick = (item: Item) => {
+    onOpenChange(false);
+    navigate(item.href);
+  };
 
   return (
-    <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Container size="lg" placement="top" className="mt-[12vh]">
-        <Modal.Dialog aria-label="Search" className="overflow-hidden p-0">
-          <Autocomplete inputValue={query} onInputChange={setQuery}>
-            <div className="flex items-center gap-2 border-b border-separator p-3">
-              <SearchField aria-label="Search everything" autoFocus fullWidth variant="secondary">
-                <SearchField.Group>
-                  <SearchField.SearchIcon />
-                  <SearchField.Input placeholder="Search apps, records, people, agents, pages…" />
-                  <SearchField.ClearButton />
-                </SearchField.Group>
-              </SearchField>
-              {search.isFetching && <Spinner size="sm" />}
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto p-2">
-              <ListBox
-                aria-label="Results"
-                renderEmptyState={() => (
-                  <p className="px-3 py-8 text-center text-sm text-muted">{search.isFetching ? "Searching…" : `No results for “${query.trim()}”`}</p>
-                )}
-                onAction={(key) => {
-                  const item = byId.get(String(key));
-                  if (!item) return;
-                  onOpenChange(false);
-                  navigate(item.href);
-                }}
-              >
-                {visible.map((section) => (
-                  <ListBox.Section key={section.label} id={section.label}>
-                    <Header className="px-3 pt-2 pb-1 text-xs font-medium text-muted">{section.label}</Header>
-                    {section.items.map((item) => (
-                      <Row key={item.id} item={item} />
-                    ))}
-                  </ListBox.Section>
+    <Modal
+      open={isOpen}
+      onRequestClose={() => onOpenChange(false)}
+      modalHeading=""
+      passiveModal
+      size="lg"
+      className="mt-[12vh]"
+      aria-label="Search"
+    >
+      <div className="flex items-center gap-2 border-b border-separator p-3">
+        <Search
+          id="command-palette-search"
+          labelText="Search everything"
+          placeholder="Search apps, records, people, agents, pages…"
+          size="lg"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+          className="flex-1"
+        />
+        {search.isFetching && <Loading small withOverlay={false} description="Searching" />}
+      </div>
+      <div className="max-h-[60vh] overflow-y-auto p-2">
+        {visible.length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-muted">{search.isFetching ? "Searching…" : `No results for “${query.trim()}”`}</p>
+        ) : (
+          visible.map((section) => (
+            <div key={section.label}>
+              <p className="px-3 pt-2 pb-1 text-xs font-medium text-muted">{section.label}</p>
+              <ul>
+                {section.items.map((item) => (
+                  <Row key={item.id} item={item} onPick={pick} />
                 ))}
-              </ListBox>
+              </ul>
             </div>
-            <div className="flex items-center gap-4 border-t border-separator px-4 py-2 text-xs text-muted">
-              <span className="flex items-center gap-1.5">
-                <Kbd>↑↓</Kbd> to navigate
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Kbd>↵</Kbd> to open
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Kbd>esc</Kbd> to close
-              </span>
-            </div>
-          </Autocomplete>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+          ))
+        )}
+      </div>
+      <div className="flex items-center gap-4 border-t border-separator px-4 py-2 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono">↑↓</kbd> to navigate
+        </span>
+        <span className="flex items-center gap-1.5">
+          <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono">↵</kbd> to open
+        </span>
+        <span className="flex items-center gap-1.5">
+          <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono">esc</kbd> to close
+        </span>
+      </div>
+    </Modal>
   );
 }

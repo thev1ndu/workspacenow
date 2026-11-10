@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Alert } from "@heroui/react";
+import { InlineNotification } from "@carbon/react";
 import { ApiError } from "@workspacenow/types";
 import { TableSkeleton } from "./Skeletons";
 import { NoDataFound } from "./NoDataFound";
@@ -36,13 +36,13 @@ export function QueryState<T>({ query, skeleton, empty, children }: { query: Que
     const forbidden = query.error instanceof ApiError && query.error.status === 403;
     return (
       <div className="p-4">
-        <Alert status={forbidden ? "warning" : "danger"}>
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>{forbidden ? "You don't have access to this" : "Couldn't load this"}</Alert.Title>
-            <Alert.Description>{errorMessage(query.error)}</Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <InlineNotification
+          kind={forbidden ? "warning" : "error"}
+          lowContrast
+          hideCloseButton
+          title={forbidden ? "You don't have access to this" : "Couldn't load this"}
+          subtitle={errorMessage(query.error)}
+        />
       </div>
     );
   }

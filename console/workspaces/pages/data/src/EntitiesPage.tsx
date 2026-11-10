@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Table } from "@heroui/react";
+import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { Plus, Sparkles } from "@workspacenow/icons";
 import { useCan, useListApplications, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -23,13 +23,11 @@ export function EntitiesPage() {
       actions={
         <>
           {canManage && (
-            <Button variant="secondary" onPress={() => setInferOpen(true)}>
-              <Sparkles className="size-4" aria-hidden />
+            <Button kind="secondary" onClick={() => setInferOpen(true)} renderIcon={(p) => <Sparkles className="size-4" aria-hidden {...p} />}>
               New from data
             </Button>
           )}
-          <Button onPress={() => setOpen(true)} isDisabled={!canManage}>
-            <Plus className="size-4" aria-hidden />
+          <Button kind="primary" onClick={() => setOpen(true)} disabled={!canManage} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
             New entity
           </Button>
         </>
@@ -41,49 +39,49 @@ export function EntitiesPage() {
             data.items.length === 0 ? (
               <NoDataFound message="No entities defined yet." />
             ) : (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Entities" className="min-w-[860px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Name</Table.Column>
-                      <Table.Column>Scope</Table.Column>
-                      <Table.Column>Owner</Table.Column>
-                      <Table.Column className="text-right">Fields</Table.Column>
-                      <Table.Column>Events</Table.Column>
-                      <Table.Column>Read / write</Table.Column>
-                      <Table.Column>Version</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {data.items.map((e) => (
-                        <Table.Row key={e.id} id={e.id}>
-                          <Table.Cell>
-                            <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
-                            <p className="font-mono text-xs text-muted">{e.name}</p>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <ScopeChip scope={e.scope} />
-                          </Table.Cell>
-                          <Table.Cell className="text-muted">{appName(e.ownerApplicationId)}</Table.Cell>
-                          <Table.Cell className="text-right tabular-nums">{e.fields.length}</Table.Cell>
-                          <Table.Cell className="text-xs text-muted">
-                            {e.events.length ? e.events.map((ev) => ev.split(".")[1]).join(", ") : "—"}
-                          </Table.Cell>
-                          <Table.Cell className="font-mono text-xs">
-                            <div>{e.readPermission}</div>
-                            <div className="text-muted">{e.writePermission}</div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex items-center gap-2 whitespace-nowrap">
-                              <span className="tabular-nums">v{e.version}</span>
-                              <StatusChip status={e.lifecycle} />
-                            </div>
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+              <TableContainer aria-label="Entities">
+                <Table className="min-w-[860px]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Name</TableHeader>
+                      <TableHeader>Scope</TableHeader>
+                      <TableHeader>Owner</TableHeader>
+                      <TableHeader className="text-right">Fields</TableHeader>
+                      <TableHeader>Events</TableHeader>
+                      <TableHeader>Read / write</TableHeader>
+                      <TableHeader>Version</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.items.map((e) => (
+                      <TableRow key={e.id} id={e.id}>
+                        <TableCell>
+                          <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
+                          <p className="font-mono text-xs text-muted">{e.name}</p>
+                        </TableCell>
+                        <TableCell>
+                          <ScopeChip scope={e.scope} />
+                        </TableCell>
+                        <TableCell className="text-muted">{appName(e.ownerApplicationId)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{e.fields.length}</TableCell>
+                        <TableCell className="text-xs text-muted">
+                          {e.events.length ? e.events.map((ev) => ev.split(".")[1]).join(", ") : "—"}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <div>{e.readPermission}</div>
+                          <div className="text-muted">{e.writePermission}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 whitespace-nowrap">
+                            <span className="tabular-nums">v{e.version}</span>
+                            <StatusChip status={e.lifecycle} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )
           }
         </QueryState>

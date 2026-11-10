@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@heroui/react";
+import { Button } from "@carbon/react";
 import { useListDepartments, useListModelProviders, useUpdateAgent } from "@workspacenow/api-client";
 import type { Agent } from "@workspacenow/types";
 import { DetailList, SectionCard, SelectInput, TextInput } from "@workspacenow/views";
@@ -34,9 +34,9 @@ export function AgentConfiguration({ agent }: { agent: Agent }) {
           />
           <div className="flex justify-end gap-2">
             <Button
-              variant="tertiary"
-              isDisabled={!dirty}
-              onPress={() => {
+              kind="tertiary"
+              disabled={!dirty}
+              onClick={() => {
                 setInstructions(agent.instructions);
                 setModel(agent.model);
                 setStatus(agent.status);
@@ -45,9 +45,9 @@ export function AgentConfiguration({ agent }: { agent: Agent }) {
               Discard
             </Button>
             <Button
-              isDisabled={!dirty}
-              isPending={update.isPending}
-              onPress={() => update.mutate({ agentId: agent.id, instructions, model, status })}
+              kind="primary"
+              disabled={!dirty || update.isPending}
+              onClick={() => update.mutate({ agentId: agent.id, instructions, model, status })}
             >
               Save new version
             </Button>

@@ -1,5 +1,4 @@
 import { useState, type CSSProperties, type KeyboardEvent } from "react";
-import { Drawer } from "@heroui/react";
 import { Outlet, useLocation } from "react-router-dom";
 import { workspaces as rawWorkspaces } from "../workspaces";
 import { useT } from "@workspacenow/i18n";
@@ -145,14 +144,15 @@ export function Layout() {
         {!collapsed && <SidebarResizeHandle width={width} onResize={resize} onResizingChange={setResizing} />}
       </aside>
 
-      {/* Controlled drawer: HeroUI takes open state on the backdrop when there is no trigger child. */}
-      <Drawer.Backdrop isOpen={menuOpen} onOpenChange={setMenuOpen}>
-        <Drawer.Content placement="left" className="w-72">
-          <Drawer.Dialog aria-label="Navigation" className="h-full p-0">
+      {/* Mobile navigation drawer: a fixed panel over a backdrop, closed by clicking it. */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-label="Navigation">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-72 bg-background shadow-lg">
             <Sidebar workspaces={workspaces} active={active} onNavigate={() => setMenuOpen(false)} />
-          </Drawer.Dialog>
-        </Drawer.Content>
-      </Drawer.Backdrop>
+          </div>
+        </div>
+      )}
 
       <CommandPalette workspaces={workspaces} isOpen={searchOpen} onOpenChange={setSearchOpen} />
 

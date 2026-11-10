@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertDialog, Button, Modal } from "@heroui/react";
+import { Button, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
 import { Eye, Pencil, TrashBin } from "@workspacenow/icons";
 import { useDeleteRecord, useUpdateRecord } from "@workspacenow/api-client";
 import type { Entity, EntityRecord } from "@workspacenow/types";
@@ -20,32 +20,26 @@ function RecordViewDialog({
   onClose: () => void;
 }) {
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="md" scroll="inside">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>{recordLabel(record)}</Modal.Heading>
-            <p className="font-mono text-xs text-muted">
-              {entity.label} {record.id}
-            </p>
-          </Modal.Header>
-          <Modal.Body>
-            <DetailList
-              items={[
-                ...entity.fields.map((f) => ({
-                  label: f.label,
-                  value: formatFieldValue(f, record.values[f.name], labels),
-                  fullWidth: f.type === "text",
-                })),
-                { label: "Created", value: `${formatDateTime(record.createdAt)} by ${record.createdBy}` },
-                { label: "Updated", value: formatRelative(record.updatedAt) },
-              ]}
-            />
-          </Modal.Body>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <ComposedModal open onClose={onClose} size="md">
+      <ModalHeader title={recordLabel(record)} closeModal={onClose}>
+        <p className="font-mono text-xs text-muted">
+          {entity.label} {record.id}
+        </p>
+      </ModalHeader>
+      <ModalBody hasScrollingContent>
+        <DetailList
+          items={[
+            ...entity.fields.map((f) => ({
+              label: f.label,
+              value: formatFieldValue(f, record.values[f.name], labels),
+              fullWidth: f.type === "text",
+            })),
+            { label: "Created", value: `${formatDateTime(record.createdAt)} by ${record.createdBy}` },
+            { label: "Updated", value: formatRelative(record.updatedAt) },
+          ]}
+        />
+      </ModalBody>
+    </ComposedModal>
   );
 }
 
@@ -63,29 +57,22 @@ function ConfirmDelete({
   onConfirm: () => void;
 }) {
   return (
-    <AlertDialog.Backdrop isOpen onOpenChange={(open) => !open && onCancel()}>
-      <AlertDialog.Container size="sm">
-        <AlertDialog.Dialog>
-          <AlertDialog.Header>
-            <AlertDialog.Icon status="danger" />
-            <AlertDialog.Heading>Delete {recordLabel(record)}?</AlertDialog.Heading>
-          </AlertDialog.Header>
-          <AlertDialog.Body>
-            <p className="text-sm text-muted">
-              This permanently removes {entity.label.toLowerCase()} {record.id}. It is refused while other records or a pending approval still use it.
-            </p>
-          </AlertDialog.Body>
-          <AlertDialog.Footer>
-            <Button variant="tertiary" onPress={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="danger" isPending={isPending} onPress={onConfirm}>
-              Delete
-            </Button>
-          </AlertDialog.Footer>
-        </AlertDialog.Dialog>
-      </AlertDialog.Container>
-    </AlertDialog.Backdrop>
+    <ComposedModal open onClose={onCancel} size="sm">
+      <ModalHeader title={`Delete ${recordLabel(record)}?`} closeModal={onCancel} />
+      <ModalBody>
+        <p className="text-sm text-muted">
+          This permanently removes {entity.label.toLowerCase()} {record.id}. It is refused while other records or a pending approval still use it.
+        </p>
+      </ModalBody>
+      <ModalFooter>
+        <Button kind="tertiary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button kind="danger" disabled={isPending} onClick={onConfirm}>
+          Delete
+        </Button>
+      </ModalFooter>
+    </ComposedModal>
   );
 }
 

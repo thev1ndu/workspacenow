@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Checkbox, Chip, Modal, Table } from "@heroui/react";
+import { Button, Checkbox, InlineNotification, Modal, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
 import {
   useCan,
@@ -35,8 +35,7 @@ export function GroupEditor() {
       title="WorkspaceNow groups"
       subtitle="Groups live here, not in the IdP. Map their names to roles below; members can also be IdP group claims."
       actions={
-        <Button size="sm" onPress={() => setEditing({ group: null, input: { name: "", description: "", memberIds: [] } })}>
-          <Plus className="size-4" aria-hidden />
+        <Button size="sm" kind="primary" onClick={() => setEditing({ group: null, input: { name: "", description: "", memberIds: [] } })} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
           New group
         </Button>
       }
@@ -44,122 +43,121 @@ export function GroupEditor() {
     >
       {!canManage && (
         <div className="p-4 pb-0">
-          <Alert>
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Description>
-                Saving needs <code className="font-mono text-xs">control.manage</code>. You can still try; the platform will deny and audit it.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
+          <InlineNotification kind="info" lowContrast hideCloseButton>
+            Saving needs <code className="font-mono text-xs">control.manage</code>. You can still try; the platform will deny and audit it.
+          </InlineNotification>
         </div>
       )}
       <QueryState query={groups} skeleton={<TableSkeleton rows={3} columns={3} />}>
         {(data) => (
-          <Table variant="secondary">
-            <Table.ScrollContainer>
-              <Table.Content aria-label="WorkspaceNow groups">
-                <Table.Header>
-                  <Table.Column isRowHeader>Group</Table.Column>
-                  <Table.Column>Members</Table.Column>
-                  <Table.Column aria-label="Actions" />
-                </Table.Header>
-                <Table.Body>
+          <div>
+            <TableContainer>
+              <Table aria-label="WorkspaceNow groups">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader scope="row">Group</TableHeader>
+                    <TableHeader>Members</TableHeader>
+                    <TableHeader aria-label="Actions" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {data.items.map((g) => (
-                    <Table.Row key={g.id} id={g.id}>
-                      <Table.Cell>
+                    <TableRow key={g.id} id={g.id}>
+                      <TableCell>
                         <p className="font-medium">{g.name}</p>
                         <p className="text-xs text-muted">{g.description}</p>
-                      </Table.Cell>
-                      <Table.Cell>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {g.memberIds.map((m) => (
-                            <Chip key={m} size="sm" variant="secondary">
+                            <Tag key={m} size="sm" type="gray">
                               {userName(m)}
-                            </Chip>
+                            </Tag>
                           ))}
                         </div>
-                      </Table.Cell>
-                      <Table.Cell>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" onPress={() => setEditing({ group: g, input: { name: g.name, description: g.description, memberIds: g.memberIds } })}>
+                          <Button size="sm" kind="ghost" onClick={() => setEditing({ group: g, input: { name: g.name, description: g.description, memberIds: g.memberIds } })}>
                             Edit
                           </Button>
                           <Button
                             size="sm"
-                            variant="ghost"
-                            isPending={remove.isPending}
-                            onPress={() => remove.mutate(g.id)}
+                            kind="ghost"
+                            disabled={remove.isPending}
+                            onClick={() => remove.mutate(g.id)}
                             aria-label={`Delete group ${g.name}`}
-                          >
-                            <TrashBin className="size-4" aria-hidden />
-                          </Button>
+                            renderIcon={(p) => <TrashBin className="size-4" aria-hidden {...p} />}
+                          />
                         </div>
-                      </Table.Cell>
-                    </Table.Row>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </div>
         )}
       </QueryState>
-      <Modal.Backdrop isOpen={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <Modal.Container size="md" scroll="inside">
-          <Modal.Dialog>
-            <Modal.CloseTrigger />
-            <Modal.Header>
-              <Modal.Heading>{editing?.group ? `Edit ${editing.group.name}` : "New group"}</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body className="grid gap-4">
-              {editing && (
-                <>
-                  <TextInput label="Name" required value={editing.input.name} onChange={(v) => setEditing({ ...editing, input: { ...editing.input, name: v } })} />
-                  <TextInput label="Description" value={editing.input.description ?? ""} onChange={(v) => setEditing({ ...editing, input: { ...editing.input, description: v } })} />
-                  <QueryState query={users} skeleton={<TableSkeleton rows={4} columns={1} />}>
-                    {(userList) => (
-                      <div className="grid gap-2">
-                        <p className="text-xs font-medium text-muted">Members</p>
-                        {userList.items.map((u) => (
-                          <Checkbox
-                            key={u.id}
-                            isSelected={editing.input.memberIds.includes(u.id)}
-                            onChange={() =>
-                              setEditing({
-                                ...editing,
-                                input: {
-                                  ...editing.input,
-                                  memberIds: editing.input.memberIds.includes(u.id)
-                                    ? editing.input.memberIds.filter((m) => m !== u.id)
-                                    : [...editing.input.memberIds, u.id],
-                                },
-                              })
-                            }
-                          >
+      <Modal
+        open={editing !== null}
+        onRequestClose={() => setEditing(null)}
+        modalHeading={editing?.group ? `Edit ${editing.group.name}` : "New group"}
+        size="md"
+        hasScrollingContent
+        passiveModal
+      >
+        <div className="grid gap-4">
+          {editing && (
+            <>
+              <TextInput label="Name" required value={editing.input.name} onChange={(v) => setEditing({ ...editing, input: { ...editing.input, name: v } })} />
+              <TextInput label="Description" value={editing.input.description ?? ""} onChange={(v) => setEditing({ ...editing, input: { ...editing.input, description: v } })} />
+              <QueryState query={users} skeleton={<TableSkeleton rows={4} columns={1} />}>
+                {(userList) => (
+                  <div className="grid gap-2">
+                    <p className="text-xs font-medium text-muted">Members</p>
+                    {userList.items.map((u) => (
+                      <Checkbox
+                        key={u.id}
+                        id={`group-member-${u.id}`}
+                        checked={editing.input.memberIds.includes(u.id)}
+                        onChange={() =>
+                          setEditing({
+                            ...editing,
+                            input: {
+                              ...editing.input,
+                              memberIds: editing.input.memberIds.includes(u.id)
+                                ? editing.input.memberIds.filter((m) => m !== u.id)
+                                : [...editing.input.memberIds, u.id],
+                            },
+                          })
+                        }
+                        labelText={
+                          <>
                             {u.name} <span className="text-xs text-muted">{u.email}</span>
-                          </Checkbox>
-                        ))}
-                      </div>
-                    )}
-                  </QueryState>
-                </>
-              )}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="ghost" onPress={() => setEditing(null)}>
-                Cancel
-              </Button>
-              <Button
-                isDisabled={!editing || !editing.input.name.trim()}
-                isPending={create.isPending || update.isPending}
-                onPress={save}
-              >
-                Save group
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
+                          </>
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </QueryState>
+            </>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 pt-6">
+          <Button kind="ghost" onClick={() => setEditing(null)}>
+            Cancel
+          </Button>
+          <Button
+            kind="primary"
+            disabled={!editing || !editing.input.name.trim() || create.isPending || update.isPending}
+            onClick={save}
+          >
+            Save group
+          </Button>
+        </div>
+      </Modal>
     </SectionCard>
   );
 }

@@ -1,4 +1,4 @@
-import { Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { Plus } from "@workspacenow/icons";
 import { useCan, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -27,37 +27,37 @@ export function WorkflowsPage() {
             data.items.length === 0 ? (
               <NoDataFound message="No workflows yet." />
             ) : (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Workflows" className="min-w-[720px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Name</Table.Column>
-                      <Table.Column>Trigger</Table.Column>
-                      <Table.Column>Steps</Table.Column>
-                      <Table.Column>Status</Table.Column>
-                      <Table.Column>Version</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {data.items.map((workflow) => (
-                        <Table.Row key={workflow.id} id={workflow.id}>
-                          <Table.Cell>
-                            <TextLink to={buildPath(routes.flow.workflow, { workflowId: workflow.id })}>{workflow.name}</TextLink>
-                            <p className="mt-0.5 max-w-md text-xs text-muted">{workflow.description}</p>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <TriggerLabel trigger={workflow.trigger} />
-                          </Table.Cell>
-                          <Table.Cell className="tabular-nums">{workflow.steps.length}</Table.Cell>
-                          <Table.Cell>
-                            <StatusChip status={workflow.status} />
-                          </Table.Cell>
-                          <Table.Cell className="tabular-nums">v{workflow.version}</Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+              <TableContainer aria-label="Workflows">
+                <Table className="min-w-[720px]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Name</TableHeader>
+                      <TableHeader>Trigger</TableHeader>
+                      <TableHeader>Steps</TableHeader>
+                      <TableHeader>Status</TableHeader>
+                      <TableHeader>Version</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.items.map((workflow) => (
+                      <TableRow key={workflow.id} id={workflow.id}>
+                        <TableCell>
+                          <TextLink to={buildPath(routes.flow.workflow, { workflowId: workflow.id })}>{workflow.name}</TextLink>
+                          <p className="mt-0.5 max-w-md text-xs text-muted">{workflow.description}</p>
+                        </TableCell>
+                        <TableCell>
+                          <TriggerLabel trigger={workflow.trigger} />
+                        </TableCell>
+                        <TableCell className="tabular-nums">{workflow.steps.length}</TableCell>
+                        <TableCell>
+                          <StatusChip status={workflow.status} />
+                        </TableCell>
+                        <TableCell className="tabular-nums">v{workflow.version}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )
           }
         </QueryState>

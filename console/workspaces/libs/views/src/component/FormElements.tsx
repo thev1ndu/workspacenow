@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Description, FieldError, Input, Label, ListBox, Select, TextArea, TextField } from "@heroui/react";
+import { useId, type ReactNode } from "react";
+import { Select, SelectItem, TextArea, TextInput as CarbonTextInput } from "@carbon/react";
 
 interface BaseProps {
   label: string;
@@ -30,21 +30,39 @@ export function TextInput({
   placeholder?: string;
   disabled?: boolean;
 }) {
+  const id = useId();
+  const labelText = required ? `${label} *` : label;
+  if (multiline) {
+    return (
+      <TextArea
+        id={id}
+        className="w-full"
+        labelText={labelText}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={rows ?? 3}
+        invalid={!!error}
+        invalidText={error}
+        helperText={error ? undefined : typeof helperText === "string" ? helperText : undefined}
+      />
+    );
+  }
   return (
-    <TextField
-      className="flex w-full flex-col gap-1.5"
+    <CarbonTextInput
+      id={id}
+      className="w-full"
+      labelText={labelText}
       value={value}
-      onChange={onChange}
-      isRequired={required}
-      isInvalid={!!error}
-      isDisabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
       type={type}
-    >
-      <Label>{label}</Label>
-      {multiline ? <TextArea variant="secondary" placeholder={placeholder} rows={rows ?? 3} /> : <Input variant="secondary" placeholder={placeholder} />}
-      {helperText && !error && <Description>{helperText}</Description>}
-      <FieldError>{error}</FieldError>
-    </TextField>
+      placeholder={placeholder}
+      disabled={disabled}
+      invalid={!!error}
+      invalidText={error}
+      helperText={error ? undefined : typeof helperText === "string" ? helperText : undefined}
+    />
   );
 }
 
@@ -70,33 +88,25 @@ export function SelectInput({
   disabled?: boolean;
   placeholder?: string;
 }) {
+  const id = useId();
   return (
-    <Select variant="secondary"
-      className="flex w-full flex-col gap-1.5"
-      value={value || null}
-      onChange={(key) => onChange(key == null ? "" : String(key))}
-      isRequired={required}
-      isInvalid={!!error}
-      isDisabled={disabled}
-      placeholder={placeholder ?? "Select…"}
+    <Select
+      id={id}
+      className="w-full"
+      labelText={required ? `${label} *` : label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      invalid={!!error}
+      invalidText={error}
+      helperText={error ? undefined : typeof helperText === "string" ? helperText : undefined}
     >
-      <Label>{label}</Label>
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      {helperText && !error && <Description>{helperText}</Description>}
-      <FieldError>{error}</FieldError>
-      <Select.Popover>
-        <ListBox>
-          {options.map((option) => (
-            <ListBox.Item key={option.value} id={option.value} textValue={option.label}>
-              {option.label}
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
+      {placeholder && (
+        <SelectItem value="" text={placeholder} />
+      )}
+      {options.map((option) => (
+        <SelectItem key={option.value} value={option.value} text={option.label} />
+      ))}
     </Select>
   );
 }

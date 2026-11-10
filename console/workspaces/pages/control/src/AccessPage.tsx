@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Chip, Table } from "@heroui/react";
+import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { Pencil } from "@workspacenow/icons";
 import { useListUsers, useOrganization, type UserWithRoles } from "@workspacenow/api-client";
 import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TableSkeleton } from "@workspacenow/views";
@@ -19,16 +19,11 @@ export function AccessPage() {
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <SectionCard title="Identity integration">
             <div className="grid gap-5">
-              <Alert>
-                <Alert.Indicator />
-                <Alert.Content>
-                  <Alert.Description>
-                    OIDC establishes who a user is (Authorization Code + PKCE, token validation, group claims). WorkspaceNow maps those groups to
-                    roles and decides what the user may do on every application, entity, API, MCP tool, agent and workflow. Agents and
-                    workflows use their own service identities rather than forwarded user tokens.
-                  </Alert.Description>
-                </Alert.Content>
-              </Alert>
+              <InlineNotification kind="info" lowContrast hideCloseButton>
+                OIDC establishes who a user is (Authorization Code + PKCE, token validation, group claims). WorkspaceNow maps those groups to
+                roles and decides what the user may do on every application, entity, API, MCP tool, agent and workflow. Agents and
+                workflows use their own service identities rather than forwarded user tokens.
+              </InlineNotification>
               <QueryState query={organization} skeleton={<DetailSkeleton items={5} columns={2} />}>
                 {(org) => (
                   <DetailList
@@ -43,9 +38,9 @@ export function AccessPage() {
                         value: (
                           <div className="flex flex-wrap gap-1">
                             {org.identityProvider.scopes.map((s) => (
-                              <Chip key={s} size="sm" variant="secondary">
+                              <Tag key={s} size="sm" type="gray">
                                 {s}
-                              </Chip>
+                              </Tag>
                             ))}
                           </div>
                         ),
@@ -66,52 +61,59 @@ export function AccessPage() {
         >
           <QueryState query={users} skeleton={<TableSkeleton rows={5} columns={4} />}>
             {(data) => (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Users and their roles" className="min-w-[880px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Name</Table.Column>
-                      <Table.Column>Groups (from IdP)</Table.Column>
-                      <Table.Column>WorkspaceNow roles</Table.Column>
-                      <Table.Column aria-label="Actions" />
-                    </Table.Header>
-                    <Table.Body>
+              <div>
+                <TableContainer>
+                  <Table aria-label="Users and their roles" className="min-w-[880px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader scope="row">Name</TableHeader>
+                        <TableHeader>Groups (from IdP)</TableHeader>
+                        <TableHeader>WorkspaceNow roles</TableHeader>
+                        <TableHeader aria-label="Actions" />
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {data.items.map((u) => (
-                        <Table.Row key={u.id} id={u.id}>
-                          <Table.Cell>
+                        <TableRow key={u.id} id={u.id}>
+                          <TableCell>
                             <p className="font-medium">{u.name}</p>
                             <p className="text-xs text-muted">{u.email}</p>
-                          </Table.Cell>
-                          <Table.Cell>
+                          </TableCell>
+                          <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {u.groups.map((g) => (
-                                <Chip key={g} size="sm" variant="secondary">
+                                <Tag key={g} size="sm" type="gray">
                                   <span className="font-mono">{g}</span>
-                                </Chip>
+                                </Tag>
                               ))}
                             </div>
-                          </Table.Cell>
-                          <Table.Cell>
+                          </TableCell>
+                          <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {u.roles.map((r) => (
-                                <Chip key={r} size="sm" variant="soft" color="accent">
+                                <Tag key={r} size="sm" type="blue">
                                   {r}
-                                </Chip>
+                                </Tag>
                               ))}
                             </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <Button size="sm" variant="ghost" onPress={() => setEditing(u)} aria-label={`Edit roles for ${u.name}`}>
-                              <Pencil className="size-4" aria-hidden />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              kind="ghost"
+                              size="sm"
+                              onClick={() => setEditing(u)}
+                              aria-label={`Edit roles for ${u.name}`}
+                              renderIcon={(p) => <Pencil className="size-4" aria-hidden {...p} />}
+                            >
                               Edit roles
                             </Button>
-                          </Table.Cell>
-                        </Table.Row>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </div>
             )}
           </QueryState>
         </SectionCard>

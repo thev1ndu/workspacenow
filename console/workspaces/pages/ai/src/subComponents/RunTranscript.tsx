@@ -1,11 +1,11 @@
-import { Button, Card, Disclosure } from "@heroui/react";
+import { Accordion, AccordionItem } from "@carbon/react";
 import { Comment, Wrench } from "@workspacenow/icons";
 import { buildPath, routes, type AgentRun, type ToolCall } from "@workspacenow/types";
 import { JsonView, LinkButton, StatusChip, formatDateTime, formatNumber } from "@workspacenow/views";
 
 function ToolCallCard({ call }: { call: ToolCall }) {
   return (
-    <Card className={`gap-3 p-4 ${call.outcome === "denied" ? "ring-1 ring-danger/40" : ""}`}>
+    <div className={`flex flex-col gap-3 rounded-xl border border-separator bg-surface p-4 ${call.outcome === "denied" ? "ring-1 ring-danger/40" : ""}`}>
       <div className="flex items-center gap-2">
         <Wrench className="size-3.5 text-muted" aria-hidden />
         <span className="flex-1 font-mono text-sm font-medium">{call.tool}</span>
@@ -17,21 +17,15 @@ function ToolCallCard({ call }: { call: ToolCall }) {
       </div>
       {call.reason && <p className={`text-sm ${call.outcome === "denied" ? "text-danger" : "text-warning"}`}>{call.reason}</p>}
       {call.output !== undefined && (
-        <Disclosure>
-          <Disclosure.Heading>
-            <Button slot="trigger" size="sm" variant="ghost">
-              Output
-              <Disclosure.Indicator />
-            </Button>
-          </Disclosure.Heading>
-          <Disclosure.Content>
-            <Disclosure.Body className="pt-2">
+        <Accordion>
+          <AccordionItem title="Output">
+            <div className="pt-2">
               <JsonView value={call.output} />
-            </Disclosure.Body>
-          </Disclosure.Content>
-        </Disclosure>
+            </div>
+          </AccordionItem>
+        </Accordion>
       )}
-    </Card>
+    </div>
   );
 }
 

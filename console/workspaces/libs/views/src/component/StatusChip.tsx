@@ -1,6 +1,15 @@
-import { Chip } from "@heroui/react";
+import { Tag } from "@carbon/react";
 
 type Tone = "default" | "accent" | "success" | "warning" | "danger";
+
+// Carbon Tag types: no yellow, so warning uses warm-gray.
+const TAG_TYPES: Record<Tone, "blue" | "green" | "warm-gray" | "red" | "gray"> = {
+  accent: "blue",
+  success: "green",
+  warning: "warm-gray",
+  danger: "red",
+  default: "gray",
+};
 
 const TONES: Record<string, Tone> = {
   active: "success",
@@ -38,11 +47,11 @@ function label(status: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Lifecycle and outcome states, always as a soft chip so colour carries meaning without shouting. */
+/** Lifecycle and outcome states, always as a soft tag so colour carries meaning without shouting. */
 export function StatusChip({ status, label: text }: { status: string; label?: string }) {
   return (
-    <Chip size="sm" variant="soft" color={TONES[status] ?? "default"}>
+    <Tag size="sm" type={TAG_TYPES[TONES[status] ?? "default"]}>
       {text ?? label(status)}
-    </Chip>
+    </Tag>
   );
 }

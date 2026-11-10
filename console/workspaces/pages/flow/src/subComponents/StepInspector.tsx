@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Button } from "@carbon/react";
 import { TrashBin } from "@workspacenow/icons";
 import type { ConditionOperator, Workflow, WorkflowStep } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
@@ -71,7 +71,7 @@ export function StepInspector({ step, options, onChange, onDelete }: { step: Wor
         <TextInput label="Minutes" type="number" required value={String(step.minutes)} onChange={(minutes) => onChange({ ...step, minutes: Number(minutes) })} />
       )}
       <div>
-        <Button size="sm" variant="danger-soft" onPress={onDelete}>
+        <Button size="sm" kind="danger--ghost" onClick={onDelete}>
           <TrashBin className="size-4" aria-hidden />
           Delete step
         </Button>

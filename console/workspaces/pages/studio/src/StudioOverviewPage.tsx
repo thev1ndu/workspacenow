@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { Link, Separator } from "@heroui/react";
+import { Link } from "react-router-dom";
 import { ChevronRight, CircleDashed, DotsNine, Rocket } from "@workspacenow/icons";
 import { useListApplications } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -56,10 +56,10 @@ export function StudioOverviewPage() {
                   <ul>
                     {recent.map((app, i) => (
                       <Fragment key={app.id}>
-                        {i > 0 && <Separator />}
+                        {i > 0 && <hr className="border-separator" />}
                         <li>
                           <Link
-                            href={buildPath(routes.studio.application, { appId: app.id })}
+                            to={buildPath(routes.studio.application, { appId: app.id })}
                             className="group flex w-full items-center gap-3 px-5 py-3 no-underline transition-colors hover:bg-surface-secondary"
                           >
                             <AppIcon app={app} />

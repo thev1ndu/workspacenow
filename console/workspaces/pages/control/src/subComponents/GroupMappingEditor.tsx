@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Input, ListBox, Select, Separator, TextField } from "@heroui/react";
+import { Button, InlineNotification, Select, SelectItem, TextInput } from "@carbon/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
 import { useCan, useListGroupMappings, useListRoles, useUpdateGroupMappings } from "@workspacenow/api-client";
 import type { GroupRoleMapping } from "@workspacenow/types";
@@ -28,14 +28,13 @@ export function GroupMappingEditor() {
       subtitle="Group claims in the OIDC token decide each user's WorkspaceNow roles."
       actions={
         <>
-          <Button size="sm" variant="ghost" onPress={() => setRows((prev) => [...prev, { group: "", roleId: "" }])}>
-            <Plus className="size-4" aria-hidden />
+          <Button size="sm" kind="ghost" onClick={() => setRows((prev) => [...prev, { group: "", roleId: "" }])} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
             Add
           </Button>
-          <Button size="sm" variant="tertiary" isDisabled={!dirty} onPress={() => setRows(mappings.data?.items ?? [])}>
+          <Button size="sm" kind="tertiary" disabled={!dirty} onClick={() => setRows(mappings.data?.items ?? [])}>
             Discard
           </Button>
-          <Button size="sm" isDisabled={!dirty || invalid} isPending={update.isPending} onPress={() => update.mutate(rows)}>
+          <Button size="sm" kind="primary" disabled={!dirty || invalid || update.isPending} onClick={() => update.mutate(rows)}>
             Save
           </Button>
         </>
@@ -44,14 +43,9 @@ export function GroupMappingEditor() {
     >
       {!canManage && (
         <div className="p-4 pb-0">
-          <Alert>
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Description>
-                Saving needs <code className="font-mono text-xs">control.manage</code>. You can still try; the platform will deny and audit it.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
+          <InlineNotification kind="info" lowContrast hideCloseButton>
+            Saving needs <code className="font-mono text-xs">control.manage</code>. You can still try; the platform will deny and audit it.
+          </InlineNotification>
         </div>
       )}
       <QueryState query={roles} skeleton={<TableSkeleton rows={4} columns={2} />}>
@@ -65,41 +59,40 @@ export function GroupMappingEditor() {
             <div className="grid gap-2">
               {rows.map((row, index) => (
                 <div key={index}>
-                  {index > 0 && <Separator className="mb-2" />}
+                  {index > 0 && <hr className="mb-2 border-separator" />}
                   <div className="grid grid-cols-[1fr_1fr_2rem] items-center gap-3">
-                    <TextField aria-label="Group" value={row.group} onChange={(value) => setRow(index, { group: value })}>
-                      <Input variant="secondary" placeholder="group-name" className="font-mono" />
-                    </TextField>
-                    <Select variant="secondary"
+                    <TextInput
+                      id={`mapping-group-${index}`}
+                      aria-label="Group"
+                      labelText="Group"
+                      hideLabel
+                      placeholder="group-name"
+                      className="font-mono w-full"
+                      value={row.group}
+                      onChange={(e) => setRow(index, { group: e.target.value })}
+                    />
+                    <Select
+                      id={`mapping-role-${index}`}
                       aria-label="Role"
-                      placeholder="Choose a role"
-                      value={row.roleId || null}
-                      onChange={(key) => setRow(index, { roleId: key == null ? "" : String(key) })}
+                      labelText="Role"
+                      hideLabel
+                      className="w-full"
+                      value={row.roleId}
+                      onChange={(e) => setRow(index, { roleId: e.target.value })}
                     >
-                      <Select.Trigger>
-                        <Select.Value />
-                        <Select.Indicator />
-                      </Select.Trigger>
-                      <Select.Popover>
-                        <ListBox>
-                          {roleList.items.map((role) => (
-                            <ListBox.Item key={role.id} id={role.id} textValue={role.name}>
-                              {role.name}
-                              <ListBox.ItemIndicator />
-                            </ListBox.Item>
-                          ))}
-                        </ListBox>
-                      </Select.Popover>
+                      <SelectItem value="" text="Choose a role" />
+                      {roleList.items.map((role) => (
+                        <SelectItem key={role.id} value={role.id} text={role.name} />
+                      ))}
                     </Select>
                     <Button
-                      isIconOnly
+                      hasIconOnly
                       size="sm"
-                      variant="ghost"
-                      aria-label="Remove mapping"
-                      onPress={() => setRows((prev) => prev.filter((_r, i) => i !== index))}
-                    >
-                      <TrashBin className="size-4" />
-                    </Button>
+                      kind="ghost"
+                      iconDescription="Remove mapping"
+                      onClick={() => setRows((prev) => prev.filter((_r, i) => i !== index))}
+                      renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+                    />
                   </div>
                 </div>
               ))}

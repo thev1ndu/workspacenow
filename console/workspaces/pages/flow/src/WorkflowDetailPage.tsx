@@ -1,4 +1,4 @@
-import { Button, Chip } from "@heroui/react";
+import { Button, Tag } from "@carbon/react";
 import { Pause, Pencil, Play, Rocket } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetWorkflow, useListApplications, useListExecutions, useSimulateWorkflow, useStartWorkflow, useUpdateWorkflow } from "@workspacenow/api-client";
@@ -38,9 +38,8 @@ export function WorkflowDetailPage() {
             )}
             {wf.trigger.kind === "manual" && (
               <Button
-                isDisabled={wf.status !== "active"}
-                isPending={startWorkflow.isPending}
-                onPress={() =>
+                disabled={wf.status !== "active" || startWorkflow.isPending}
+                onClick={() =>
                   startWorkflow.mutate(
                     { workflowId: wf.id, input: {} },
                     { onSuccess: (execution) => navigate(buildPath(routes.flow.execution, { executionId: execution.id })) },
@@ -52,17 +51,17 @@ export function WorkflowDetailPage() {
               </Button>
             )}
             <Button
-              variant="tertiary"
-              isPending={simulate.isPending}
-              onPress={() => simulate.mutate({ workflowId: wf.id, event: {} })}
+              kind="tertiary"
+              disabled={simulate.isPending}
+              onClick={() => simulate.mutate({ workflowId: wf.id, event: {} })}
             >
               <Rocket className="size-4" aria-hidden />
               Simulate
             </Button>
             <Button
-              variant="secondary"
-              isPending={updateWorkflow.isPending}
-              onPress={() => updateWorkflow.mutate({ workflowId: wf.id, status: wf.status === "active" ? "paused" : "active" })}
+              kind="secondary"
+              disabled={updateWorkflow.isPending}
+              onClick={() => updateWorkflow.mutate({ workflowId: wf.id, status: wf.status === "active" ? "paused" : "active" })}
             >
               {wf.status === "active" ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
               {wf.status === "active" ? "Pause" : "Resume"}
@@ -95,9 +94,9 @@ export function WorkflowDetailPage() {
                 <SectionCard title="Service identity" subtitle="Steps run with only these permissions, never the caller's.">
                   <div className="flex flex-wrap gap-1.5">
                     {data.permissions.map((p) => (
-                      <Chip key={p} size="sm" variant="secondary">
+                      <Tag key={p} size="sm" type="gray">
                         <span className="font-mono">{p}</span>
-                      </Chip>
+                      </Tag>
                     ))}
                   </div>
                 </SectionCard>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Modal } from "@heroui/react";
+import { Modal } from "@carbon/react";
 import { useCreateIntegration, useListSecrets, useUpdateIntegration } from "@workspacenow/api-client";
 import type { Integration, IntegrationInput } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
@@ -47,52 +47,43 @@ export function IntegrationDialog({ onClose, integration }: { onClose: () => voi
   ];
 
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="md">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>{integration ? "Edit integration" : "New integration"}</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
-            <TextInput label="Name" required value={name} onChange={setName} placeholder="ERP database" />
-            <div className="grid grid-cols-2 gap-4">
-              <SelectInput label="Kind" required value={kind} onChange={(v) => setKind(v as IntegrationInput["kind"])} options={KINDS} />
-              <SelectInput label="Retry policy" value={retryPolicy} onChange={setRetryPolicy} options={RETRIES} />
-            </div>
-            <TextInput label="Target" required value={target} onChange={setTarget} placeholder="https://erp.example.com/api or db.internal:5432" />
-            <TextInput label="Timeout (ms)" type="number" required value={timeoutMs} onChange={setTimeoutMs} placeholder="5000" />
-            <SelectInput label="Credential (OpenBao reference)" value={secretChoice} onChange={setSecretChoice} options={secretOptions} />
-            {secretChoice === CUSTOM && (
-              <TextInput label="Custom secret reference" value={customRef} onChange={setCustomRef} placeholder="vault://integrations/my-cred" />
-            )}
-            <p className="text-xs text-muted">The platform stores only the reference; the secret itself stays in OpenBao and is resolved when the integration is used or tested.</p>
-            {problems.length > 0 && (
-              <ul className="list-disc pl-5 text-sm text-danger">
-                {problems.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              Cancel
-            </Button>
-            <Button
-              isDisabled={problems.length > 0}
-              isPending={pending}
-              onPress={() =>
-                integration
-                  ? update.mutate({ integrationId: integration.id, body }, { onSuccess: onClose })
-                  : create.mutate(body, { onSuccess: onClose })
-              }
-            >
-              {integration ? "Save changes" : "Create integration"}
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <Modal
+      open
+      size="md"
+      modalHeading={integration ? "Edit integration" : "New integration"}
+      onRequestClose={onClose}
+      primaryButtonText={integration ? "Save changes" : "Create integration"}
+      primaryButtonDisabled={problems.length > 0}
+      loadingStatus={pending ? "active" : "inactive"}
+      onRequestSubmit={() =>
+        integration
+          ? update.mutate({ integrationId: integration.id, body }, { onSuccess: onClose })
+          : create.mutate(body, { onSuccess: onClose })
+      }
+      secondaryButtonText="Cancel"
+      onSecondarySubmit={onClose}
+    >
+      <div className="grid gap-4">
+        <TextInput label="Name" required value={name} onChange={setName} placeholder="ERP database" />
+        <div className="grid grid-cols-2 gap-4">
+          <SelectInput label="Kind" required value={kind} onChange={(v) => setKind(v as IntegrationInput["kind"])} options={KINDS} />
+          <SelectInput label="Retry policy" value={retryPolicy} onChange={setRetryPolicy} options={RETRIES} />
+        </div>
+        <TextInput label="Target" required value={target} onChange={setTarget} placeholder="https://erp.example.com/api or db.internal:5432" />
+        <TextInput label="Timeout (ms)" type="number" required value={timeoutMs} onChange={setTimeoutMs} placeholder="5000" />
+        <SelectInput label="Credential (OpenBao reference)" value={secretChoice} onChange={setSecretChoice} options={secretOptions} />
+        {secretChoice === CUSTOM && (
+          <TextInput label="Custom secret reference" value={customRef} onChange={setCustomRef} placeholder="vault://integrations/my-cred" />
+        )}
+        <p className="text-xs text-muted">The platform stores only the reference; the secret itself stays in OpenBao and is resolved when the integration is used or tested.</p>
+        {problems.length > 0 && (
+          <ul className="list-disc pl-5 text-sm text-danger">
+            {problems.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Modal>
   );
 }

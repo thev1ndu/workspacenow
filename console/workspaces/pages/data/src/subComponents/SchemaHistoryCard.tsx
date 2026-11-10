@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Chip, Table } from "@heroui/react";
+import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { useAuthHooks } from "@workspacenow/auth";
 import { diffEntityVersions, useListEntityVersions } from "@workspacenow/api-client";
 import type { Entity, EntityVersionDiff } from "@workspacenow/types";
@@ -33,32 +33,32 @@ export function SchemaHistoryCard({ entity }: { entity: Entity }) {
             <NoDataFound message="No migrations yet — the current definition is version 1." />
           ) : (
             <div className="grid gap-4">
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Schema versions" className="min-w-[640px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Version</Table.Column>
-                      <Table.Column>By</Table.Column>
-                      <Table.Column>Note</Table.Column>
-                      <Table.Column>At</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {data.items.map((v) => (
-                        <Table.Row key={v.version} id={String(v.version)}>
-                          <Table.Cell className="font-medium tabular-nums">v{v.version}</Table.Cell>
-                          <Table.Cell>{v.actor}</Table.Cell>
-                          <Table.Cell className="text-muted">{v.note || "—"}</Table.Cell>
-                          <Table.Cell className="whitespace-nowrap text-muted">{formatDateTime(v.migratedAt)}</Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+              <TableContainer aria-label="Schema versions">
+                <Table className="min-w-[640px]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Version</TableHeader>
+                      <TableHeader>By</TableHeader>
+                      <TableHeader>Note</TableHeader>
+                      <TableHeader>At</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.items.map((v) => (
+                      <TableRow key={v.version} id={String(v.version)}>
+                        <TableCell className="font-medium tabular-nums">v{v.version}</TableCell>
+                        <TableCell>{v.actor}</TableCell>
+                        <TableCell className="text-muted">{v.note || "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted">{formatDateTime(v.migratedAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
               <div className="flex flex-wrap items-end gap-2 px-5 pb-5">
                 <SelectInput label="From" value={from === undefined ? "" : String(from)} onChange={(v) => setFrom(Number(v))} options={versionOptions} />
                 <SelectInput label="To" value={to === undefined ? "" : String(to)} onChange={(v) => setTo(Number(v))} options={versionOptions} />
-                <Button size="sm" isDisabled={from === undefined || to === undefined} onPress={() => void compare()}>
+                <Button size="sm" disabled={from === undefined || to === undefined} onClick={() => void compare()}>
                   Diff
                 </Button>
               </div>
@@ -67,19 +67,19 @@ export function SchemaHistoryCard({ entity }: { entity: Entity }) {
                 <div className="flex flex-wrap gap-2 border-t border-separator px-5 py-4">
                   <span className="text-xs text-muted self-center">v{diff.from} → v{diff.to}:</span>
                   {diff.added.map((f) => (
-                    <Chip key={f} size="sm" variant="soft" color="success">
+                    <Tag key={f} size="sm" type="green">
                       + {f}
-                    </Chip>
+                    </Tag>
                   ))}
                   {diff.removed.map((f) => (
-                    <Chip key={f} size="sm" variant="soft" color="danger">
+                    <Tag key={f} size="sm" type="red">
                       − {f}
-                    </Chip>
+                    </Tag>
                   ))}
                   {diff.changed.map((c) => (
-                    <Chip key={c.field} size="sm" variant="soft" color="warning" title={`${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`}>
+                    <Tag key={c.field} size="sm" type="warm-gray" title={`${JSON.stringify(c.from)} → ${JSON.stringify(c.to)}`}>
                       ~ {c.field}
-                    </Chip>
+                    </Tag>
                   ))}
                   {diff.added.length + diff.removed.length + diff.changed.length === 0 && <span className="text-sm text-muted">no field changes</span>}
                 </div>

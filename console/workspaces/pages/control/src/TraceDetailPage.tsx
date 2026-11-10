@@ -1,4 +1,4 @@
-import { Chip, Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { useParams } from "react-router-dom";
 import { useGetTrace } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -30,9 +30,9 @@ export function TraceDetailPage() {
                     label: "Denied",
                     value:
                       data.denied > 0 ? (
-                        <Chip size="sm" variant="soft" color="danger">
+                        <Tag size="sm" type="red">
                           {data.denied}
-                        </Chip>
+                        </Tag>
                       ) : (
                         "0"
                       ),
@@ -43,9 +43,9 @@ export function TraceDetailPage() {
                     value: (
                       <div className="flex flex-wrap gap-1">
                         {data.actors.map((a) => (
-                          <Chip key={a} size="sm" variant="secondary">
+                          <Tag key={a} size="sm" type="gray">
                             {a}
-                          </Chip>
+                          </Tag>
                         ))}
                       </div>
                     ),
@@ -55,90 +55,94 @@ export function TraceDetailPage() {
             </SectionCard>
 
             <SectionCard title="Timeline" subtitle="Each governed step, in order. Denied steps are highlighted." flush>
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Trace timeline" className="min-w-[880px]">
-                    <Table.Header>
-                      <Table.Column>Offset</Table.Column>
-                      <Table.Column isRowHeader>Actor</Table.Column>
-                      <Table.Column>Entry point</Table.Column>
-                      <Table.Column>Action</Table.Column>
-                      <Table.Column>Resource</Table.Column>
-                      <Table.Column>Outcome</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
+              <div>
+                <TableContainer>
+                  <Table aria-label="Trace timeline" className="min-w-[880px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Offset</TableHeader>
+                        <TableHeader scope="row">Actor</TableHeader>
+                        <TableHeader>Entry point</TableHeader>
+                        <TableHeader>Action</TableHeader>
+                        <TableHeader>Resource</TableHeader>
+                        <TableHeader>Outcome</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {data.audit.map((record) => {
                         const denied = record.outcome === "denied";
                         return (
-                          <Table.Row key={record.id} id={record.id} className={denied ? "bg-danger-soft/40" : undefined}>
-                            <Table.Cell className="font-mono text-[13px] whitespace-nowrap text-muted">
+                          <TableRow key={record.id} id={record.id} className={denied ? "bg-danger-soft/40" : undefined}>
+                            <TableCell className="font-mono text-[13px] whitespace-nowrap text-muted">
                               {formatOffset(data.startedAt, record.time)}
-                            </Table.Cell>
-                            <Table.Cell>
+                            </TableCell>
+                            <TableCell>
                               <ActorLabel actor={record.actor} />
                               {record.actor.onBehalfOf && <p className="text-xs text-muted">on behalf of {record.actor.onBehalfOf}</p>}
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Chip size="sm" variant="secondary">
+                            </TableCell>
+                            <TableCell>
+                              <Tag size="sm" type="gray">
                                 {record.entryPoint}
-                              </Chip>
-                            </Table.Cell>
-                            <Table.Cell className="max-w-md">
+                              </Tag>
+                            </TableCell>
+                            <TableCell className="max-w-md">
                               <p className="font-mono text-[13px]">{record.action}</p>
                               {record.detail && <p className={`text-xs ${denied ? "text-danger" : "text-muted"}`}>{record.detail}</p>}
-                            </Table.Cell>
-                            <Table.Cell className="font-mono text-[13px] whitespace-nowrap">{record.resource}</Table.Cell>
-                            <Table.Cell>
+                            </TableCell>
+                            <TableCell className="font-mono text-[13px] whitespace-nowrap">{record.resource}</TableCell>
+                            <TableCell>
                               <StatusChip status={record.outcome} />
-                            </Table.Cell>
-                          </Table.Row>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </div>
             </SectionCard>
 
             <SectionCard title="Events published" subtitle="Domain events raised inside this trace" flush>
               {data.events.length === 0 ? (
                 <NoDataFound message="No events were published in this trace." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Events published" className="min-w-[720px]">
-                      <Table.Header>
-                        <Table.Column>Offset</Table.Column>
-                        <Table.Column isRowHeader>Event</Table.Column>
-                        <Table.Column>Payload</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
+                <div>
+                  <TableContainer>
+                    <Table aria-label="Events published" className="min-w-[720px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>Offset</TableHeader>
+                          <TableHeader scope="row">Event</TableHeader>
+                          <TableHeader>Payload</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
                         {data.events.map((event) => (
-                          <Table.Row key={event.id} id={event.id}>
-                            <Table.Cell className="font-mono text-[13px] whitespace-nowrap text-muted">
+                          <TableRow key={event.id} id={event.id}>
+                            <TableCell className="font-mono text-[13px] whitespace-nowrap text-muted">
                               {formatOffset(data.startedAt, event.time)}
-                            </Table.Cell>
-                            <Table.Cell className="whitespace-nowrap">
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
                               <p className="font-mono text-[13px]">{event.type}</p>
                               <p className="text-xs text-muted">{event.source}</p>
-                            </Table.Cell>
-                            <Table.Cell>
+                            </TableCell>
+                            <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {Object.entries(event.payload).map(([key, value]) => (
-                                  <Chip key={key} size="sm" variant="secondary" className="max-w-[420px]">
+                                  <Tag key={key} size="sm" type="gray" className="max-w-[420px]">
                                     <span className="truncate font-mono">
                                       {key}: {Array.isArray(value) ? value.join(", ") : String(value)}
                                     </span>
-                                  </Chip>
+                                  </Tag>
                                 ))}
                               </div>
-                            </Table.Cell>
-                          </Table.Row>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
               )}
             </SectionCard>
           </div>

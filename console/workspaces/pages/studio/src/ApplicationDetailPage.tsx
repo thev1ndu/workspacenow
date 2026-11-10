@@ -1,4 +1,4 @@
-import { Tabs } from "@heroui/react";
+import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
 import { ArrowUpRightFromSquare, Pencil } from "@workspacenow/icons";
 import { useParams } from "react-router-dom";
 import { useCan, useGetApplication } from "@workspacenow/api-client";
@@ -43,38 +43,35 @@ export function ApplicationDetailPage() {
     >
       <QueryState query={application}>
         {(app) => (
-          <Tabs variant="secondary" align="start" defaultSelectedKey="Overview">
-            <Tabs.ListContainer className="mb-6 overflow-x-auto">
-              <Tabs.List aria-label="Application sections">
-                {TABS.map((t) => (
-                  <Tabs.Tab key={t} id={t}>
-                    {t}
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-            </Tabs.ListContainer>
-            <Tabs.Panel className="mt-0" id="Overview">
-              <AppOverviewTab app={app} />
-            </Tabs.Panel>
-            <Tabs.Panel className="mt-0" id="Build">
-              <BuilderTools app={app} />
-            </Tabs.Panel>
-            <Tabs.Panel className="mt-0" id="Data">
-              <AppDataTab app={app} />
-            </Tabs.Panel>
-            <Tabs.Panel className="mt-0" id="APIs">
-              <AppApisTab app={app} />
-            </Tabs.Panel>
-            <Tabs.Panel className="mt-0" id="Workflows">
-              <AppWorkflowsTab app={app} />
-            </Tabs.Panel>
-            <Tabs.Panel className="mt-0" id="Releases">
-              <ReleasesTab app={app} />
-            </Tabs.Panel>
-            <Tabs.Panel className="mt-0" id="Deployments">
-              <DeploymentsTab app={app} />
-            </Tabs.Panel>
+          <Tabs defaultSelectedIndex={0}>
+            <TabList aria-label="Application sections" className="mb-6 overflow-x-auto">
+              {TABS.map((t) => (
+                <Tab key={t}>{t}</Tab>
+              ))}
+            </TabList>
+            <TabPanels>
+              <TabPanel className="mt-0">
+                <AppOverviewTab app={app} />
+              </TabPanel>
+              <TabPanel className="mt-0">
+                <BuilderTools app={app} />
+              </TabPanel>
+              <TabPanel className="mt-0">
+                <AppDataTab app={app} />
+              </TabPanel>
+              <TabPanel className="mt-0">
+                <AppApisTab app={app} />
+              </TabPanel>
+              <TabPanel className="mt-0">
+                <AppWorkflowsTab app={app} />
+              </TabPanel>
+              <TabPanel className="mt-0">
+                <ReleasesTab app={app} />
+              </TabPanel>
+              <TabPanel className="mt-0">
+                <DeploymentsTab app={app} />
+              </TabPanel>
+            </TabPanels>
           </Tabs>
         )}
       </QueryState>

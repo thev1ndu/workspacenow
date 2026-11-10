@@ -98,7 +98,7 @@ Coverage: **100% of `src`** (512 statements, every file), 63 tests passed + 1 sk
 
 ---
 
-## console — the webapp (TypeScript/React, heroui, pnpm workspaces)
+## console — the webapp (TypeScript/React, Carbon, pnpm workspaces)
 
 Reproduce: `cd console && pnpm typecheck && pnpm lint && pnpm --filter @workspacenow/mock-server test:coverage` (42 tests pass against an 80% line gate).
 

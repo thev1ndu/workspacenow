@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Modal } from "@heroui/react";
+import { Button, InlineNotification, Modal } from "@carbon/react";
 import { Minus, Plus, Printer, TrashBin } from "@workspacenow/icons";
 import { useInvokeBusinessOperation, useListRecords } from "@workspacenow/api-client";
 import type { EntityRecord, OperationResult } from "@workspacenow/types";
@@ -39,42 +39,38 @@ function quickCash(total: number): number[] {
 
 function ReceiptDialog({ result, onClose }: { result: CheckoutResult; onClose: () => void }) {
   return (
-    <Modal.Backdrop isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal.Container size="sm" scroll="inside">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>Sale complete</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body className="grid gap-4">
-            {result.lowStock.length > 0 && (
-              <Alert status="warning">
-                <Alert.Indicator />
-                <Alert.Content>
-                  <Alert.Description>
-                    {result.lowStock.join(", ")} reached the reorder level; the low-stock replenishment workflow has started.
-                  </Alert.Description>
-                </Alert.Content>
-              </Alert>
-            )}
-            <div className="flex justify-center overflow-x-auto rounded-xl bg-default p-4">
-              <div className="shadow-md">
-                <Receipt sale={result.sale} lines={result.lines} />
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              New sale
-            </Button>
-            <Button onPress={() => printReceipt(result.sale, result.lines)}>
-              <Printer className="size-4" aria-hidden />
-              Print receipt
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <Modal
+      open
+      size="sm"
+      hasScrollingContent
+      modalHeading="Sale complete"
+      onRequestClose={onClose}
+      secondaryButtonText="New sale"
+      onSecondarySubmit={onClose}
+      primaryButtonText={
+        <>
+          <Printer className="size-4" aria-hidden />
+          Print receipt
+        </>
+      }
+      onRequestSubmit={() => printReceipt(result.sale, result.lines)}
+    >
+      <div className="grid gap-4">
+        {result.lowStock.length > 0 && (
+          <InlineNotification
+            kind="warning"
+            lowContrast
+            hideCloseButton
+            title={`${result.lowStock.join(", ")} reached the reorder level; the low-stock replenishment workflow has started.`}
+          />
+        )}
+        <div className="flex justify-center overflow-x-auto rounded-xl bg-default p-4">
+          <div className="shadow-md">
+            <Receipt sale={result.sale} lines={result.lines} />
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -205,23 +201,39 @@ export function TillPage() {
                 </div>
                 <p className="text-sm font-semibold tabular-nums">{formatCurrency(price(product) * quantity)}</p>
                 <div className="col-span-2 flex items-center gap-1">
-                  <Button isIconOnly size="sm" variant="secondary" aria-label={`One fewer ${String(product.values.name)}`} onPress={() => setQuantity(product.id, (current) => current - 1)}>
+                  <Button
+                    hasIconOnly
+                    iconDescription={`One fewer ${String(product.values.name)}`}
+                    size="sm"
+                    kind="secondary"
+                    aria-label={`One fewer ${String(product.values.name)}`}
+                    onClick={() => setQuantity(product.id, (current) => current - 1)}
+                  >
                     <Minus className="size-3.5" />
                   </Button>
                   <span className="w-8 text-center text-sm tabular-nums" aria-label="Quantity">
                     {quantity}
                   </span>
                   <Button
-                    isIconOnly
+                    hasIconOnly
+                    iconDescription={`One more ${String(product.values.name)}`}
                     size="sm"
-                    variant="secondary"
+                    kind="secondary"
                     aria-label={`One more ${String(product.values.name)}`}
-                    isDisabled={quantity >= (onHand(product.id) ?? 0)}
-                    onPress={() => setQuantity(product.id, (current) => current + 1)}
+                    disabled={quantity >= (onHand(product.id) ?? 0)}
+                    onClick={() => setQuantity(product.id, (current) => current + 1)}
                   >
                     <Plus className="size-3.5" />
                   </Button>
-                  <Button isIconOnly size="sm" variant="ghost" className="ml-auto" aria-label={`Remove ${String(product.values.name)}`} onPress={() => setQuantity(product.id, 0)}>
+                  <Button
+                    hasIconOnly
+                    iconDescription={`Remove ${String(product.values.name)}`}
+                    size="sm"
+                    kind="ghost"
+                    className="ml-auto"
+                    aria-label={`Remove ${String(product.values.name)}`}
+                    onClick={() => setQuantity(product.id, 0)}
+                  >
                     <TrashBin className="size-4" />
                   </Button>
                 </div>
@@ -236,7 +248,7 @@ export function TillPage() {
           </div>
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Payment method">
             {(["cash", "card"] as const).map((m) => (
-              <Button key={m} aria-pressed={method === m} variant={method === m ? "primary" : "secondary"} onPress={() => setMethod(m)}>
+              <Button key={m} aria-pressed={method === m} kind={method === m ? "primary" : "secondary"} onClick={() => setMethod(m)}>
                 {m === "cash" ? "Cash" : "Card"}
               </Button>
             ))}
@@ -247,7 +259,7 @@ export function TillPage() {
               {total > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {quickCash(total).map((v) => (
-                    <Button key={v} size="sm" variant="tertiary" onPress={() => setTendered(String(v))}>
+                    <Button key={v} size="sm" kind="tertiary" onClick={() => setTendered(String(v))}>
                       {v === total ? "Exact" : formatCurrency(v)}
                     </Button>
                   ))}
@@ -261,14 +273,9 @@ export function TillPage() {
             </div>
           )}
           {!!checkout.error && (
-            <Alert status="danger">
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Description>{errorMessage(checkout.error)}</Alert.Description>
-              </Alert.Content>
-            </Alert>
+            <InlineNotification kind="error" lowContrast hideCloseButton title={errorMessage(checkout.error)} />
           )}
-          <Button size="lg" fullWidth isDisabled={!canCharge} isPending={checkout.isPending} onPress={charge}>
+          <Button size="lg" className="w-full" disabled={!canCharge || checkout.isPending} onClick={charge}>
             Charge {formatCurrency(total)}
           </Button>
         </div>

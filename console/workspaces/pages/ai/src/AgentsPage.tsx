@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { useListAgents } from "@workspacenow/api-client";
 import { buildPath, routes, type Agent } from "@workspacenow/types";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TablePager, TextInput, TextLink, SectionCardSkeleton, TableSkeleton, usePagination } from "@workspacenow/views";
@@ -8,34 +8,34 @@ function AgentTable({ agents, label, pager }: { agents: Agent[]; label: string; 
   if (agents.length === 0) return <NoDataFound message="No agents." />;
   return (
     <>
-    <Table variant="secondary">
-      <Table.ScrollContainer>
-        <Table.Content aria-label={label} className="min-w-[760px]">
-          <Table.Header>
-            <Table.Column isRowHeader>Name</Table.Column>
-            <Table.Column>Description</Table.Column>
-            <Table.Column>Model</Table.Column>
-            <Table.Column className="text-right">Tools</Table.Column>
-            <Table.Column>Status</Table.Column>
-          </Table.Header>
-          <Table.Body>
-            {agents.map((agent) => (
-              <Table.Row key={agent.id} id={agent.id}>
-                <Table.Cell className="whitespace-nowrap">
-                  <TextLink to={buildPath(routes.ai.agent, { agentId: agent.id })}>{agent.name}</TextLink>
-                </Table.Cell>
-                <Table.Cell className="text-muted">{agent.description}</Table.Cell>
-                <Table.Cell className="font-mono text-xs whitespace-nowrap">{agent.model}</Table.Cell>
-                <Table.Cell className="text-right tabular-nums">{agent.tools.length}</Table.Cell>
-                <Table.Cell>
-                  <StatusChip status={agent.status} />
-                </Table.Cell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table>
+    <TableContainer aria-label={label}>
+      <Table className="min-w-[760px]">
+        <TableHead>
+          <TableRow>
+            <TableHeader>Name</TableHeader>
+            <TableHeader>Description</TableHeader>
+            <TableHeader>Model</TableHeader>
+            <TableHeader className="text-right">Tools</TableHeader>
+            <TableHeader>Status</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {agents.map((agent) => (
+            <TableRow key={agent.id} id={agent.id}>
+              <TableCell className="whitespace-nowrap">
+                <TextLink to={buildPath(routes.ai.agent, { agentId: agent.id })}>{agent.name}</TextLink>
+              </TableCell>
+              <TableCell className="text-muted">{agent.description}</TableCell>
+              <TableCell className="font-mono text-xs whitespace-nowrap">{agent.model}</TableCell>
+              <TableCell className="text-right tabular-nums">{agent.tools.length}</TableCell>
+              <TableCell>
+                <StatusChip status={agent.status} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
     {pager && <TablePager page={pager.page} totalPages={pager.totalPages} total={pager.total} pageSize={pager.pageSize} onPageChange={pager.onPageChange} />}
     </>
   );

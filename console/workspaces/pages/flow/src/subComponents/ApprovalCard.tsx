@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Alert, Button, Card, Chip, Input, TextField } from "@heroui/react";
+import { Button, InlineNotification, Tag } from "@carbon/react";
 import { Check, Xmark } from "@workspacenow/icons";
 import { useCan, useDecideApproval } from "@workspacenow/api-client";
 import { buildPath, routes, type Approval } from "@workspacenow/types";
-import { StatusChip, TextLink, formatDateTime, formatRelative } from "@workspacenow/views";
+import { StatusChip, TextInput, TextLink, formatDateTime, formatRelative } from "@workspacenow/views";
 
 export function ApprovalCard({ approval }: { approval: Approval }) {
   const [comment, setComment] = useState("");
@@ -14,7 +14,7 @@ export function ApprovalCard({ approval }: { approval: Approval }) {
   const submit = (decision: "approved" | "rejected") => decide.mutate({ approvalId: approval.id, decision, comment });
 
   return (
-    <Card className="gap-4 p-5">
+    <div className="gap-4 rounded-xl border border-separator bg-surface p-5">
       <div className="flex flex-wrap items-start gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-foreground">{approval.title}</h3>
@@ -28,13 +28,13 @@ export function ApprovalCard({ approval }: { approval: Approval }) {
       <p className="text-sm text-foreground">{approval.summary}</p>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Chip size="sm" variant="secondary">
+        <Tag size="sm" type="gray">
           <span className="font-mono">Requires {approval.permission}</span>
-        </Chip>
+        </Tag>
         {approval.subject && (
-          <Chip size="sm" variant="secondary">
+          <Tag size="sm" type="gray">
             {approval.subject.entity} {approval.subject.recordId}
-          </Chip>
+          </Tag>
         )}
         <TextLink to={buildPath(routes.flow.execution, { executionId: approval.executionId })}>Execution</TextLink>
         <TextLink to={buildPath(routes.control.trace, { traceId: approval.traceId })}>Trace</TextLink>
@@ -43,25 +43,18 @@ export function ApprovalCard({ approval }: { approval: Approval }) {
       {pending ? (
         <div className="grid gap-3">
           {!allowed && (
-            <Alert status="warning">
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Description>
-                  You don't hold <code className="font-mono text-xs">{approval.permission}</code>, so the platform will deny and audit this
-                  decision. Switch to Ruwan Jayasinghe (Procurement Manager) from the account menu to approve it.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
+            <InlineNotification kind="warning" lowContrast hideCloseButton>
+              You don't hold <code className="font-mono text-xs">{approval.permission}</code>, so the platform will deny and audit this decision.
+              Switch to Ruwan Jayasinghe (Procurement Manager) from the account menu to approve it.
+            </InlineNotification>
           )}
-          <TextField aria-label="Comment" value={comment} onChange={setComment} className="w-full">
-            <Input variant="secondary" placeholder="Comment (optional)" />
-          </TextField>
+          <TextInput label="Comment" value={comment} onChange={setComment} placeholder="Comment (optional)" />
           <div className="flex gap-2">
-            <Button isPending={decide.isPending} onPress={() => submit("approved")}>
+            <Button disabled={decide.isPending} onClick={() => submit("approved")}>
               <Check className="size-4" aria-hidden />
               Approve
             </Button>
-            <Button variant="secondary" isDisabled={decide.isPending} onPress={() => submit("rejected")}>
+            <Button kind="secondary" disabled={decide.isPending} onClick={() => submit("rejected")}>
               <Xmark className="size-4" aria-hidden />
               Reject
             </Button>
@@ -73,6 +66,6 @@ export function ApprovalCard({ approval }: { approval: Approval }) {
           {approval.comment ? ` · "${approval.comment}"` : ""}
         </p>
       )}
-    </Card>
+    </div>
   );
 }

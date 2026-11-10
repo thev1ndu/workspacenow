@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="light" data-theme="light">
+<html lang="en" class="cds--white light" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -18,7 +18,7 @@
           var dark = mode === "light" || mode === "dark" ? mode === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
           var theme = dark ? "dark" : "light";
           var palette = localStorage.getItem("workspacenow-palette");
-          document.documentElement.className = theme;
+          document.documentElement.className = (theme === "dark" ? "cds--g100 dark" : "cds--white light");
           document.documentElement.dataset.theme = theme;
           if (palette && palette !== "blue") document.documentElement.dataset.palette = palette;
         } catch (e) {}

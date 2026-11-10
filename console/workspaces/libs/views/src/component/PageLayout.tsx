@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
-import { Link, Skeleton } from "@heroui/react";
+import { Link } from "react-router-dom";
+import { SkeletonText } from "@carbon/react";
 import { ArrowLeft } from "@workspacenow/icons";
 import { globalConfig } from "@workspacenow/types";
 import { Loading } from "./QueryState";
@@ -28,7 +29,7 @@ export function PageLayout({ title, documentTitle, description, backHref, backLa
     <div className="w-full px-6 py-8 lg:px-10">
       <header className="mb-8">
         {backHref && (
-          <Link href={backHref} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted no-underline hover:text-foreground">
+          <Link to={backHref} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted no-underline hover:text-foreground">
             <ArrowLeft className="size-3.5" aria-hidden />
             {backLabel ?? "Back"}
           </Link>
@@ -37,8 +38,8 @@ export function PageLayout({ title, documentTitle, description, backHref, backLa
           <div className="min-w-48 flex-1">
             {isLoading ? (
               <div className="grid gap-2.5 py-1">
-                <Skeleton className="h-6 w-56 rounded-md" />
-                <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+                <SkeletonText heading width="224px" />
+                <SkeletonText width="320px" />
               </div>
             ) : (
               <>

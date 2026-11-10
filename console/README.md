@@ -11,7 +11,7 @@ The demo needs no backend. `@workspacenow/mock-server` is an in-browser platform
 installation's REST API: Entity Runtime, Business Operations, MCP tools, agent runs, durable-style workflows,
 approvals, events and audit. State persists in `localStorage`; reset it from the account menu.
 
-The UI is HeroUI v3 on Tailwind CSS v4, with EvilCharts (Recharts) for charts and Gravity UI icons. See
+The UI is IBM Carbon (@carbon/react) with a small app utility layer on Carbon theme variables, with EvilCharts (Recharts) for charts and Gravity UI icons. See
 `docs/UI-GUIDE.md` before changing any screen.
 
 
@@ -61,7 +61,7 @@ groups map to which roles.
 | `workspaces/libs/mock-server` | In-browser platform runtime and its REST router |
 | `workspaces/libs/api-client` | Fetch functions and TanStack Query hooks (two-file pattern) |
 | `workspaces/libs/auth` | Demo OIDC persona sign-in |
-| `workspaces/libs/views` | HeroUI-based primitives (page frame, cards, chips, fields, toasts) |
+| `workspaces/libs/views` | Carbon-based primitives (page frame, cards, tags, fields, toasts) |
 | `workspaces/libs/charting` | `@workspacenow/charts`: vendored EvilCharts components (MIT) |
 | `workspaces/pages/<workspace>` | One package per Workspace, plus `overview` for Home |
 

@@ -1,4 +1,4 @@
-import { Chip, Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { useListErrorGroups, useListObservedServices } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { useState } from "react";
@@ -7,9 +7,9 @@ import { NoDataFound, PageLayout, QueryState, SectionCard, TablePager, TextInput
 const PAGE_SIZE = 15;
 
 function errorRateChip(rate: number) {
-  if (rate >= 0.05) return <Chip size="sm" variant="soft" color="danger">{(rate * 100).toFixed(1)}%</Chip>;
-  if (rate > 0) return <Chip size="sm" variant="soft" color="warning">{(rate * 100).toFixed(1)}%</Chip>;
-  return <Chip size="sm" variant="secondary">0%</Chip>;
+  if (rate >= 0.05) return <Tag size="sm" type="red">{(rate * 100).toFixed(1)}%</Tag>;
+  if (rate > 0) return <Tag size="sm" type="warm-gray">{(rate * 100).toFixed(1)}%</Tag>;
+  return <Tag size="sm" type="gray">0%</Tag>;
 }
 
 export function HealthPage() {
@@ -30,32 +30,34 @@ export function HealthPage() {
               data.items.length === 0 ? (
                 <NoDataFound message="No telemetry yet — the observer has not received spans." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Observed services" className="min-w-[880px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Service</Table.Column>
-                        <Table.Column>Spans</Table.Column>
-                        <Table.Column>Errors</Table.Column>
-                        <Table.Column>Error rate</Table.Column>
-                        <Table.Column>Logs</Table.Column>
-                        <Table.Column>Last seen</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
+                <div>
+                  <TableContainer>
+                    <Table aria-label="Observed services" className="min-w-[880px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader scope="row">Service</TableHeader>
+                          <TableHeader>Spans</TableHeader>
+                          <TableHeader>Errors</TableHeader>
+                          <TableHeader>Error rate</TableHeader>
+                          <TableHeader>Logs</TableHeader>
+                          <TableHeader>Last seen</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
                         {data.items.map((s) => (
-                          <Table.Row key={s.service} id={s.service}>
-                            <Table.Cell className="font-mono text-sm">{s.service}</Table.Cell>
-                            <Table.Cell className="tabular-nums">{s.spans}</Table.Cell>
-                            <Table.Cell className="tabular-nums">{s.errors}</Table.Cell>
-                            <Table.Cell>{errorRateChip(s.errorRate)}</Table.Cell>
-                            <Table.Cell className="tabular-nums">{s.logs}</Table.Cell>
-                            <Table.Cell className="whitespace-nowrap text-muted">{s.lastSeen ? formatRelative(s.lastSeen) : "—"}</Table.Cell>
-                          </Table.Row>
+                          <TableRow key={s.service} id={s.service}>
+                            <TableCell className="font-mono text-sm">{s.service}</TableCell>
+                            <TableCell className="tabular-nums">{s.spans}</TableCell>
+                            <TableCell className="tabular-nums">{s.errors}</TableCell>
+                            <TableCell>{errorRateChip(s.errorRate)}</TableCell>
+                            <TableCell className="tabular-nums">{s.logs}</TableCell>
+                            <TableCell className="whitespace-nowrap text-muted">{s.lastSeen ? formatRelative(s.lastSeen) : "—"}</TableCell>
+                          </TableRow>
                         ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
               )
             }
           </QueryState>
@@ -69,29 +71,31 @@ export function HealthPage() {
               data.items.length === 0 ? (
                 <NoDataFound message="No error spans recorded." />
               ) : (
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label="Error groups" className="min-w-[880px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Error</Table.Column>
-                        <Table.Column>Service</Table.Column>
-                        <Table.Column>Count</Table.Column>
-                        <Table.Column>Last seen</Table.Column>
-                        <Table.Column>Traces</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
+                <div>
+                  <TableContainer>
+                    <Table aria-label="Error groups" className="min-w-[880px]">
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader scope="row">Error</TableHeader>
+                          <TableHeader>Service</TableHeader>
+                          <TableHeader>Count</TableHeader>
+                          <TableHeader>Last seen</TableHeader>
+                          <TableHeader>Traces</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
                         {data.items.map((g) => (
-                          <Table.Row key={g.fingerprint} id={g.fingerprint}>
-                            <Table.Cell>
+                          <TableRow key={g.fingerprint} id={g.fingerprint}>
+                            <TableCell>
                               <p className="text-sm font-medium">{g.message}</p>
                               <p className="font-mono text-xs text-muted">{g.spanName}</p>
-                            </Table.Cell>
-                            <Table.Cell className="font-mono text-xs">{g.service}</Table.Cell>
-                            <Table.Cell>
-                              <Chip size="sm" variant="soft" color="danger">{g.count}</Chip>
-                            </Table.Cell>
-                            <Table.Cell className="whitespace-nowrap text-muted">{formatRelative(g.lastSeen)}</Table.Cell>
-                            <Table.Cell>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{g.service}</TableCell>
+                            <TableCell>
+                              <Tag size="sm" type="red">{g.count}</Tag>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted">{formatRelative(g.lastSeen)}</TableCell>
+                            <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {g.traceIds.map((t) => (
                                   <span key={t} className="font-mono text-xs">
@@ -99,13 +103,13 @@ export function HealthPage() {
                                   </span>
                                 ))}
                               </div>
-                            </Table.Cell>
-                          </Table.Row>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
               )
             }
           </QueryState>

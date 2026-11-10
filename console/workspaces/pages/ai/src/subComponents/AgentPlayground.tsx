@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, Button, Form, Input, TextField } from "@heroui/react";
+import { useId, useState } from "react";
+import { Button, InlineNotification, TextInput as CarbonTextInput } from "@carbon/react";
 import { PaperPlane } from "@workspacenow/icons";
 import { useRunAgent } from "@workspacenow/api-client";
 import type { Agent, AgentRun } from "@workspacenow/types";
@@ -19,6 +19,7 @@ export function AgentPlayground({ agent }: { agent: Agent }) {
   const [prompt, setPrompt] = useState("");
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const run = useRunAgent();
+  const inputId = useId();
 
   const send = (text: string) => {
     const value = text.trim();
@@ -50,33 +51,40 @@ export function AgentPlayground({ agent }: { agent: Agent }) {
         )}
         <div className="flex flex-wrap gap-2">
           {EXAMPLES.map((example) => (
-            <Button key={example} size="sm" variant="secondary" isDisabled={run.isPending} onPress={() => send(example)}>
+            <Button key={example} kind="secondary" size="sm" disabled={run.isPending} onClick={() => send(example)}>
               {example}
             </Button>
           ))}
         </div>
-        <Form
+        <form
           className="flex items-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             send(prompt);
           }}
         >
-          <TextField className="flex-1" aria-label={`Message ${agent.name}`} value={prompt} onChange={setPrompt} isDisabled={run.isPending}>
-            <Input variant="secondary" placeholder={`Message ${agent.name}`} />
-          </TextField>
-          <Button type="submit" isPending={run.isPending} isDisabled={!prompt.trim()}>
+          <CarbonTextInput
+            id={inputId}
+            className="flex-1"
+            aria-label={`Message ${agent.name}`}
+            labelText={<span className="sr-only">{`Message ${agent.name}`}</span>}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            disabled={run.isPending}
+            placeholder={`Message ${agent.name}`}
+          />
+          <Button type="submit" kind="primary" disabled={!prompt.trim() || run.isPending}>
             <PaperPlane className="size-3.5" aria-hidden />
             Send
           </Button>
-        </Form>
+        </form>
         {agent.status !== "active" && (
-          <Alert status="warning">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Description>This agent is {agent.status}; the platform will refuse to run it.</Alert.Description>
-            </Alert.Content>
-          </Alert>
+          <InlineNotification
+            kind="warning"
+            lowContrast
+            hideCloseButton
+            subtitle={`This agent is ${agent.status}; the platform will refuse to run it.`}
+          />
         )}
       </div>
     </SectionCard>

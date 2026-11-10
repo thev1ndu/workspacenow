@@ -1,4 +1,4 @@
-import { Chip } from "@heroui/react";
+import { Tag } from "@carbon/react";
 import { TokenUsageChart } from "@workspacenow/ai";
 import { useAuthHooks } from "@workspacenow/auth";
 import { useSession } from "@workspacenow/api-client";
@@ -21,9 +21,9 @@ export function OverviewPage() {
         <span className="flex flex-wrap items-center gap-2">
           <span>Signed in as {userInfo?.name ?? ""}</span>
           {session.data?.roles.map((role) => (
-            <Chip key={role} size="sm" variant="soft" color="accent">
+            <Tag key={role} size="sm" type="blue">
               {role}
-            </Chip>
+            </Tag>
           ))}
         </span>
       }

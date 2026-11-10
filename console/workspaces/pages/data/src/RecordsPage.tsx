@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Alert, Button, ListBox, Select } from "@heroui/react";
+import { useId, useState } from "react";
+import { Button, InlineNotification, Select, SelectItem } from "@carbon/react";
 import { ArrowDownToLine, ArrowUp, Plus, Sparkles, SquareListUl } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
@@ -17,6 +17,8 @@ const PAGE_SIZE = 15;
 export function RecordsPage() {
   const { entityName } = useParams();
   const navigate = useNavigate();
+  const entitySelectId = useId();
+  const viewSelectId = useId();
   const entities = useListEntities();
   const entity = useGetEntity({ entityName });
   const [search, setSearch] = useState("");
@@ -54,78 +56,56 @@ export function RecordsPage() {
       backLabel={entity.data?.label ?? "Entity"}
       actions={
         <>
-          <Select variant="secondary"
+          <Select
+            id={entitySelectId}
+            labelText="Entity"
+            hideLabel
             aria-label="Entity"
             className="w-52"
-            value={entities.data ? (entityName ?? null) : null}
-            onChange={(key) => key != null && navigate(buildPath(routes.data.records, { entityName: String(key) }))}
-            placeholder="Entity"
+            value={entityName ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v) navigate(buildPath(routes.data.records, { entityName: v }));
+            }}
           >
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                {(entities.data?.items ?? []).map((e) => (
-                  <ListBox.Item key={e.name} id={e.name} textValue={e.label}>
-                    {e.label}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
+            {entities.data === undefined && <SelectItem value="" text="Entity" disabled />}
+            {(entities.data?.items ?? []).map((e) => (
+              <SelectItem key={e.name} value={e.name} text={e.label} />
+            ))}
           </Select>
-          <Select variant="secondary"
+          <Select
+            id={viewSelectId}
+            labelText="Saved view"
+            hideLabel
             aria-label="Saved view"
             className="w-44"
-            value={viewId ?? null}
-            onChange={(key) => { setViewId(key ? String(key) : undefined); setPage(1); }}
-            placeholder="All records"
+            value={viewId ?? ""}
+            onChange={(e) => { setViewId(e.target.value || undefined); setPage(1); }}
           >
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                <ListBox.Item id="" textValue="All records">
-                  All records
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-                {(views.data?.items ?? []).map((v) => (
-                  <ListBox.Item key={v.id} id={v.id} textValue={v.name}>
-                    {v.name}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
+            <SelectItem value="" text="All records" />
+            {(views.data?.items ?? []).map((v) => (
+              <SelectItem key={v.id} value={v.id} text={v.name} />
+            ))}
           </Select>
-          <Button variant="tertiary" onPress={() => download("csv")} isDisabled={!entity.data}>
-            <ArrowDownToLine className="size-4" aria-hidden />
+          <Button kind="tertiary" onClick={() => download("csv")} disabled={!entity.data} renderIcon={(p) => <ArrowDownToLine className="size-4" aria-hidden {...p} />}>
             Export CSV
           </Button>
-          <Button variant="tertiary" onPress={() => setViewsOpen(true)} isDisabled={!entity.data}>
-            <SquareListUl className="size-4" aria-hidden />
+          <Button kind="tertiary" onClick={() => setViewsOpen(true)} disabled={!entity.data} renderIcon={(p) => <SquareListUl className="size-4" aria-hidden {...p} />}>
             Views
           </Button>
-          <Button variant="secondary" onPress={() => setAskOpen(true)} isDisabled={!entity.data}>
-            <Sparkles className="size-4" aria-hidden />
+          <Button kind="secondary" onClick={() => setAskOpen(true)} disabled={!entity.data} renderIcon={(p) => <Sparkles className="size-4" aria-hidden {...p} />}>
             Ask
           </Button>
           {!readOnly && (
-            <Button variant="tertiary" onPress={() => setImportOpen(true)} isDisabled={!entity.data}>
-              <ArrowUp className="size-4" aria-hidden />
+            <Button kind="tertiary" onClick={() => setImportOpen(true)} disabled={!entity.data} renderIcon={(p) => <ArrowUp className="size-4" aria-hidden {...p} />}>
               Import
             </Button>
           )}
-          <Button variant="tertiary" onPress={() => setIncludeDeleted((v) => !v)}>
+          <Button kind="tertiary" onClick={() => setIncludeDeleted((v) => !v)}>
             {includeDeleted ? "Hide deleted" : "Show deleted"}
           </Button>
           {!readOnly && (
-            <Button onPress={() => setCreating(true)} isDisabled={!entity.data}>
-              <Plus className="size-4" aria-hidden />
+            <Button kind="primary" onClick={() => setCreating(true)} disabled={!entity.data} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
               New record
             </Button>
           )}
@@ -133,14 +113,14 @@ export function RecordsPage() {
       }
     >
       {readOnly && (
-        <Alert className="mb-4">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Description>
-              {entity.data?.label} is owned by an external system. WorkspaceNow reads it through a connection and cannot change it.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <div className="mb-4">
+          <InlineNotification
+            kind="info"
+            lowContrast
+            hideCloseButton
+            title={`${entity.data?.label} is owned by an external system. WorkspaceNow reads it through a connection and cannot change it.`}
+          />
+        </div>
       )}
       <SectionCard flush>
         {missing ? (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Modal } from "@heroui/react";
+import { Button, ComposedModal, InlineNotification, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
 import { Sparkles } from "@workspacenow/icons";
 import { useCreateViewFromText } from "@workspacenow/api-client";
 import type { Entity, SavedView } from "@workspacenow/types";
@@ -12,51 +12,47 @@ export function AskViewDialog({ entity, onClose, onCreated }: { entity: Entity; 
   const askErr = ask.error as Error | null;
 
   return (
-    <Modal.Backdrop isOpen onOpenChange={(o) => !o && onClose()}>
-      <Modal.Container size="md">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>Ask for a view of {entity.label}</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body>
-            <TextInput
-              label="Describe the records you want"
-              value={text}
-              onChange={setText}
-              multiline
-              rows={2}
-              placeholder='e.g. "unitPrice below 1000 ordered by name desc, limit 20"'
-            />
-            {askErr && <Alert color="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Could not build a view</Alert.Title><Alert.Description>{askErr.message}</Alert.Description></Alert.Content></Alert>}
-            {explanation && <Alert color="success"><Alert.Indicator /><Alert.Content><Alert.Title>View created</Alert.Title><Alert.Description>{explanation}</Alert.Description></Alert.Content></Alert>}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="tertiary" onPress={onClose}>
-              Close
-            </Button>
-            <Button
-              variant="primary"
-              isPending={ask.isPending}
-              isDisabled={!text.trim() || !!explanation}
-              onPress={() =>
-                ask.mutate(
-                  { entityName: entity.name, text },
-                  {
-                    onSuccess: (res) => {
-                      setExplanation(res.explanation);
-                      onCreated?.(res.view);
-                    },
-                  },
-                )
-              }
-            >
-              <Sparkles className="size-4" aria-hidden />
-              Build view
-            </Button>
-          </Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <ComposedModal open onClose={onClose} size="md">
+      <ModalHeader title={`Ask for a view of ${entity.label}`} closeModal={onClose} />
+      <ModalBody>
+        <TextInput
+          label="Describe the records you want"
+          value={text}
+          onChange={setText}
+          multiline
+          rows={2}
+          placeholder='e.g. "unitPrice below 1000 ordered by name desc, limit 20"'
+        />
+        {askErr && (
+          <InlineNotification kind="error" lowContrast hideCloseButton title="Could not build a view" subtitle={askErr.message} />
+        )}
+        {explanation && (
+          <InlineNotification kind="success" lowContrast hideCloseButton title="View created" subtitle={explanation} />
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button kind="tertiary" onClick={onClose}>
+          Close
+        </Button>
+        <Button
+          kind="primary"
+          disabled={ask.isPending || !text.trim() || !!explanation}
+          onClick={() =>
+            ask.mutate(
+              { entityName: entity.name, text },
+              {
+                onSuccess: (res) => {
+                  setExplanation(res.explanation);
+                  onCreated?.(res.view);
+                },
+              },
+            )
+          }
+          renderIcon={(p) => <Sparkles className="size-4" aria-hidden {...p} />}
+        >
+          Build view
+        </Button>
+      </ModalFooter>
+    </ComposedModal>
   );
 }

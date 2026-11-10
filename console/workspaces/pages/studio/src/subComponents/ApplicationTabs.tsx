@@ -1,4 +1,5 @@
-import { Chip, Link, Table } from "@heroui/react";
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
+import { Link } from "react-router-dom";
 import { useListApiOperations, useListApis, useListEntities, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes, type Application } from "@workspacenow/types";
 import { DetailList, LinkButton, NoDataFound, QueryState, SectionCard, StatusChip, TextLink, formatDateTime, SectionCardSkeleton, TableSkeleton } from "@workspacenow/views";
@@ -26,10 +27,10 @@ export function AppOverviewTab({ app }: { app: Application }) {
               value: (
                 <div className="flex flex-wrap gap-1.5">
                   {app.entityNames.map((name) => (
-                    <Link key={name} href={buildPath(routes.data.entity, { entityName: name })} className="no-underline">
-                      <Chip size="sm" variant="secondary" className="cursor-pointer hover:bg-default-hover">
+                    <Link key={name} to={buildPath(routes.data.entity, { entityName: name })} className="no-underline">
+                      <Tag size="sm" type="gray" className="cursor-pointer hover:bg-default-hover">
                         {name}
-                      </Chip>
+                      </Tag>
                     </Link>
                   ))}
                 </div>
@@ -39,30 +40,30 @@ export function AppOverviewTab({ app }: { app: Application }) {
         />
       </SectionCard>
       <SectionCard title="Pages" flush>
-        <Table variant="secondary">
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Pages">
-              <Table.Header>
-                <Table.Column isRowHeader>Page</Table.Column>
-                <Table.Column>Kind</Table.Column>
-                <Table.Column>Entity</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {app.pages.map((page) => (
-                  <Table.Row key={page.id} id={page.id}>
-                    <Table.Cell>{page.title}</Table.Cell>
-                    <Table.Cell>
-                      <Chip size="sm" variant="secondary">
-                        {page.kind}
-                      </Chip>
-                    </Table.Cell>
-                    <Table.Cell className="text-muted">{page.entity ?? "—"}</Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
+        <TableContainer aria-label="Pages">
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeader scope="col">Page</TableHeader>
+                <TableHeader scope="col">Kind</TableHeader>
+                <TableHeader scope="col">Entity</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {app.pages.map((page) => (
+                <TableRow key={page.id} id={page.id}>
+                  <TableCell>{page.title}</TableCell>
+                  <TableCell>
+                    <Tag size="sm" type="gray">
+                      {page.kind}
+                    </Tag>
+                  </TableCell>
+                  <TableCell className="text-muted">{page.entity ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </SectionCard>
     </div>
   );
@@ -77,36 +78,36 @@ export function AppDataTab({ app }: { app: Application }) {
           const used = data.items.filter((e) => app.entityNames.includes(e.name));
           if (used.length === 0) return <NoDataFound message="This application uses no entities." />;
           return (
-            <Table variant="secondary">
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Entities used" className="min-w-[640px]">
-                  <Table.Header>
-                    <Table.Column isRowHeader>Entity</Table.Column>
-                    <Table.Column>Scope</Table.Column>
-                    <Table.Column>Ownership</Table.Column>
-                    <Table.Column className="text-right">Fields</Table.Column>
-                    <Table.Column className="text-right">Records</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {used.map((e) => (
-                      <Table.Row key={e.id} id={e.id}>
-                        <Table.Cell>
-                          <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
-                        </Table.Cell>
-                        <Table.Cell className="text-muted">{SCOPE_LABEL[e.scope]}</Table.Cell>
-                        <Table.Cell>{e.ownerApplicationId === app.id ? "Owned (authoritative writes)" : "Consumed"}</Table.Cell>
-                        <Table.Cell className="text-right tabular-nums">{e.fields.length}</Table.Cell>
-                        <Table.Cell className="text-right">
-                          <LinkButton size="sm" variant="ghost" href={buildPath(routes.data.records, { entityName: e.name })}>
-                            Records
-                          </LinkButton>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+            <TableContainer aria-label="Entities used">
+              <Table className="min-w-[640px]">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader scope="col">Entity</TableHeader>
+                    <TableHeader scope="col">Scope</TableHeader>
+                    <TableHeader scope="col">Ownership</TableHeader>
+                    <TableHeader scope="col" className="text-right">Fields</TableHeader>
+                    <TableHeader scope="col" className="text-right">Records</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {used.map((e) => (
+                    <TableRow key={e.id} id={e.id}>
+                      <TableCell>
+                        <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
+                      </TableCell>
+                      <TableCell className="text-muted">{SCOPE_LABEL[e.scope]}</TableCell>
+                      <TableCell>{e.ownerApplicationId === app.id ? "Owned (authoritative writes)" : "Consumed"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{e.fields.length}</TableCell>
+                      <TableCell className="text-right">
+                        <LinkButton size="sm" variant="ghost" href={buildPath(routes.data.records, { entityName: e.name })}>
+                          Records
+                        </LinkButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           );
         }}
       </QueryState>
@@ -143,48 +144,48 @@ export function AppApisTab({ app }: { app: Application }) {
                 }
                 flush
               >
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label={`${api.name} operations`} className="min-w-[760px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Endpoint</Table.Column>
-                        <Table.Column>Business operation</Table.Column>
-                        <Table.Column>Permission</Table.Column>
-                        <Table.Column>MCP tool</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {(operations.data?.items ?? [])
-                          .filter((op) => op.apiId === api.id)
-                          .map((op) => (
-                            <Table.Row key={op.id} id={op.id}>
-                              <Table.Cell>
-                                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                                  <Chip size="sm" variant="soft" color={op.method === "GET" ? "default" : "accent"} className="font-mono">
-                                    {op.method}
-                                  </Chip>
-                                  <span className="font-mono text-xs">
-                                    {api.basePath}
-                                    {op.path}
-                                  </span>
+                <TableContainer aria-label={`${api.name} operations`}>
+                  <Table className="min-w-[760px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader scope="col">Endpoint</TableHeader>
+                        <TableHeader scope="col">Business operation</TableHeader>
+                        <TableHeader scope="col">Permission</TableHeader>
+                        <TableHeader scope="col">MCP tool</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(operations.data?.items ?? [])
+                        .filter((op) => op.apiId === api.id)
+                        .map((op) => (
+                          <TableRow key={op.id} id={op.id}>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                                <Tag size="sm" type={op.method === "GET" ? "gray" : "blue"} className="font-mono">
+                                  {op.method}
+                                </Tag>
+                                <span className="font-mono text-xs">
+                                  {api.basePath}
+                                  {op.path}
                                 </span>
-                              </Table.Cell>
-                              <Table.Cell className="font-mono text-xs">{op.businessOperation}</Table.Cell>
-                              <Table.Cell className="font-mono text-xs text-muted">{op.permission}</Table.Cell>
-                              <Table.Cell>
-                                {op.mcp?.enabled ? (
-                                  <Chip size="sm" variant="soft" color="success" className="font-mono">
-                                    {op.mcp.toolName}
-                                  </Chip>
-                                ) : (
-                                  <span className="text-xs text-muted">Not exposed</span>
-                                )}
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{op.businessOperation}</TableCell>
+                            <TableCell className="font-mono text-xs text-muted">{op.permission}</TableCell>
+                            <TableCell>
+                              {op.mcp?.enabled ? (
+                                <Tag size="sm" type="green" className="font-mono">
+                                  {op.mcp.toolName}
+                                </Tag>
+                              ) : (
+                                <span className="text-xs text-muted">Not exposed</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </SectionCard>
             ))}
           </div>
@@ -203,35 +204,35 @@ export function AppWorkflowsTab({ app }: { app: Application }) {
           const own = data.items.filter((w) => w.applicationId === app.id);
           if (own.length === 0) return <NoDataFound message="No workflows belong to this application." />;
           return (
-            <Table variant="secondary">
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Workflows" className="min-w-[680px]">
-                  <Table.Header>
-                    <Table.Column isRowHeader>Workflow</Table.Column>
-                    <Table.Column>Trigger</Table.Column>
-                    <Table.Column className="text-right">Steps</Table.Column>
-                    <Table.Column>Status</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {own.map((w) => (
-                      <Table.Row key={w.id} id={w.id}>
-                        <Table.Cell className="max-w-md">
-                          <TextLink to={buildPath(routes.flow.workflow, { workflowId: w.id })}>{w.name}</TextLink>
-                          <p className="mt-0.5 text-xs text-muted">{w.description}</p>
-                        </Table.Cell>
-                        <Table.Cell className="font-mono text-xs">
-                          {w.trigger.kind === "entity-event" ? w.trigger.event : w.trigger.kind === "schedule" ? w.trigger.cron : "manual"}
-                        </Table.Cell>
-                        <Table.Cell className="text-right tabular-nums">{w.steps.length}</Table.Cell>
-                        <Table.Cell>
-                          <StatusChip status={w.status} />
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+            <TableContainer aria-label="Workflows">
+              <Table className="min-w-[680px]">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader scope="col">Workflow</TableHeader>
+                    <TableHeader scope="col">Trigger</TableHeader>
+                    <TableHeader scope="col" className="text-right">Steps</TableHeader>
+                    <TableHeader scope="col">Status</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {own.map((w) => (
+                    <TableRow key={w.id} id={w.id}>
+                      <TableCell className="max-w-md">
+                        <TextLink to={buildPath(routes.flow.workflow, { workflowId: w.id })}>{w.name}</TextLink>
+                        <p className="mt-0.5 text-xs text-muted">{w.description}</p>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {w.trigger.kind === "entity-event" ? w.trigger.event : w.trigger.kind === "schedule" ? w.trigger.cron : "manual"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{w.steps.length}</TableCell>
+                      <TableCell>
+                        <StatusChip status={w.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           );
         }}
       </QueryState>

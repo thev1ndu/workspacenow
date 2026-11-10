@@ -1,6 +1,6 @@
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
-import { Alert, Button, Modal } from "@heroui/react";
+import { Button, ComposedModal, InlineNotification, ModalBody, ModalHeader } from "@carbon/react";
 import { useQueries } from "@tanstack/react-query";
 import { useAuthHooks } from "@workspacenow/auth";
 import { downloadRecordFile, listRecords, uploadRecordFile, useListRecords } from "@workspacenow/api-client";
@@ -237,13 +237,14 @@ export function RecordForm({
       {!!error && <ErrorAlert error={error} />}
       <div className="flex justify-end gap-2">
         {onCancel && (
-          <Button variant="tertiary" onPress={onCancel}>
+          <Button kind="tertiary" onClick={onCancel}>
             Cancel
           </Button>
         )}
         <Button
-          isPending={isPending}
-          onPress={() => onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])))}
+          kind="primary"
+          disabled={isPending}
+          onClick={() => onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])))}
         >
           {submitLabel}
         </Button>
@@ -254,14 +255,7 @@ export function RecordForm({
 
 /** A rejected save, as the platform explained it. */
 export function ErrorAlert({ error }: { error: unknown }) {
-  return (
-    <Alert status="danger">
-      <Alert.Indicator />
-      <Alert.Content>
-        <Alert.Description>{errorMessage(error)}</Alert.Description>
-      </Alert.Content>
-    </Alert>
-  );
+  return <InlineNotification kind="error" lowContrast hideCloseButton title={errorMessage(error)} />;
 }
 
 export function RecordFormDialog({
@@ -282,18 +276,14 @@ export function RecordFormDialog({
   error?: unknown;
 }) {
   return (
-    <Modal.Backdrop isOpen={open} onOpenChange={(next) => !next && onClose()}>
-      <Modal.Container size="md" scroll="inside">
-        <Modal.Dialog>
-          <Modal.CloseTrigger />
-          <Modal.Header>
-            <Modal.Heading>{record ? `Edit ${entity.label.toLowerCase()} ${record.id}` : `New ${entity.label.toLowerCase()}`}</Modal.Heading>
-          </Modal.Header>
-          <Modal.Body>
-            <RecordForm entity={entity} record={record} onSubmit={onSubmit} isPending={isPending} error={error} onCancel={onClose} />
-          </Modal.Body>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
+    <ComposedModal open={open} onClose={onClose} size="md">
+      <ModalHeader
+        title={record ? `Edit ${entity.label.toLowerCase()} ${record.id}` : `New ${entity.label.toLowerCase()}`}
+        closeModal={onClose}
+      />
+      <ModalBody hasScrollingContent>
+        <RecordForm entity={entity} record={record} onSubmit={onSubmit} isPending={isPending} error={error} onCancel={onClose} />
+      </ModalBody>
+    </ComposedModal>
   );
 }

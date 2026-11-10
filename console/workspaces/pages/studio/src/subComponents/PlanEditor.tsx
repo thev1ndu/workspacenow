@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Checkbox, Chip, Input, ListBox, Select, TextField, Tooltip } from "@heroui/react";
+import { useId, useState } from "react";
+import { Button, Checkbox, Select, SelectItem, Tag, TextInput as CarbonTextInput } from "@carbon/react";
 import { Plus, TrashBin } from "@workspacenow/icons";
 import { useCreateDepartment, useListDepartments } from "@workspacenow/api-client";
 import { planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
@@ -69,10 +69,20 @@ function CellInput({
   placeholder?: string;
   isDisabled?: boolean;
 }) {
+  const id = useId();
   return (
-    <TextField aria-label={label} value={value} onChange={onChange} isDisabled={isDisabled} className="min-w-0">
-      <Input variant="secondary" placeholder={placeholder} className={mono ? "font-mono text-xs" : undefined} />
-    </TextField>
+    <div className="min-w-0">
+      <CarbonTextInput
+        id={id}
+        labelText={label}
+        hideLabel
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={isDisabled}
+        placeholder={placeholder}
+        className={mono ? "font-mono text-xs" : undefined}
+      />
+    </div>
   );
 }
 
@@ -89,55 +99,49 @@ function CellSelect({
   options: Array<{ value: string; label: string }>;
   isDisabled?: boolean;
 }) {
+  const id = useId();
   return (
     <Select
-      variant="secondary"
+      id={id}
       aria-label={label}
-      value={value || null}
-      onChange={(key) => onChange(key == null ? "" : String(key))}
-      placeholder="Select…"
-      isDisabled={isDisabled}
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={isDisabled}
       className="min-w-0"
     >
-      <Select.Trigger>
-        <Select.Value />
-        <Select.Indicator />
-      </Select.Trigger>
-      <Select.Popover>
-        <ListBox>
-          {options.map((o) => (
-            <ListBox.Item key={o.value} id={o.value} textValue={o.label}>
-              {o.label}
-              <ListBox.ItemIndicator />
-            </ListBox.Item>
-          ))}
-        </ListBox>
-      </Select.Popover>
+      <SelectItem value="" text="Select…" hidden />
+      {options.map((o) => (
+        <SelectItem key={o.value} value={o.value} text={o.label} />
+      ))}
     </Select>
   );
 }
 
 function Flag({ label, isSelected, onChange }: { label: string; isSelected: boolean; onChange: (v: boolean) => void }) {
+  const id = useId();
   return (
-    <Checkbox isSelected={isSelected} onChange={onChange}>
-      <Checkbox.Content>
-        <Checkbox.Control>
-          <Checkbox.Indicator />
-        </Checkbox.Control>
-        <span className="text-xs text-muted">{label}</span>
-      </Checkbox.Content>
-    </Checkbox>
+    <Checkbox
+      id={id}
+      checked={isSelected}
+      onChange={(_e, { checked }) => onChange(checked)}
+      labelText={<span className="text-xs text-muted">{label}</span>}
+    />
   );
 }
 
 function RemoveButton({ label, onPress, isDisabled }: { label: string; onPress: () => void; isDisabled?: boolean }) {
   return (
-    <Tooltip delay={300}>
-      <Button isIconOnly size="sm" variant="ghost" aria-label={label} isDisabled={isDisabled} onPress={onPress}>
-        <TrashBin className="size-4" />
-      </Button>
-      <Tooltip.Content>{label}</Tooltip.Content>
-    </Tooltip>
+    <Button
+      hasIconOnly
+      iconDescription={label}
+      size="sm"
+      kind="ghost"
+      aria-label={label}
+      disabled={isDisabled}
+      onClick={onPress}
+    >
+      <TrashBin className="size-4" />
+    </Button>
   );
 }
 
@@ -255,8 +259,8 @@ function EntityEditor({
       <div className="border-t border-separator px-5 py-3">
         <Button
           size="sm"
-          variant="ghost"
-          onPress={() => onChange({ ...entity, fields: [...entity.fields, { name: `field${entity.fields.length + 1}`, label: `Field ${entity.fields.length + 1}`, type: "string" }] })}
+          kind="ghost"
+          onClick={() => onChange({ ...entity, fields: [...entity.fields, { name: `field${entity.fields.length + 1}`, label: `Field ${entity.fields.length + 1}`, type: "string" }] })}
         >
           <Plus className="size-3.5" aria-hidden />
           Add field
@@ -333,9 +337,9 @@ function ChipList({ items, mono }: { items: string[]; mono?: boolean }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((item) => (
-        <Chip key={item} size="sm" variant="secondary" className={mono ? "font-mono" : undefined}>
+        <Tag key={item} size="sm" type="gray" className={mono ? "font-mono" : undefined}>
           {item}
-        </Chip>
+        </Tag>
       ))}
     </div>
   );
@@ -405,9 +409,9 @@ export function PlanEditor({
                 placeholder="e.g. Engineering"
               />
               <Button
-                variant="primary"
-                isDisabled={!newDeptName.trim() || createDept.isPending}
-                onPress={() =>
+                kind="primary"
+                disabled={!newDeptName.trim() || createDept.isPending}
+                onClick={() =>
                   createDept.mutate(
                     { name: newDeptName.trim() },
                     { onSuccess: (d) => { setNewDeptName(""); onChange({ ...plan, ownerDepartmentId: d.id }); } },
@@ -436,7 +440,7 @@ export function PlanEditor({
         />
       ))}
       <div>
-        <Button variant="secondary" onPress={() => onChange({ ...plan, entities: [...plan.entities, newEntity(plan.entities.map((e) => e.name))] })}>
+        <Button kind="secondary" onClick={() => onChange({ ...plan, entities: [...plan.entities, newEntity(plan.entities.map((e) => e.name))] })}>
           <Plus className="size-4" aria-hidden />
           Add entity
         </Button>
@@ -448,9 +452,9 @@ export function PlanEditor({
         actions={
           <Button
             size="sm"
-            variant="secondary"
-            isDisabled={entityOptions.length === 0}
-            onPress={() => {
+            kind="secondary"
+            disabled={entityOptions.length === 0}
+            onClick={() => {
               const first = plan.entities[0];
               onChange({ ...plan, pages: [...plan.pages, { title: first ? `${first.label}s` : "", kind: "list", entity: first?.name }] });
             }}

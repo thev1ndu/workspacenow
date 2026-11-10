@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "@heroui/react";
+import { Link } from "react-router-dom";
 import { buildPath, routes, type Application } from "@workspacenow/types";
 import { StatusChip } from "@workspacenow/views";
 import { AppIcon } from "./AppIcon";
@@ -18,7 +18,7 @@ export function AppTile({ app, meta }: { app: Application; meta: ReactNode }) {
       <div className="min-w-0 flex-1">
         {/* The link's overlay makes the whole tile open the app; the pin button sits above it. */}
         <Link
-          href={buildPath(routes.app, { appId: app.id })}
+          to={buildPath(routes.app, { appId: app.id })}
           className="text-sm font-medium text-foreground no-underline after:absolute after:inset-0 after:rounded-xl"
         >
           {app.name}

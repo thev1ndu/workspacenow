@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Chip } from "@heroui/react";
+import { Button, InlineNotification, Tag } from "@carbon/react";
 import { Gear } from "@workspacenow/icons";
 import { useOrganization, useOrganizationTheme, useUpdateOrganizationTheme } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
@@ -42,9 +42,9 @@ export function OrganizationPage() {
                     value: (
                       <div className="flex flex-wrap gap-1">
                         {org.identityProvider.scopes.map((s) => (
-                          <Chip key={s} size="sm" variant="secondary">
+                          <Tag key={s} size="sm" type="gray">
                             {s}
-                          </Chip>
+                          </Tag>
                         ))}
                       </div>
                     ),
@@ -60,11 +60,11 @@ export function OrganizationPage() {
           actions={
             <Button
               size="sm"
-              variant="secondary"
-              isPending={updateTheme.isPending}
-              onPress={() => updateTheme.mutate({ primaryColor: effectiveColor, logoUrl: effectiveLogo })}
+              kind="secondary"
+              disabled={updateTheme.isPending}
+              onClick={() => updateTheme.mutate({ primaryColor: effectiveColor, logoUrl: effectiveLogo })}
+              renderIcon={(p) => <Gear className="size-3.5" aria-hidden {...p} />}
             >
-              <Gear className="size-3.5" aria-hidden />
               Save theme
             </Button>
           }
@@ -72,8 +72,16 @@ export function OrganizationPage() {
           <div className="grid max-w-md gap-3">
             <TextInput label="Primary color (hex)" value={effectiveColor} onChange={setColor} placeholder="#6d28d9" />
             <TextInput label="Logo URL" value={effectiveLogo} onChange={setLogo} placeholder="https://example.com/logo.svg" />
-            {themeErr && <Alert color="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Invalid theme</Alert.Title><Alert.Description>{themeErr.message}</Alert.Description></Alert.Content></Alert>}
-            {themeSaved && <Alert color="success"><Alert.Indicator /><Alert.Content><Alert.Title>Theme saved</Alert.Title><Alert.Description>{themeSaved.primaryColor}</Alert.Description></Alert.Content></Alert>}
+            {themeErr && (
+              <InlineNotification kind="error" lowContrast hideCloseButton title="Invalid theme">
+                {themeErr.message}
+              </InlineNotification>
+            )}
+            {themeSaved && (
+              <InlineNotification kind="success" lowContrast hideCloseButton title="Theme saved">
+                {themeSaved.primaryColor}
+              </InlineNotification>
+            )}
           </div>
         </SectionCard>
       </div>

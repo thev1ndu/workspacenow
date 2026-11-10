@@ -1,5 +1,15 @@
 import type { ReactNode } from "react";
-import { Button, Dropdown, Label, Table } from "@heroui/react";
+import {
+  OverflowMenu,
+  OverflowMenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@carbon/react";
 import { Ellipsis } from "@workspacenow/icons";
 import type { Entity, EntityField, EntityRecord, FieldValue } from "@workspacenow/types";
 import { NoDataFound, StatusChip, formatCurrency, formatDateTime, formatRelative } from "@workspacenow/views";
@@ -44,98 +54,91 @@ export function RecordsTable({
   if (records.length === 0) return <NoDataFound message={`No ${entity.label.toLowerCase()} records yet.`} />;
   const fields = entity.fields.filter((f) => f.type !== "text").slice(0, 7);
   return (
-    <Table variant="secondary">
-      <Table.ScrollContainer>
-        <Table.Content
-          aria-label={`${entity.label} records`}
-          className="min-w-[640px]"
-          onRowAction={onOpen ? (key) => {
-            const record = records.find((r) => r.id === key);
-            if (record) onOpen(record);
-          } : undefined}
-        >
-          <Table.Header>
-            <Table.Column isRowHeader>Id</Table.Column>
+    <TableContainer aria-label={`${entity.label} records`}>
+      <Table className="min-w-[640px]">
+        <TableHead>
+          <TableRow>
+            <TableHeader>Id</TableHeader>
             {fields.map((f) => (
-              <Table.Column key={f.name} id={f.name} className={`whitespace-nowrap ${isNumeric(f) ? "text-right" : ""}`}>
+              <TableHeader key={f.name} id={f.name} className={`whitespace-nowrap ${isNumeric(f) ? "text-right" : ""}`}>
                 {f.label}
-              </Table.Column>
+              </TableHeader>
             ))}
-            <Table.Column className="text-right whitespace-nowrap">Updated</Table.Column>
+            <TableHeader className="text-right whitespace-nowrap">Updated</TableHeader>
             {actions && (
-              <Table.Column className="sticky right-0 w-px bg-surface">
+              <TableHeader className="sticky right-0 w-px bg-surface">
                 <span className="sr-only">Actions</span>
-              </Table.Column>
+              </TableHeader>
             )}
-          </Table.Header>
-          <Table.Body>
-            {records.map((record) => (
-              <Table.Row key={record.id} id={record.id} className={onOpen ? "cursor-pointer" : undefined}>
-                <Table.Cell className="font-mono text-xs whitespace-nowrap text-muted">{record.id}</Table.Cell>
-                {fields.map((f) => {
-                  const shown = formatFieldValue(f, record.values[f.name], labels);
-                  return (
-                    // Cells stay on one line; long text truncates with the full value on hover.
-                    <Table.Cell key={f.name} className={`whitespace-nowrap ${isNumeric(f) ? "text-right tabular-nums" : ""}`}>
-                      {typeof shown === "string" ? (
-                        <span className="block max-w-[240px] truncate" title={shown}>
-                          {shown}
-                        </span>
-                      ) : (
-                        shown
-                      )}
-                    </Table.Cell>
-                  );
-                })}
-                <Table.Cell className="text-right whitespace-nowrap text-muted">
-                  <span title={formatDateTime(record.updatedAt)}>{formatRelative(record.updatedAt)}</span>
-                </Table.Cell>
-                {actions && (
-                  // Pinned to the right edge so actions stay reachable when the table scrolls sideways.
-                  <Table.Cell className="sticky right-0 bg-surface">
-                    <RowMenu record={record} actions={actions(record)} />
-                  </Table.Cell>
-                )}
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {records.map((record) => (
+            <TableRow
+              key={record.id}
+              id={record.id}
+              className={onOpen ? "cursor-pointer" : undefined}
+              onClick={onOpen ? () => onOpen(record) : undefined}
+            >
+              <TableCell className="font-mono text-xs whitespace-nowrap text-muted">{record.id}</TableCell>
+              {fields.map((f) => {
+                const shown = formatFieldValue(f, record.values[f.name], labels);
+                return (
+                  // Cells stay on one line; long text truncates with the full value on hover.
+                  <TableCell key={f.name} className={`whitespace-nowrap ${isNumeric(f) ? "text-right tabular-nums" : ""}`}>
+                    {typeof shown === "string" ? (
+                      <span className="block max-w-[240px] truncate" title={shown}>
+                        {shown}
+                      </span>
+                    ) : (
+                      shown
+                    )}
+                  </TableCell>
+                );
+              })}
+              <TableCell className="text-right whitespace-nowrap text-muted">
+                <span title={formatDateTime(record.updatedAt)}>{formatRelative(record.updatedAt)}</span>
+              </TableCell>
+              {actions && (
+                // Pinned to the right edge so actions stay reachable when the table scrolls sideways.
+                <TableCell className="sticky right-0 bg-surface">
+                  <RowMenu record={record} actions={actions(record)} />
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
 function RowMenu({ record, actions }: { record: EntityRecord; actions: RecordAction[] }) {
   const regular = actions.filter((a) => !a.danger);
   const danger = actions.filter((a) => a.danger);
-  const run = (key: React.Key) => actions.find((a) => a.id === key)?.onAction();
+  const itemText = (a: RecordAction) => (
+    <span className="flex items-center gap-2">
+      <span className={a.danger ? "[&_svg]:size-4" : "text-muted [&_svg]:size-4"}>{a.icon}</span>
+      {a.label}
+    </span>
+  );
   return (
-    <Dropdown>
-      <Button isIconOnly size="sm" variant="ghost" aria-label={`Actions for ${record.id}`}>
-        <Ellipsis className="size-4" />
-      </Button>
-      <Dropdown.Popover placement="bottom end" className="min-w-44">
-        <Dropdown.Menu aria-label={`Actions for ${record.id}`} onAction={run}>
-          <Dropdown.Section>
-            {regular.map((a) => (
-              <Dropdown.Item key={a.id} id={a.id} textValue={a.label}>
-                <span className="text-muted [&_svg]:size-4">{a.icon}</span>
-                <Label>{a.label}</Label>
-              </Dropdown.Item>
-            ))}
-          </Dropdown.Section>
-          {danger.length > 0 ? (
-            <Dropdown.Section>
-              {danger.map((a) => (
-                <Dropdown.Item key={a.id} id={a.id} textValue={a.label} variant="danger">
-                  <span className="[&_svg]:size-4">{a.icon}</span>
-                  <Label>{a.label}</Label>
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Section>
-          ) : null}
-        </Dropdown.Menu>
-      </Dropdown.Popover>
-    </Dropdown>
+    <OverflowMenu
+      aria-label={`Actions for ${record.id}`}
+      renderIcon={(p) => <Ellipsis className="size-4" {...p} />}
+    >
+      {regular.map((a) => (
+        <OverflowMenuItem key={a.id} itemText={itemText(a)} onClick={a.onAction} />
+      ))}
+      {danger.map((a, i) => (
+        <OverflowMenuItem
+          key={a.id}
+          itemText={itemText(a)}
+          onClick={a.onAction}
+          isDelete
+          hasDivider={i === 0 && regular.length > 0}
+        />
+      ))}
+    </OverflowMenu>
   );
 }

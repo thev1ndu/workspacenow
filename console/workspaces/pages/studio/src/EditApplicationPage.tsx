@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Button, Chip, TextArea, TextField } from "@heroui/react";
+import { useId, useState } from "react";
+import { Button, Tag, TextArea } from "@carbon/react";
 import { Check, Sparkles, Xmark } from "@workspacenow/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetApplication, useListEntities, usePlanApplicationEdit, useUpdateApplication } from "@workspacenow/api-client";
@@ -16,6 +16,7 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
   const planEdit = usePlanApplicationEdit();
   const [prompt, setPrompt] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
+  const aiPromptId = useId();
   // The plan as loaded is both the baseline for "unsaved changes" and the schema records depend on.
   const [initial] = useState(() => planFromApplication(app, entities));
   const [plan, setPlan] = useState(initial);
@@ -31,9 +32,9 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-secondary px-5 py-4">
         <div className="grid min-w-0 flex-1 gap-1">
           <div className="flex items-center gap-2">
-            <Chip size="sm" variant="secondary">
+            <Tag size="sm" type="gray">
               {dirty ? "Unsaved changes" : "No changes"}
-            </Chip>
+            </Tag>
             <span className="text-sm font-medium">{plan.name || "Untitled application"}</span>
           </div>
           <p className="text-sm text-muted">
@@ -42,14 +43,13 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="tertiary" onPress={() => navigate(detailPath)}>
+          <Button kind="tertiary" onClick={() => navigate(detailPath)}>
             <Xmark className="size-4" aria-hidden />
             Discard
           </Button>
           <Button
-            isDisabled={!dirty || problems.length > 0 || !canBuild}
-            isPending={update.isPending}
-            onPress={() => update.mutate({ appId: app.id, plan }, { onSuccess: () => navigate(detailPath) })}
+            disabled={!dirty || problems.length > 0 || !canBuild || update.isPending}
+            onClick={() => update.mutate({ appId: app.id, plan }, { onSuccess: () => navigate(detailPath) })}
           >
             <Check className="size-4" aria-hidden />
             Save changes
@@ -64,22 +64,27 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
               Describe the change and the Application Architect revises the plan — nothing is saved until you review and press Save changes.
             </p>
           </div>
-          <Button variant="tertiary" onPress={() => setAiOpen((v) => !v)} isDisabled={!canBuild}>
+          <Button kind="tertiary" onClick={() => setAiOpen((v) => !v)} disabled={!canBuild}>
             <Sparkles className="size-4" aria-hidden />
             {aiOpen ? "Close" : "Ask the Architect"}
           </Button>
         </div>
         {aiOpen && (
           <div className="mt-3 grid gap-2">
-            <TextField aria-label="Describe the change" value={prompt} onChange={setPrompt}>
-              <TextArea placeholder="e.g. Add a comments field to PurchaseRequest and a page to review open orders" rows={3} />
-            </TextField>
+            <TextArea
+              id={aiPromptId}
+              labelText="Describe the change"
+              hideLabel
+              placeholder="e.g. Add a comments field to PurchaseRequest and a page to review open orders"
+              rows={3}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                isDisabled={prompt.trim().length < 8 || planEdit.isPending || !canBuild}
-                isPending={planEdit.isPending}
-                onPress={() =>
+                disabled={prompt.trim().length < 8 || planEdit.isPending || !canBuild}
+                onClick={() =>
                   planEdit.mutate(
                     { appId: app.id, prompt: prompt.trim() },
                     { onSuccess: (revised) => { setPlan(revised); setAiOpen(false); } },

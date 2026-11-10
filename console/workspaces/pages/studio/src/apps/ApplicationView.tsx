@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Alert, Chip, Tabs } from "@heroui/react";
+import { InlineNotification, Tab, TabList, TabPanel, TabPanels, Tabs, Tag } from "@carbon/react";
 import { useSearchParams } from "react-router-dom";
 import { useListRecords, useSession } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
@@ -11,9 +11,9 @@ function TabCount({ entityName }: { entityName: string }) {
   const records = useListRecords({ entityName });
   if (records.data === undefined) return null;
   return (
-    <Chip size="sm" variant="secondary" className="tabular-nums">
+    <Tag size="sm" type="gray" className="tabular-nums">
       {records.data.total}
-    </Chip>
+    </Tag>
   );
 }
 
@@ -42,7 +42,7 @@ export function ApplicationView({ app }: { app: Application }) {
     dragIdRef.current = id;
     setDragId(id);
   };
-  // HeroUI/react-aria strips drag props, so bind native HTML5 drag & drop on the tab element via ref.
+  // Bind native HTML5 drag & drop on the tab element via ref, since Tab does not forward drag props.
   const bindDrag = (id: string) => (el: Element | null) => {
     if (!el || el.getAttribute("data-dnd")) return;
     el.setAttribute("data-dnd", "1");
@@ -80,54 +80,52 @@ export function ApplicationView({ app }: { app: Application }) {
 
   if (!page) return <NoDataFound message="This application has no pages yet." />;
 
+  const selectedIndex = Math.max(0, ordered.findIndex((p) => p.id === page.id));
+
   return (
     // A single shrinkable column, so wide content scrolls inside its own box instead of widening the page on phones.
     <div className="grid grid-cols-1 gap-6">
       {app.lifecycle === "draft" && (
-        <Alert>
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Description>Draft application: records you create here are real, but the application is not deployed yet.</Alert.Description>
-          </Alert.Content>
-        </Alert>
+        <InlineNotification
+          kind="info"
+          lowContrast
+          hideCloseButton
+          title="Draft application: records you create here are real, but the application is not deployed yet."
+        />
       )}
 
       <Tabs
-        variant="secondary"
-        align="start"
-        className="min-w-0"
-        selectedKey={page.id}
-        onSelectionChange={(key) =>
+        selectedIndex={selectedIndex}
+        onChange={({ selectedIndex: next }) =>
           setParams(
             (current) => {
-              current.set("page", String(key));
+              const nextPage = ordered[next];
+              if (nextPage) current.set("page", nextPage.id);
               return current;
             },
             { replace: true },
           )
         }
       >
-        <Tabs.ListContainer className="max-w-full self-start overflow-x-auto">
-          <Tabs.List aria-label={`${app.name} pages`}>
-            {ordered.map((p) => (
-              <Tabs.Tab
-                key={p.id}
-                id={p.id}
-                ref={bindDrag(p.id)}
-                className={dragId === p.id ? "opacity-50" : "cursor-grab active:cursor-grabbing"}
-              >
-                {p.title}
-                {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs.ListContainer>
-        {app.pages.map((p) => (
-          <Tabs.Panel key={p.id} id={p.id} className="mt-5">
-            {p.id === page.id && <PreviewPageRenderer page={p} qrField={app.pages.find((s) => s.kind === "scan" && s.entity === p.entity)?.scan?.matchField} />}
-          </Tabs.Panel>
-        ))}
+        <TabList aria-label={`${app.name} pages`} className="max-w-full self-start overflow-x-auto">
+          {ordered.map((p) => (
+            <Tab
+              key={p.id}
+              ref={bindDrag(p.id)}
+              className={dragId === p.id ? "opacity-50" : "cursor-grab active:cursor-grabbing"}
+            >
+              {p.title}
+              {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}
+            </Tab>
+          ))}
+        </TabList>
+        <TabPanels>
+          {app.pages.map((p) => (
+            <TabPanel key={p.id} className="mt-5">
+              {p.id === page.id && <PreviewPageRenderer page={p} qrField={app.pages.find((s) => s.kind === "scan" && s.entity === p.entity)?.scan?.matchField} />}
+            </TabPanel>
+          ))}
+        </TabPanels>
       </Tabs>
     </div>
   );

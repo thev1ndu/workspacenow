@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, Modal, Table, Tooltip } from "@heroui/react";
+import { Button, Modal, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { Lock, Plus, Rocket } from "@workspacenow/icons";
 import { useCreateDeployment, useCreateRelease, useListDeployments, useListEnvironments, useListReleases } from "@workspacenow/api-client";
 import type { Application, EnvironmentKey } from "@workspacenow/types";
@@ -16,7 +16,7 @@ export function ReleasesTab({ app }: { app: Application }) {
       title="Releases"
       subtitle="Releases are immutable snapshots of the blueprint."
       actions={
-        <Button size="sm" variant="secondary" onPress={() => setOpen(true)}>
+        <Button size="sm" kind="secondary" onClick={() => setOpen(true)}>
           <Plus className="size-3.5" aria-hidden />
           Create release
         </Button>
@@ -28,65 +28,56 @@ export function ReleasesTab({ app }: { app: Application }) {
           data.items.length === 0 ? (
             <NoDataFound message="No releases yet. Create one to deploy this application." />
           ) : (
-            <Table variant="secondary">
-              <Table.ScrollContainer>
-                <Table.Content aria-label="Releases" className="min-w-[640px]">
-                  <Table.Header>
-                    <Table.Column isRowHeader>Version</Table.Column>
-                    <Table.Column>Notes</Table.Column>
-                    <Table.Column>Created by</Table.Column>
-                    <Table.Column>Created</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {data.items.map((r) => (
-                      <Table.Row key={r.id} id={r.id}>
-                        <Table.Cell className="font-medium tabular-nums">v{r.version}</Table.Cell>
-                        <Table.Cell className={r.notes ? "" : "text-muted"}>{r.notes || "—"}</Table.Cell>
-                        <Table.Cell>{r.createdBy}</Table.Cell>
-                        <Table.Cell className="whitespace-nowrap text-muted">{formatDateTime(r.createdAt)}</Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
+            <TableContainer aria-label="Releases">
+              <Table className="min-w-[640px]">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader scope="col">Version</TableHeader>
+                    <TableHeader scope="col">Notes</TableHeader>
+                    <TableHeader scope="col">Created by</TableHeader>
+                    <TableHeader scope="col">Created</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.items.map((r) => (
+                    <TableRow key={r.id} id={r.id}>
+                      <TableCell className="font-medium tabular-nums">v{r.version}</TableCell>
+                      <TableCell className={r.notes ? "" : "text-muted"}>{r.notes || "—"}</TableCell>
+                      <TableCell>{r.createdBy}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted">{formatDateTime(r.createdAt)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )
         }
       </QueryState>
-      <Modal.Backdrop isOpen={open} onOpenChange={setOpen}>
-        <Modal.Container size="md">
-          <Modal.Dialog>
-            <Modal.CloseTrigger />
-            <Modal.Header>
-              <Modal.Heading>Create release of {app.name}</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <TextInput label="Release notes" value={notes} onChange={setNotes} multiline rows={3} placeholder="What changed?" />
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="tertiary" onPress={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                isPending={createRelease.isPending}
-                onPress={() =>
-                  createRelease.mutate(
-                    { appId: app.id, notes },
-                    {
-                      onSuccess: () => {
-                        setNotes("");
-                        setOpen(false);
-                      },
-                    },
-                  )
-                }
-              >
-                Create release
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal.Backdrop>
+      <Modal
+        open={open}
+        size="md"
+        modalHeading={`Create release of ${app.name}`}
+        onRequestClose={() => setOpen(false)}
+        secondaryButtonText="Cancel"
+        onSecondarySubmit={() => setOpen(false)}
+        primaryButtonText="Create release"
+        primaryButtonDisabled={createRelease.isPending}
+        loadingStatus={createRelease.isPending ? "active" : "inactive"}
+        loadingDescription="Creating"
+        onRequestSubmit={() =>
+          createRelease.mutate(
+            { appId: app.id, notes },
+            {
+              onSuccess: () => {
+                setNotes("");
+                setOpen(false);
+              },
+            },
+          )
+        }
+      >
+        <TextInput label="Release notes" value={notes} onChange={setNotes} multiline rows={3} placeholder="What changed?" />
+      </Modal>
     </SectionCard>
   );
 }
@@ -112,16 +103,13 @@ export function DeploymentsTab({ app }: { app: Application }) {
               const source = i === 0 ? latest?.version : active(ORDER[i - 1])?.version;
               const upToDate = !!current && current.version === source;
               return (
-                <Card key={key} className="flex h-full flex-col gap-0 p-5">
+                <div key={key} className="flex h-full flex-col gap-0 rounded-xl border border-separator bg-surface p-5">
                   <div className="flex items-center gap-2">
                     <h3 className="flex-1 text-sm font-semibold">{env?.name ?? key}</h3>
                     {env?.requiresApproval && (
-                      <Tooltip delay={300}>
-                        <Tooltip.Trigger aria-label="Promotion requires approval">
-                          <Lock className="size-4 text-muted" aria-hidden />
-                        </Tooltip.Trigger>
-                        <Tooltip.Content>Requires deployment.promote (Release Manager)</Tooltip.Content>
-                      </Tooltip>
+                      <span title="Requires deployment.promote (Release Manager)">
+                        <Lock className="size-4 text-muted" aria-label="Promotion requires approval" />
+                      </span>
                     )}
                   </div>
                   {/* flex-1 absorbs uneven description heights so Running and the action line up across the row. */}
@@ -136,11 +124,10 @@ export function DeploymentsTab({ app }: { app: Application }) {
                     )}
                   </div>
                   <Button
-                    fullWidth
-                    variant={upToDate ? "secondary" : "primary"}
-                    isDisabled={!source || upToDate}
-                    isPending={deploy.isPending && deploy.variables?.environment === key}
-                    onPress={() => source && deploy.mutate({ applicationId: app.id, environment: key, version: source })}
+                    className="w-full"
+                    kind={upToDate ? "secondary" : "primary"}
+                    disabled={!source || upToDate || (deploy.isPending && deploy.variables?.environment === key)}
+                    onClick={() => source && deploy.mutate({ applicationId: app.id, environment: key, version: source })}
                   >
                     <Rocket className="size-4" aria-hidden />
                     {!source
@@ -153,7 +140,7 @@ export function DeploymentsTab({ app }: { app: Application }) {
                           ? `Deploy v${source}`
                           : `Promote v${source}`}
                   </Button>
-                </Card>
+                </div>
               );
             })}
           </div>
@@ -165,32 +152,32 @@ export function DeploymentsTab({ app }: { app: Application }) {
             data.items.length === 0 ? (
               <NoDataFound message="Never deployed." />
             ) : (
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Deployment history" className="min-w-[640px]">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Environment</Table.Column>
-                      <Table.Column>Version</Table.Column>
-                      <Table.Column>Status</Table.Column>
-                      <Table.Column>Deployed by</Table.Column>
-                      <Table.Column>When</Table.Column>
-                    </Table.Header>
-                    <Table.Body>
-                      {data.items.map((d) => (
-                        <Table.Row key={d.id} id={d.id}>
-                          <Table.Cell className="capitalize">{d.environment}</Table.Cell>
-                          <Table.Cell className="tabular-nums">v{d.version}</Table.Cell>
-                          <Table.Cell>
-                            <StatusChip status={d.status} />
-                          </Table.Cell>
-                          <Table.Cell>{d.deployedBy}</Table.Cell>
-                          <Table.Cell className="whitespace-nowrap text-muted">{formatDateTime(d.deployedAt)}</Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+              <TableContainer aria-label="Deployment history">
+                <Table className="min-w-[640px]">
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader scope="col">Environment</TableHeader>
+                      <TableHeader scope="col">Version</TableHeader>
+                      <TableHeader scope="col">Status</TableHeader>
+                      <TableHeader scope="col">Deployed by</TableHeader>
+                      <TableHeader scope="col">When</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data.items.map((d) => (
+                      <TableRow key={d.id} id={d.id}>
+                        <TableCell className="capitalize">{d.environment}</TableCell>
+                        <TableCell className="tabular-nums">v{d.version}</TableCell>
+                        <TableCell>
+                          <StatusChip status={d.status} />
+                        </TableCell>
+                        <TableCell>{d.deployedBy}</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted">{formatDateTime(d.deployedAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             )
           }
         </QueryState>

@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { Link, Separator } from "@heroui/react";
+import { Link } from "react-router-dom";
 import { ChevronRight, CircleCheck, CircleExclamation, Pulse } from "@workspacenow/icons";
 import { useCan, useListApprovals, useListExecutions, useListHealth, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -77,10 +77,10 @@ export function NeedsAttentionCard() {
         <ul>
           {items.slice(0, MAX_ITEMS).map((item, i) => (
             <Fragment key={item.id}>
-              {i > 0 && <Separator />}
+              {i > 0 && <hr className="border-separator" />}
               <li>
                 <Link
-                  href={item.href}
+                  to={item.href}
                   className="group flex w-full items-center gap-3 rounded-none px-5 py-3 text-left no-underline transition-colors hover:bg-surface-secondary"
                 >
                   <span className="text-muted [&_svg]:size-4">{item.icon}</span>

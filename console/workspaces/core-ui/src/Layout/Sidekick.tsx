@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { Button, Form, Input, Spinner, TextField } from "@heroui/react";
+import { Button, Loading, TextInput } from "@carbon/react";
 import { ArrowUp, CircleCheck, CircleXmark, SparklesFill, Xmark } from "@workspacenow/icons";
 import { useAuthHooks } from "@workspacenow/auth";
 import { useListApiOperations, useListApis, useRunSidekick, useSession , hasPermission } from "@workspacenow/api-client";
@@ -111,11 +111,11 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
           {scope && <span className="font-normal text-muted"> / {scope.app.name}</span>}
         </h2>
         {turns.length > 0 && (
-          <Button size="sm" variant="ghost" isDisabled={sidekick.isPending} onPress={() => setTurns([])}>
+          <Button kind="ghost" size="sm" disabled={sidekick.isPending} onClick={() => setTurns([])}>
             New chat
           </Button>
         )}
-        <Button isIconOnly size="sm" variant="ghost" aria-label="Close Sidekick" onPress={onClose}>
+        <Button kind="ghost" size="sm" hasIconOnly iconDescription="Close Sidekick" onClick={onClose}>
           <Xmark className="size-4" />
         </Button>
       </header>
@@ -134,9 +134,9 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
               {suggestions.map((s) => (
                 <Button
                   key={s.prompt}
-                  variant="outline"
+                  kind="tertiary"
                   className="h-auto w-full justify-start py-2 text-left font-normal whitespace-normal"
-                  onPress={() => send(s.prompt)}
+                  onClick={() => send(s.prompt)}
                 >
                   {s.prompt}
                 </Button>
@@ -152,7 +152,7 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
                 {turn.error && <p className="text-sm text-danger">{turn.error}</p>}
                 {!turn.run && !turn.error && (
                   <p className="flex items-center gap-2 text-sm text-muted">
-                    <Spinner size="sm" />
+                    <Loading small withOverlay={false} description="Working on it" />
                     Working on it
                   </p>
                 )}
@@ -163,25 +163,31 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
         <div ref={end} />
       </div>
 
-      <Form
+      <form
         className="flex shrink-0 items-center gap-2 border-t border-separator p-3"
         onSubmit={(e) => {
           e.preventDefault();
           send(prompt);
         }}
       >
-        <TextField className="flex-1" aria-label="Ask Sidekick" value={prompt} onChange={setPrompt}>
-          <Input variant="secondary" placeholder={scope ? `Ask about ${scope.app.name}` : "Ask Sidekick to find or do something"} />
-        </TextField>
-        <Button type="submit" isIconOnly aria-label="Send" isDisabled={!prompt.trim() || sidekick.isPending}>
+        <TextInput
+          id="sidekick-prompt"
+          className="flex-1"
+          labelText="Ask Sidekick"
+          hideLabel
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder={scope ? `Ask about ${scope.app.name}` : "Ask Sidekick to find or do something"}
+        />
+        <Button type="submit" kind="primary" hasIconOnly iconDescription="Send" disabled={!prompt.trim() || sidekick.isPending}>
           <ArrowUp className="size-4" />
         </Button>
-      </Form>
+      </form>
     </section>
   );
 }
 
-/** Sidekick confined to one application, for the full-screen app shell. */
+/** App-scoped Sidekick: the same panel confined to one application's tools. */
 export function AppSidekick({ app, onClose }: { app: Pick<Application, "id" | "name">; onClose: () => void }) {
   const tools = useApplicationTools(app.id);
   return <Sidekick onClose={onClose} scope={{ app, tools }} />;

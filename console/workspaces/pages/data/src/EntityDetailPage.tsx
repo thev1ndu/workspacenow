@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Chip, Table } from "@heroui/react";
+import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 import { ArrowRight, Plus, SquareListUl } from "@workspacenow/icons";
 import { useParams } from "react-router-dom";
 import { useCan, useGetEntity, useListApplications } from "@workspacenow/api-client";
@@ -28,8 +28,7 @@ export function EntityDetailPage() {
         entity.data && (
           <>
             {entity.data.scope !== "external" && (
-              <Button variant="secondary" isDisabled={!canManage} onPress={() => setAdding(true)}>
-                <Plus className="size-4" aria-hidden />
+              <Button kind="secondary" disabled={!canManage} onClick={() => setAdding(true)} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
                 Add field
               </Button>
             )}
@@ -74,58 +73,59 @@ export function EntityDetailPage() {
                   />
                 </SectionCard>
                 <SectionCard title="Ownership">
-                  <Alert status={e.scope === "external" ? "default" : "success"}>
-                    <Alert.Content>
-                      <Alert.Description>{SCOPE_EXPLANATION[e.scope]}</Alert.Description>
-                    </Alert.Content>
-                  </Alert>
+                  <InlineNotification
+                    kind={e.scope === "external" ? "info" : "success"}
+                    lowContrast
+                    hideCloseButton
+                    title={SCOPE_EXPLANATION[e.scope]}
+                  />
                 </SectionCard>
               </div>
 
               <SectionCard title="Fields" subtitle={`${e.fields.length} fields`} flush>
-                <Table variant="secondary">
-                  <Table.ScrollContainer>
-                    <Table.Content aria-label={`${e.label} fields`} className="min-w-[680px]">
-                      <Table.Header>
-                        <Table.Column isRowHeader>Field</Table.Column>
-                        <Table.Column>Type</Table.Column>
-                        <Table.Column>Required</Table.Column>
-                        <Table.Column>Unique</Table.Column>
-                        <Table.Column>Constraint</Table.Column>
-                        <Table.Column>Default</Table.Column>
-                      </Table.Header>
-                      <Table.Body>
-                        {e.fields.map((f) => (
-                          <Table.Row key={f.name} id={f.name}>
-                            <Table.Cell>
-                              <p className="font-medium">{f.label}</p>
-                              <p className="font-mono text-xs text-muted">{f.name}</p>
-                            </Table.Cell>
-                            <Table.Cell>
-                              <Chip size="sm" variant="secondary">
-                                {f.type}
-                              </Chip>
-                            </Table.Cell>
-                            <Table.Cell className={f.required ? "" : "text-muted"}>{f.required ? "Yes" : "—"}</Table.Cell>
-                            <Table.Cell className={f.unique ? "" : "text-muted"}>{f.unique ? "Yes" : "—"}</Table.Cell>
-                            <Table.Cell>
-                              {f.type === "enum" && <span className="text-sm text-muted">{f.enumValues?.join(", ")}</span>}
-                              {f.type === "reference" && f.reference && (
-                                <span className="inline-flex items-center gap-1">
-                                  <ArrowRight className="size-3.5 text-muted" aria-hidden />
-                                  <TextLink to={buildPath(routes.data.entity, { entityName: f.reference })}>{f.reference}</TextLink>
-                                </span>
-                              )}
-                            </Table.Cell>
-                            <Table.Cell className={f.defaultValue !== undefined ? "" : "text-muted"}>
-                              {f.defaultValue !== undefined ? String(f.defaultValue) : "—"}
-                            </Table.Cell>
-                          </Table.Row>
-                        ))}
-                      </Table.Body>
-                    </Table.Content>
-                  </Table.ScrollContainer>
-                </Table>
+                <TableContainer aria-label={`${e.label} fields`}>
+                  <Table className="min-w-[680px]">
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>Field</TableHeader>
+                        <TableHeader>Type</TableHeader>
+                        <TableHeader>Required</TableHeader>
+                        <TableHeader>Unique</TableHeader>
+                        <TableHeader>Constraint</TableHeader>
+                        <TableHeader>Default</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {e.fields.map((f) => (
+                        <TableRow key={f.name} id={f.name}>
+                          <TableCell>
+                            <p className="font-medium">{f.label}</p>
+                            <p className="font-mono text-xs text-muted">{f.name}</p>
+                          </TableCell>
+                          <TableCell>
+                            <Tag size="sm" type="gray">
+                              {f.type}
+                            </Tag>
+                          </TableCell>
+                          <TableCell className={f.required ? "" : "text-muted"}>{f.required ? "Yes" : "—"}</TableCell>
+                          <TableCell className={f.unique ? "" : "text-muted"}>{f.unique ? "Yes" : "—"}</TableCell>
+                          <TableCell>
+                            {f.type === "enum" && <span className="text-sm text-muted">{f.enumValues?.join(", ")}</span>}
+                            {f.type === "reference" && f.reference && (
+                              <span className="inline-flex items-center gap-1">
+                                <ArrowRight className="size-3.5 text-muted" aria-hidden />
+                                <TextLink to={buildPath(routes.data.entity, { entityName: f.reference })}>{f.reference}</TextLink>
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className={f.defaultValue !== undefined ? "" : "text-muted"}>
+                            {f.defaultValue !== undefined ? String(f.defaultValue) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </SectionCard>
 
               <div className="grid items-start gap-6 md:grid-cols-2">
@@ -137,9 +137,9 @@ export function EntityDetailPage() {
                       {e.relationships.map((r) => (
                         <li key={r.name} className="flex flex-wrap items-center gap-2 text-sm">
                           <code className="text-xs">{r.name}</code>
-                          <Chip size="sm" variant="secondary">
+                          <Tag size="sm" type="gray">
                             {r.kind}
-                          </Chip>
+                          </Tag>
                           <ArrowRight className="size-3.5 text-muted" aria-hidden />
                           <TextLink to={buildPath(routes.data.entity, { entityName: r.target })}>{r.target}</TextLink>
                           {r.via && <span className="text-xs text-muted">via {r.via}</span>}
@@ -154,9 +154,9 @@ export function EntityDetailPage() {
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
                       {e.events.map((ev) => (
-                        <Chip key={ev} size="sm" variant="secondary" className="font-mono">
+                        <Tag key={ev} size="sm" type="gray" className="font-mono">
                           {ev}
-                        </Chip>
+                        </Tag>
                       ))}
                     </div>
                   )}

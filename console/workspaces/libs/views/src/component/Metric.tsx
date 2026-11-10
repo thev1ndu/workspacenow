@@ -1,4 +1,3 @@
-import { Card } from "@heroui/react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
@@ -10,20 +9,20 @@ const COLUMNS: Record<number, string> = {
   6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
 };
 
-/** Grid class for a KPI row of `columns` cards. */
+/** Grid class for a KPI row of `columns` tiles. */
 export function metricGridColumns(columns: number): string {
   return `grid gap-4 ${COLUMNS[columns] ?? COLUMNS[4]}`;
 }
 
 /**
- * Headline numbers as a responsive grid of individual KPI cards (not one divided strip).
+ * Headline numbers as a responsive grid of individual KPI tiles (not one divided strip).
  */
 export function MetricGrid({ columns, children }: { columns: number; children: ReactNode }) {
   return <div className={metricGridColumns(columns)}>{children}</div>;
 }
 
 /**
- * One KPI card: icon + label on top, big value below, optional hint. With `href` the whole card
+ * One KPI tile: icon + label on top, big value below, optional hint. With `href` the whole tile
  * opens it: an app route, or "#id" to jump to a section on the same page.
  */
 export function Metric({ label, value, icon, hint, href }: { label: string; value: ReactNode; icon?: ReactNode; hint?: ReactNode; href?: string }) {
@@ -37,6 +36,7 @@ export function Metric({ label, value, icon, hint, href }: { label: string; valu
       {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}
     </>
   );
+  const tile = "rounded-xl border border-separator bg-surface";
   if (href) {
     // The router does not scroll to in-page sections, so a "#id" target stays a plain anchor.
     const link = href.startsWith("#") ? (
@@ -48,7 +48,7 @@ export function Metric({ label, value, icon, hint, href }: { label: string; valu
         {body}
       </Link>
     );
-    return <Card className="gap-0 overflow-hidden p-0 transition-colors hover:bg-surface-secondary">{link}</Card>;
+    return <div className={`${tile} overflow-hidden transition-colors hover:bg-surface-secondary`}>{link}</div>;
   }
-  return <Card className="gap-0 px-4 py-3.5">{body}</Card>;
+  return <div className={`${tile} px-4 py-3.5`}>{body}</div>;
 }

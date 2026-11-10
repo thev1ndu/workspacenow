@@ -113,7 +113,7 @@ Scope: 105 paths / 132 operations in `openapi.yaml`, all served by real handlers
 - ⬜ Alerting channels beyond webhooks (email/SMS/PagerDuty — webhook is the only channel for now); observer totals are exact from the per-segment index except text-filtered or mid-segment time-bounded queries, which report `"approximate": true`
 
 ## 9. Console webapp
-- ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on HeroUI + Tailwind, pnpm workspaces
+- ✅ 7 workspaces / ~35 pages (overview, data, studio, connect, flow, control, AI) on IBM Carbon, pnpm workspaces
 - ✅ Real HTTP transport behind `apiBaseUrl`; in-browser demo platform (mock-server implementing the whole contract, 42 tests, coverage gated in CI) when unset
 - ✅ SSE live updates (above), server-side search + pagination on runs/traces/audit/records, KPI dashboard with deep-linked cards, charts
 - ✅ OIDC login (PKCE) + demo persona picker; per-environment `config.js` mounted into the container

@@ -56,12 +56,13 @@ func TestTelemetryExportsSpanAndMetrics(t *testing.T) {
 		_, ctxSpan = observer.SpanFrom(r.Context())
 		w.WriteHeader(http.StatusCreated)
 	}))
+	// a client-supplied traceparent is not trusted: the request gets a fresh trace id
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/widgets", nil)
-	req.Header.Set(TraceHeader, "trace-abc")
+	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
 	h.ServeHTTP(httptest.NewRecorder(), req)
 
-	if ctxTrace != "trace-abc" || ctxSpan == "" {
-		t.Fatalf("trace/span in ctx: %q %q", ctxTrace, ctxSpan)
+	if ctxTrace == "" || ctxTrace == "4bf92f3577b34da6a3ce929d0e0e4736" || ctxSpan == "" {
+		t.Fatalf("client traceparent must be ignored, got trace %q span %q", ctxTrace, ctxSpan)
 	}
 	exp.Flush(context.Background())
 	if cap.count("/v1/traces") != 1 || cap.count("/v1/metrics") != 1 {
@@ -69,7 +70,7 @@ func TestTelemetryExportsSpanAndMetrics(t *testing.T) {
 	}
 	traces := cap.lastJSON("/v1/traces")
 	span := traces["resourceSpans"].([]any)[0].(map[string]any)["scopeSpans"].([]any)[0].(map[string]any)["spans"].([]any)[0].(map[string]any)
-	if span["traceId"] != "trace-abc" || span["spanId"] != ctxSpan || span["kind"] != float64(2) || span["status"].(map[string]any)["code"] != float64(1) {
+	if span["traceId"] != ctxTrace || span["spanId"] != ctxSpan || span["kind"] != float64(2) || span["status"].(map[string]any)["code"] != float64(1) {
 		t.Fatalf("span: %v", span)
 	}
 	attrs := map[string]string{}
@@ -109,6 +110,47 @@ func TestTelemetryErrorStatusMarksSpan(t *testing.T) {
 		t.Fatalf("error span status: %v", span["status"])
 	}
 	_ = exp.Close(context.Background())
+}
+
+func TestTelemetryHonorsTraceparentFromLoopbackOnly(t *testing.T) {
+	exp := observer.NewExporter("", "", "wsn-service", time.Hour, nil) // export disabled; trace id still set
+	const tp = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	run := func(remoteAddr string) string {
+		var got string
+		h := Telemetry(exp)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = kernel.TraceIDFrom(r.Context())
+			w.WriteHeader(http.StatusOK)
+		}))
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/x", nil)
+		req.RemoteAddr = remoteAddr
+		req.Header.Set("traceparent", tp)
+		h.ServeHTTP(httptest.NewRecorder(), req)
+		return got
+	}
+	if got := run("127.0.0.1:4321"); got != "4bf92f3577b34da6a3ce929d0e0e4736" {
+		t.Fatalf("loopback caller's traceparent must be honored, got %q", got)
+	}
+	if got := run("192.0.2.1:4321"); got == "4bf92f3577b34da6a3ce929d0e0e4736" || got == "" {
+		t.Fatalf("remote client's traceparent must be ignored, got %q", got)
+	}
+}
+
+func TestParseTraceparent(t *testing.T) {
+	if id, ok := parseTraceparent("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"); !ok || id != "4bf92f3577b34da6a3ce929d0e0e4736" {
+		t.Fatalf("valid traceparent: %q %v", id, ok)
+	}
+	for _, bad := range []string{
+		"", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7", // missing flags
+		"00-4bf92f3577b34da6a3ce929d0e0e473-00f067aa0ba902b7-01",  // short trace id
+		"00-00000000000000000000000000000000-00f067aa0ba902b7-01", // all-zero trace id
+		"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0g", // non-hex flags
+		"ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01", // unknown version
+		"00-4BF92F3577B34DA6A3CE929D0E0E4736-00f067aa0ba902b7-01", // uppercase hex rejected
+	} {
+		if _, ok := parseTraceparent(bad); ok {
+			t.Fatalf("must reject %q", bad)
+		}
+	}
 }
 
 func TestTelemetryDisabledStillSetsTraceID(t *testing.T) {

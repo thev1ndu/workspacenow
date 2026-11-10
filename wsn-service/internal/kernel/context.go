@@ -103,6 +103,9 @@ type Caller struct {
 	Name        string
 	Roles       []string
 	Permissions Permissions
+	// MustChangePassword is set for the local bootstrap admin until they rotate the default
+	// password; the auth middleware then allows only the auth endpoints and the session.
+	MustChangePassword bool
 }
 
 // Context returns the caller's execution context; an empty traceID starts a new trace.

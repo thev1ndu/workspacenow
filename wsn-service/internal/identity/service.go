@@ -6,16 +6,20 @@ package identity
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
@@ -28,10 +32,11 @@ import (
 
 // Claims are the identity-provider facts the platform keeps about a user.
 type Claims struct {
-	Subject string
-	Name    string
-	Email   string
-	Groups  []string
+	Subject       string
+	Name          string
+	Email         string
+	EmailVerified bool
+	Groups        []string
 }
 
 // Bootstrap names the first administrators (by IdP email or the local system user), so
@@ -55,10 +60,19 @@ type Service interface {
 	// CallerFromClaims records the user an access token describes and resolves them.
 	CallerFromClaims(ctx context.Context, claims Claims) (*kernel.Caller, error)
 	// LocalLogin checks the system-user credentials (no OIDC configured), provisions the admin
-	// user on first login and returns a session token.
-	LocalLogin(ctx context.Context, email, password string) (token string, err error)
-	// SessionUser resolves a session token issued by LocalLogin to its user ID.
+	// user on first login and returns a session token. Attempts are rate-limited per email and
+	// per client IP, and allowed/denied outcomes are audited. mustChangePassword reports the
+	// configured default password is still in use and must be rotated.
+	LocalLogin(ctx context.Context, email, password, clientIP string) (token string, mustChangePassword bool, err error)
+	// SessionUser resolves a session token issued by LocalLogin to its user ID, sliding the TTL.
 	SessionUser(ctx context.Context, token string) (userID string, err error)
+	// Logout revokes a session token; the user's session version bump also revokes their other sessions.
+	Logout(ctx context.Context, token string) error
+	// ChangePassword rotates the local system user's password to a bcrypt hash and clears the
+	// must-change flag; the configured default password stops working.
+	ChangePassword(ctx context.Context, ec kernel.ExecutionContext, userID, oldPassword, newPassword string) error
+	// SetUserStatus enables or disables an account; a disabled user's sessions stop resolving.
+	SetUserStatus(ctx context.Context, ec kernel.ExecutionContext, userID, status string) (*oapi.UserWithRoles, error)
 	// PermissionsForGroups returns the permissions a set of group claims grants, without caching.
 	PermissionsForGroups(ctx context.Context, groups []string) (kernel.Permissions, error)
 
@@ -147,7 +161,8 @@ func (s *service) CallerFromClaims(ctx context.Context, claims Claims) (*kernel.
 	if err != nil && !errors.Is(err, docstore.ErrNotFound) {
 		return nil, err
 	}
-	if user == nil {
+	firstSight := user == nil
+	if firstSight {
 		user = &oapi.User{Id: claims.Subject}
 	}
 	changed := user.Name != claims.Name || string(user.Email) != claims.Email || !slices.Equal(user.Groups, claims.Groups)
@@ -157,8 +172,9 @@ func (s *service) CallerFromClaims(ctx context.Context, claims Claims) (*kernel.
 			user.Groups = []string{}
 		}
 	}
-	// Bootstrap: a listed email gets the admin role on first login — no IdP group setup needed.
-	if s.bootstrap.grants(claims.Email) && !slices.Contains(deref(user.RoleIds), s.bootstrap.AdminRole) {
+	// Bootstrap: a listed, verified email gets the admin role once, on first sight — no IdP group
+	// setup needed, and an admin removing the role later is not undone on the next login.
+	if firstSight && claims.EmailVerified && s.bootstrap.grants(claims.Email) && !slices.Contains(deref(user.RoleIds), s.bootstrap.AdminRole) {
 		ids := append(deref(user.RoleIds), s.bootstrap.AdminRole)
 		user.RoleIds = &ids
 		changed = true
@@ -180,49 +196,210 @@ func (b Bootstrap) grants(email string) bool {
 	return slices.Contains(b.AdminEmails, e) || (b.localEnabled() && e == strings.ToLower(strings.TrimSpace(b.DefaultAdminEmail)))
 }
 
-const sessionKeyPrefix = "wsn:session:"
+const (
+	sessionKeyPrefix     = "wsn:session:"    // + sha256(token): the raw token never sits in Valkey
+	sessionVersionPrefix = "wsn:sessionver:" // per-user counter; bumping it revokes all their sessions
+	sessionTTL           = 24 * time.Hour
+	loginAttemptsMax     = 10 // per window, per email and per client IP
+	loginWindow          = 15 * time.Minute
+)
+
+// session is the Valkey value behind a login token.
+type session struct {
+	UserID  string `json:"userId"`
+	Version int64  `json:"version"`
+}
+
+// sessionKey hashes the token so a Valkey dump cannot be replayed as a session.
+func sessionKey(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return sessionKeyPrefix + hex.EncodeToString(sum[:])
+}
 
 // LocalLogin authenticates the local system user when no OIDC is configured, provisions the
-// account with the admin role on first login, and returns a bearer session token.
-func (s *service) LocalLogin(ctx context.Context, email, password string) (string, error) {
+// account with the admin role on first login, and returns a bearer session token. Login attempts
+// are rate-limited per email and per client IP and audited both ways; sessions key on sha256(token),
+// carry a version that logout/revoke bumps, and slide their TTL on every use.
+func (s *service) LocalLogin(ctx context.Context, email, password, clientIP string) (string, bool, error) {
 	if !s.bootstrap.localEnabled() {
-		return "", kernel.NotFound("local login is not enabled")
+		return "", false, kernel.NotFound("local login is not enabled")
 	}
-	emailOK := subtle.ConstantTimeCompare([]byte(strings.ToLower(strings.TrimSpace(email))), []byte(strings.ToLower(strings.TrimSpace(s.bootstrap.DefaultAdminEmail)))) == 1
-	passOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.bootstrap.DefaultAdminPassword)) == 1
+	email = strings.ToLower(strings.TrimSpace(email))
+	ec := kernel.ExecutionContext{Actor: kernel.Actor{Kind: kernel.ActorSystem, ID: "login", Name: "Login"}, TraceID: kernel.TraceIDFrom(ctx), EntryPoint: kernel.EntryAPI}
+	if err := s.loginAllowed(ctx, email, clientIP); err != nil {
+		_ = s.auditor.RecordDetached(ctx, ec, "auth.login", "auth/login", kernel.OutcomeDenied, "rate limited: "+email)
+		return "", false, err
+	}
+	emailOK := subtle.ConstantTimeCompare([]byte(email), []byte(strings.ToLower(strings.TrimSpace(s.bootstrap.DefaultAdminEmail)))) == 1
+	passOK, mustChange, err := s.checkAdminPassword(ctx, password)
+	if err != nil {
+		return "", false, err
+	}
 	if !emailOK || !passOK {
-		return "", kernel.Unauthenticated("Invalid credentials")
+		_ = s.auditor.RecordDetached(ctx, ec, "auth.login", "auth/login", kernel.OutcomeDenied, "invalid credentials: "+email)
+		return "", false, kernel.Unauthenticated("Invalid credentials")
 	}
 	if err := s.ensureAdminRole(ctx); err != nil {
-		return "", err
+		return "", false, err
 	}
-	name := strings.Split(strings.TrimSpace(email), "@")[0]
-	if _, err := s.CallerFromClaims(ctx, Claims{Subject: "local:" + strings.ToLower(strings.TrimSpace(email)), Name: name, Email: strings.TrimSpace(email)}); err != nil {
-		return "", err
+	name := strings.Split(email, "@")[0]
+	caller, err := s.CallerFromClaims(ctx, Claims{Subject: "local:" + email, Name: name, Email: email, EmailVerified: true})
+	if err != nil {
+		return "", false, err
+	}
+	// the rotation flag follows the password check: the configured default demands a change
+	if user, uerr := s.users.Get(ctx, caller.UserID); uerr == nil && (user.MustChangePassword == nil || *user.MustChangePassword != mustChange) {
+		user.MustChangePassword = &mustChange
+		if perr := s.users.Put(ctx, user); perr != nil {
+			return "", false, perr
+		}
 	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
-		return "", err
+		return "", false, err
 	}
 	token := hex.EncodeToString(raw)
-	userID := "local:" + strings.ToLower(strings.TrimSpace(email))
-	if err := s.cache.SetJSON(ctx, sessionKeyPrefix+token, map[string]string{"userId": userID}, 24*time.Hour); err != nil {
-		return "", err
+	version, err := s.cache.Incr(ctx, sessionVersionPrefix+caller.UserID)
+	if err != nil {
+		return "", false, err
 	}
-	return token, nil
+	if err := s.cache.SetJSON(ctx, sessionKey(token), session{UserID: caller.UserID, Version: version}, sessionTTL); err != nil {
+		return "", false, err
+	}
+	_ = s.auditor.RecordDetached(ctx, ec, "auth.login", "auth/login", kernel.OutcomeAllowed, email)
+	return token, mustChange, nil
 }
 
-// SessionUser resolves a local session token to its user ID.
+// loginAllowed enforces the per-email and per-client-IP login limiter, failing closed when the
+// cache is down (an unavailable limiter must not become an open door).
+func (s *service) loginAllowed(ctx context.Context, email, clientIP string) error {
+	for _, k := range []string{"wsn:login:email:" + email, "wsn:login:ip:" + clientIP} {
+		n, err := s.cache.IncrWindow(ctx, k, loginWindow)
+		if err != nil {
+			return &kernel.Error{Status: http.StatusServiceUnavailable, Code: kernel.CodeInvalidState, Message: "Sign-in is temporarily unavailable; try again shortly"}
+		}
+		if n > loginAttemptsMax {
+			return &kernel.Error{Status: http.StatusTooManyRequests, Code: kernel.CodeInvalidState, Message: "Too many login attempts; wait a few minutes and try again"}
+		}
+	}
+	return nil
+}
+
+// checkAdminPassword verifies the system-user password against the rotated bcrypt hash when one
+// was stored, else against the configured default; mustChange reports the default is still in use.
+func (s *service) checkAdminPassword(ctx context.Context, password string) (ok bool, mustChange bool, err error) {
+	if hash, ok := s.storedPasswordHash(ctx); ok {
+		if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil {
+			return true, false, nil
+		}
+		return false, false, nil
+	}
+	if subtle.ConstantTimeCompare([]byte(password), []byte(s.bootstrap.DefaultAdminPassword)) == 1 {
+		return true, true, nil
+	}
+	return false, false, nil
+}
+
+// storedPasswordHash returns the rotated bcrypt hash from the org settings doc, if one was set.
+func (s *service) storedPasswordHash(ctx context.Context) (string, bool) {
+	doc, err := s.settings.Get(ctx, themeSettingsKey)
+	if err != nil {
+		return "", false
+	}
+	h, _ := (*doc)["defaultAdminPasswordHash"].(string)
+	return h, h != ""
+}
+
+// storePasswordHash writes the rotated bcrypt hash into the org settings doc, preserving other keys.
+func (s *service) storePasswordHash(ctx context.Context, hash string) error {
+	doc, err := s.settings.Get(ctx, themeSettingsKey)
+	var m map[string]any
+	if errors.Is(err, docstore.ErrNotFound) {
+		m = map[string]any{}
+	} else if err != nil {
+		return err
+	} else {
+		m = *doc
+	}
+	m["defaultAdminPasswordHash"] = hash
+	return s.settings.Put(ctx, &m)
+}
+
+// ChangePassword rotates the local system user's password: the current one must match, the new one
+// is stored as a bcrypt hash (the configured default stops working) and the rotation flag clears.
+func (s *service) ChangePassword(ctx context.Context, ec kernel.ExecutionContext, userID, oldPassword, newPassword string) error {
+	if !strings.HasPrefix(userID, "local:") {
+		return kernel.Invalid("Only the local system user has a password to change here")
+	}
+	if len(newPassword) < 12 {
+		return kernel.Invalid("The new password needs at least 12 characters")
+	}
+	ok, _, err := s.checkAdminPassword(ctx, oldPassword)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		_ = s.auditor.RecordDetached(ctx, ec, "auth.password", "auth/password", kernel.OutcomeDenied, "wrong current password")
+		return kernel.Unauthenticated("The current password is not correct")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := s.storePasswordHash(ctx, string(hash)); err != nil {
+		return err
+	}
+	if user, uerr := s.users.Get(ctx, userID); uerr == nil && user.MustChangePassword != nil {
+		user.MustChangePassword = nil
+		if perr := s.users.Put(ctx, user); perr != nil {
+			return perr
+		}
+	}
+	s.InvalidateAccess(ctx)
+	return s.auditor.Record(ctx, ec, "auth.password", "auth/password", kernel.OutcomeAllowed, "")
+}
+
+// SessionUser resolves a local session token to its user ID, rejecting revoked (version-bumped)
+// sessions and sliding the TTL on every use.
 func (s *service) SessionUser(ctx context.Context, token string) (string, error) {
-	var v map[string]string
-	found, err := s.cache.GetJSON(ctx, sessionKeyPrefix+token, &v)
+	var v session
+	found, err := s.cache.GetJSON(ctx, sessionKey(token), &v)
 	if err != nil {
 		return "", err
 	}
-	if !found || v["userId"] == "" {
+	if !found || v.UserID == "" {
 		return "", kernel.Unauthenticated("Sign in to continue")
 	}
-	return v["userId"], nil
+	ver, _, err := s.cache.Get(ctx, sessionVersionPrefix+v.UserID)
+	if err != nil {
+		return "", err
+	}
+	if ver != "" {
+		if n, perr := strconv.ParseInt(ver, 10, 64); perr == nil && n != v.Version {
+			return "", kernel.Unauthenticated("Sign in to continue")
+		}
+	}
+	if err := s.cache.SetJSON(ctx, sessionKey(token), v, sessionTTL); err != nil {
+		slog.WarnContext(ctx, "slide session TTL", "error", err)
+	}
+	return v.UserID, nil
+}
+
+// Logout revokes a session token and bumps the user's session version, revoking their other sessions too.
+func (s *service) Logout(ctx context.Context, token string) error {
+	var v session
+	found, err := s.cache.GetJSON(ctx, sessionKey(token), &v)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil // already gone: logout is idempotent
+	}
+	if err := s.cache.Del(ctx, sessionKey(token)); err != nil {
+		return err
+	}
+	_, _ = s.cache.Incr(ctx, sessionVersionPrefix+v.UserID)
+	return nil
 }
 
 // ensureAdminRole creates the bootstrap admin role (all permissions) when it does not exist yet.
@@ -256,8 +433,35 @@ func (s *service) nativeGroupNames(ctx context.Context, userID string) []string 
 	return names
 }
 
+// userStatus is the account state; documents written before the field existed are active.
+func userStatus(u *oapi.User) string {
+	if u.Status == nil || *u.Status == "" {
+		return "active"
+	}
+	return string(*u.Status)
+}
+
+// withRolesStatus converts the User status enum to the UserWithRoles one (same underlying values).
+func withRolesStatus(s *oapi.UserStatus) *oapi.UserWithRolesStatus {
+	if s == nil {
+		return nil
+	}
+	v := oapi.UserWithRolesStatus(*s)
+	return &v
+}
+
+// mustChangePassword reports whether the user must rotate their password before anything else.
+func mustChangePassword(u *oapi.User) bool {
+	return u.MustChangePassword != nil && *u.MustChangePassword
+}
+
 // resolve returns the user's roles and permissions, cached per user until access data changes.
+// Disabled accounts never resolve, so their sessions and tokens stop working on every replica
+// once the access cache is invalidated.
 func (s *service) resolve(ctx context.Context, user *oapi.User) (*kernel.Caller, error) {
+	if userStatus(user) == "disabled" {
+		return nil, kernel.Unauthenticated("This account has been disabled")
+	}
 	version, _, err := s.cache.Get(ctx, accessVersionKey)
 	if err != nil {
 		slog.WarnContext(ctx, "access cache unavailable; resolving from the database", "error", err)
@@ -280,7 +484,7 @@ func (s *service) resolve(ctx context.Context, user *oapi.User) (*kernel.Caller,
 			slog.WarnContext(ctx, "cache access", "error", err)
 		}
 	}
-	return &kernel.Caller{UserID: user.Id, Name: user.Name, Roles: a.Roles, Permissions: kernel.NewPermissions(a.Permissions...)}, nil
+	return &kernel.Caller{UserID: user.Id, Name: user.Name, Roles: a.Roles, Permissions: kernel.NewPermissions(a.Permissions...), MustChangePassword: mustChangePassword(user)}, nil
 }
 
 func groupsKey(groups []string) string {
@@ -368,6 +572,10 @@ func (s *service) UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContex
 			return nil, kernel.InvalidState("%s is the last administrator; give someone else full access first", user.Name).WithTrace(ec.TraceID)
 		}
 	}
+	// removing the bootstrap admin role is a security event worth its own audit row
+	if s.bootstrap.AdminRole != "" && slices.Contains(current, s.bootstrap.AdminRole) && !slices.Contains(roleIDs, s.bootstrap.AdminRole) {
+		_ = s.auditor.RecordDetached(ctx, ec, "bootstrap.admin", "user/"+userID, kernel.OutcomeAllowed, "removed "+s.bootstrap.AdminRole)
+	}
 	user.RoleIds = &roleIDs
 	if err := s.users.Put(ctx, user); err != nil {
 		return nil, err
@@ -382,6 +590,59 @@ func (s *service) UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContex
 	}
 	return &oapi.UserWithRoles{
 		Id: user.Id, Name: user.Name, Email: user.Email, Title: user.Title, DepartmentId: user.DepartmentId, TeamId: user.TeamId, Groups: user.Groups, RoleIds: user.RoleIds, Roles: names,
+		Status: withRolesStatus(user.Status), MustChangePassword: user.MustChangePassword,
+	}, nil
+}
+
+// SetUserStatus enables or disables an account. A disabled user cannot sign in and their sessions
+// stop resolving on every replica once the access cache is invalidated; the last administrator
+// cannot be disabled.
+func (s *service) SetUserStatus(ctx context.Context, ec kernel.ExecutionContext, userID, status string) (*oapi.UserWithRoles, error) {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "user.status", "user/"+userID); err != nil {
+		return nil, err
+	}
+	if status != "active" && status != "disabled" {
+		return nil, kernel.Invalid("status must be active or disabled")
+	}
+	user, err := s.users.Get(ctx, userID)
+	if errors.Is(err, docstore.ErrNotFound) {
+		return nil, kernel.NotFound("No user %s", userID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if status == "disabled" && userStatus(user) == "active" {
+		roles, err := s.roles.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if holdsWildcard(roles, deref(user.RoleIds)) {
+			users, err := s.users.List(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if wildcardHolders(roles, users, userID) == 0 {
+				_ = s.auditor.RecordDetached(ctx, ec, "user.status", "user/"+userID, kernel.OutcomeDenied, "Would disable the last administrator")
+				return nil, kernel.InvalidState("%s is the last administrator; give someone else full access first", user.Name).WithTrace(ec.TraceID)
+			}
+		}
+	}
+	st := oapi.UserStatus(status)
+	user.Status = &st
+	if err := s.users.Put(ctx, user); err != nil {
+		return nil, err
+	}
+	s.InvalidateAccess(ctx)
+	if err := s.auditor.Record(ctx, ec, "user.status", "user/"+userID, kernel.OutcomeAllowed, status); err != nil {
+		return nil, err
+	}
+	names, _, err := s.rolesAndPermissions(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return &oapi.UserWithRoles{
+		Id: user.Id, Name: user.Name, Email: user.Email, Title: user.Title, DepartmentId: user.DepartmentId, TeamId: user.TeamId, Groups: user.Groups, RoleIds: user.RoleIds, Roles: names,
+		Status: withRolesStatus(user.Status), MustChangePassword: user.MustChangePassword,
 	}, nil
 }
 
@@ -638,6 +899,7 @@ func (s *service) Users(ctx context.Context) ([]oapi.UserWithRoles, error) {
 		}
 		out = append(out, oapi.UserWithRoles{
 			Id: u.Id, Name: u.Name, Email: u.Email, Title: u.Title, DepartmentId: u.DepartmentId, TeamId: u.TeamId, Groups: u.Groups, RoleIds: u.RoleIds, Roles: roles,
+			Status: withRolesStatus(u.Status), MustChangePassword: u.MustChangePassword,
 		})
 	}
 	return out, nil

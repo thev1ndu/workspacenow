@@ -124,7 +124,10 @@ func Run(ctx context.Context, cfg *config.Config, opts Options) error {
 			return fmt.Errorf("the -worker role needs a reachable temporal at TEMPORAL_HOSTPORT")
 		}
 		aiClient := ai.NewClient(cfg.AI.ServiceURL, cfg.AI.ServiceToken)
-		signer := newSigner(cfg)
+		signer, err := newSigner(cfg)
+		if err != nil {
+			return err
+		}
 		flowSvc := flow.NewService(db, core.engine, core.auditor, tc, cfg.Temporal.TaskQueue)
 		acts := flow.NewActivities(db, core.engine, core.auditor, core.publisher, core.runtime,
 			ai.NewRunner(aiClient, signer, docstore.NewCollection(db, "agents", func(a *ai.AgentDoc) string { return a.ID })))
@@ -153,18 +156,21 @@ func newCore(db *gorm.DB) *core {
 	return &core{auditor: auditor, publisher: publisher, engine: engine, runtime: runtime}
 }
 
-// newSigner loads RUN_GRANT_KEY or generates an ephemeral one (development only).
-func newSigner(cfg *config.Config) *ai.Signer {
-	if cfg.AI.RunGrantKey != "" {
-		s, err := ai.LoadSigner(cfg.AI.RunGrantKey)
-		if err != nil {
-			slog.Warn("RUN_GRANT_KEY is invalid; generating an ephemeral key", "error", err)
-			return ai.GenerateSigner()
+// newSigner loads RUN_GRANT_KEY. An invalid key is a startup error (worker-signed grants would
+// fail on the server anyway); an empty key is an error in production, an ephemeral key in development.
+func newSigner(cfg *config.Config) (*ai.Signer, error) {
+	if cfg.AI.RunGrantKey == "" {
+		if cfg.IsProduction() {
+			return nil, errors.New("RUN_GRANT_KEY is required in production")
 		}
-		return s
+		slog.Warn("RUN_GRANT_KEY is empty; agent run grants use an ephemeral key and do not survive a restart")
+		return ai.GenerateSigner(), nil
 	}
-	slog.Warn("RUN_GRANT_KEY is empty; agent run grants use an ephemeral key and do not survive a restart")
-	return ai.GenerateSigner()
+	s, err := ai.LoadSigner(cfg.AI.RunGrantKey)
+	if err != nil {
+		return nil, fmt.Errorf("RUN_GRANT_KEY is invalid: %w", err)
+	}
+	return s, nil
 }
 
 func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db *gorm.DB, nc *nats.Conn, tc client.Client, core *core, exporter *observer.Exporter, runHub func(*stream.Hub) error) error {
@@ -253,15 +259,20 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 		}
 	})
 
+	signer, err := newSigner(cfg)
+	if err != nil {
+		return err
+	}
 	aiSvc := ai.NewService(ai.Deps{
 		DB: db, Engine: engine, Auditor: auditor, Publisher: publisher, Cache: c,
-		Signer: newSigner(cfg), Client: aiClient, Connect: connectSvc, GrantTTL: cfg.AI.RunGrantTTL,
+		Signer: signer, Client: aiClient, Connect: connectSvc, GrantTTL: cfg.AI.RunGrantTTL,
 	})
 	flowSvc := flow.NewService(db, engine, auditor, tc, cfg.Temporal.TaskQueue)
 
+	identityHandler := identity.NewHandler(identitySvc, auditor, cfg.DemoMode)
 	mux := http.NewServeMux()
 	api.Routes(mux, api.Modules{
-		Identity: identity.NewHandler(identitySvc, auditor, cfg.DemoMode),
+		Identity: identityHandler,
 		Demo:     seed.NewHandler(db, cfg.DemoMode, identitySvc.InvalidateAccess),
 		Data:     data.NewHandler(dataSvc, runtime, engine),
 		BizOps:   bizops.NewHandler(engine),
@@ -274,12 +285,20 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 	})
 	mux.HandleFunc("GET /healthz", health(db, c, nc, tc, artifacts, cfg))
 	mux.HandleFunc("GET /readyz", readiness(db, c))
-	// Local system login (used when no OIDC is configured); registered directly on the mux.
-	mux.HandleFunc("POST "+api.BasePath+"/auth/login", identity.NewHandler(identitySvc, auditor, cfg.DemoMode).Login)
+	// Local system login, logout and password rotation (used when no OIDC is configured);
+	// registered directly on the mux like /auth/login.
+	mux.HandleFunc("POST "+api.BasePath+"/auth/login", identityHandler.Login)
+	mux.HandleFunc("POST "+api.BasePath+"/auth/logout", identityHandler.Logout)
+	mux.HandleFunc("POST "+api.BasePath+"/auth/password", identityHandler.ChangePassword)
 
 	public := func(r *http.Request) bool {
 		p := strings.TrimPrefix(r.URL.Path, api.BasePath)
-		return !strings.HasPrefix(r.URL.Path, api.BasePath+"/") || p == "/personas" || p == "/demo/reset" || p == "/status" || p == "/auth/login"
+		if !strings.HasPrefix(r.URL.Path, api.BasePath+"/") {
+			return true
+		}
+		// demo endpoints exist only in demo mode (WSN_DEMO_MODE + WSN_ENV=development, enforced at
+		// config load); /demo/reset additionally requires a signed-in administrator
+		return (p == "/personas" && cfg.DemoMode) || p == "/status" || p == "/auth/login"
 	}
 	handler := middleware.Chain(mux,
 		middleware.Recover(),

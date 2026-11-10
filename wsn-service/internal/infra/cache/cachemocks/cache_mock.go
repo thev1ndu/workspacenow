@@ -18,6 +18,9 @@ import (
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
 //			},
+//			DelFunc: func(ctx context.Context, key string) error {
+//				panic("mock out the Del method")
+//			},
 //			GetFunc: func(ctx context.Context, key string) (string, bool, error) {
 //				panic("mock out the Get method")
 //			},
@@ -46,6 +49,9 @@ type CacheMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
 
+	// DelFunc mocks the Del method.
+	DelFunc func(ctx context.Context, key string) error
+
 	// GetFunc mocks the Get method.
 	GetFunc func(ctx context.Context, key string) (string, bool, error)
 
@@ -68,6 +74,13 @@ type CacheMock struct {
 	calls struct {
 		// Close holds details about calls to the Close method.
 		Close []struct {
+		}
+		// Del holds details about calls to the Del method.
+		Del []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Key is the key argument value.
+			Key string
 		}
 		// Get holds details about calls to the Get method.
 		Get []struct {
@@ -119,6 +132,7 @@ type CacheMock struct {
 		}
 	}
 	lockClose      sync.RWMutex
+	lockDel        sync.RWMutex
 	lockGet        sync.RWMutex
 	lockGetJSON    sync.RWMutex
 	lockIncr       sync.RWMutex
@@ -151,6 +165,42 @@ func (mock *CacheMock) CloseCalls() []struct {
 	mock.lockClose.RLock()
 	calls = mock.calls.Close
 	mock.lockClose.RUnlock()
+	return calls
+}
+
+// Del calls DelFunc.
+func (mock *CacheMock) Del(ctx context.Context, key string) error {
+	if mock.DelFunc == nil {
+		panic("CacheMock.DelFunc: method is nil but Cache.Del was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		Key string
+	}{
+		Ctx: ctx,
+		Key: key,
+	}
+	mock.lockDel.Lock()
+	mock.calls.Del = append(mock.calls.Del, callInfo)
+	mock.lockDel.Unlock()
+	return mock.DelFunc(ctx, key)
+}
+
+// DelCalls gets all the calls that were made to Del.
+// Check the length with:
+//
+//	len(mockedCache.DelCalls())
+func (mock *CacheMock) DelCalls() []struct {
+	Ctx context.Context
+	Key string
+} {
+	var calls []struct {
+		Ctx context.Context
+		Key string
+	}
+	mock.lockDel.RLock()
+	calls = mock.calls.Del
+	mock.lockDel.RUnlock()
 	return calls
 }
 

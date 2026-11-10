@@ -167,8 +167,9 @@ func (f *fakeCache) IncrWindow(_ context.Context, _ string, _ time.Duration) (in
 	f.n++
 	return f.n, nil
 }
-func (f *fakeCache) Ping(context.Context) error { return nil }
-func (f *fakeCache) Close() error               { return nil }
+func (f *fakeCache) Del(context.Context, string) error { return nil }
+func (f *fakeCache) Ping(context.Context) error        { return nil }
+func (f *fakeCache) Close() error                      { return nil }
 
 var _ cache.Cache = (*fakeCache)(nil)
 

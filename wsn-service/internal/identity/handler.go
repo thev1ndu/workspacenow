@@ -2,7 +2,9 @@ package identity
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
@@ -29,6 +31,7 @@ var (
 
 // Login serves POST /api/v1/auth/login: the local system user signs in with the credentials
 // from the wsn-secrets Secret when no OIDC is configured, and receives a session token.
+// Attempts are rate-limited (per email and client IP) and audited by the service.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Email    string `json:"email"`
@@ -38,12 +41,51 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, kernel.Invalid("email and password are required"))
 		return
 	}
-	token, err := h.svc.LocalLogin(r.Context(), in.Email, in.Password)
+	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		clientIP = r.RemoteAddr
+	}
+	token, mustChange, err := h.svc.LocalLogin(r.Context(), in.Email, in.Password, clientIP)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
 	}
-	httpx.OK(w, map[string]string{"token": token})
+	httpx.OK(w, map[string]any{"token": token, "mustChangePassword": mustChange})
+}
+
+// Logout serves POST /api/v1/auth/logout: revokes the bearer session token (and the user's other
+// sessions via the session-version bump). Hand-mounted like /auth/login.
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok || token == "" {
+		httpx.Error(w, r, kernel.Unauthenticated("Sign in to continue"))
+		return
+	}
+	if err := h.svc.Logout(r.Context(), token); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ChangePassword serves POST /api/v1/auth/password: the signed-in local system user rotates their
+// password; until they do (mustChangePassword), the auth middleware allows only auth endpoints.
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		OldPassword string `json:"oldPassword"`
+		NewPassword string `json:"newPassword"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		httpx.Error(w, r, kernel.Invalid("oldPassword and newPassword are required"))
+		return
+	}
+	caller := httpx.Caller(r)
+	ec := caller.ContextFrom(r.Context(), kernel.EntryAPI, "")
+	if err := h.svc.ChangePassword(r.Context(), ec, caller.UserID, in.OldPassword, in.NewPassword); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, map[string]bool{"changed": true})
 }
 
 func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +169,22 @@ func (h *Handler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, userId
 	}
 	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
 	user, err := h.svc.UpdateUserRoles(r.Context(), ec, userId, body.Roles)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.OK(w, user)
+}
+
+// UpdateUserStatus answers PUT /users/{userId}/status: enable or disable an account.
+func (h *Handler) UpdateUserStatus(w http.ResponseWriter, r *http.Request, userId string) {
+	var body oapi.UpdateUserStatusJSONRequestBody
+	if err := httpx.Decode(r, &body); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	ec := httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryControl, "")
+	user, err := h.svc.SetUserStatus(r.Context(), ec, userId, string(body.Status))
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

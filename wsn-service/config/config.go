@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -173,6 +174,10 @@ func Load() (*Config, error) {
 			FlushInterval: r.duration("WSN_OBSERVER_FLUSH_INTERVAL", 2*time.Second),
 		},
 	}
+	// bootstrap admin emails are matched case-insensitively
+	for i := range cfg.Bootstrap.AdminEmails {
+		cfg.Bootstrap.AdminEmails[i] = strings.ToLower(strings.TrimSpace(cfg.Bootstrap.AdminEmails[i]))
+	}
 	if len(r.errs) > 0 {
 		return nil, errors.Join(r.errs...)
 	}
@@ -187,14 +192,34 @@ func (c *Config) validate() error {
 	if c.Env != "development" && c.Env != "production" {
 		errs = append(errs, fmt.Errorf("WSN_ENV must be development or production, got %q", c.Env))
 	}
-	if c.Env == "production" && c.DemoMode {
-		errs = append(errs, errors.New("WSN_DEMO_MODE cannot be enabled when WSN_ENV=production"))
+	if c.DemoMode && c.Env != "development" {
+		errs = append(errs, errors.New("WSN_DEMO_MODE (demo tokens, /personas, /demo/reset) requires WSN_ENV=development"))
 	}
 	if !c.DemoMode && c.OIDC.JWKSURL == "" && (c.Bootstrap.DefaultAdminEmail == "" || c.Bootstrap.DefaultAdminPassword == "") {
 		errs = append(errs, errors.New("OIDC_JWKS_URL is required unless WSN_DEMO_MODE is enabled or WSN_DEFAULT_ADMIN_EMAIL + WSN_DEFAULT_ADMIN_PASSWORD provide the system login"))
 	}
 	if c.Database.URL == "" {
 		errs = append(errs, errors.New("DATABASE_URL is required"))
+	}
+	if c.IsProduction() {
+		// without these, any client of the IdP is accepted and worker-signed grants fail across replicas
+		if c.OIDC.JWKSURL != "" {
+			if c.OIDC.Issuer == "" {
+				errs = append(errs, errors.New("OIDC_ISSUER is required in production when OIDC is configured"))
+			}
+			if c.OIDC.Audience == "" {
+				errs = append(errs, errors.New("OIDC_AUDIENCE is required in production when OIDC is configured"))
+			}
+		}
+		if c.AI.ServiceToken == "" {
+			errs = append(errs, errors.New("AI_SERVICE_TOKEN is required in production"))
+		}
+		if c.AI.RunGrantKey == "" {
+			errs = append(errs, errors.New("RUN_GRANT_KEY is required in production"))
+		}
+		if slices.Contains(c.CORSOrigins, "*") {
+			errs = append(errs, errors.New("CORS_ALLOWED_ORIGINS must not contain * in production"))
+		}
 	}
 	return errors.Join(errs...)
 }

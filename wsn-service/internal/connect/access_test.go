@@ -33,9 +33,11 @@ type stubService struct {
 	webhooks     []Webhook
 }
 
-func (s *stubService) Integrations(context.Context) ([]Integration, error) { return s.integrations, nil }
-func (s *stubService) Webhooks(context.Context) ([]Webhook, error)         { return s.webhooks, nil }
-func (s *stubService) Keys(context.Context) ([]APIKey, error)              { return []APIKey{}, nil }
+func (s *stubService) Integrations(context.Context) ([]Integration, error) {
+	return s.integrations, nil
+}
+func (s *stubService) Webhooks(context.Context) ([]Webhook, error) { return s.webhooks, nil }
+func (s *stubService) Keys(context.Context) ([]APIKey, error)      { return []APIKey{}, nil }
 
 func as(perms ...string) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

@@ -49,8 +49,18 @@ func (s *service) UpdateOrganizationTheme(ctx context.Context, ec kernel.Executi
 	if t.LogoUrl != nil {
 		logo = *t.LogoUrl
 	}
-	doc := map[string]any{"primaryColor": color, "logoUrl": logo}
-	if err := s.settings.Put(ctx, &doc); err != nil {
+	// merge into the existing settings doc: it also holds the rotated admin password hash
+	doc, err := s.settings.Get(ctx, themeSettingsKey)
+	var m map[string]any
+	if errors.Is(err, docstore.ErrNotFound) {
+		m = map[string]any{}
+	} else if err != nil {
+		return nil, err
+	} else {
+		m = *doc
+	}
+	m["primaryColor"], m["logoUrl"] = color, logo
+	if err := s.settings.Put(ctx, &m); err != nil {
 		return nil, err
 	}
 	if err := s.auditor.Record(ctx, ec, "organization.theme", "organization/theme", kernel.OutcomeAllowed, color); err != nil {

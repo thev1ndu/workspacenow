@@ -24,6 +24,9 @@ import (
 //			CallerFromClaimsFunc: func(ctx context.Context, claims identity.Claims) (*kernel.Caller, error) {
 //				panic("mock out the CallerFromClaims method")
 //			},
+//			ChangePasswordFunc: func(ctx context.Context, ec kernel.ExecutionContext, userID string, oldPassword string, newPassword string) error {
+//				panic("mock out the ChangePassword method")
+//			},
 //			CreateDepartmentFunc: func(ctx context.Context, ec kernel.ExecutionContext, in oapi.DepartmentInput) (*oapi.Department, error) {
 //				panic("mock out the CreateDepartment method")
 //			},
@@ -48,8 +51,11 @@ import (
 //			InvalidateAccessFunc: func(ctx context.Context)  {
 //				panic("mock out the InvalidateAccess method")
 //			},
-//			LocalLoginFunc: func(ctx context.Context, email string, password string) (string, error) {
+//			LocalLoginFunc: func(ctx context.Context, email string, password string, clientIP string) (string, bool, error) {
 //				panic("mock out the LocalLogin method")
+//			},
+//			LogoutFunc: func(ctx context.Context, token string) error {
+//				panic("mock out the Logout method")
 //			},
 //			OrganizationFunc: func(ctx context.Context) (*oapi.Organization, error) {
 //				panic("mock out the Organization method")
@@ -68,6 +74,9 @@ import (
 //			},
 //			SessionUserFunc: func(ctx context.Context, token string) (string, error) {
 //				panic("mock out the SessionUser method")
+//			},
+//			SetUserStatusFunc: func(ctx context.Context, ec kernel.ExecutionContext, userID string, status string) (*oapi.UserWithRoles, error) {
+//				panic("mock out the SetUserStatus method")
 //			},
 //			TeamsFunc: func(ctx context.Context) ([]oapi.Team, error) {
 //				panic("mock out the Teams method")
@@ -100,6 +109,9 @@ type ServiceMock struct {
 	// CallerFromClaimsFunc mocks the CallerFromClaims method.
 	CallerFromClaimsFunc func(ctx context.Context, claims identity.Claims) (*kernel.Caller, error)
 
+	// ChangePasswordFunc mocks the ChangePassword method.
+	ChangePasswordFunc func(ctx context.Context, ec kernel.ExecutionContext, userID string, oldPassword string, newPassword string) error
+
 	// CreateDepartmentFunc mocks the CreateDepartment method.
 	CreateDepartmentFunc func(ctx context.Context, ec kernel.ExecutionContext, in oapi.DepartmentInput) (*oapi.Department, error)
 
@@ -125,7 +137,10 @@ type ServiceMock struct {
 	InvalidateAccessFunc func(ctx context.Context)
 
 	// LocalLoginFunc mocks the LocalLogin method.
-	LocalLoginFunc func(ctx context.Context, email string, password string) (string, error)
+	LocalLoginFunc func(ctx context.Context, email string, password string, clientIP string) (string, bool, error)
+
+	// LogoutFunc mocks the Logout method.
+	LogoutFunc func(ctx context.Context, token string) error
 
 	// OrganizationFunc mocks the Organization method.
 	OrganizationFunc func(ctx context.Context) (*oapi.Organization, error)
@@ -144,6 +159,9 @@ type ServiceMock struct {
 
 	// SessionUserFunc mocks the SessionUser method.
 	SessionUserFunc func(ctx context.Context, token string) (string, error)
+
+	// SetUserStatusFunc mocks the SetUserStatus method.
+	SetUserStatusFunc func(ctx context.Context, ec kernel.ExecutionContext, userID string, status string) (*oapi.UserWithRoles, error)
 
 	// TeamsFunc mocks the Teams method.
 	TeamsFunc func(ctx context.Context) ([]oapi.Team, error)
@@ -178,6 +196,19 @@ type ServiceMock struct {
 			Ctx context.Context
 			// Claims is the claims argument value.
 			Claims identity.Claims
+		}
+		// ChangePassword holds details about calls to the ChangePassword method.
+		ChangePassword []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// UserID is the userID argument value.
+			UserID string
+			// OldPassword is the oldPassword argument value.
+			OldPassword string
+			// NewPassword is the newPassword argument value.
+			NewPassword string
 		}
 		// CreateDepartment holds details about calls to the CreateDepartment method.
 		CreateDepartment []struct {
@@ -239,6 +270,15 @@ type ServiceMock struct {
 			Email string
 			// Password is the password argument value.
 			Password string
+			// ClientIP is the clientIP argument value.
+			ClientIP string
+		}
+		// Logout holds details about calls to the Logout method.
+		Logout []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Token is the token argument value.
+			Token string
 		}
 		// Organization holds details about calls to the Organization method.
 		Organization []struct {
@@ -273,6 +313,17 @@ type ServiceMock struct {
 			Ctx context.Context
 			// Token is the token argument value.
 			Token string
+		}
+		// SetUserStatus holds details about calls to the SetUserStatus method.
+		SetUserStatus []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Ec is the ec argument value.
+			Ec kernel.ExecutionContext
+			// UserID is the userID argument value.
+			UserID string
+			// Status is the status argument value.
+			Status string
 		}
 		// Teams holds details about calls to the Teams method.
 		Teams []struct {
@@ -327,6 +378,7 @@ type ServiceMock struct {
 	}
 	lockCaller                  sync.RWMutex
 	lockCallerFromClaims        sync.RWMutex
+	lockChangePassword          sync.RWMutex
 	lockCreateDepartment        sync.RWMutex
 	lockCreateGroup             sync.RWMutex
 	lockDeleteGroup             sync.RWMutex
@@ -336,12 +388,14 @@ type ServiceMock struct {
 	lockGroups                  sync.RWMutex
 	lockInvalidateAccess        sync.RWMutex
 	lockLocalLogin              sync.RWMutex
+	lockLogout                  sync.RWMutex
 	lockOrganization            sync.RWMutex
 	lockOrganizationTheme       sync.RWMutex
 	lockPermissionsForGroups    sync.RWMutex
 	lockPersonas                sync.RWMutex
 	lockRoles                   sync.RWMutex
 	lockSessionUser             sync.RWMutex
+	lockSetUserStatus           sync.RWMutex
 	lockTeams                   sync.RWMutex
 	lockUpdateGroup             sync.RWMutex
 	lockUpdateGroupMappings     sync.RWMutex
@@ -419,6 +473,54 @@ func (mock *ServiceMock) CallerFromClaimsCalls() []struct {
 	mock.lockCallerFromClaims.RLock()
 	calls = mock.calls.CallerFromClaims
 	mock.lockCallerFromClaims.RUnlock()
+	return calls
+}
+
+// ChangePassword calls ChangePasswordFunc.
+func (mock *ServiceMock) ChangePassword(ctx context.Context, ec kernel.ExecutionContext, userID string, oldPassword string, newPassword string) error {
+	if mock.ChangePasswordFunc == nil {
+		panic("ServiceMock.ChangePasswordFunc: method is nil but Service.ChangePassword was just called")
+	}
+	callInfo := struct {
+		Ctx         context.Context
+		Ec          kernel.ExecutionContext
+		UserID      string
+		OldPassword string
+		NewPassword string
+	}{
+		Ctx:         ctx,
+		Ec:          ec,
+		UserID:      userID,
+		OldPassword: oldPassword,
+		NewPassword: newPassword,
+	}
+	mock.lockChangePassword.Lock()
+	mock.calls.ChangePassword = append(mock.calls.ChangePassword, callInfo)
+	mock.lockChangePassword.Unlock()
+	return mock.ChangePasswordFunc(ctx, ec, userID, oldPassword, newPassword)
+}
+
+// ChangePasswordCalls gets all the calls that were made to ChangePassword.
+// Check the length with:
+//
+//	len(mockedService.ChangePasswordCalls())
+func (mock *ServiceMock) ChangePasswordCalls() []struct {
+	Ctx         context.Context
+	Ec          kernel.ExecutionContext
+	UserID      string
+	OldPassword string
+	NewPassword string
+} {
+	var calls []struct {
+		Ctx         context.Context
+		Ec          kernel.ExecutionContext
+		UserID      string
+		OldPassword string
+		NewPassword string
+	}
+	mock.lockChangePassword.RLock()
+	calls = mock.calls.ChangePassword
+	mock.lockChangePassword.RUnlock()
 	return calls
 }
 
@@ -703,7 +805,7 @@ func (mock *ServiceMock) InvalidateAccessCalls() []struct {
 }
 
 // LocalLogin calls LocalLoginFunc.
-func (mock *ServiceMock) LocalLogin(ctx context.Context, email string, password string) (string, error) {
+func (mock *ServiceMock) LocalLogin(ctx context.Context, email string, password string, clientIP string) (string, bool, error) {
 	if mock.LocalLoginFunc == nil {
 		panic("ServiceMock.LocalLoginFunc: method is nil but Service.LocalLogin was just called")
 	}
@@ -711,15 +813,17 @@ func (mock *ServiceMock) LocalLogin(ctx context.Context, email string, password 
 		Ctx      context.Context
 		Email    string
 		Password string
+		ClientIP string
 	}{
 		Ctx:      ctx,
 		Email:    email,
 		Password: password,
+		ClientIP: clientIP,
 	}
 	mock.lockLocalLogin.Lock()
 	mock.calls.LocalLogin = append(mock.calls.LocalLogin, callInfo)
 	mock.lockLocalLogin.Unlock()
-	return mock.LocalLoginFunc(ctx, email, password)
+	return mock.LocalLoginFunc(ctx, email, password, clientIP)
 }
 
 // LocalLoginCalls gets all the calls that were made to LocalLogin.
@@ -730,15 +834,53 @@ func (mock *ServiceMock) LocalLoginCalls() []struct {
 	Ctx      context.Context
 	Email    string
 	Password string
+	ClientIP string
 } {
 	var calls []struct {
 		Ctx      context.Context
 		Email    string
 		Password string
+		ClientIP string
 	}
 	mock.lockLocalLogin.RLock()
 	calls = mock.calls.LocalLogin
 	mock.lockLocalLogin.RUnlock()
+	return calls
+}
+
+// Logout calls LogoutFunc.
+func (mock *ServiceMock) Logout(ctx context.Context, token string) error {
+	if mock.LogoutFunc == nil {
+		panic("ServiceMock.LogoutFunc: method is nil but Service.Logout was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Token string
+	}{
+		Ctx:   ctx,
+		Token: token,
+	}
+	mock.lockLogout.Lock()
+	mock.calls.Logout = append(mock.calls.Logout, callInfo)
+	mock.lockLogout.Unlock()
+	return mock.LogoutFunc(ctx, token)
+}
+
+// LogoutCalls gets all the calls that were made to Logout.
+// Check the length with:
+//
+//	len(mockedService.LogoutCalls())
+func (mock *ServiceMock) LogoutCalls() []struct {
+	Ctx   context.Context
+	Token string
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Token string
+	}
+	mock.lockLogout.RLock()
+	calls = mock.calls.Logout
+	mock.lockLogout.RUnlock()
 	return calls
 }
 
@@ -939,6 +1081,50 @@ func (mock *ServiceMock) SessionUserCalls() []struct {
 	mock.lockSessionUser.RLock()
 	calls = mock.calls.SessionUser
 	mock.lockSessionUser.RUnlock()
+	return calls
+}
+
+// SetUserStatus calls SetUserStatusFunc.
+func (mock *ServiceMock) SetUserStatus(ctx context.Context, ec kernel.ExecutionContext, userID string, status string) (*oapi.UserWithRoles, error) {
+	if mock.SetUserStatusFunc == nil {
+		panic("ServiceMock.SetUserStatusFunc: method is nil but Service.SetUserStatus was just called")
+	}
+	callInfo := struct {
+		Ctx    context.Context
+		Ec     kernel.ExecutionContext
+		UserID string
+		Status string
+	}{
+		Ctx:    ctx,
+		Ec:     ec,
+		UserID: userID,
+		Status: status,
+	}
+	mock.lockSetUserStatus.Lock()
+	mock.calls.SetUserStatus = append(mock.calls.SetUserStatus, callInfo)
+	mock.lockSetUserStatus.Unlock()
+	return mock.SetUserStatusFunc(ctx, ec, userID, status)
+}
+
+// SetUserStatusCalls gets all the calls that were made to SetUserStatus.
+// Check the length with:
+//
+//	len(mockedService.SetUserStatusCalls())
+func (mock *ServiceMock) SetUserStatusCalls() []struct {
+	Ctx    context.Context
+	Ec     kernel.ExecutionContext
+	UserID string
+	Status string
+} {
+	var calls []struct {
+		Ctx    context.Context
+		Ec     kernel.ExecutionContext
+		UserID string
+		Status string
+	}
+	mock.lockSetUserStatus.RLock()
+	calls = mock.calls.SetUserStatus
+	mock.lockSetUserStatus.RUnlock()
 	return calls
 }
 

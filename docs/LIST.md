@@ -25,6 +25,7 @@ This is the single list of everything that stands between WorkspaceNow and a pro
 - **DONE-8** · Credentials never leave the API: `GET /integrations` returns stored bearer/refresh tokens as `********`, `GET /webhooks` returns the signing secret redacted, both need `connect.manage` (BE-004); `GET /secrets/read` is limited to `integrations/` paths except for the local system user (BE-017); `POST /internal/v1/mcp/invoke` requires both the shared service token and the forwarded user token (BE-022).
 - **DONE-9** · No privilege escalation: API keys get `ownerId` and an optional `expiresAt` and may only carry permissions the creator holds (BE-003); agent PATCH, user role grants, group mappings and new group members are checked against the granter's own permissions, and the last `*` administrator cannot be removed (BE-018, BE-019); saving a workflow re-checks every permission its steps need against the editor on each save, and starting a workflow requires the starter to hold the workflow's permissions (BE-013, BE-014); app-scoped Sidekick checks the caller can use at least one of the app's tools (BE-016); `business-operations/invoke` accepts only `studio`/`api` entry points and builds the audit context from the request (BE-012); saved views are editable by their owner, by `data.manage` when shared, and are `404` otherwise (BE-021).
 - **DONE-10** · Separation of duties and event visibility: approvals record who started the run (id and name, resolved through acts-as-caller agents from the event actor) and the requester cannot decide their own approval (BE-015); SSE events carry the actor, and callers without `audit.read` receive non-entity events with payload and actor stripped unless they caused the event (BE-005). New tests cover connect access/credentials/GraphQL, identity grants, view access, flow duties, stream filtering and the bizops entry point (`access_test.go`, `grant_test.go`, `views_access_test.go`, `duties_test.go`, `filter_test.go`, `handler_test.go`).
+- **DONE-11** · Authentication and sessions hardened (marked ✅ in section 2.2): login is rate-limited per email and client IP (fail closed on cache errors) and audited on success and failure; sessions key on `sha256(token)`, carry a per-user version and slide their 24h TTL; `POST /auth/logout` revokes them (BE-023). Production requires `OIDC_ISSUER`/`OIDC_AUDIENCE` when OIDC is configured, `AI_SERVICE_TOKEN`, `RUN_GRANT_KEY` and a non-`*` CORS list (BE-024); an invalid `RUN_GRANT_KEY` fails startup instead of falling back to an ephemeral key (BE-025). Bootstrap admin grants require a verified `email_verified` claim, `WSN_BOOTSTRAP_ADMIN_EMAILS` is lowercased at config load, the role is granted once on first sight and its removal is audited (BE-026, BE-027). Demo tokens, `/personas` and `/demo/reset` require `WSN_ENV=development` + `WSN_DEMO_MODE`, and reset additionally needs a signed-in `control.manage` (BE-028). Users have a `status`; disabled accounts never resolve; `PUT /users/{userId}/status` manages it with last-administrator protection (BE-029). JWKS refreshes run through a singleflight on a background context and serve stale keys for up to an hour when the IdP is down (BE-030); RSA keys under 2048 bits are rejected and the token `alg` must match the JWK's declared `alg` (BE-031). Client trace headers are no longer trusted — only loopback callers may attach a W3C `traceparent` (BE-032). The API-key quota fails closed on Valkey errors (BE-033). The default admin password must be rotated on first login (`mustChangePassword` gates everything but the auth endpoints and `/session`); the rotated password is stored as a bcrypt hash via `POST /auth/password` (BE-034). New tests: `config/config_test.go`, `middleware/auth_test.go`, `middleware/telemetry_test.go` (traceparent), `internal/identity/session_test.go`.
 
 ## 2. wsn-service (Go platform API)
 
@@ -53,18 +54,18 @@ This is the single list of everything that stands between WorkspaceNow and a pro
 - **BE-022** ✅ fixed · P2 · `internal/ai/api.go:37` · `/internal/v1/mcp/invoke` accepts any forwarded user token without the service token. **Fix:** require both.
 
 ### 2.2 Authentication and sessions
-- **BE-023** P1 · `internal/identity/service.go:187-212`, `app/app.go:278` · `POST /auth/login` has no rate limit, lockout or audit; sessions stored raw as `wsn:session:<token>`, fixed 24h, no logout or revoke. **Fix:** per-IP/email limiter, audit success and failure, key by `sha256(token)`, `POST /auth/logout`, session version, sliding TTL.
-- **BE-024** P1 · `config/config.go:185` · production does not require `OIDC_AUDIENCE`/`OIDC_ISSUER`, `AI_SERVICE_TOKEN`, `RUN_GRANT_KEY`, or a non-`*` CORS list; without audience any client of the IdP is accepted. **Fix:** mandatory when `IsProduction()`.
-- **BE-025** P1 · `app/app.go:157` · an invalid `RUN_GRANT_KEY` falls back to an ephemeral key per process; worker-signed grants fail on the server. **Fix:** fail startup.
-- **BE-026** P1 · `internal/identity/service.go:178` · bootstrap admin granted from `email` without `email_verified`; `AdminEmails` not lowercased. **Fix:** require verified email, normalize config.
-- **BE-027** P2 · `internal/identity/service.go:161` · bootstrap admin role re-added on every login; it can never be revoked. **Fix:** grant once, audit removal.
-- **BE-028** P2 · `middleware/auth.go:72`, `app/app.go:282` · demo tokens impersonate anyone and `/demo/reset` (wipes the DB) is public outside `WSN_ENV=production`. **Fix:** require `WSN_ENV=development` plus an explicit flag; protect reset.
-- **BE-029** P2 · `internal/identity/service.go:134` · no disabled/offboarded user state. **Fix:** `status` on User, reject disabled in `resolve`, admin disable endpoint.
-- **BE-030** P2 · `middleware/auth.go:165` · JWKS fetch runs under the mutex with the request ctx; a slow IdP serializes all requests. **Fix:** singleflight refresh on a background ctx, serve stale keys.
-- **BE-031** P2 · `middleware/auth.go:225` · no minimum RSA size; `alg` not matched to the JWK. **Fix:** reject < 2048-bit keys and mismatched `alg`.
-- **BE-032** P2 · `middleware/telemetry.go:20` · client `X-Trace-Id` trusted; callers attach rows to other traces. **Fix:** accept W3C `traceparent` from internal callers only.
-- **BE-033** P3 · `internal/connect/keys.go:80` · API key quota fails open on Valkey errors. **Fix:** fail closed.
-- **BE-034** P2 · `app/app.go` · the default admin password is compared from plaintext env and is never rotated or forced to change. **Fix:** store a bcrypt hash, force rotation on first login (Rancher `bootstrapPassword` model), or move it into Dex (ZT-004).
+- **BE-023** ✅ fixed · P1 · `internal/identity/service.go:187-212`, `app/app.go:278` · `POST /auth/login` has no rate limit, lockout or audit; sessions stored raw as `wsn:session:<token>`, fixed 24h, no logout or revoke. **Fix:** per-IP/email limiter, audit success and failure, key by `sha256(token)`, `POST /auth/logout`, session version, sliding TTL.
+- **BE-024** ✅ fixed · P1 · `config/config.go:185` · production does not require `OIDC_AUDIENCE`/`OIDC_ISSUER`, `AI_SERVICE_TOKEN`, `RUN_GRANT_KEY`, or a non-`*` CORS list; without audience any client of the IdP is accepted. **Fix:** mandatory when `IsProduction()`.
+- **BE-025** ✅ fixed · P1 · `app/app.go:157` · an invalid `RUN_GRANT_KEY` falls back to an ephemeral key per process; worker-signed grants fail on the server. **Fix:** fail startup.
+- **BE-026** ✅ fixed · P1 · `internal/identity/service.go:178` · bootstrap admin granted from `email` without `email_verified`; `AdminEmails` not lowercased. **Fix:** require verified email, normalize config.
+- **BE-027** ✅ fixed · P2 · `internal/identity/service.go:161` · bootstrap admin role re-added on every login; it can never be revoked. **Fix:** grant once, audit removal.
+- **BE-028** ✅ fixed · P2 · `middleware/auth.go:72`, `app/app.go:282` · demo tokens impersonate anyone and `/demo/reset` (wipes the DB) is public outside `WSN_ENV=production`. **Fix:** require `WSN_ENV=development` plus an explicit flag; protect reset.
+- **BE-029** ✅ fixed · P2 · `internal/identity/service.go:134` · no disabled/offboarded user state. **Fix:** `status` on User, reject disabled in `resolve`, admin disable endpoint.
+- **BE-030** ✅ fixed · P2 · `middleware/auth.go:165` · JWKS fetch runs under the mutex with the request ctx; a slow IdP serializes all requests. **Fix:** singleflight refresh on a background ctx, serve stale keys.
+- **BE-031** ✅ fixed · P2 · `middleware/auth.go:225` · no minimum RSA size; `alg` not matched to the JWK. **Fix:** reject < 2048-bit keys and mismatched `alg`.
+- **BE-032** ✅ fixed · P2 · `middleware/telemetry.go:20` · client `X-Trace-Id` trusted; callers attach rows to other traces. **Fix:** accept W3C `traceparent` from internal callers only.
+- **BE-033** ✅ fixed · P3 · `internal/connect/keys.go:80` · API key quota fails open on Valkey errors. **Fix:** fail closed.
+- **BE-034** ✅ fixed · P2 · `app/app.go` · the default admin password is compared from plaintext env and is never rotated or forced to change. **Fix:** store a bcrypt hash, force rotation on first login (Rancher `bootstrapPassword` model), or move it into Dex (ZT-004).
 
 ### 2.3 SSRF, secrets and input handling
 - **BE-035** P0 · `internal/data/validate.go:74`, `internal/data/files.go:97` · a file field accepts any `{"key":...}`; a writer points it at `backups/<ts>.dump` and downloads the database. **Fix:** only `UploadFile` sets file values; download requires the `uploads/<entity>/<id>/<field>/` prefix.
@@ -884,7 +885,7 @@ Each version is a shippable cut. Order inside a version does not matter. An item
 
 ### v1.2: Trust the core (security holes, broken paths, blank screens)
 Goal: nothing exploitable, nothing silently broken, no empty screens.
-- Backend: BE-023..BE-026, BE-035..BE-039, BE-041, BE-047..BE-049, BE-054..BE-063, BE-076..BE-079, BE-084, BE-097..BE-099.
+- Backend: BE-035..BE-039, BE-041, BE-047..BE-049, BE-054..BE-063, BE-076..BE-079, BE-084, BE-097..BE-099.
 - Agent service: AI-001, AI-002, AI-004, AI-006, AI-007, AI-017, AI-018, AI-020, AI-021, AI-038.
 - Observer: OB-001, OB-004..OB-006, OB-013..OB-015.
 - Deploy: DP-001..DP-009, DP-012..DP-014, DP-018..DP-023, DP-033, DP-042, DP-043, DP-081, DP-082, DP-086, DP-087, DP-097..DP-099, DP-101.
@@ -893,7 +894,7 @@ Goal: nothing exploitable, nothing silently broken, no empty screens.
 ### v1.3: Zero-trust identity and a production platform
 Goal: Dex-backed OIDC with the default admin as break-glass, least privilege everywhere, HA, backups, observability, signed supply chain.
 - Zero-trust: ZT-001..ZT-018.
-- Backend: BE-027..BE-034, BE-040, BE-042..BE-046, BE-050..BE-053, BE-064..BE-075, BE-080..BE-083, BE-085..BE-096, BE-100..BE-131.
+- Backend: BE-040, BE-042..BE-046, BE-050..BE-053, BE-064..BE-075, BE-080..BE-083, BE-085..BE-096, BE-100..BE-131.
 - Agent service: AI-003, AI-005, AI-008..AI-015, AI-019, AI-022..AI-037, AI-039..AI-059.
 - Observer: OB-002, OB-003, OB-007..OB-012, OB-016..OB-056.
 - Deploy: DP-010, DP-011, DP-015..DP-017, DP-024..DP-032, DP-034..DP-041, DP-044..DP-080, DP-083..DP-085, DP-088..DP-096, DP-100, DP-102..DP-111.

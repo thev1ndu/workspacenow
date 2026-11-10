@@ -200,6 +200,21 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /users/{userId}/status:
+    parameters: [{ name: userId, in: path, required: true, schema: { type: string } }]
+    put:
+      tags: [Control]
+      operationId: updateUserStatus
+      summary: Enable or disable a user account
+      description: "Requires `control.manage`. A disabled user cannot sign in and their sessions stop resolving on every replica (the access cache is invalidated). The last administrator cannot be disabled."
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UserStatusUpdate" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/UserWithRoles" } } } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /groups:
     get:
       tags: [Control]
@@ -1906,8 +1921,7 @@ paths:
       tags: [Demo]
       operationId: resetDemo
       summary: Restore the demo data
-      description: Public. Demo only; must not exist in a production installation.
-      security: []
+      description: "Requires a signed-in administrator (`control.manage`). Demo only (WSN_DEMO_MODE with WSN_ENV=development); must not exist in a production installation."
       responses:
         "200":
           description: Reset
@@ -2120,6 +2134,8 @@ components:
         teamId: { type: string }
         groups: { type: array, items: { type: string }, description: Group claims asserted by the identity provider }
         roleIds: { type: array, items: { type: string }, description: "Role IDs explicitly assigned to this user, on top of the roles their IdP groups grant" }
+        status: { type: string, enum: [active, disabled], default: active, description: "A disabled user cannot sign in and their sessions stop resolving" }
+        mustChangePassword: { type: boolean, description: "The local bootstrap admin must set a new password before using anything else" }
     UserWithRoles:
       allOf:
         - { $ref: "#/components/schemas/User" }
@@ -2146,6 +2162,11 @@ components:
       required: [roles]
       properties:
         roles: { type: array, items: { type: string }, description: "Full list of role IDs to assign explicitly; empty removes all" }
+    UserStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, disabled] }
     Group:
       type: object
       required: [id, name, description, memberIds]

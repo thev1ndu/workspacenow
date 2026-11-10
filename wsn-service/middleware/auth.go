@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/config"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
@@ -105,25 +106,48 @@ func Authenticate(cfg config.OIDCConfig, demoMode bool, resolver CallerResolver,
 				httpx.Error(w, r, err)
 				return
 			}
+			// the bootstrap admin must rotate the default password before anything else
+			if caller.MustChangePassword && !passwordRotationAllowed(r) {
+				httpx.Error(w, r, kernel.Forbidden("Set a new password first with POST /auth/password"))
+				return
+			}
 			next.ServeHTTP(w, r.WithContext(kernel.WithCaller(r.Context(), caller)))
 		})
 	}
 }
 
+// apiBasePath mirrors api.BasePath; middleware cannot import api (api -> internal/ai -> middleware).
+const apiBasePath = "/api/v1"
+
+// passwordRotationAllowed lists the routes a must-change-password caller may still use.
+func passwordRotationAllowed(r *http.Request) bool {
+	p := strings.TrimPrefix(r.URL.Path, apiBasePath)
+	return p == "/auth/password" || p == "/auth/logout" || (p == "/session" && r.Method == http.MethodGet)
+}
+
 var errInvalidToken = errors.New("invalid token")
 
-// jwtVerifier checks IdP access tokens against the JWKS, refetching keys at most once a minute.
+// jwtVerifier checks IdP access tokens against the JWKS. Refreshes run through a singleflight on a
+// background context (a slow IdP must not serialize requests), at most once a minute; when a refresh
+// fails the stale keys are served for up to an hour.
 type jwtVerifier struct {
 	cfg    config.OIDCConfig
 	client *http.Client
 
 	mu        sync.Mutex
-	keys      map[string]any
+	keys      map[string]keyEntry
 	fetchedAt time.Time
+	sf        singleflight.Group
+}
+
+// keyEntry is a parsed JWK plus the algorithm it declares, so a token's alg must match its key.
+type keyEntry struct {
+	pub any
+	alg string
 }
 
 func newJWTVerifier(cfg config.OIDCConfig) *jwtVerifier {
-	return &jwtVerifier{cfg: cfg, client: &http.Client{Timeout: 10 * time.Second}, keys: map[string]any{}}
+	return &jwtVerifier{cfg: cfg, client: &http.Client{Timeout: 10 * time.Second}, keys: map[string]keyEntry{}}
 }
 
 func (v *jwtVerifier) verify(ctx context.Context, raw string) (identity.Claims, error) {
@@ -137,7 +161,7 @@ func (v *jwtVerifier) verify(ctx context.Context, raw string) (identity.Claims, 
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (any, error) {
 		kid, _ := t.Header["kid"].(string)
-		return v.key(ctx, kid)
+		return v.key(ctx, kid, t.Method.Alg())
 	}, opts...)
 	if err != nil {
 		return identity.Claims{}, fmt.Errorf("%w: %w", errInvalidToken, err)
@@ -152,6 +176,7 @@ func (v *jwtVerifier) verify(ctx context.Context, raw string) (identity.Claims, 
 		out.Name, _ = claims["preferred_username"].(string)
 	}
 	out.Email, _ = claims["email"].(string)
+	out.EmailVerified, _ = claims["email_verified"].(bool)
 	if groups, ok := claims[v.cfg.GroupsClaim].([]any); ok {
 		for _, g := range groups {
 			if s, ok := g.(string); ok {
@@ -162,27 +187,67 @@ func (v *jwtVerifier) verify(ctx context.Context, raw string) (identity.Claims, 
 	return out, nil
 }
 
-func (v *jwtVerifier) key(ctx context.Context, kid string) (any, error) {
+func (v *jwtVerifier) key(ctx context.Context, kid, alg string) (any, error) {
+	v.mu.Lock()
+	e, ok := v.keys[kid]
+	age := time.Since(v.fetchedAt)
+	v.mu.Unlock()
+	if ok && age < time.Hour {
+		if age > time.Minute {
+			v.refreshAsync() // background singleflight; keep serving the keys we have
+		}
+		return algCheck(kid, alg, e)
+	}
+	// unknown kid or cache older than an hour: refresh synchronously, but never on the request's
+	// context — a slow IdP would otherwise serialize every request behind its timeout
+	if _, err, _ := v.sf.Do("jwks", func() (any, error) {
+		ctx, cancel := bgCtx()
+		defer cancel()
+		return nil, v.refresh(ctx)
+	}); err != nil {
+		v.mu.Lock()
+		defer v.mu.Unlock()
+		if e, ok := v.keys[kid]; ok { // serve stale keys when the IdP is unreachable
+			return algCheck(kid, alg, e)
+		}
+		return nil, err
+	}
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if k, ok := v.keys[kid]; ok && time.Since(v.fetchedAt) < time.Hour {
-		return k, nil
+	e, ok = v.keys[kid]
+	if !ok {
+		return nil, fmt.Errorf("unknown signing key %q", kid)
 	}
-	if time.Since(v.fetchedAt) > time.Minute || len(v.keys) == 0 {
-		if err := v.refresh(ctx); err != nil {
-			return nil, err
-		}
+	return algCheck(kid, alg, e)
+}
+
+// refreshAsync kicks a background refresh (singleflight) and returns immediately.
+func (v *jwtVerifier) refreshAsync() {
+	_, _, _ = v.sf.Do("jwks", func() (any, error) {
+		ctx, cancel := bgCtx()
+		defer cancel()
+		return nil, v.refresh(ctx)
+	})
+}
+
+// bgCtx is the timeout context JWKS refreshes run on: background, never the request's.
+func bgCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 10*time.Second)
+}
+
+// algCheck rejects a token whose algorithm does not match the JWK's declared alg.
+func algCheck(kid, alg string, e keyEntry) (any, error) {
+	if e.alg != "" && alg != "" && e.alg != alg {
+		return nil, fmt.Errorf("key %q signs with %s, not %s", kid, e.alg, alg)
 	}
-	if k, ok := v.keys[kid]; ok {
-		return k, nil
-	}
-	return nil, fmt.Errorf("unknown signing key %q", kid)
+	return e.pub, nil
 }
 
 type jwk struct {
 	Kid string `json:"kid"`
 	Kty string `json:"kty"`
 	Use string `json:"use"`
+	Alg string `json:"alg"`
 	N   string `json:"n"`
 	E   string `json:"e"`
 	Crv string `json:"crv"`
@@ -209,13 +274,13 @@ func (v *jwtVerifier) refresh(ctx context.Context) error {
 	if err := json.NewDecoder(resp.Body).Decode(&set); err != nil {
 		return fmt.Errorf("decode JWKS: %w", err)
 	}
-	keys := map[string]any{}
+	keys := map[string]keyEntry{}
 	for _, k := range set.Keys {
 		if k.Use != "" && k.Use != "sig" {
 			continue
 		}
 		if pub, err := k.publicKey(); err == nil {
-			keys[k.Kid] = pub
+			keys[k.Kid] = keyEntry{pub: pub, alg: k.Alg}
 		}
 	}
 	v.keys, v.fetchedAt = keys, time.Now()
@@ -235,6 +300,9 @@ func (k jwk) publicKey() (any, error) {
 		n, err := b(k.N)
 		if err != nil {
 			return nil, err
+		}
+		if n.BitLen() < 2048 {
+			return nil, fmt.Errorf("RSA key %q is too small (%d bits)", k.Kid, n.BitLen())
 		}
 		e, err := b(k.E)
 		if err != nil {

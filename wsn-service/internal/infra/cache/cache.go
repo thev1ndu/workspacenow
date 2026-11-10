@@ -23,6 +23,8 @@ type Cache interface {
 	Incr(ctx context.Context, key string) (int64, error)
 	// IncrWindow increments a counter that expires ttl after its first increment.
 	IncrWindow(ctx context.Context, key string, ttl time.Duration) (int64, error)
+	// Del removes a key; deleting a missing key is not an error.
+	Del(ctx context.Context, key string) error
 	Ping(ctx context.Context) error
 	Close() error
 }
@@ -85,6 +87,8 @@ func (r *redisCache) IncrWindow(ctx context.Context, key string, ttl time.Durati
 	}
 	return incr.Val(), nil
 }
+
+func (r *redisCache) Del(ctx context.Context, key string) error { return r.c.Del(ctx, key).Err() }
 
 func (r *redisCache) Ping(ctx context.Context) error { return r.c.Ping(ctx).Err() }
 

@@ -85,7 +85,11 @@ func VerifyKey(ctx context.Context, db *gorm.DB, c cache.Cache, raw string) (*AP
 			if all[i].QuotaPerHour > 0 {
 				key := fmt.Sprintf("wsn:apikey:%s:%d", all[i].ID, time.Now().Unix()/3600)
 				n, err := c.IncrWindow(ctx, key, time.Hour)
-				if err == nil && n > int64(all[i].QuotaPerHour) {
+				if err != nil {
+					// fail closed: an unavailable limiter must not become an open door
+					return nil, &kernel.Error{Status: http.StatusServiceUnavailable, Code: kernel.CodeInvalidState, Message: "API key quota is unavailable; try again shortly"}
+				}
+				if n > int64(all[i].QuotaPerHour) {
 					return nil, &kernel.Error{Status: http.StatusTooManyRequests, Code: kernel.CodeInvalidState, Message: "API key hourly quota reached"}
 				}
 			}

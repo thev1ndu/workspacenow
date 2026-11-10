@@ -186,6 +186,11 @@ func (h *Handler) ResetDemo(w http.ResponseWriter, r *http.Request) {
 		httpx.Error(w, r, kernel.NotFound("No route for POST /demo/reset"))
 		return
 	}
+	// the route is authenticated (not public); wiping the demo database needs an administrator
+	if c := httpx.Caller(r); c == nil || !c.Permissions.Has("control.manage") {
+		httpx.Error(w, r, kernel.Forbidden("Only administrators can reset the demo"))
+		return
+	}
 	if err := Apply(r.Context(), h.db); err != nil {
 		httpx.Error(w, r, err)
 		return

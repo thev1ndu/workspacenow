@@ -1,24 +1,28 @@
 package middleware
 
 import (
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/observer"
 )
 
-// TraceHeader carries a trace id from an upstream caller.
-const TraceHeader = "X-Trace-Id"
-
 // Telemetry puts the request's trace id in the context and exports one span plus request metrics
 // to wsn-observer; the id is set even when export is disabled so audit records stay traceable.
+// Clients cannot choose the trace id: only internal (loopback) callers may attach a W3C
+// traceparent, so nobody can attach audit rows or spans to someone else's trace.
 func Telemetry(exp *observer.Exporter) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			traceID := r.Header.Get(TraceHeader)
-			if traceID == "" || len(traceID) > 64 {
+			traceID := ""
+			if id, ok := parseTraceparent(r.Header.Get("traceparent")); ok && isLoopback(r.RemoteAddr) {
+				traceID = id
+			}
+			if traceID == "" {
 				traceID = kernel.NewTraceID()
 			}
 			spanID := observer.NewSpanID()
@@ -60,4 +64,46 @@ func Telemetry(exp *observer.Exporter) Middleware {
 			})
 		})
 	}
+}
+
+// parseTraceparent parses a W3C traceparent header (00-<32 hex trace id>-<16 hex span id>-<2 hex
+// flags>) and returns the trace id; anything malformed is rejected.
+func parseTraceparent(h string) (string, bool) {
+	parts := strings.Split(h, "-")
+	if len(parts) != 4 || parts[0] != "00" {
+		return "", false
+	}
+	traceID, ok := hexPart(parts[1], 32)
+	if !ok || traceID == strings.Repeat("0", 32) {
+		return "", false
+	}
+	if _, ok := hexPart(parts[2], 16); !ok {
+		return "", false
+	}
+	if _, ok := hexPart(parts[3], 2); !ok {
+		return "", false
+	}
+	return traceID, true
+}
+
+func hexPart(s string, n int) (string, bool) {
+	if len(s) != n {
+		return "", false
+	}
+	for _, c := range s {
+		if !('0' <= c && c <= '9' || 'a' <= c && c <= 'f') {
+			return "", false
+		}
+	}
+	return s, true
+}
+
+// isLoopback reports whether the peer address is a loopback address (an internal caller).
+func isLoopback(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

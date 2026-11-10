@@ -27,10 +27,11 @@ The console talks to the API through one function: `request()` in `console/works
 
 ## Authentication
 
-- Every endpoint needs `Authorization: Bearer <access token>` except `GET /personas` and `POST /demo/reset`, which exist only for the demo.
-- In production the token is an OIDC access token from the organization's identity provider (`GET /organization` → `identityProvider`: issuer, client id, scopes and the `groupsClaim` that carries the user's groups).
-- The demo uses the token `demo.<userId>`.
-- A missing or unknown token returns `401 UNAUTHENTICATED`.
+- Every endpoint needs `Authorization: Bearer <access token>` except `GET /personas` (demo only) and `POST /auth/login`.
+- In production the token is an OIDC access token from the organization's identity provider (`GET /organization` → `identityProvider`: issuer, client id, scopes and the `groupsClaim` that carries the user's groups). `WSN_ENV=production` requires `OIDC_ISSUER` and `OIDC_AUDIENCE` when OIDC is configured, plus `AI_SERVICE_TOKEN`, `RUN_GRANT_KEY` and a non-`*` `CORS_ALLOWED_ORIGINS`; startup fails otherwise. Bootstrap admin emails from IdP logins must have a verified `email_verified` claim, and the role is granted once (removing it sticks).
+- When no OIDC is configured, the local system user signs in with `POST /auth/login` (`WSN_DEFAULT_ADMIN_EMAIL`/`WSN_DEFAULT_ADMIN_PASSWORD`). Logins are rate-limited (10 per 15 min per email and per IP, failing closed) and audited both ways; sessions key on `sha256(token)` with a per-user version, slide their 24h TTL on use, and `POST /auth/logout` revokes them. The default password must be rotated (`mustChangePassword` in the login response blocks everything but `POST /auth/password`, `POST /auth/logout` and `GET /session` until done); the rotated password is stored as a bcrypt hash.
+- The demo uses the token `demo.<userId>`; demo mode requires `WSN_ENV=development` + `WSN_DEMO_MODE`, and `POST /demo/reset` additionally requires a signed-in `control.manage`.
+- A missing or unknown token returns `401 UNAUTHENTICATED`. Trace ids are minted per request; only internal (loopback) callers may attach a W3C `traceparent`.
 
 ## Authorization model
 
@@ -90,6 +91,9 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
+| POST | `/auth/login` | Local system-user login; returns `{ token, mustChangePassword }`. Rate-limited and audited | public (local auth only) |
+| POST | `/auth/logout` | Revoke the bearer session token and the user's other sessions | signed in |
+| POST | `/auth/password` | Rotate the local system user's password (`{ oldPassword, newPassword }`, min 12 chars) | signed in |
 | GET | `/session` | Signed-in actor, role names, effective permissions | signed in |
 | GET | `/personas` | Users for the demo sign-in screen | public, demo only |
 
@@ -116,6 +120,7 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/roles` | Roles and permissions | `control.manage`, `audit.read`, `flow.manage` or `ai.manage` |
 | GET | `/group-mappings` | Group to role mappings | `control.manage` or `audit.read` |
 | PUT | `/group-mappings` | Replace all mappings: `{ mappings: [{ group, roleId }] }`. Every `roleId` must exist, and each newly mapped role may only include permissions the caller holds (`403`). | `control.manage` |
+| PUT | `/users/{userId}/status` | Enable/disable an account: `{ status: active|disabled }`. A disabled user cannot sign in and their sessions stop resolving; the last administrator cannot be disabled (`409`). | `control.manage` |
 | GET | `/environments` | Development, Staging, Production, with approval flag and limits | signed in |
 
 ### Studio: applications, releases, deployments
@@ -293,7 +298,7 @@ Executions are durable and must survive restarts.
 
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
-| POST | `/demo/reset` | Restore the seed data. Returns `200 { reset: true }`. Must not exist in production. | public |
+| POST | `/demo/reset` | Restore the seed data. Returns `200 { reset: true }`. Demo only (`WSN_ENV=development` + `WSN_DEMO_MODE`); must not exist in production. | `control.manage` |
 
 ## Suggested service boundaries
 

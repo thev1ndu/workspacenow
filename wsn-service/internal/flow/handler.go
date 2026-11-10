@@ -14,7 +14,9 @@ type Handler struct {
 	auditor kernel.Auditor
 }
 
-func NewHandler(svc Service, auditor kernel.Auditor) *Handler { return &Handler{svc: svc, auditor: auditor} }
+func NewHandler(svc Service, auditor kernel.Auditor) *Handler {
+	return &Handler{svc: svc, auditor: auditor}
+}
 
 // flowReaders may see workflow definitions and executions (which carry their full run context).
 var flowReaders = []string{"flow.manage", "audit.read"}

@@ -70,6 +70,7 @@ export function NotificationsMenu({ applicationId, open, onOpenChange }: Notific
                 {t("Audit log")}
               </Link>
             </div>
+            <div className={styles.panelBody}>
             {pending.length > 0 && (
               <ContainedList kind="disclosed" label={t("Approvals needed")}>
                 {pending.map((approval) => (
@@ -84,7 +85,7 @@ export function NotificationsMenu({ applicationId, open, onOpenChange }: Notific
               </ContainedList>
             )}
             {items.length > 0 ? (
-              <ContainedList kind="disclosed" label={t("Events")} className={styles.list}>
+              <ContainedList kind="disclosed" label={t("Events")}>
                 {items.map((event) => (
                   <ContainedListItem key={event.id}>
                     <div className={styles.itemTitle}>
@@ -102,6 +103,7 @@ export function NotificationsMenu({ applicationId, open, onOpenChange }: Notific
             ) : (
               pending.length === 0 && <p className={styles.empty}>{t("You are all caught up.")}</p>
             )}
+            </div>
           </>
         )}
       </HeaderPanel>

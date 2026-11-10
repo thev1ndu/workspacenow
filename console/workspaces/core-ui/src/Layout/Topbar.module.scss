@@ -25,13 +25,24 @@
   z-index: z('header') + 1;
 }
 
+// The expanded panel fills the height below the header; its header stays put and the body scrolls.
 .panel:global(.cds--header-panel--expanded) {
+  display: flex;
+  flex-direction: column;
   inline-size: 24rem;
   max-inline-size: 100vw;
 }
 
+.panelBody {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .panelHeader {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
   padding: $spacing-04 $spacing-05;
@@ -80,11 +91,6 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-
-.list {
-  max-block-size: calc(100dvh - 12rem);
-  overflow-y: auto;
 }
 
 .empty {

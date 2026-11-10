@@ -52,7 +52,7 @@ func serviceOrGrant(cfg *config.Config, svc Service, next http.HandlerFunc) http
 			next(w, r)
 			return
 		}
-		if strings.Count(token, ".") == 2 { // grant JWT — verified inside InvokeWithGrant
+		if strings.Count(token, ".") == 1 { // grant <payload>.<sig> — verified inside InvokeWithGrant
 			next(w, r)
 			return
 		}

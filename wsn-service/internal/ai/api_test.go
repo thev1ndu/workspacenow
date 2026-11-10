@@ -153,7 +153,7 @@ func TestServiceOrGrantAcceptsGrantJWT(t *testing.T) {
 	called := false
 	mw := serviceOrGrant(cfg, nil, func(w http.ResponseWriter, _ *http.Request) { called = true; w.WriteHeader(http.StatusOK) })
 	req := httptest.NewRequest(http.MethodPost, "/internal/v1/tools/invoke", nil)
-	req.Header.Set("Authorization", "Bearer aaa.bbb.ccc") // grant-shaped JWT
+	req.Header.Set("Authorization", "Bearer aaa.bbb") // grant <payload>.<sig>
 	rec := httptest.NewRecorder()
 	mw.ServeHTTP(rec, req)
 	if !called || rec.Code != http.StatusOK {

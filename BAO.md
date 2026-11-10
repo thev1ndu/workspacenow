@@ -14,7 +14,7 @@ syncs them into Kubernetes Secrets via the `ClusterSecretStore openbao`
 | `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed) | `wsn-secrets` → `RUN_GRANT_KEY` |
 | `workspacenow/object-storage` | `accessKey`, `secretKey` | `wsn-secrets` (`S3_*`) + `wsn-rustfs-env` (RustFS) |
 | `workspacenow/temporal-db` | `password` | `temporal-db`, `temporal-db-login` |
-| `workspacenow/local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` |
+| `workspacenow/default-admin` | `email`, `password` | `wsn-secrets` → `WSN_DEFAULT_ADMIN_EMAIL` / `WSN_DEFAULT_ADMIN_PASSWORD` |
 
 System user: always `admin@workspacenow.local`; the password is generated randomly on first install
 (view command below).
@@ -40,11 +40,11 @@ bao kv list -mount=secret workspacenow/
 bao kv get -mount=secret workspacenow/mistral
 
 # view the system user's password
-bao kv get -field=password -mount=secret workspacenow/local-admin
+bao kv get -field=password -mount=secret workspacenow/default-admin
 
 # set / rotate one secret
 bao kv put -mount=secret workspacenow/mistral apiKey=sk-...
-bao kv put -mount=secret workspacenow/local-admin email=admin@workspacenow.local password='...'
+bao kv put -mount=secret workspacenow/default-admin email=admin@workspacenow.local password='...'
 bao kv put -mount=secret workspacenow/ai-service token=...
 bao kv put -mount=secret workspacenow/observer token=...
 bao kv put -mount=secret workspacenow/run-grant privateKey=...
@@ -71,8 +71,8 @@ kubectl -n workspacenow delete pod -l app.kubernetes.io/name=wsn-service
 kubectl -n workspacenow delete pod -l app.kubernetes.io/name=wsn-ai-service
 
 # verify Bao and the Kubernetes secret agree:
-kubectl -n openbao exec statefulset/openbao -- sh -c 'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/local-admin'
-kubectl -n workspacenow get secret wsn-secrets -o jsonpath='{.data.WSN_LOCAL_ADMIN_PASSWORD}' | base64 -d; echo
+kubectl -n openbao exec statefulset/openbao -- sh -c 'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/default-admin'
+kubectl -n workspacenow get secret wsn-secrets -o jsonpath='{.data.WSN_DEFAULT_ADMIN_PASSWORD}' | base64 -d; echo
 ```
 
 ## Seed everything from your workstation (alternative to the shell)

@@ -38,8 +38,8 @@ func TestBootstrapGrants(t *testing.T) {
 	assert.False(t, Bootstrap{}.grants("admin@example.com")) // no list configured
 }
 
-func TestBootstrapGrantsLocalAdmin(t *testing.T) {
-	b := Bootstrap{AdminRole: "workspacenow-admin", LocalAdminEmail: "root@workspacenow.local", LocalAdminPassword: "s3cret"}
+func TestBootstrapGrantsDefaultAdmin(t *testing.T) {
+	b := Bootstrap{AdminRole: "workspacenow-admin", DefaultAdminEmail: "root@workspacenow.local", DefaultAdminPassword: "s3cret"}
 	assert.True(t, b.localEnabled())
 	assert.True(t, b.grants("Root@WorkspaceNow.local"))
 	assert.False(t, b.grants("other@workspacenow.local"))

@@ -4,8 +4,8 @@ import { ArrowDownToLine, ArrowUp, Plus, Sparkles, SquareListUl } from "@workspa
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
 import { exportRecords, useCreateRecord, useGetEntity, useListEntities, useListRecords, useListViews } from "@workspacenow/api-client";
-import { buildPath, routes } from "@workspacenow/types";
-import { PageLayout, QueryState, SectionCard, useDebouncedValue } from "@workspacenow/views";
+import { ApiError, buildPath, routes } from "@workspacenow/types";
+import { LinkButton, NoDataFound, PageLayout, QueryState, SectionCard, useDebouncedValue } from "@workspacenow/views";
 import { ImportDialog } from "./subComponents/ImportDialog";
 import { RecordFormDialog, useReferenceLabels } from "./subComponents/RecordForm";
 import { ViewBuilderDialog } from "./subComponents/ViewBuilderDialog";
@@ -44,6 +44,7 @@ export function RecordsPage() {
   const [askOpen, setAskOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const readOnly = entity.data?.scope === "external";
+  const missing = !entityName || (entity.error instanceof ApiError && entity.error.status === 404);
 
   return (
     <PageLayout
@@ -142,11 +143,19 @@ export function RecordsPage() {
         </Alert>
       )}
       <SectionCard flush>
+        {missing ? (
+          <NoDataFound
+            message={entityName ? `The entity "${entityName}" no longer exists. It may have been renamed or deleted.` : "Choose an entity to browse its records."}
+            action={<LinkButton size="sm" variant="secondary" href={routes.data.entities}>Go to entities</LinkButton>}
+          />
+        ) : (
+        <QueryState query={entity}>
+          {(ent) => (
         <QueryState query={records}>
           {(data) =>
-            entity.data ? (
+            ent ? (
               <RecordsManager
-                entity={entity.data}
+                entity={ent}
                 records={data.items}
                 labels={labels}
                 search={search}
@@ -159,6 +168,9 @@ export function RecordsPage() {
             ) : null
           }
         </QueryState>
+          )}
+        </QueryState>
+        )}
       </SectionCard>
       {entity.data && creating && (
         <RecordFormDialog

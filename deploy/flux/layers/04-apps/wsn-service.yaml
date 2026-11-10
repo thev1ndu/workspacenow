@@ -87,10 +87,10 @@ spec:
               valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }
             - name: AI_SERVICE_TOKEN
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: AI_SERVICE_TOKEN } }
-            - name: WSN_LOCAL_ADMIN_EMAIL
-              valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_LOCAL_ADMIN_EMAIL } }
-            - name: WSN_LOCAL_ADMIN_PASSWORD
-              valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_LOCAL_ADMIN_PASSWORD } }
+            - name: WSN_DEFAULT_ADMIN_EMAIL
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_DEFAULT_ADMIN_EMAIL } }
+            - name: WSN_DEFAULT_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: WSN_DEFAULT_ADMIN_PASSWORD } }
             - name: WSN_OBSERVER_TOKEN
               valueFrom: { secretKeyRef: { name: wsn-secrets, key: OBSERVER_TOKEN } }
           readinessProbe:

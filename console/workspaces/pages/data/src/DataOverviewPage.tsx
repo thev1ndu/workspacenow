@@ -3,7 +3,7 @@ import { ArrowUpRightFromSquare, Database, Layers, Persons } from "@workspacenow
 import { EvilPieChart, type ChartConfig } from "@workspacenow/charts";
 import { useListApplications, useListConnections, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, TextLink, MetricGridSkeleton, SectionCardSkeleton, TableSkeleton, DonutSkeleton, DetailSkeleton } from "@workspacenow/views";
+import { LinkButton, Metric, MetricGrid, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, MetricGridSkeleton, SectionCardSkeleton, TableSkeleton, DonutSkeleton, DetailSkeleton } from "@workspacenow/views";
 import { ScopeChip } from "./subComponents/ScopeChip";
 
 type ScopeSlice = { scope: string; count: number };
@@ -67,6 +67,12 @@ export function DataOverviewPage() {
                   }
                   flush
                 >
+                  {data.items.length === 0 ? (
+                    <NoDataFound
+                      message="No entities yet. Entities are the shared records your applications, agents and workflows use."
+                      action={<LinkButton size="sm" variant="secondary" href={routes.data.entities}>Create an entity</LinkButton>}
+                    />
+                  ) : (
                   <Table variant="secondary">
                     <Table.ScrollContainer>
                       <Table.Content aria-label="Entities" className="min-w-[560px]">
@@ -99,14 +105,19 @@ export function DataOverviewPage() {
                       </Table.Content>
                     </Table.ScrollContainer>
                   </Table>
+                  )}
                 </SectionCard>
 
                 <SectionCard title="Entities by scope" subtitle="Who owns the authoritative writes">
+                  {slices.length === 0 ? (
+                    <NoDataFound message="Scopes appear once entities exist." />
+                  ) : (
                   <EvilPieChart config={scopeConfig} data={slices} dataKey="count" nameKey="scope" className="aspect-auto h-56 flex-none">
                     <EvilPieChart.Pie innerRadius="58%" paddingAngle={2} cornerRadius={4} />
                     <EvilPieChart.Tooltip />
                     <EvilPieChart.Legend />
                   </EvilPieChart>
+                  )}
                 </SectionCard>
               </div>
 

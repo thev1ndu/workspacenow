@@ -4,7 +4,7 @@ import { ArrowRight, ArrowRotateLeft } from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes, type Entity } from "@workspacenow/types";
-import { PageLayout, QueryState, SectionCard, TextLink, SectionCardSkeleton, DetailSkeleton } from "@workspacenow/views";
+import { LinkButton, NoDataFound, PageLayout, QueryState, SectionCard, TextLink, SectionCardSkeleton, DetailSkeleton } from "@workspacenow/views";
 import { ScopeChip } from "./subComponents/ScopeChip";
 import { NODE_HEIGHT, bendThrough, curveEdges, edgeId, layoutRelationships, type Point } from "./subComponents/relationshipLayout";
 
@@ -234,7 +234,14 @@ export function DataModelPage() {
           </div>
         </div>
       }>
-        {(data) => (
+        {(data) => data.items.length === 0 ? (
+          <SectionCard>
+            <NoDataFound
+              message="No entities yet, so there are no relationships to draw."
+              action={<LinkButton size="sm" variant="secondary" href={routes.data.entities}>Create an entity</LinkButton>}
+            />
+          </SectionCard>
+        ) : (
           // The graph card sizes to the graph; the entity list scrolls inside the viewport height,
           // so adding entities never grows the page.
           <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">

@@ -275,7 +275,7 @@ func (s *service) run(ctx context.Context, caller *kernel.Caller, traceID, agent
 			return nil, err
 		}
 		appName = apps
-		runTools = intersect(agent.Tools, appTools)
+		runTools = intersect(runTools, appTools) // Sidekick has no fixed list, so scope the whole catalogue
 	}
 
 	ec := kernel.ExecutionContext{

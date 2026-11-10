@@ -260,7 +260,10 @@ export function WorkflowEditorPage() {
     events: [...new Set((entities.data?.items ?? []).flatMap((e) => e.events))].sort().map((e) => ({ value: e, label: e })),
   };
   const refs = { agentIds: options.agents.map((a) => a.value), businessOperations: options.operations.map((o) => o.value), permissions: options.permissions.map((p) => p.value) };
-  const ready = agents.data && operations.data && roles.data && entities.data;
+  // A list that fails to load (e.g. roles forbidden to a designer) must not hold the editor in a skeleton forever.
+  const lists = { agents, "business operations": operations, roles, entities };
+  const ready = Object.values(lists).every((q) => q.data !== undefined || q.isError);
+  const failed = Object.entries(lists).filter(([, q]) => q.isError).map(([name]) => name);
 
   return (
     <PageLayout
@@ -270,6 +273,15 @@ export function WorkflowEditorPage() {
       backLabel={workflowId ? (workflow.data?.name ?? "Workflow") : "Workflows"}
       isLoading={workflow.isLoading || !ready}
     >
+      {ready && failed.length > 0 && (
+        <Alert status="warning" className="mb-4">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Some choices could not be loaded</Alert.Title>
+            <Alert.Description>Couldn't load {failed.join(", ")}, so those pickers are empty. Steps that need them will show as problems.</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      )}
       {ready &&
         (workflowId ? (
           <QueryState query={workflow}>

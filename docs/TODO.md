@@ -1,6 +1,6 @@
 # WorkspaceNow: what is done, what is left, how to test it
 
-Status as of 2026-11-06. Percentages estimate how much of each part is written; "verified" means it has run against real infrastructure, which nothing beyond unit tests has yet.
+Status as of 2026-11-06. The full audit (602 issues and features with v1.2 to v2.0 version cuts) is in `docs/LIST.md`; work from there. Percentages estimate how much of each part is written; "verified" means it has run against real infrastructure, which nothing beyond unit tests has yet.
 
 ## Overall
 

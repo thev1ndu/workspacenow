@@ -69,7 +69,7 @@ Prerequisites already on the cluster: Flux CLI access, metallb, cert-manager wit
    ```sh
    OPENBAO_ROOT_TOKEN=root MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... OBSERVER_TOKEN=... \
      RUN_GRANT_PRIVATE_KEY=... OBJECT_STORAGE_ACCESS_KEY=... OBJECT_STORAGE_SECRET_KEY=... \
-     TEMPORAL_DB_PASSWORD=... WSN_LOCAL_ADMIN_EMAIL=... WSN_LOCAL_ADMIN_PASSWORD=... \
+     TEMPORAL_DB_PASSWORD=... WSN_DEFAULT_ADMIN_EMAIL=... WSN_DEFAULT_ADMIN_PASSWORD=... \
      ./deploy/flux/scripts/openbao-seed.sh
    ```
 
@@ -81,7 +81,7 @@ Prerequisites already on the cluster: Flux CLI access, metallb, cert-manager wit
    | `run-grant` | `privateKey` (base64 Ed25519 seed) | `wsn-secrets` → `RUN_GRANT_KEY` |
    | `object-storage` | `accessKey`, `secretKey` | `wsn-secrets` (`S3_*`) + `wsn-rustfs-env` (RustFS) |
    | `temporal-db` | `password` | `temporal-db-login` (wsn-db role) / `temporal-db` (Temporal) |
-   | `local-admin` | `email`, `password` | `wsn-secrets` → `WSN_LOCAL_ADMIN_EMAIL` / `WSN_LOCAL_ADMIN_PASSWORD` |
+   | `default-admin` | `email`, `password` | `wsn-secrets` → `WSN_DEFAULT_ADMIN_EMAIL` / `WSN_DEFAULT_ADMIN_PASSWORD` |
 
    OpenBao runs in dev mode (in-memory): after an OpenBao pod restart, re-run the seed script.
 
@@ -114,11 +114,11 @@ kubectl -n workspacenow rollout restart deploy/wsn-service     # pick up the new
 ## Sign in
 
 The console offers system-user sign-in (`authMode: "local"`); the user comes from
-`secret/workspacenow/local-admin` and gets the `workspacenow-admin` role on first login:
+`secret/workspacenow/default-admin` and gets the `workspacenow-admin` role on first login:
 
 ```sh
 PW=$(kubectl -n openbao exec statefulset/openbao -- sh -c \
-  'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/local-admin')
+  'bao login root >/dev/null && bao kv get -field=password -mount=secret workspacenow/default-admin')
 curl -s -X POST https://api.${domain}/api/v1/auth/login -H 'Content-Type: application/json' \
   -d "{\"email\":\"admin@workspacenow.local\",\"password\":\"$PW\"}" | jq -r .token
 ```

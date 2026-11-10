@@ -22,24 +22,53 @@ var builtinAgents = []AgentDoc{
 	},
 	{
 		ID: "agent-application-architect", Name: "Application Architect", Kind: "platform", Model: "mistral-large-latest",
-		Description: "Converts requirements into application plans.",
+		Description:  "Converts requirements into application plans.",
 		Instructions: "Built-in platform agent. Converts requirements into application plans. Proposes changes to the Application Blueprint for a human to approve.",
-		Status: "active", MaxToolCallsPerRun: 20, Version: 1,
+		Status:       "active", MaxToolCallsPerRun: 20, Version: 1,
 	},
 }
 
-// EnsureBuiltins creates any missing built-in agents. Idempotent; safe to call on every start.
+// EnsureBuiltins creates missing built-in agents and reconciles the fields the platform owns
+// on existing ones. Idempotent; safe to call on every start.
 func EnsureBuiltins(ctx context.Context, db *gorm.DB) error {
-	col := docstore.NewCollection(db, "agents", func(a *AgentDoc) string { return a.ID })
+	return ensureBuiltins(ctx, docstore.NewCollection(db, "agents", func(a *AgentDoc) string { return a.ID }))
+}
+
+func ensureBuiltins(ctx context.Context, col collection[AgentDoc]) error {
 	for i := range builtinAgents {
-		a := builtinAgents[i]
-		if _, err := col.Get(ctx, a.ID); errors.Is(err, docstore.ErrNotFound) {
-			if err := col.Put(ctx, &a); err != nil {
+		want := builtinAgents[i]
+		got, err := col.Get(ctx, want.ID)
+		if errors.Is(err, docstore.ErrNotFound) {
+			if err := col.Put(ctx, &want); err != nil {
 				return err
 			}
-		} else if err != nil {
+			continue
+		}
+		if err != nil {
 			return err
+		}
+		if reconcileBuiltin(got, want) {
+			got.Version++
+			if err := col.Put(ctx, got); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// reconcileBuiltin restores what the agent API cannot change (kind, acts-as-caller) and fills
+// permissions left empty by older releases, so admin edits to permissions are kept.
+func reconcileBuiltin(got *AgentDoc, want AgentDoc) bool {
+	changed := false
+	if got.Kind != want.Kind {
+		got.Kind, changed = want.Kind, true
+	}
+	if got.ActsAsCaller != want.ActsAsCaller {
+		got.ActsAsCaller, changed = want.ActsAsCaller, true
+	}
+	if len(got.Permissions) == 0 && len(want.Permissions) > 0 {
+		got.Permissions, changed = append([]string(nil), want.Permissions...), true
+	}
+	return changed
 }

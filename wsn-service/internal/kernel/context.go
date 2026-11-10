@@ -20,7 +20,7 @@ const (
 
 // Actor is whoever performed an action.
 // IsLocalSystemUser reports whether the caller is the local system user (the account seeded
-// from WSN_LOCAL_ADMIN_*; its user id always starts with "local:").
+// from WSN_DEFAULT_ADMIN_*; its user id always starts with "local:").
 func IsLocalSystemUser(userID string) bool { return strings.HasPrefix(userID, "local:") }
 
 type Actor struct {
@@ -62,8 +62,14 @@ func (p Permissions) Has(name string) bool {
 	return ok
 }
 
-// Intersect returns the permissions held by both sets.
+// Intersect returns the permissions held by both sets; a wildcard side yields the other side.
 func (p Permissions) Intersect(other Permissions) Permissions {
+	if _, ok := p["*"]; ok {
+		return NewPermissions(other.List()...)
+	}
+	if _, ok := other["*"]; ok {
+		return NewPermissions(p.List()...)
+	}
 	out := Permissions{}
 	for n := range p {
 		if other.Has(n) {

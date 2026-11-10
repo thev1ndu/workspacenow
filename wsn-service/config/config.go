@@ -89,18 +89,18 @@ type OIDCConfig struct {
 
 // BootstrapConfig names the first administrators: any user whose IdP email is listed gets the
 // admin role on first login, so installation never requires creating an IdP group. When no IdP
-// is configured (OIDC_JWKS_URL empty), LocalAdminEmail/LocalAdminPassword are the system login.
+// is configured (OIDC_JWKS_URL empty), DefaultAdminEmail/DefaultAdminPassword are the system login.
 type BootstrapConfig struct {
-	AdminEmails       []string // WSN_BOOTSTRAP_ADMIN_EMAILS, comma-separated
-	AdminRole         string   // WSN_BOOTSTRAP_ADMIN_ROLE, the role ID granted (default workspacenow-admin)
-	LocalAdminEmail   string   // WSN_LOCAL_ADMIN_EMAIL, system user login when no OIDC is configured
-	LocalAdminPassword string // WSN_LOCAL_ADMIN_PASSWORD, its password (from the wsn-secrets Secret)
+	AdminEmails          []string // WSN_BOOTSTRAP_ADMIN_EMAILS, comma-separated
+	AdminRole            string   // WSN_BOOTSTRAP_ADMIN_ROLE, the role ID granted (default workspacenow-admin)
+	DefaultAdminEmail    string   // WSN_DEFAULT_ADMIN_EMAIL, system user login when no OIDC is configured
+	DefaultAdminPassword string   // WSN_DEFAULT_ADMIN_PASSWORD, its password (from the wsn-secrets Secret)
 }
 
 // LocalAuthEnabled reports whether the local system user can sign in. It stays available when
 // OIDC is configured too (Rancher-style: both login options on the same page), unless demo mode.
 func (c *Config) LocalAuthEnabled() bool {
-	return !c.DemoMode && c.Bootstrap.LocalAdminEmail != "" && c.Bootstrap.LocalAdminPassword != ""
+	return !c.DemoMode && c.Bootstrap.DefaultAdminEmail != "" && c.Bootstrap.DefaultAdminPassword != ""
 }
 
 type AIConfig struct {
@@ -155,10 +155,10 @@ func Load() (*Config, error) {
 			GroupsClaim: r.str("OIDC_GROUPS_CLAIM", "groups"),
 		},
 		Bootstrap: BootstrapConfig{
-			AdminEmails:        r.list("WSN_BOOTSTRAP_ADMIN_EMAILS", nil),
-			AdminRole:          r.str("WSN_BOOTSTRAP_ADMIN_ROLE", "workspacenow-admin"),
-			LocalAdminEmail:    r.str("WSN_LOCAL_ADMIN_EMAIL", ""),
-			LocalAdminPassword: r.str("WSN_LOCAL_ADMIN_PASSWORD", ""),
+			AdminEmails:          r.list("WSN_BOOTSTRAP_ADMIN_EMAILS", nil),
+			AdminRole:            r.str("WSN_BOOTSTRAP_ADMIN_ROLE", "workspacenow-admin"),
+			DefaultAdminEmail:    r.str("WSN_DEFAULT_ADMIN_EMAIL", ""),
+			DefaultAdminPassword: r.str("WSN_DEFAULT_ADMIN_PASSWORD", ""),
 		},
 		AI: AIConfig{
 			ServiceURL:   r.str("AI_SERVICE_URL", "http://localhost:8090"),
@@ -190,8 +190,8 @@ func (c *Config) validate() error {
 	if c.Env == "production" && c.DemoMode {
 		errs = append(errs, errors.New("WSN_DEMO_MODE cannot be enabled when WSN_ENV=production"))
 	}
-	if !c.DemoMode && c.OIDC.JWKSURL == "" && (c.Bootstrap.LocalAdminEmail == "" || c.Bootstrap.LocalAdminPassword == "") {
-		errs = append(errs, errors.New("OIDC_JWKS_URL is required unless WSN_DEMO_MODE is enabled or WSN_LOCAL_ADMIN_EMAIL + WSN_LOCAL_ADMIN_PASSWORD provide the system login"))
+	if !c.DemoMode && c.OIDC.JWKSURL == "" && (c.Bootstrap.DefaultAdminEmail == "" || c.Bootstrap.DefaultAdminPassword == "") {
+		errs = append(errs, errors.New("OIDC_JWKS_URL is required unless WSN_DEMO_MODE is enabled or WSN_DEFAULT_ADMIN_EMAIL + WSN_DEFAULT_ADMIN_PASSWORD provide the system login"))
 	}
 	if c.Database.URL == "" {
 		errs = append(errs, errors.New("DATABASE_URL is required"))

@@ -22,7 +22,7 @@ spec:
               image: wsn-service
               imagePullPolicy: Always
               args: ["-backup"]
-              envFrom: [{ configMapRef: { name: wsn-service } }]
+              envFrom: [{ configMapRef: { name: wsn-service } }, { secretRef: { name: wsn-secrets } }]
               env:
                 - name: DATABASE_URL
                   valueFrom: { secretKeyRef: { name: wsn-db-app, key: uri } }

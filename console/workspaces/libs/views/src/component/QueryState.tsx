@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Alert } from "@heroui/react";
 import { ApiError } from "@workspacenow/types";
 import { TableSkeleton } from "./Skeletons";
+import { NoDataFound } from "./NoDataFound";
 
 interface QueryLike<T> {
   data: T | undefined;
@@ -27,8 +28,9 @@ export function Loading({ children }: { children: ReactNode }) {
 /**
  * Renders loading and error states for a query, and the children once data is present. While loading
  * it shows `skeleton`, which should match the shape of the children; a flush table is the default.
+ * A query that never ran (disabled for a missing id) shows `empty` instead of leaving a blank area.
  */
-export function QueryState<T>({ query, skeleton, children }: { query: QueryLike<T>; skeleton?: ReactNode; children: (data: T) => ReactNode }) {
+export function QueryState<T>({ query, skeleton, empty, children }: { query: QueryLike<T>; skeleton?: ReactNode; empty?: ReactNode; children: (data: T) => ReactNode }) {
   if (query.isLoading) return <Loading>{skeleton ?? <TableSkeleton />}</Loading>;
   if (query.error) {
     const forbidden = query.error instanceof ApiError && query.error.status === 403;
@@ -44,6 +46,6 @@ export function QueryState<T>({ query, skeleton, children }: { query: QueryLike<
       </div>
     );
   }
-  if (query.data === undefined) return null;
+  if (query.data === undefined) return <>{empty ?? <NoDataFound message="Nothing to show here." />}</>;
   return <>{children(query.data)}</>;
 }

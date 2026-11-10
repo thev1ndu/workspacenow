@@ -37,14 +37,16 @@ type Claims struct {
 // Bootstrap names the first administrators (by IdP email or the local system user), so
 // installation never needs an IdP group.
 type Bootstrap struct {
-	AdminEmails        []string
-	AdminRole          string
-	LocalAdminEmail    string
-	LocalAdminPassword string
+	AdminEmails          []string
+	AdminRole            string
+	DefaultAdminEmail    string
+	DefaultAdminPassword string
 }
 
 // localEnabled reports whether the local system user login is configured.
-func (b Bootstrap) localEnabled() bool { return b.LocalAdminEmail != "" && b.LocalAdminPassword != "" }
+func (b Bootstrap) localEnabled() bool {
+	return b.DefaultAdminEmail != "" && b.DefaultAdminPassword != ""
+}
 
 // Service resolves callers and manages organization and access data.
 type Service interface {
@@ -175,7 +177,7 @@ func (s *service) CallerFromClaims(ctx context.Context, claims Claims) (*kernel.
 // grants reports whether an email is a bootstrap administrator (IdP list or local system user).
 func (b Bootstrap) grants(email string) bool {
 	e := strings.ToLower(strings.TrimSpace(email))
-	return slices.Contains(b.AdminEmails, e) || (b.localEnabled() && e == strings.ToLower(strings.TrimSpace(b.LocalAdminEmail)))
+	return slices.Contains(b.AdminEmails, e) || (b.localEnabled() && e == strings.ToLower(strings.TrimSpace(b.DefaultAdminEmail)))
 }
 
 const sessionKeyPrefix = "wsn:session:"
@@ -186,8 +188,8 @@ func (s *service) LocalLogin(ctx context.Context, email, password string) (strin
 	if !s.bootstrap.localEnabled() {
 		return "", kernel.NotFound("local login is not enabled")
 	}
-	emailOK := subtle.ConstantTimeCompare([]byte(strings.ToLower(strings.TrimSpace(email))), []byte(strings.ToLower(strings.TrimSpace(s.bootstrap.LocalAdminEmail)))) == 1
-	passOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.bootstrap.LocalAdminPassword)) == 1
+	emailOK := subtle.ConstantTimeCompare([]byte(strings.ToLower(strings.TrimSpace(email))), []byte(strings.ToLower(strings.TrimSpace(s.bootstrap.DefaultAdminEmail)))) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(password), []byte(s.bootstrap.DefaultAdminPassword)) == 1
 	if !emailOK || !passOK {
 		return "", kernel.Unauthenticated("Invalid credentials")
 	}

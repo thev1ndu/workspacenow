@@ -3,7 +3,6 @@ package ai
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/connect"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/cache"
+	"github.com/thev1ndu/workspacenow/wsn-service/internal/infra/docstore"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
 )
@@ -35,7 +35,7 @@ func (m *memCollection[T]) Get(_ context.Context, id string) (*T, error) {
 	if v, ok := m.data[id]; ok {
 		return v, nil
 	}
-	return nil, errors.New("not found: " + id)
+	return nil, fmt.Errorf("%w: %s", docstore.ErrNotFound, id)
 }
 
 func (m *memCollection[T]) GetForUpdate(ctx context.Context, id string) (*T, error) {

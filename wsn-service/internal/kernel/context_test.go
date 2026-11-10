@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"context"
+	"slices"
 	"testing"
 )
 
@@ -40,5 +41,21 @@ func TestIsLocalSystemUser(t *testing.T) {
 	}
 	if IsLocalSystemUser("oidc-user-123") || IsLocalSystemUser("") {
 		t.Fatal("IdP users and empty ids are not the system user")
+	}
+}
+
+func TestIntersectWildcard(t *testing.T) {
+	user := NewPermissions("inventory.read", "procurement.approve")
+	if got := NewPermissions("*").Intersect(user).List(); !slices.Equal(got, []string{"inventory.read", "procurement.approve"}) {
+		t.Fatalf("a wildcard agent keeps exactly the caller's permissions, got %v", got)
+	}
+	if got := user.Intersect(NewPermissions("*")).List(); !slices.Equal(got, []string{"inventory.read", "procurement.approve"}) {
+		t.Fatalf("a wildcard caller keeps exactly the agent's permissions, got %v", got)
+	}
+	if got := NewPermissions("*").Intersect(NewPermissions("*")).List(); !slices.Equal(got, []string{"*"}) {
+		t.Fatalf("wildcard on both sides stays a wildcard, got %v", got)
+	}
+	if got := user.Intersect(NewPermissions("inventory.read", "x")).List(); !slices.Equal(got, []string{"inventory.read"}) {
+		t.Fatalf("plain intersection, got %v", got)
 	}
 }

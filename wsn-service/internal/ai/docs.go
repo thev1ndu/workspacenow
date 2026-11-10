@@ -28,6 +28,7 @@ type AgentDoc struct {
 type RunDoc struct {
 	ID            string          `json:"id"`
 	AgentID       string          `json:"agentId"`
+	UserID        string          `json:"userId,omitempty"` // who started the run; empty for workflow runs
 	Prompt        string          `json:"prompt"`
 	Answer        string          `json:"answer"`
 	Status        string          `json:"status"`

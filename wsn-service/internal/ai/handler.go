@@ -18,15 +18,27 @@ func NewHandler(svc Service, auditor kernel.Auditor) *Handler {
 	return &Handler{svc: svc, auditor: auditor}
 }
 
+// agentReaders may see agent definitions: AI managers, workflow designers (they pick agents) and auditors.
+var agentReaders = []string{ManagePermission, "flow.manage", "audit.read"}
+
 func (h *Handler) ListModelProviders(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "model_provider.list", "model_providers", ManagePermission, "audit.read") {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Providers)
 }
 
 func (h *Handler) ListAgents(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "agent.list", "agents", agentReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Agents)
 }
 
 func (h *Handler) GetAgent(w http.ResponseWriter, r *http.Request, agentId oapi.AgentId) {
+	if !httpx.Require(w, r, h.auditor, "agent.get", "agent/"+string(agentId), agentReaders...) {
+		return
+	}
 	agent, err := h.svc.Agent(r.Context(), string(agentId))
 	if err != nil {
 		httpx.Error(w, r, err)
@@ -65,7 +77,7 @@ func (h *Handler) ListAgentRuns(w http.ResponseWriter, r *http.Request, params o
 	if params.Offset != nil {
 		offset = *params.Offset
 	}
-	runs, total, err := h.svc.Runs(r.Context(), agentID, q, limit, offset)
+	runs, total, err := h.svc.Runs(r.Context(), runOwner(r), agentID, q, limit, offset)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -74,12 +86,21 @@ func (h *Handler) ListAgentRuns(w http.ResponseWriter, r *http.Request, params o
 }
 
 func (h *Handler) GetAgentRun(w http.ResponseWriter, r *http.Request, runId string) {
-	run, err := h.svc.Run(r.Context(), runId)
+	run, err := h.svc.Run(r.Context(), runOwner(r), runId)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
 	}
 	httpx.OK(w, run)
+}
+
+// runOwner limits run history to the caller's own runs unless they manage AI or read audit.
+func runOwner(r *http.Request) string {
+	c := httpx.Caller(r)
+	if c.Permissions.Has(ManagePermission) || c.Permissions.Has("audit.read") {
+		return ""
+	}
+	return c.UserID
 }
 
 func (h *Handler) RunAgent(w http.ResponseWriter, r *http.Request, agentId oapi.AgentId) {

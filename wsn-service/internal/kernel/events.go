@@ -20,6 +20,8 @@ type Event struct {
 	TraceID string         `json:"traceId"`
 	Payload map[string]any `json:"payload"`
 	Time    time.Time      `json:"time"`
+	// Actor is who caused the event; it travels on the bus so triggered workflows know their requester.
+	Actor *Actor `json:"actor,omitempty"`
 }
 
 // SubjectPrefix prefixes every event's NATS subject: events.<Type>.
@@ -38,7 +40,8 @@ func (l *eventLog) Publish(ctx context.Context, ec ExecutionContext, eventType, 
 	if payload == nil {
 		payload = map[string]any{}
 	}
-	e := &Event{ID: NewID("evt"), Type: eventType, Source: source, TraceID: ec.TraceID, Payload: payload, Time: time.Now().UTC()}
+	actor := ec.Actor
+	e := &Event{ID: NewID("evt"), Type: eventType, Source: source, TraceID: ec.TraceID, Payload: payload, Time: time.Now().UTC(), Actor: &actor}
 	body, err := json.Marshal(e)
 	if err != nil {
 		return nil, fmt.Errorf("encode event: %w", err)

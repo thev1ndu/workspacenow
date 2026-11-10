@@ -9,15 +9,27 @@ import (
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
 )
 
-type Handler struct{ svc Service }
+type Handler struct {
+	svc     Service
+	auditor kernel.Auditor
+}
 
-func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc Service, auditor kernel.Auditor) *Handler { return &Handler{svc: svc, auditor: auditor} }
+
+// flowReaders may see workflow definitions and executions (which carry their full run context).
+var flowReaders = []string{"flow.manage", "audit.read"}
 
 func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "workflow.list", "workflows", flowReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Workflows)
 }
 
 func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request, id string) {
+	if !httpx.Require(w, r, h.auditor, "workflow.get", "workflow/"+id, flowReaders...) {
+		return
+	}
 	reply(w, r, http.StatusOK)(h.svc.Workflow(r.Context(), id))
 }
 
@@ -65,6 +77,9 @@ func (h *Handler) StartWorkflow(w http.ResponseWriter, r *http.Request, id strin
 }
 
 func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request, params oapi.ListExecutionsParams) {
+	if !httpx.Require(w, r, h.auditor, "execution.list", "executions", flowReaders...) {
+		return
+	}
 	workflowID := ""
 	if params.WorkflowId != nil {
 		workflowID = *params.WorkflowId
@@ -78,6 +93,9 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request, params 
 }
 
 func (h *Handler) GetExecution(w http.ResponseWriter, r *http.Request, id string) {
+	if !httpx.Require(w, r, h.auditor, "execution.get", "execution/"+id, flowReaders...) {
+		return
+	}
 	reply(w, r, http.StatusOK)(h.svc.Execution(r.Context(), id))
 }
 
@@ -97,7 +115,11 @@ func (h *Handler) ListApprovals(w http.ResponseWriter, r *http.Request, params o
 	if params.ApplicationId != nil {
 		applicationID = *params.ApplicationId
 	}
-	out, total, err := h.svc.Approvals(r.Context(), status, applicationID, limit, offset)
+	var viewer *kernel.Caller
+	if c := httpx.Caller(r); !c.Permissions.Has("flow.manage") && !c.Permissions.Has("audit.read") {
+		viewer = c
+	}
+	out, total, err := h.svc.Approvals(r.Context(), viewer, status, applicationID, limit, offset)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

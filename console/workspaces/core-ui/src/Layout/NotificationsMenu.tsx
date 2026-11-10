@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Badge, Button, Popover, Separator } from "@heroui/react";
 import { Bell, CircleCheck } from "@workspacenow/icons";
-import { useListApprovals, useListEvents } from "@workspacenow/api-client";
+import { useCan, useListApprovals, useListEvents } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, TextLink, formatRelative } from "@workspacenow/views";
 import { useT } from "@workspacenow/i18n";
@@ -30,7 +30,9 @@ function describe(type: string): string {
 export function NotificationsMenu({ applicationId }: { applicationId?: string }) {
   const t = useT();
   const [seen, setSeen] = useState(() => readSeen(seenKey(applicationId)));
-  const events = useListEvents({ applicationId, limit: 15 });
+  // the platform event log is for auditors; everyone still sees approvals waiting on them
+  const auditor = useCan("audit.read");
+  const events = useListEvents({ applicationId, limit: 15 }, { enabled: auditor });
   const approvals = useListApprovals({ status: "pending", applicationId });
   const items = events.data?.items ?? [];
   const unread = items.filter((e) => e.time > seen).length + (approvals.data?.total ?? 0);

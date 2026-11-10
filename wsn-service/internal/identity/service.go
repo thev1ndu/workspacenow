@@ -350,6 +350,24 @@ func (s *service) UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContex
 	if err != nil {
 		return nil, err
 	}
+	current := deref(user.RoleIds)
+	for _, id := range roleIDs {
+		if !slices.Contains(current, id) {
+			if err := s.mayGrant(ctx, ec, roles, id, "user/"+userID); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if holdsWildcard(roles, current) && !holdsWildcard(roles, roleIDs) {
+		users, err := s.users.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if wildcardHolders(roles, users, userID) == 0 {
+			_ = s.auditor.RecordDetached(ctx, ec, "user.roles", "user/"+userID, kernel.OutcomeDenied, "Would remove the last administrator")
+			return nil, kernel.InvalidState("%s is the last administrator; give someone else full access first", user.Name).WithTrace(ec.TraceID)
+		}
+	}
 	user.RoleIds = &roleIDs
 	if err := s.users.Put(ctx, user); err != nil {
 		return nil, err
@@ -365,6 +383,77 @@ func (s *service) UpdateUserRoles(ctx context.Context, ec kernel.ExecutionContex
 	return &oapi.UserWithRoles{
 		Id: user.Id, Name: user.Name, Email: user.Email, Title: user.Title, DepartmentId: user.DepartmentId, TeamId: user.TeamId, Groups: user.Groups, RoleIds: user.RoleIds, Roles: names,
 	}, nil
+}
+
+// mayGrant refuses a role whose permissions the granter does not all hold, so access can't be escalated
+// by handing out a stronger role (including the "*" administrator role).
+func (s *service) mayGrant(ctx context.Context, ec kernel.ExecutionContext, roles []oapi.Role, roleID, resource string) error {
+	for _, r := range roles {
+		if r.Id != roleID {
+			continue
+		}
+		for _, p := range r.Permissions {
+			if !ec.Permissions.Has(string(p)) {
+				_ = s.auditor.RecordDetached(ctx, ec, "role.grant", resource, kernel.OutcomeDenied, "Granter lacks "+string(p)+" from role "+roleID)
+				return kernel.Forbidden("You can't grant %s because it includes %s, which you don't hold", r.Name, p).WithTrace(ec.TraceID)
+			}
+		}
+	}
+	return nil
+}
+
+// holdsWildcard reports whether any of roleIDs is a role with every permission.
+func holdsWildcard(roles []oapi.Role, roleIDs []string) bool {
+	for _, r := range roles {
+		if slices.Contains(roleIDs, r.Id) && slices.Contains(r.Permissions, oapi.Permission("*")) {
+			return true
+		}
+	}
+	return false
+}
+
+// wildcardHolders counts users other than except explicitly assigned a role with every permission.
+func wildcardHolders(roles []oapi.Role, users []oapi.User, except string) int {
+	n := 0
+	for _, u := range users {
+		if u.Id != except && holdsWildcard(roles, deref(u.RoleIds)) {
+			n++
+		}
+	}
+	return n
+}
+
+// addsMembers reports whether after contains anyone not in before.
+func addsMembers(before, after []string) bool {
+	for _, m := range after {
+		if !slices.Contains(before, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// mayGrantToMembers checks the roles mapped to a group before new members join it.
+func (s *service) mayGrantToMembers(ctx context.Context, ec kernel.ExecutionContext, groupName string, before, after []string) error {
+	if !addsMembers(before, after) {
+		return nil
+	}
+	mappings, err := s.mappings.List(ctx)
+	if err != nil {
+		return err
+	}
+	roles, err := s.roles.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, m := range mappings {
+		if m.Group == groupName {
+			if err := s.mayGrant(ctx, ec, roles, m.RoleId, "group/"+groupName); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // unionGranted is the pure set behind role resolution: explicit assignments union group grants.
@@ -420,6 +509,9 @@ func (s *service) CreateGroup(ctx context.Context, ec kernel.ExecutionContext, i
 	if err := s.validateGroup(ctx, in); err != nil {
 		return nil, err
 	}
+	if err := s.mayGrantToMembers(ctx, ec, strings.TrimSpace(in.Name), nil, in.MemberIds); err != nil {
+		return nil, err
+	}
 	g := &oapi.Group{Id: kernel.NewID("grp"), Name: strings.TrimSpace(in.Name), Description: derefStr(in.Description), MemberIds: in.MemberIds}
 	if err := s.groups.Put(ctx, g); err != nil {
 		return nil, err
@@ -443,6 +535,13 @@ func (s *service) UpdateGroup(ctx context.Context, ec kernel.ExecutionContext, g
 		return nil, kernel.NotFound("No group %s", groupID)
 	}
 	if err != nil {
+		return nil, err
+	}
+	before := g.MemberIds
+	if g.Name != strings.TrimSpace(in.Name) {
+		before = nil // a renamed group picks up the new name's mappings for every member
+	}
+	if err := s.mayGrantToMembers(ctx, ec, strings.TrimSpace(in.Name), before, in.MemberIds); err != nil {
 		return nil, err
 	}
 	g.Name, g.Description, g.MemberIds = strings.TrimSpace(in.Name), derefStr(in.Description), in.MemberIds
@@ -558,6 +657,17 @@ func (s *service) UpdateGroupMappings(ctx context.Context, ec kernel.ExecutionCo
 	for _, m := range mappings {
 		if !slices.ContainsFunc(roles, func(r oapi.Role) bool { return r.Id == m.RoleId }) {
 			return nil, kernel.Invalid("Unknown role %s", m.RoleId)
+		}
+	}
+	existing, err := s.mappings.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range mappings {
+		if !slices.Contains(existing, m) {
+			if err := s.mayGrant(ctx, ec, roles, m.RoleId, "group-mappings"); err != nil {
+				return nil, err
+			}
 		}
 	}
 	err = postgres.InTx(ctx, s.db, func(ctx context.Context) error {

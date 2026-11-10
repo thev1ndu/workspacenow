@@ -6,7 +6,7 @@ This is the single list of everything that stands between WorkspaceNow and a pro
 
 - Every item has an ID (`BE-` backend, `AI-` agent service, `OB-` observer, `DP-` deploy/CI/ops, `UI-` console, `FT-` new feature, `ZT-` zero-trust design), a priority, a location and a fix.
 - Priority is severity, not order of work: **P0** exploitable or data-losing today, **P1** broken or unsafe in normal use, **P2** correctness, scale or hardening gap, **P3** polish.
-- Section 1 lists what this change already fixed. Section 10 cuts every item into versions (v1.2, v1.3, v1.4, v1.5, v2.0); every open ID appears in exactly one version (the six items already fixed are listed in section 1 instead).
+- Section 1 lists what this change already fixed. Section 10 cuts every item into versions (v1.2, v1.3, v1.4, v1.5, v2.0); every open ID appears in exactly one version (the items already fixed are listed in section 1 instead).
 - Paths are relative to the component directory named in the section heading. Line numbers are from the audit and drift as code changes; search by the symbol if a line moved.
 
 **Totals:** 137 backend, 64 agent service, 56 observer, 111 deploy/CI/ops, 141 console, 75 features, 18 zero-trust design items: **602 items**.
@@ -21,32 +21,36 @@ This is the single list of everything that stands between WorkspaceNow and a pro
 - **DONE-4** · Permission intersection ignored a wildcard on the agent side, so for every non-admin user the `*` Sidekick ended up with no permissions at all; a wildcard on either side now yields the other side (`internal/kernel/context.go`, `TestIntersectWildcard`).
 - **DONE-5** · The nightly backup never ran: the CronJob passes `-backup` but `main.go` never registered that flag (exit 2), and the backup pod had no object-storage credentials. Both fixed (`wsn-service/main.go`, `deploy/flux/layers/04-apps/backup-cronjob.yaml`).
 - **DONE-6** · Blank areas when entities are missing: UI-001, UI-002, UI-003, UI-005, UI-006, UI-007 (marked ✅ in section 6).
+- **DONE-7** · Read authorization on the previously open list endpoints, all denials audited (marked ✅ in section 2.1): GraphQL checks each resolved entity's read permission and audits the query (BE-001); running an agent requires `ai.manage` or every permission the agent holds, intersected with the caller (BE-002); run history is limited to the caller's own runs unless `ai.manage`/`audit.read` (BE-006); model providers and agents need `ai.manage`/`flow.manage`/`audit.read` (BE-007); users, roles, groups and group mappings need `control.manage`/`audit.read` (roles also `flow.manage`/`ai.manage`) (BE-008); workflows and executions need `flow.manage`/`audit.read`, and the approvals list shows only what the caller may decide or started (BE-009); `/events` needs `audit.read` and resources, alert rules/fires and SLOs need `control.manage`/`audit.read` — aggregate overview and analytics charts stay open as counts only (BE-005, BE-010); global search applies each hit kind's list rule and reads records through `RecordsAs` so entity read permission and row filters apply (BE-011); `GET /api-keys` needs `connect.manage` (BE-020). The console gates those queries behind `useCan` (`NotificationsMenu`, `NeedsAttentionCard`, `enabled` on the hooks).
+- **DONE-8** · Credentials never leave the API: `GET /integrations` returns stored bearer/refresh tokens as `********`, `GET /webhooks` returns the signing secret redacted, both need `connect.manage` (BE-004); `GET /secrets/read` is limited to `integrations/` paths except for the local system user (BE-017); `POST /internal/v1/mcp/invoke` requires both the shared service token and the forwarded user token (BE-022).
+- **DONE-9** · No privilege escalation: API keys get `ownerId` and an optional `expiresAt` and may only carry permissions the creator holds (BE-003); agent PATCH, user role grants, group mappings and new group members are checked against the granter's own permissions, and the last `*` administrator cannot be removed (BE-018, BE-019); saving a workflow re-checks every permission its steps need against the editor on each save, and starting a workflow requires the starter to hold the workflow's permissions (BE-013, BE-014); app-scoped Sidekick checks the caller can use at least one of the app's tools (BE-016); `business-operations/invoke` accepts only `studio`/`api` entry points and builds the audit context from the request (BE-012); saved views are editable by their owner, by `data.manage` when shared, and are `404` otherwise (BE-021).
+- **DONE-10** · Separation of duties and event visibility: approvals record who started the run (id and name, resolved through acts-as-caller agents from the event actor) and the requester cannot decide their own approval (BE-015); SSE events carry the actor, and callers without `audit.read` receive non-entity events with payload and actor stripped unless they caused the event (BE-005). New tests cover connect access/credentials/GraphQL, identity grants, view access, flow duties, stream filtering and the bizops entry point (`access_test.go`, `grant_test.go`, `views_access_test.go`, `duties_test.go`, `filter_test.go`, `handler_test.go`).
 
 ## 2. wsn-service (Go platform API)
 
 ### 2.1 Authorization gaps
-- **BE-001** P0 · `internal/connect/graphql.go:170` · `POST /graphql` lists any entity through `rt.RecordsAs` without checking `ReadPermission`; any user or API key reads every entity, unaudited. **Fix:** `kernel.RequirePermission` per resolved entity, audit the query.
-- **BE-002** P0 · `internal/ai/handler.go:85` · `POST /agents/{id}/runs` has no permission check; a non acts-as-caller agent runs with its own permissions for any signed-in user. **Fix:** require `ai.run` (or per-agent permission) and intersect with the caller for every agent.
-- **BE-003** P1 · `internal/connect/service.go:818` · `CreateKey` stores any permissions (including `*`); a `connect.manage` holder mints a full-admin key; keys have no owner or expiry. **Fix:** refuse permissions the creator lacks, add `ownerId`, `expiresAt`.
-- **BE-004** P1 · `internal/connect/handler.go:22,188` · `GET /integrations` returns OAuth tokens and `GET /webhooks` returns HMAC secrets in plaintext, unguarded. **Fix:** store refs only (OpenBao), `json:"-"` on API shapes, require `connect.manage`.
-- **BE-005** P1 · `internal/obs/handler.go:25`, `internal/stream/stream.go:152` · `/events` and SSE filter only entity events; AgentRun prompts/answers, approvals and notifications reach every user. **Fix:** `audit.read` on `/events`, visibility rule per event type.
-- **BE-006** P1 · `internal/ai/handler.go:53,76` · `GET /agent-runs[/{id}]` returns every user's prompts, answers and tool steps. **Fix:** own runs only unless `ai.manage`/`audit.read`.
-- **BE-007** P2 · `internal/ai/handler.go:21-29` · providers and agents (instructions, permissions, cost) list without permission. **Fix:** require `ai.read`.
-- **BE-008** P2 · `internal/identity/handler.go:89-120` · users, roles, groups, group mappings readable by anyone signed in. **Fix:** `control.read` or a redacted directory view.
-- **BE-009** P2 · `internal/flow/handler.go:16,67,80,84` · workflows, executions (full context) and approvals have no read permission. **Fix:** `flow.read`; filter approvals to decidable/requested.
-- **BE-010** P2 · `internal/obs/handler.go:138-253` · overview, resources, search, analytics, alert rules (webhook URLs), SLOs unguarded. **Fix:** `audit.read`/`control.read`.
-- **BE-011** P2 · `internal/obs/overview.go:219` · global search returns entities/records the caller cannot read. **Fix:** filter by `ReadPermission` and row filters.
-- **BE-012** P2 · `internal/bizops/handler.go:35` · caller picks `entryPoint` (agent/workflow/mcp), forging audit; handler ignores the request trace. **Fix:** allow `studio`/`api` only; use `ContextFrom`.
-- **BE-013** P2 · `internal/flow/service.go:146` · saving a workflow keeps permissions the editor does not hold (permission laundering). **Fix:** check every needed permission on each save.
-- **BE-014** P2 · `internal/flow/service.go:224` · `Start` needs only `flow.manage`, then runs with the workflow's stored permissions. **Fix:** starter must hold them, or per-workflow run permission.
-- **BE-015** P2 · `internal/flow/service.go:351` · no separation of duties: requesters approve their own requests. **Fix:** reject decisions by the requester/trigger actor.
-- **BE-016** P2 · `internal/ai/service.go:356` · Sidekick app scope checks existence, not the caller's access to the app. **Fix:** check app access first.
-- **BE-017** P2 · `internal/connect/service.go:462` · `control.manage` reads any OpenBao path (DB creds, `RUN_GRANT_KEY`). **Fix:** path allowlist (`integrations/`) or system-user only.
-- **BE-018** P2 · `internal/ai/service.go:168` · `UpdateAgent` accepts any permission (including `*`). **Fix:** refuse permissions the editor lacks.
-- **BE-019** P2 · `internal/identity/service.go:333` · `control.manage` assigns any role including `*` to anyone, and can remove the last admin. **Fix:** granter must hold the role's permissions; block removing the last `*` holder.
-- **BE-020** P3 · `internal/connect/service.go:816` · `GET /api-keys` unguarded. **Fix:** `connect.manage`.
-- **BE-021** P3 · `internal/data/service.go:343,373` · views editable by any `data.manage` holder, not by their owner. **Fix:** owner edits own; `data.manage` for shared views.
-- **BE-022** P2 · `internal/ai/api.go:37` · `/internal/v1/mcp/invoke` accepts any forwarded user token without the service token. **Fix:** require both.
+- **BE-001** ✅ fixed · P0 · `internal/connect/graphql.go:170` · `POST /graphql` lists any entity through `rt.RecordsAs` without checking `ReadPermission`; any user or API key reads every entity, unaudited. **Fix:** `kernel.RequirePermission` per resolved entity, audit the query.
+- **BE-002** ✅ fixed · P0 · `internal/ai/handler.go:85` · `POST /agents/{id}/runs` has no permission check; a non acts-as-caller agent runs with its own permissions for any signed-in user. **Fix:** require `ai.run` (or per-agent permission) and intersect with the caller for every agent.
+- **BE-003** ✅ fixed · P1 · `internal/connect/service.go:818` · `CreateKey` stores any permissions (including `*`); a `connect.manage` holder mints a full-admin key; keys have no owner or expiry. **Fix:** refuse permissions the creator lacks, add `ownerId`, `expiresAt`.
+- **BE-004** ✅ fixed · P1 · `internal/connect/handler.go:22,188` · `GET /integrations` returns OAuth tokens and `GET /webhooks` returns HMAC secrets in plaintext, unguarded. **Fix:** store refs only (OpenBao), `json:"-"` on API shapes, require `connect.manage`.
+- **BE-005** ✅ fixed · P1 · `internal/obs/handler.go:25`, `internal/stream/stream.go:152` · `/events` and SSE filter only entity events; AgentRun prompts/answers, approvals and notifications reach every user. **Fix:** `audit.read` on `/events`, visibility rule per event type.
+- **BE-006** ✅ fixed · P1 · `internal/ai/handler.go:53,76` · `GET /agent-runs[/{id}]` returns every user's prompts, answers and tool steps. **Fix:** own runs only unless `ai.manage`/`audit.read`.
+- **BE-007** ✅ fixed · P2 · `internal/ai/handler.go:21-29` · providers and agents (instructions, permissions, cost) list without permission. **Fix:** require `ai.read`.
+- **BE-008** ✅ fixed · P2 · `internal/identity/handler.go:89-120` · users, roles, groups, group mappings readable by anyone signed in. **Fix:** `control.read` or a redacted directory view.
+- **BE-009** ✅ fixed · P2 · `internal/flow/handler.go:16,67,80,84` · workflows, executions (full context) and approvals have no read permission. **Fix:** `flow.read`; filter approvals to decidable/requested.
+- **BE-010** ✅ fixed · P2 · `internal/obs/handler.go:138-253` · overview, resources, search, analytics, alert rules (webhook URLs), SLOs unguarded. **Fix:** `audit.read`/`control.read`.
+- **BE-011** ✅ fixed · P2 · `internal/obs/overview.go:219` · global search returns entities/records the caller cannot read. **Fix:** filter by `ReadPermission` and row filters.
+- **BE-012** ✅ fixed · P2 · `internal/bizops/handler.go:35` · caller picks `entryPoint` (agent/workflow/mcp), forging audit; handler ignores the request trace. **Fix:** allow `studio`/`api` only; use `ContextFrom`.
+- **BE-013** ✅ fixed · P2 · `internal/flow/service.go:146` · saving a workflow keeps permissions the editor does not hold (permission laundering). **Fix:** check every needed permission on each save.
+- **BE-014** ✅ fixed · P2 · `internal/flow/service.go:224` · `Start` needs only `flow.manage`, then runs with the workflow's stored permissions. **Fix:** starter must hold them, or per-workflow run permission.
+- **BE-015** ✅ fixed · P2 · `internal/flow/service.go:351` · no separation of duties: requesters approve their own requests. **Fix:** reject decisions by the requester/trigger actor.
+- **BE-016** ✅ fixed · P2 · `internal/ai/service.go:356` · Sidekick app scope checks existence, not the caller's access to the app. **Fix:** check app access first.
+- **BE-017** ✅ fixed · P2 · `internal/connect/service.go:462` · `control.manage` reads any OpenBao path (DB creds, `RUN_GRANT_KEY`). **Fix:** path allowlist (`integrations/`) or system-user only.
+- **BE-018** ✅ fixed · P2 · `internal/ai/service.go:168` · `UpdateAgent` accepts any permission (including `*`). **Fix:** refuse permissions the editor lacks.
+- **BE-019** ✅ fixed · P2 · `internal/identity/service.go:333` · `control.manage` assigns any role including `*` to anyone, and can remove the last admin. **Fix:** granter must hold the role's permissions; block removing the last `*` holder.
+- **BE-020** ✅ fixed · P3 · `internal/connect/service.go:816` · `GET /api-keys` unguarded. **Fix:** `connect.manage`.
+- **BE-021** ✅ fixed · P3 · `internal/data/service.go:343,373` · views editable by any `data.manage` holder, not by their owner. **Fix:** owner edits own; `data.manage` for shared views.
+- **BE-022** ✅ fixed · P2 · `internal/ai/api.go:37` · `/internal/v1/mcp/invoke` accepts any forwarded user token without the service token. **Fix:** require both.
 
 ### 2.2 Authentication and sessions
 - **BE-023** P1 · `internal/identity/service.go:187-212`, `app/app.go:278` · `POST /auth/login` has no rate limit, lockout or audit; sessions stored raw as `wsn:session:<token>`, fixed 24h, no logout or revoke. **Fix:** per-IP/email limiter, audit success and failure, key by `sha256(token)`, `POST /auth/logout`, session version, sliding TTL.
@@ -880,7 +884,7 @@ Each version is a shippable cut. Order inside a version does not matter. An item
 
 ### v1.2: Trust the core (security holes, broken paths, blank screens)
 Goal: nothing exploitable, nothing silently broken, no empty screens.
-- Backend: BE-001..BE-006, BE-023..BE-026, BE-035..BE-039, BE-041, BE-047..BE-049, BE-054..BE-063, BE-076..BE-079, BE-084, BE-097..BE-099.
+- Backend: BE-023..BE-026, BE-035..BE-039, BE-041, BE-047..BE-049, BE-054..BE-063, BE-076..BE-079, BE-084, BE-097..BE-099.
 - Agent service: AI-001, AI-002, AI-004, AI-006, AI-007, AI-017, AI-018, AI-020, AI-021, AI-038.
 - Observer: OB-001, OB-004..OB-006, OB-013..OB-015.
 - Deploy: DP-001..DP-009, DP-012..DP-014, DP-018..DP-023, DP-033, DP-042, DP-043, DP-081, DP-082, DP-086, DP-087, DP-097..DP-099, DP-101.
@@ -889,7 +893,7 @@ Goal: nothing exploitable, nothing silently broken, no empty screens.
 ### v1.3: Zero-trust identity and a production platform
 Goal: Dex-backed OIDC with the default admin as break-glass, least privilege everywhere, HA, backups, observability, signed supply chain.
 - Zero-trust: ZT-001..ZT-018.
-- Backend: BE-007..BE-022, BE-027..BE-034, BE-040, BE-042..BE-046, BE-050..BE-053, BE-064..BE-075, BE-080..BE-083, BE-085..BE-096, BE-100..BE-131.
+- Backend: BE-027..BE-034, BE-040, BE-042..BE-046, BE-050..BE-053, BE-064..BE-075, BE-080..BE-083, BE-085..BE-096, BE-100..BE-131.
 - Agent service: AI-003, AI-005, AI-008..AI-015, AI-019, AI-022..AI-037, AI-039..AI-059.
 - Observer: OB-002, OB-003, OB-007..OB-012, OB-016..OB-056.
 - Deploy: DP-010, DP-011, DP-015..DP-017, DP-024..DP-032, DP-034..DP-041, DP-044..DP-080, DP-083..DP-085, DP-088..DP-096, DP-100, DP-102..DP-111.

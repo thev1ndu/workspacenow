@@ -1,16 +1,26 @@
 package connect
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/httpx"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/kernel"
 	"github.com/thev1ndu/workspacenow/wsn-service/internal/oapi"
 )
 
-type Handler struct{ svc Service }
+type Handler struct {
+	svc     Service
+	auditor kernel.Auditor
+}
 
-func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc Service, auditor kernel.Auditor) *Handler {
+	return &Handler{svc: svc, auditor: auditor}
+}
+
+// managePermission guards connection configuration: integrations, webhooks and API keys.
+const managePermission = "connect.manage"
 
 func (h *Handler) ListApis(w http.ResponseWriter, r *http.Request) { httpx.ListFrom(w, r, h.svc.APIs) }
 func (h *Handler) ListMcpTools(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +30,34 @@ func (h *Handler) ListMcpServers(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.Servers)
 }
 func (h *Handler) ListIntegrations(w http.ResponseWriter, r *http.Request) {
-	httpx.ListFrom(w, r, h.svc.Integrations)
+	if !httpx.Require(w, r, h.auditor, "integration.list", "integrations", managePermission) {
+		return
+	}
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]Integration, error) {
+		items, err := h.svc.Integrations(ctx)
+		out := make([]Integration, 0, len(items))
+		for _, in := range items {
+			out = append(out, redactIntegration(in))
+		}
+		return out, err
+	})
+}
+
+// redactIntegration blanks stored bearer and refresh tokens; the API never returns credentials.
+func redactIntegration(in Integration) Integration {
+	if in.Auth != nil {
+		auth := *in.Auth
+		auth.Token, auth.RefreshToken = redacted(auth.Token), redacted(auth.RefreshToken)
+		in.Auth = &auth
+	}
+	return in
+}
+
+func redacted(v string) string {
+	if v == "" {
+		return ""
+	}
+	return "********"
 }
 
 func (h *Handler) GetApi(w http.ResponseWriter, r *http.Request, id string) {
@@ -186,7 +223,19 @@ func (h *Handler) ReadSecret(w http.ResponseWriter, r *http.Request, params oapi
 /* ---- webhooks ---- */
 
 func (h *Handler) ListWebhooks(w http.ResponseWriter, r *http.Request) {
-	httpx.ListFrom(w, r, h.svc.Webhooks)
+	if !httpx.Require(w, r, h.auditor, "webhook.list", "webhooks", managePermission) {
+		return
+	}
+	// the signing secret is shown once, when the webhook is created
+	httpx.ListFrom(w, r, func(ctx context.Context) ([]Webhook, error) {
+		items, err := h.svc.Webhooks(ctx)
+		out := make([]Webhook, 0, len(items))
+		for _, hook := range items {
+			hook.Secret = redacted(hook.Secret)
+			out = append(out, hook)
+		}
+		return out, err
+	})
 }
 
 func (h *Handler) CreateWebhook(w http.ResponseWriter, r *http.Request) {
@@ -301,20 +350,24 @@ func (h *Handler) PortalCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListApiKeys(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "api-key.list", "api-keys", managePermission) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Keys)
 }
 
 func (h *Handler) CreateApiKey(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name         string   `json:"name"`
-		Permissions  []string `json:"permissions"`
-		QuotaPerHour int      `json:"quotaPerHour"`
+		Name         string     `json:"name"`
+		Permissions  []string   `json:"permissions"`
+		QuotaPerHour int        `json:"quotaPerHour"`
+		ExpiresAt    *time.Time `json:"expiresAt"`
 	}
 	if err := httpx.Decode(r, &body); err != nil {
 		httpx.Error(w, r, err)
 		return
 	}
-	out, err := h.svc.CreateKey(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, ""), body.Name, body.Permissions, body.QuotaPerHour)
+	out, err := h.svc.CreateKey(r.Context(), httpx.Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, ""), body.Name, body.Permissions, body.QuotaPerHour, body.ExpiresAt)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

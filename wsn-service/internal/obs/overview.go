@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -285,45 +286,53 @@ func (s *service) Search(ctx context.Context, ec kernel.ExecutionContext, q stri
 	for _, a := range apis {
 		add(oapi.SearchHit{Type: "api", Id: a.ID, Title: a.Name, Subtitle: "API · " + appName(a.ApplicationID)}, a.Description)
 	}
-	servers, err := s.connect.Servers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, m := range servers {
-		names := make([]string, 0, len(m.Tools))
-		for _, t := range m.Tools {
-			names = append(names, t.Name)
+	// Each kind of hit follows the rule of the list endpoint that shows it.
+	may := func(names ...string) bool { return slices.ContainsFunc(names, ec.Permissions.Has) }
+	if may("connect.manage") {
+		servers, err := s.connect.Servers(ctx)
+		if err != nil {
+			return nil, err
 		}
-		add(oapi.SearchHit{Type: "mcp-server", Id: m.ID, Title: m.Name, Subtitle: "MCP server"}, strings.Join(names, " "))
+		for _, m := range servers {
+			names := make([]string, 0, len(m.Tools))
+			for _, t := range m.Tools {
+				names = append(names, t.Name)
+			}
+			add(oapi.SearchHit{Type: "mcp-server", Id: m.ID, Title: m.Name, Subtitle: "MCP server"}, strings.Join(names, " "))
+		}
+		integrations, err := s.connect.Integrations(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, i := range integrations {
+			add(oapi.SearchHit{Type: "integration", Id: i.ID, Title: i.Name, Subtitle: "Integration · " + i.Kind}, i.Target)
+		}
 	}
-	integrations, err := s.connect.Integrations(ctx)
-	if err != nil {
-		return nil, err
+	if may("ai.manage", "flow.manage", AuditReadPermission) {
+		for _, a := range mustList(ctx, docstore.NewCollection(s.db, "agents", func(a *ai.AgentDoc) string { return a.ID })) {
+			add(oapi.SearchHit{Type: "agent", Id: a.ID, Title: a.Name, Subtitle: "Agent · " + deptName(a.OwnerDepartmentID)}, a.Description)
+		}
 	}
-	for _, i := range integrations {
-		add(oapi.SearchHit{Type: "integration", Id: i.ID, Title: i.Name, Subtitle: "Integration · " + i.Kind}, i.Target)
+	if may("flow.manage", AuditReadPermission) {
+		for _, w := range mustList(ctx, docstore.NewCollection(s.db, "workflows", func(w *flow.Workflow) string { return w.ID })) {
+			add(oapi.SearchHit{Type: "workflow", Id: w.ID, Title: w.Name, Subtitle: "Workflow · " + appName(w.ApplicationID)}, "")
+		}
 	}
-	agents := docstore.NewCollection(s.db, "agents", func(a *ai.AgentDoc) string { return a.ID })
-	for _, a := range mustList(ctx, agents) {
-		add(oapi.SearchHit{Type: "agent", Id: a.ID, Title: a.Name, Subtitle: "Agent · " + deptName(a.OwnerDepartmentID)}, a.Description)
+	if may("control.manage", AuditReadPermission) {
+		users, err := s.identity.Users(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range users {
+			add(oapi.SearchHit{Type: "user", Id: u.Id, Title: u.Name, Subtitle: deptName(u.DepartmentId)}, string(u.Email))
+		}
 	}
-	workflows := docstore.NewCollection(s.db, "workflows", func(w *flow.Workflow) string { return w.ID })
-	for _, w := range mustList(ctx, workflows) {
-		add(oapi.SearchHit{Type: "workflow", Id: w.ID, Title: w.Name, Subtitle: "Workflow · " + appName(w.ApplicationID)}, "")
-	}
-	users, err := s.identity.Users(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, u := range users {
-		add(oapi.SearchHit{Type: "user", Id: u.Id, Title: u.Name, Subtitle: deptName(u.DepartmentId)}, string(u.Email))
-	}
-	// Records only for entities the caller may read.
+	// Records only for entities the caller may read, through the same row filters as the records API.
 	for _, e := range entities {
 		if !ec.Permissions.Has(e.ReadPermission) {
 			continue
 		}
-		records, err := s.runtime.Records(ctx, e.Name)
+		records, err := s.runtime.RecordsAs(ctx, ec, e.Name, false)
 		if err != nil {
 			return nil, err
 		}

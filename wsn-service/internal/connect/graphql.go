@@ -167,6 +167,13 @@ func (s *service) graphql(ctx context.Context, ec kernel.ExecutionContext, field
 	out := map[string]any{}
 	var errs []map[string]string
 	for _, f := range fields {
+		// each field reads an entity, so it needs that entity's read permission like the records API
+		if e, err := s.rt.Entity(ctx, f.name); err == nil {
+			if err := kernel.RequirePermission(ctx, s.auditor, ec, e.ReadPermission, "graphql.query", "entity/"+f.name); err != nil {
+				errs = append(errs, map[string]string{"message": err.Error()})
+				continue
+			}
+		}
 		records, err := s.rt.RecordsAs(ctx, ec, f.name, false)
 		if err != nil {
 			if apiErr, ok := kernel.AsError(err); ok && apiErr.Status == http.StatusNotFound {

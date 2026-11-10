@@ -340,7 +340,7 @@ func (s *service) UpdateView(ctx context.Context, ec kernel.ExecutionContext, en
 	if cur.Entity != entity {
 		return nil, kernel.NotFound("View not found")
 	}
-	if err := kernel.RequirePermission(ctx, s.auditor, ec, "data.manage", entity+".view.update", "entity/"+entity+"/"+id); err != nil {
+	if err := s.mayChangeView(ctx, ec, cur, entity+".view.update"); err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(v.Name) == "" {
@@ -354,6 +354,37 @@ func (s *service) UpdateView(ctx context.Context, ec kernel.ExecutionContext, en
 		return nil, err
 	}
 	return cur, s.auditor.Record(ctx, ec, entity+".view.update", "entity/"+entity+"/"+id, kernel.OutcomeAllowed, cur.Name)
+}
+
+// mayChangeView lets owners edit their own views and data managers edit shared ones. Someone else's
+// private view is reported as missing so its existence does not leak.
+func (s *service) mayChangeView(ctx context.Context, ec kernel.ExecutionContext, v *SavedView, action string) error {
+	switch viewAccess(v, ec) {
+	case viewOwner:
+		return nil
+	case viewHidden:
+		return kernel.NotFound("View not found")
+	}
+	return kernel.RequirePermission(ctx, s.auditor, ec, "data.manage", action, "entity/"+v.Entity+"/"+v.ID)
+}
+
+type viewRight int
+
+const (
+	viewOwner viewRight = iota
+	viewShared
+	viewHidden
+)
+
+func viewAccess(v *SavedView, ec kernel.ExecutionContext) viewRight {
+	switch {
+	case v.OwnerID != "" && v.OwnerID == ec.Actor.ID:
+		return viewOwner
+	case v.Shared:
+		return viewShared
+	default:
+		return viewHidden
+	}
 }
 
 func (s *service) DeleteView(ctx context.Context, ec kernel.ExecutionContext, entity, id string) error {
@@ -370,7 +401,7 @@ func (s *service) DeleteView(ctx context.Context, ec kernel.ExecutionContext, en
 	if cur.Entity != entity {
 		return kernel.NotFound("View not found")
 	}
-	if err := kernel.RequirePermission(ctx, s.auditor, ec, "data.manage", entity+".view.delete", "entity/"+entity+"/"+id); err != nil {
+	if err := s.mayChangeView(ctx, ec, cur, entity+".view.delete"); err != nil {
 		return err
 	}
 	if err := s.views.Delete(ctx, id); err != nil {

@@ -29,6 +29,8 @@ type APIKey struct {
 	Revoked      bool       `json:"revoked"`
 	CreatedAt    time.Time  `json:"createdAt"`
 	LastUsedAt   *time.Time `json:"lastUsedAt,omitempty"`
+	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
+	OwnerID      string     `json:"ownerId,omitempty"`
 }
 
 // CreatedKey is the creation response: the raw key appears exactly here.
@@ -40,7 +42,7 @@ type CreatedKey struct {
 const apiKeyPrefix = "wsn_"
 
 // issueKey creates a new random key, returns it once, stores the hash.
-func issueKey(db *gorm.DB, name string, permissions []string, quotaPerHour int) (*CreatedKey, error) {
+func issueKey(db *gorm.DB, name, ownerID string, permissions []string, quotaPerHour int, expiresAt *time.Time) (*CreatedKey, error) {
 	raw := make([]byte, 24)
 	if _, err := rand.Read(raw); err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func issueKey(db *gorm.DB, name string, permissions []string, quotaPerHour int) 
 	rec := &APIKey{
 		ID: kernel.NewID("key"), Name: name, Prefix: key[:len(apiKeyPrefix)+8],
 		KeyHash: hex.EncodeToString(sum[:]), Permissions: permissions, QuotaPerHour: quotaPerHour,
-		CreatedAt: time.Now().UTC(),
+		CreatedAt: time.Now().UTC(), ExpiresAt: expiresAt, OwnerID: ownerID,
 	}
 	c := docstore.NewCollection(db, "api_keys", func(k *APIKey) string { return k.ID })
 	if err := c.Put(context.Background(), rec); err != nil {
@@ -76,6 +78,9 @@ func VerifyKey(ctx context.Context, db *gorm.DB, c cache.Cache, raw string) (*AP
 		if all[i].KeyHash == hash {
 			if all[i].Revoked {
 				return nil, kernel.Unauthenticated("API key revoked")
+			}
+			if all[i].ExpiresAt != nil && !time.Now().Before(*all[i].ExpiresAt) {
+				return nil, kernel.Unauthenticated("API key expired")
 			}
 			if all[i].QuotaPerHour > 0 {
 				key := fmt.Sprintf("wsn:apikey:%s:%d", all[i].ID, time.Now().Unix()/3600)

@@ -184,13 +184,13 @@ func TestListEventsDefaultLimit(t *testing.T) {
 	svc := &fakeSvc{events: []oapi.PlatformEvent{{Id: "e1", Type: "X", Time: time.Now()}}}
 	h := NewHandler(svc, &fakeAuditor{})
 	rec := httptest.NewRecorder()
-	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions()}), oapi.ListEventsParams{})
+	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions(AuditReadPermission)}), oapi.ListEventsParams{})
 	if rec.Code != http.StatusOK || svc.gotLimit != 50 {
 		t.Fatalf("code %d limit %d", rec.Code, svc.gotLimit)
 	}
 	limit := 10
 	rec = httptest.NewRecorder()
-	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions()}), oapi.ListEventsParams{Limit: &limit})
+	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions(AuditReadPermission)}), oapi.ListEventsParams{Limit: &limit})
 	if svc.gotLimit != 10 {
 		t.Fatalf("limit %d", svc.gotLimit)
 	}
@@ -211,7 +211,7 @@ func TestListHealth(t *testing.T) {
 func TestListEventsError(t *testing.T) {
 	h := NewHandler(&fakeSvc{err: errors.New("db down")}, &fakeAuditor{})
 	rec := httptest.NewRecorder()
-	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions()}), oapi.ListEventsParams{})
+	h.ListEvents(rec, request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions(AuditReadPermission)}), oapi.ListEventsParams{})
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("code %d", rec.Code)
 	}
@@ -219,7 +219,7 @@ func TestListEventsError(t *testing.T) {
 
 func TestOverviewResourcesSearchAnalytics(t *testing.T) {
 	h := NewHandler(&fakeSvc{}, &fakeAuditor{})
-	ok := request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions()})
+	ok := request(t, &kernel.Caller{UserID: "u1", Name: "A", Permissions: kernel.NewPermissions(AuditReadPermission)})
 
 	rec := httptest.NewRecorder()
 	h.GetOverview(rec, ok)
@@ -294,3 +294,27 @@ func TestListErrorGroupsAndServicesGuarded(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestOperationsReadsNeedPermission(t *testing.T) {
+	aud := &fakeAuditor{}
+	h := NewHandler(&fakeSvc{}, aud)
+	staff := request(t, &kernel.Caller{UserID: "u1", Name: "Staff", Permissions: kernel.NewPermissions("inventory.read")})
+	for name, call := range map[string]func(http.ResponseWriter, *http.Request){
+		"events":    func(w http.ResponseWriter, r *http.Request) { h.ListEvents(w, r, oapi.ListEventsParams{}) },
+		"resources": h.ListResources,
+		"alerts":    h.ListAlertRules,
+		"slos":      h.ListSLOs,
+	} {
+		rec := httptest.NewRecorder()
+		call(rec, staff)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("%s without permission: %d", name, rec.Code)
+		}
+	}
+	// aggregate charts and health stay open to staff
+	rec := httptest.NewRecorder()
+	h.GetOverview(rec, staff)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("overview counts stay open: %d", rec.Code)
+	}
+}

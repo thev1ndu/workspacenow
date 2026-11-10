@@ -23,6 +23,9 @@ func NewHandler(svc Service, auditor kernel.Auditor) *Handler {
 }
 
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request, params oapi.ListEventsParams) {
+	if !httpx.Require(w, r, h.auditor, "event.list", "events", AuditReadPermission) {
+		return
+	}
 	limit, offset := 50, 0
 	if params.Limit != nil {
 		limit = *params.Limit
@@ -144,7 +147,14 @@ func (h *Handler) GetOverview(w http.ResponseWriter, r *http.Request) {
 	httpx.OK(w, stats)
 }
 
+// operationsReaders may see the resource inventory, alert rules (they carry webhook URLs) and SLOs.
+// Aggregate charts and health stay open: they show counts and status, never record content.
+var operationsReaders = []string{"control.manage", AuditReadPermission}
+
 func (h *Handler) ListResources(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "resource.list", "resources", operationsReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Resources)
 }
 
@@ -193,6 +203,9 @@ func (h *Handler) ec(r *http.Request) kernel.ExecutionContext {
 }
 
 func (h *Handler) ListAlertRules(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "alert.list", "alerts", operationsReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.AlertRules)
 }
 
@@ -233,6 +246,9 @@ func (h *Handler) DeleteAlertRule(w http.ResponseWriter, r *http.Request, id str
 }
 
 func (h *Handler) ListAlertFires(w http.ResponseWriter, r *http.Request, ruleId string) {
+	if !httpx.Require(w, r, h.auditor, "alert.fires", "alert/"+ruleId, operationsReaders...) {
+		return
+	}
 	out, err := h.svc.AlertFires(r.Context(), ruleId)
 	if err != nil {
 		httpx.Error(w, r, err)
@@ -250,7 +266,12 @@ func (h *Handler) AckAlertFire(w http.ResponseWriter, r *http.Request, ruleId, f
 	httpx.OK(w, out)
 }
 
-func (h *Handler) ListSLOs(w http.ResponseWriter, r *http.Request) { httpx.ListFrom(w, r, h.svc.SLOs) }
+func (h *Handler) ListSLOs(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "slo.list", "slos", operationsReaders...) {
+		return
+	}
+	httpx.ListFrom(w, r, h.svc.SLOs)
+}
 
 func (h *Handler) CreateSLO(w http.ResponseWriter, r *http.Request) {
 	var slo SLO
@@ -267,6 +288,9 @@ func (h *Handler) CreateSLO(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetSLOStatus(w http.ResponseWriter, r *http.Request, id string) {
+	if !httpx.Require(w, r, h.auditor, "slo.status", "slo/"+id, operationsReaders...) {
+		return
+	}
 	out, err := h.svc.SLOStatusByID(r.Context(), id)
 	if err != nil {
 		httpx.Error(w, r, err)

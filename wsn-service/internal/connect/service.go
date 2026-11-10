@@ -68,7 +68,7 @@ type Service interface {
 	Portal(ctx context.Context) ([]map[string]any, error)
 	// API keys (developer portal credentials with per-key hourly quotas).
 	Keys(ctx context.Context) ([]APIKey, error)
-	CreateKey(ctx context.Context, ec kernel.ExecutionContext, name string, permissions []string, quotaPerHour int) (*CreatedKey, error)
+	CreateKey(ctx context.Context, ec kernel.ExecutionContext, name string, permissions []string, quotaPerHour int, expiresAt *time.Time) (*CreatedKey, error)
 	RevokeKey(ctx context.Context, ec kernel.ExecutionContext, id string) error
 	// GraphQL executes a minimal query document against entity records.
 	GraphQL(ctx context.Context, ec kernel.ExecutionContext, query string) (map[string]any, []map[string]string, error)
@@ -459,9 +459,32 @@ func (s *service) UpdateSecret(ctx context.Context, ec kernel.ExecutionContext, 
 }
 
 // ReadSecret returns one secret's values to the caller; audited, never logged or stored.
+// readableSecret reports whether a path holds integration credentials, the only secrets control.manage
+// may read; everything else under the mount is platform configuration.
+func readableSecret(path string) bool {
+	p := strings.TrimPrefix(strings.TrimPrefix(path, "vault://"), "/")
+	return strings.HasPrefix(p, "integrations/") && !strings.Contains(p, "..")
+}
+
+// unheld returns the permissions in want that holder does not have.
+func unheld(holder kernel.Permissions, want []string) []string {
+	var out []string
+	for _, p := range want {
+		if !holder.Has(p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func (s *service) ReadSecret(ctx context.Context, ec kernel.ExecutionContext, path string) (map[string]string, error) {
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, "control.manage", "secret.read", "secret/"+path); err != nil {
 		return nil, err
+	}
+	// platform secrets (database, run-grant key, model keys) are as private to read as to write
+	if !readableSecret(path) && !kernel.IsLocalSystemUser(ec.Actor.ID) {
+		_ = s.auditor.RecordDetached(ctx, ec, "secret.read", "secret/"+path, kernel.OutcomeDenied, "Outside integrations/")
+		return nil, kernel.Forbidden("Only integration credentials can be read here").WithTrace(ec.TraceID)
 	}
 	values, err := s.secrets.Read(ctx, path)
 	if errors.Is(err, secrets.ErrNotFound) {
@@ -815,14 +838,22 @@ func (s *service) Portal(ctx context.Context) ([]map[string]any, error) {
 
 func (s *service) Keys(ctx context.Context) ([]APIKey, error) { return s.keys.List(ctx) }
 
-func (s *service) CreateKey(ctx context.Context, ec kernel.ExecutionContext, name string, permissions []string, quotaPerHour int) (*CreatedKey, error) {
+func (s *service) CreateKey(ctx context.Context, ec kernel.ExecutionContext, name string, permissions []string, quotaPerHour int, expiresAt *time.Time) (*CreatedKey, error) {
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, "connect.manage", "api-key.create", "api-key"); err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(name) == "" {
 		return nil, kernel.Invalid("The key needs a name")
 	}
-	created, err := issueKey(s.db, name, permissions, quotaPerHour)
+	if expiresAt != nil && !expiresAt.After(time.Now()) {
+		return nil, kernel.Invalid("expiresAt must be in the future")
+	}
+	// a key acts with its own permissions, so it may not carry any its creator lacks
+	if missing := unheld(ec.Permissions, permissions); len(missing) > 0 {
+		_ = s.auditor.RecordDetached(ctx, ec, "api-key.create", "api-key", kernel.OutcomeDenied, "Would grant "+strings.Join(missing, ", "))
+		return nil, kernel.Forbidden("An API key can't carry permissions you don't hold: %s", strings.Join(missing, ", ")).WithTrace(ec.TraceID)
+	}
+	created, err := issueKey(s.db, name, ec.Actor.ID, permissions, quotaPerHour, expiresAt)
 	if err != nil {
 		return nil, err
 	}
@@ -855,6 +886,13 @@ func (s *service) GraphQL(ctx context.Context, ec kernel.ExecutionContext, query
 		return nil, []map[string]string{{"message": err.Error()}}, nil
 	}
 	data, errs := s.graphql(ctx, ec, fields)
+	names := make([]string, 0, len(fields))
+	for _, f := range fields {
+		names = append(names, f.name)
+	}
+	if err := s.auditor.RecordDetached(ctx, ec, "graphql.query", "graphql", kernel.OutcomeAllowed, strings.Join(names, ", ")); err != nil {
+		return nil, nil, err
+	}
 	return data, errs, nil
 }
 

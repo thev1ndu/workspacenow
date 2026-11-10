@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import { Link, Separator } from "@heroui/react";
 import { ChevronRight, CircleCheck, CircleExclamation, Pulse } from "@workspacenow/icons";
-import { useListApprovals, useListExecutions, useListHealth, useListWorkflows } from "@workspacenow/api-client";
+import { useCan, useListApprovals, useListExecutions, useListHealth, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { NoDataFound, SectionCard, StatusChip, formatRelative, ListSkeleton, Loading } from "@workspacenow/views";
 
@@ -19,8 +19,12 @@ interface AttentionItem {
 /** What someone should act on now, across Flow and Control: pending approvals, failed executions and unhealthy resources. */
 export function NeedsAttentionCard() {
   const approvals = useListApprovals({ status: "pending" });
-  const executions = useListExecutions();
-  const workflows = useListWorkflows();
+  // failed executions are only listed to people who may read workflows
+  const flowManager = useCan("flow.manage");
+  const auditor = useCan("audit.read");
+  const seesFlow = flowManager || auditor;
+  const executions = useListExecutions({}, { enabled: seesFlow });
+  const workflows = useListWorkflows({ enabled: seesFlow });
   const health = useListHealth();
   const workflowName = (id: string) => workflows.data?.items.find((w) => w.id === id)?.name ?? id;
 
@@ -55,7 +59,7 @@ export function NeedsAttentionCard() {
         status: s.status,
       })),
   ];
-  const loading = approvals.isPending || executions.isPending || health.isPending;
+  const loading = approvals.isPending || (seesFlow && executions.isPending) || health.isPending;
 
   return (
     <SectionCard

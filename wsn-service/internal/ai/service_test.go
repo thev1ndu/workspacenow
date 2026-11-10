@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -55,19 +56,22 @@ func (m *memCollection[T]) List(context.Context) ([]T, error) {
 func (m *memCollection[T]) Where(_ context.Context, cond string, args ...any) ([]T, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	// supports the doc->>'key' = ? equality conditions the service uses, matched to args in order
+	keys := regexp.MustCompile(`doc->>'(\w+)' = \?`).FindAllStringSubmatch(cond, -1)
 	var out []T
 	for _, v := range m.data {
-		// only supports the doc->>'agentId' = ? shape the service uses
-		if strings.Contains(cond, "agentId") && len(args) == 1 {
-			raw, _ := json.Marshal(v)
-			var doc map[string]any
-			_ = json.Unmarshal(raw, &doc)
-			if fmt.Sprint(doc["agentId"]) == fmt.Sprint(args[0]) {
-				out = append(out, *v)
+		raw, _ := json.Marshal(v)
+		var doc map[string]any
+		_ = json.Unmarshal(raw, &doc)
+		match := true
+		for i, k := range keys {
+			if i >= len(args) || fmt.Sprint(doc[k[1]]) != fmt.Sprint(args[i]) {
+				match = false
 			}
-			continue
 		}
-		out = append(out, *v)
+		if match {
+			out = append(out, *v)
+		}
 	}
 	return out, nil
 }
@@ -442,20 +446,82 @@ func TestRunsListAndGet(t *testing.T) {
 	ctx := context.Background()
 	runs.Put(ctx, &RunDoc{ID: "run-1", AgentID: "agent-proc", Status: "completed", Trigger: "manual", TraceID: "t1", StartedAt: time.Now().Add(-time.Hour)})
 	runs.Put(ctx, &RunDoc{ID: "run-2", AgentID: "agent-proc", Status: "failed", Trigger: "workflow", TraceID: "t2", StartedAt: time.Now()})
-	all, total, err := s.Runs(ctx, "", "", 50, 0)
+	all, total, err := s.Runs(ctx, "", "", "", 50, 0)
 	if err != nil || len(all) != 2 || total != 2 || all[0].Id != "run-2" {
 		t.Fatalf("newest first: %v total=%d %v", all, total, err)
 	}
-	one, _, err := s.Runs(ctx, "agent-proc", "", 50, 0)
+	one, _, err := s.Runs(ctx, "", "agent-proc", "", 50, 0)
 	if err != nil || len(one) != 2 {
 		t.Fatalf("filter: %v %v", one, err)
 	}
-	run, err := s.Run(ctx, "run-1")
+	run, err := s.Run(ctx, "", "run-1")
 	if err != nil || run.Id != "run-1" {
 		t.Fatalf("get: %v %v", run, err)
 	}
-	if _, err := s.Run(ctx, "run-nope"); err == nil {
+	if _, err := s.Run(ctx, "", "run-nope"); err == nil {
 		t.Fatal("missing run must error")
+	}
+
+	// owners see only their own runs
+	runs.Put(ctx, &RunDoc{ID: "run-3", AgentID: "agent-proc", UserID: "u-amaya", Status: "completed", TraceID: "t3", StartedAt: time.Now()})
+	mine, total, err := s.Runs(ctx, "u-amaya", "agent-proc", "", 50, 0)
+	if err != nil || total != 1 || mine[0].Id != "run-3" {
+		t.Fatalf("owner filter: %v total=%d %v", mine, total, err)
+	}
+	if _, err := s.Run(ctx, "u-amaya", "run-1"); err == nil {
+		t.Fatal("someone else's run must be not found")
+	}
+	if _, err := s.Run(ctx, "u-amaya", "run-3"); err != nil {
+		t.Fatalf("own run: %v", err)
+	}
+}
+
+func TestRunAgentNeedsAgentPermissionsOrManage(t *testing.T) {
+	s, _, auditor, _, _, _, _, _, _ := testService(t)
+	ctx := context.Background()
+	clerk := &kernel.Caller{UserID: "u-clerk", Name: "Clerk", Roles: []string{"store"}, Permissions: kernel.NewPermissions("supplier.read")}
+	if _, err := s.RunAgent(ctx, clerk, clerk.Context(kernel.EntryAPI, "t"), "agent-proc", "hi"); err == nil {
+		t.Fatal("a caller without inventory.read must not run an inventory.read agent")
+	}
+	if !slices.ContainsFunc(auditor.records, func(r string) bool { return strings.Contains(r, "agent.run") && strings.Contains(r, "denied") }) {
+		t.Fatalf("denied run must be audited: %v", auditor.records)
+	}
+	holder := &kernel.Caller{UserID: "u-store", Name: "Store", Roles: []string{"store"}, Permissions: kernel.NewPermissions("inventory.read")}
+	if _, err := s.RunAgent(ctx, holder, holder.Context(kernel.EntryAPI, "t"), "agent-proc", "hi"); err != nil {
+		t.Fatalf("a caller holding every agent permission may run it: %v", err)
+	}
+	manager := &kernel.Caller{UserID: "u-dev", Name: "Dev", Roles: []string{"dev"}, Permissions: kernel.NewPermissions("ai.manage")}
+	if _, err := s.RunAgent(ctx, manager, manager.Context(kernel.EntryAPI, "t"), "agent-proc", "hi"); err != nil {
+		t.Fatalf("an AI manager may run any agent: %v", err)
+	}
+}
+
+func TestUpdateAgentCannotGrantUnheldPermissions(t *testing.T) {
+	s, _, _, _, _, _, agents, _, _ := testService(t)
+	ctx := context.Background()
+	dev := &kernel.Caller{UserID: "u-dev", Name: "Dev", Permissions: kernel.NewPermissions("ai.manage", "inventory.read")}
+	perms := []oapi.Permission{"inventory.read", "procurement.approve"}
+	if _, err := s.UpdateAgent(ctx, dev.Context(kernel.EntryControl, "t"), "agent-proc", oapi.UpdateAgentJSONRequestBody{Permissions: &perms}); err == nil {
+		t.Fatal("granting procurement.approve without holding it must fail")
+	}
+	if a, _ := agents.Get(ctx, "agent-proc"); slices.Contains(a.Permissions, "procurement.approve") {
+		t.Fatal("a refused update must not change the agent")
+	}
+	ok := []oapi.Permission{"inventory.read"}
+	if _, err := s.UpdateAgent(ctx, dev.Context(kernel.EntryControl, "t"), "agent-proc", oapi.UpdateAgentJSONRequestBody{Permissions: &ok}); err != nil {
+		t.Fatalf("held permissions may be granted: %v", err)
+	}
+}
+
+func TestRunSidekickAppScopeNeedsAppAccess(t *testing.T) {
+	s, _, _, _, _, _, _, _, _ := testService(t)
+	ctx := context.Background()
+	outsider := &kernel.Caller{UserID: "u-hr", Name: "HR", Roles: []string{"hr"}, Permissions: kernel.NewPermissions("hr.read")}
+	if _, err := s.RunSidekick(ctx, outsider, outsider.Context(kernel.EntryAPI, "t"), "hi", "app-inventory"); err == nil {
+		t.Fatal("a caller who can use none of the app's tools must not scope Sidekick to it")
+	}
+	if _, err := s.RunSidekick(ctx, outsider, outsider.Context(kernel.EntryAPI, "t"), "hi", ""); err != nil {
+		t.Fatalf("unscoped Sidekick still works: %v", err)
 	}
 }
 

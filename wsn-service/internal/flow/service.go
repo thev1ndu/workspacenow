@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"go.temporal.io/api/enums/v1"
@@ -27,7 +28,8 @@ type Service interface {
 	StartForEvent(ctx context.Context, e kernel.Event) error
 	Executions(ctx context.Context, workflowID string) ([]Execution, error)
 	Execution(ctx context.Context, id string) (*Execution, error)
-	Approvals(ctx context.Context, status, applicationID string, limit, offset int) ([]Approval, int, error)
+	// Approvals lists approvals; a non-nil viewer sees only those they may decide or that they started.
+	Approvals(ctx context.Context, viewer *kernel.Caller, status, applicationID string, limit, offset int) ([]Approval, int, error)
 	Decide(ctx context.Context, caller *kernel.Caller, id string, approved bool, comment string) (*Approval, error)
 	// Simulate dry-runs a workflow against a sample event, without side effects.
 	Simulate(ctx context.Context, ec kernel.ExecutionContext, workflowID string, event map[string]any) (*Simulation, error)
@@ -128,7 +130,8 @@ func (s *service) Save(ctx context.Context, ec kernel.ExecutionContext, id strin
 	if problems := validateWorkflow(def, refs); len(problems) > 0 {
 		return nil, kernel.Problems(problems).WithTrace(ec.TraceID)
 	}
-	// A workflow acts with exactly what its operation steps need, and no author may grant more than they hold.
+	// A workflow acts with exactly what its operation steps need, and no author may save one needing more than
+	// they hold, even permissions an earlier version already had (that would let an editor repurpose them).
 	var needed []string
 	for _, step := range def.Steps {
 		if step.Kind != "operation" {
@@ -144,8 +147,7 @@ func (s *service) Save(ctx context.Context, ec kernel.ExecutionContext, id strin
 	}
 	var granted []string
 	for _, p := range needed {
-		held := existing != nil && slices.Contains(existing.Permissions, p)
-		if !held && !ec.Permissions.Has(p) {
+		if !ec.Permissions.Has(p) {
 			granted = append(granted, p)
 		}
 	}
@@ -233,6 +235,12 @@ func (s *service) Start(ctx context.Context, caller *kernel.Caller, id string, i
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, "flow.manage", "workflow.run", "workflow/"+w.ID); err != nil {
 		return nil, err
 	}
+	// the run acts with the workflow's permissions, so starting it must not exceed the starter's own
+	for _, p := range w.Permissions {
+		if err := kernel.RequirePermission(ctx, s.auditor, ec, p, "workflow.run", "workflow/"+w.ID); err != nil {
+			return nil, err
+		}
+	}
 	if w.Status != "active" {
 		return nil, kernel.InvalidState("%s is %s", w.Name, w.Status)
 	}
@@ -241,6 +249,7 @@ func (s *service) Start(ctx context.Context, caller *kernel.Caller, id string, i
 		runCtx[k] = v
 	}
 	runCtx["triggeredBy"] = caller.Name
+	runCtx["triggeredById"] = caller.UserID
 	return s.launch(ctx, ExecutionInput{ExecutionID: kernel.NewID("exec"), TraceID: ec.TraceID, Workflow: *w, Context: runCtx})
 }
 
@@ -257,6 +266,7 @@ func (s *service) StartForEvent(ctx context.Context, e kernel.Event) error {
 		for k, v := range e.Payload {
 			runCtx[k] = v
 		}
+		requesterOf(e.Actor, runCtx)
 		if _, err := s.launch(ctx, ExecutionInput{ExecutionID: "exec-" + w.ID + "-" + e.ID, TraceID: e.TraceID, Workflow: w, Context: runCtx}); err != nil {
 			return err
 		}
@@ -306,29 +316,47 @@ func (s *service) Execution(ctx context.Context, id string) (*Execution, error) 
 	return e, err
 }
 
-func (s *service) Approvals(ctx context.Context, status, applicationID string, limit, offset int) ([]Approval, int, error) {
+func (s *service) Approvals(ctx context.Context, viewer *kernel.Caller, status, applicationID string, limit, offset int) ([]Approval, int, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	cond, args := "", []any{}
+	conds, args := []string{}, []any{}
 	if status != "" {
-		cond = "doc->>'status' = ?"
+		conds = append(conds, "doc->>'status' = ?")
 		args = append(args, status)
 	}
 	if applicationID != "" {
-		c := "doc->'subject'->>'applicationId' = ?"
-		if cond != "" {
-			cond += " AND " + c
-		} else {
-			cond = c
-		}
+		conds = append(conds, "doc->'subject'->>'applicationId' = ?")
 		args = append(args, applicationID)
 	}
-	docs, total, err := s.approvals.Page(ctx, cond, limit, offset, args...)
+	if viewer != nil && !viewer.Permissions.Has("*") {
+		conds = append(conds, "(doc->>'permission' IN ? OR doc->>'requestedBy' = ?)")
+		args = append(args, append(viewer.Permissions.List(), ""), viewer.UserID)
+	}
+	docs, total, err := s.approvals.Page(ctx, strings.Join(conds, " AND "), limit, offset, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 	return docs, int(total), nil
+}
+
+// requesterOf records who caused a triggering event, so its approvals can enforce separation of duties.
+// An agent acting for a person counts as that person.
+func requesterOf(a *kernel.Actor, runCtx map[string]any) {
+	if a == nil {
+		return
+	}
+	switch {
+	case a.Kind == kernel.ActorUser:
+		runCtx["triggeredById"], runCtx["triggeredByName"] = a.ID, a.Name
+	case a.OnBehalfOf != "":
+		runCtx["triggeredByName"] = a.OnBehalfOf
+	}
+}
+
+// isRequester reports whether the caller started the run the approval belongs to.
+func isRequester(a *Approval, c *kernel.Caller) bool {
+	return (a.RequestedBy != "" && a.RequestedBy == c.UserID) || (a.RequestedBy == "" && a.RequestedByName != "" && a.RequestedByName == c.Name)
 }
 
 // Decide records a person's decision, acts on its subject as that person, and resumes the execution.
@@ -350,6 +378,10 @@ func (s *service) Decide(ctx context.Context, caller *kernel.Caller, id string, 
 	}
 	if err := kernel.RequirePermission(ctx, s.auditor, ec, approval.Permission, "approval."+verb, "approval/"+approval.ID); err != nil {
 		return nil, err
+	}
+	if isRequester(approval, caller) {
+		_ = s.auditor.RecordDetached(ctx, ec, "approval."+verb, "approval/"+approval.ID, kernel.OutcomeDenied, "Requester cannot decide their own request")
+		return nil, kernel.Forbidden("You started this request, so someone else has to decide it").WithTrace(ec.TraceID)
 	}
 	err = postgres.InTx(ctx, s.db, func(ctx context.Context) error {
 		if approval.Subject != nil && approval.Subject.Entity == "PurchaseRequest" {

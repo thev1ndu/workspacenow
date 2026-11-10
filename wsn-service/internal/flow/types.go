@@ -184,5 +184,8 @@ type Approval struct {
 	RequestedAt time.Time  `json:"requestedAt"`
 	DecidedAt   *time.Time `json:"decidedAt,omitempty"`
 	DecidedBy   string     `json:"decidedBy,omitempty"`
-	Comment     string     `json:"comment,omitempty"`
+	// RequestedBy and RequestedByName identify who started the run; they may not decide it.
+	RequestedBy     string `json:"requestedBy,omitempty"`
+	RequestedByName string `json:"requestedByName,omitempty"`
+	Comment         string `json:"comment,omitempty"`
 }

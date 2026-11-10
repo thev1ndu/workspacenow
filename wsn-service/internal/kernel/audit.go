@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -71,6 +72,19 @@ func (a *auditor) write(db *gorm.DB, ec ExecutionContext, action, resource strin
 }
 
 // RequirePermission guards an admin action, auditing a denial detached and returning a traced 403.
+// RequireAnyPermission passes when the caller holds at least one of permissions; a denial is audited.
+func RequireAnyPermission(ctx context.Context, a Auditor, ec ExecutionContext, action, resource string, permissions ...string) error {
+	for _, p := range permissions {
+		if ec.Permissions.Has(p) {
+			return nil
+		}
+	}
+	if err := a.RecordDetached(ctx, ec, action, resource, OutcomeDenied, "Missing any of "+strings.Join(permissions, ", ")); err != nil {
+		return err
+	}
+	return Forbidden("%s needs one of %s", ec.Actor.Name, strings.Join(permissions, ", ")).WithTrace(ec.TraceID)
+}
+
 func RequirePermission(ctx context.Context, a Auditor, ec ExecutionContext, permission, action, resource string) error {
 	if ec.Permissions.Has(permission) {
 		return nil

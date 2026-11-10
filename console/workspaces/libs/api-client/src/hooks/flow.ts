@@ -3,9 +3,10 @@ import type { Approval, Workflow, WorkflowDefinition } from "@workspacenow/types
 import * as api from "../apis/flow";
 import { useApiMutation, useApiQuery } from "./react-query-notifications";
 
-export function useListWorkflows() {
+/** Workflows and executions need flow.manage or audit.read; pass `enabled: false` for callers who lack both. */
+export function useListWorkflows(options: { enabled?: boolean } = {}) {
   const { getToken } = useAuthHooks();
-  return useApiQuery({ queryKey: ["workflows"], queryFn: () => api.listWorkflows(getToken) });
+  return useApiQuery({ queryKey: ["workflows"], queryFn: () => api.listWorkflows(getToken), enabled: options.enabled ?? true });
 }
 
 export function useGetWorkflow(params: { workflowId?: string }) {
@@ -36,9 +37,9 @@ export function useStartWorkflow() {
   });
 }
 
-export function useListExecutions(query: { workflowId?: string } = {}) {
+export function useListExecutions(query: { workflowId?: string } = {}, options: { enabled?: boolean } = {}) {
   const { getToken } = useAuthHooks();
-  return useApiQuery({ queryKey: ["executions", query], queryFn: () => api.listExecutions(query, getToken) });
+  return useApiQuery({ queryKey: ["executions", query], queryFn: () => api.listExecutions(query, getToken), enabled: options.enabled ?? true });
 }
 
 export function useGetExecution(params: { executionId?: string }) {

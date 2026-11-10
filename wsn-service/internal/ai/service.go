@@ -28,14 +28,18 @@ type InvokeOutcome struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
+// ManagePermission administers agents and models; it also lets the holder read every run.
+const ManagePermission = "ai.manage"
+
 // Service runs agents through wsn-ai-service and serves the AI resources.
 type Service interface {
 	Providers(ctx context.Context) ([]oapi.ModelProvider, error)
 	Agents(ctx context.Context) ([]oapi.Agent, error)
 	Agent(ctx context.Context, id string) (*oapi.Agent, error)
 	UpdateAgent(ctx context.Context, ec kernel.ExecutionContext, id string, body oapi.UpdateAgentJSONRequestBody) (*oapi.Agent, error)
-	Runs(ctx context.Context, agentID, q string, limit, offset int) ([]oapi.AgentRun, int, error)
-	Run(ctx context.Context, id string) (*oapi.AgentRun, error)
+	// Runs and Run return only runs started by owner; an empty owner means every run.
+	Runs(ctx context.Context, owner, agentID, q string, limit, offset int) ([]oapi.AgentRun, int, error)
+	Run(ctx context.Context, owner, id string) (*oapi.AgentRun, error)
 	RunAgent(ctx context.Context, caller *kernel.Caller, ec kernel.ExecutionContext, agentID, prompt string) (*oapi.AgentRun, error)
 	RunSidekick(ctx context.Context, caller *kernel.Caller, ec kernel.ExecutionContext, prompt, appID string) (*oapi.AgentRun, error)
 	// ToolCatalogue is the managed MCP server's tool list for the internal API.
@@ -146,7 +150,7 @@ func (s *service) Agent(ctx context.Context, id string) (*oapi.Agent, error) {
 
 // UpdateAgent applies a PATCH after checking ai.manage and that every tool is a known MCP tool.
 func (s *service) UpdateAgent(ctx context.Context, ec kernel.ExecutionContext, id string, body oapi.UpdateAgentJSONRequestBody) (*oapi.Agent, error) {
-	if err := kernel.RequirePermission(ctx, s.auditor, ec, "ai.manage", "agent.update", "agent/"+id); err != nil {
+	if err := kernel.RequirePermission(ctx, s.auditor, ec, ManagePermission, "agent.update", "agent/"+id); err != nil {
 		return nil, err
 	}
 	doc, err := s.agents.GetForUpdate(ctx, id)
@@ -168,6 +172,11 @@ func (s *service) UpdateAgent(ctx context.Context, ec kernel.ExecutionContext, i
 	if body.Permissions != nil {
 		doc.Permissions = make([]string, 0, len(*body.Permissions))
 		for _, p := range *body.Permissions {
+			// an editor can only hand an agent permissions they hold themselves
+			if !ec.Permissions.Has(string(p)) {
+				_ = s.auditor.RecordDetached(ctx, ec, "agent.update", "agent/"+id, kernel.OutcomeDenied, "Editor lacks permission "+string(p))
+				return nil, kernel.Forbidden("You can't grant %s because you don't hold it", p).WithTrace(ec.TraceID)
+			}
 			doc.Permissions = append(doc.Permissions, string(p))
 		}
 	}
@@ -191,25 +200,25 @@ func (s *service) UpdateAgent(ctx context.Context, ec kernel.ExecutionContext, i
 	return &out, nil
 }
 
-func (s *service) Runs(ctx context.Context, agentID, q string, limit, offset int) ([]oapi.AgentRun, int, error) {
+func (s *service) Runs(ctx context.Context, owner, agentID, q string, limit, offset int) ([]oapi.AgentRun, int, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	cond, args := "", []any{}
+	conds, args := []string{}, []any{}
+	if owner != "" {
+		conds = append(conds, "doc->>'userId' = ?")
+		args = append(args, owner)
+	}
 	if agentID != "" {
-		cond = "doc->>'agentId' = ?"
+		conds = append(conds, "doc->>'agentId' = ?")
 		args = append(args, agentID)
 	}
 	if q != "" {
 		like := "%" + q + "%"
-		if cond != "" {
-			cond += " AND (doc->>'prompt' ILIKE ? OR id ILIKE ?)"
-		} else {
-			cond = "(doc->>'prompt' ILIKE ? OR id ILIKE ?)"
-		}
+		conds = append(conds, "(doc->>'prompt' ILIKE ? OR id ILIKE ?)")
 		args = append(args, like, like)
 	}
-	docs, total, err := s.runs.Page(ctx, cond, limit, offset, args...)
+	docs, total, err := s.runs.Page(ctx, strings.Join(conds, " AND "), limit, offset, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -224,10 +233,13 @@ func (s *service) Runs(ctx context.Context, agentID, q string, limit, offset int
 	return out, int(total), nil
 }
 
-func (s *service) Run(ctx context.Context, id string) (*oapi.AgentRun, error) {
+func (s *service) Run(ctx context.Context, owner, id string) (*oapi.AgentRun, error) {
 	doc, err := s.runs.Get(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if owner != "" && doc.UserID != owner {
+		return nil, kernel.NotFound("Agent run %s not found", id)
 	}
 	out, err := doc.toOapi()
 	if err != nil {
@@ -322,7 +334,7 @@ func (s *service) run(ctx context.Context, caller *kernel.Caller, traceID, agent
 	}
 	steps, _ := json.Marshal(res.Steps)
 	doc := &RunDoc{
-		ID: runID, AgentID: agent.ID, Prompt: prompt, Answer: res.Answer,
+		ID: runID, AgentID: agent.ID, UserID: callerID(caller), Prompt: prompt, Answer: res.Answer,
 		Status: res.Status, Trigger: trigger, TraceID: traceID, ApplicationID: appID,
 		Steps: steps, Tokens: res.Tokens, DurationMs: res.DurationMs, StartedAt: time.Now().UTC(),
 	}
@@ -343,7 +355,21 @@ func (s *service) run(ctx context.Context, caller *kernel.Caller, traceID, agent
 	return &run, nil
 }
 
+// RunAgent runs an agent on request. An agent with its own service identity may only be run by an AI
+// manager or by someone who already holds every permission it has, so running it never escalates.
 func (s *service) RunAgent(ctx context.Context, caller *kernel.Caller, ec kernel.ExecutionContext, agentID, prompt string) (*oapi.AgentRun, error) {
+	agent, err := s.agents.Get(ctx, agentID)
+	if err != nil {
+		return nil, kernel.NotFound("Agent %s not found", agentID)
+	}
+	if !agent.ActsAsCaller && !ec.Permissions.Has(ManagePermission) {
+		for _, p := range agent.Permissions {
+			if !ec.Permissions.Has(p) {
+				_ = s.auditor.RecordDetached(ctx, ec, "agent.run", "agent/"+agent.ID, kernel.OutcomeDenied, "Caller lacks agent permission "+p)
+				return nil, kernel.Forbidden("Running %s needs %s or every permission it holds (missing %s)", agent.Name, ManagePermission, p).WithTrace(ec.TraceID)
+			}
+		}
+	}
 	return s.run(ctx, caller, ec.TraceID, agentID, prompt, "manual", "")
 }
 
@@ -357,8 +383,41 @@ func (s *service) RunSidekick(ctx context.Context, caller *kernel.Caller, ec ker
 		if _, err := s.applicationName(ctx, appID); err != nil {
 			return nil, kernel.NotFound("Application %s not found", appID).WithTrace(ec.TraceID)
 		}
+		usable, err := s.canUseApplication(ctx, ec.Permissions, appID)
+		if err != nil {
+			return nil, err
+		}
+		if !usable {
+			_ = s.auditor.RecordDetached(ctx, ec, "sidekick.run", "application/"+appID, kernel.OutcomeDenied, "Caller can use none of the application's tools")
+			return nil, kernel.Forbidden("You don't have access to this application").WithTrace(ec.TraceID)
+		}
 	}
 	return s.run(ctx, caller, ec.TraceID, SidekickAgentID, prompt, "manual", appID)
+}
+
+// canUseApplication reports whether the caller holds the permission of at least one of the app's tools.
+func (s *service) canUseApplication(ctx context.Context, perms kernel.Permissions, appID string) (bool, error) {
+	appTools, err := s.tools.ApplicationTools(ctx, appID)
+	if err != nil {
+		return false, err
+	}
+	catalogue, err := s.tools.Tools(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, t := range catalogue {
+		if slices.Contains(appTools, t.Name) && (t.Permission == "" || perms.Has(t.Permission)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func callerID(c *kernel.Caller) string {
+	if c == nil {
+		return ""
+	}
+	return c.UserID
 }
 
 // appDoc is the subset of the applications collection the AI service needs.

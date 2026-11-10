@@ -2030,10 +2030,14 @@ type Api struct {
 
 // ApiKey defines model for ApiKey.
 type ApiKey struct {
-	CreatedAt   IsoDate  `json:"createdAt"`
-	Id          string   `json:"id"`
-	LastUsedAt  *IsoDate `json:"lastUsedAt,omitempty"`
-	Name        string   `json:"name"`
+	CreatedAt  IsoDate  `json:"createdAt"`
+	ExpiresAt  *IsoDate `json:"expiresAt,omitempty"`
+	Id         string   `json:"id"`
+	LastUsedAt *IsoDate `json:"lastUsedAt,omitempty"`
+	Name       string   `json:"name"`
+
+	// OwnerId User who issued the key
+	OwnerId     *string  `json:"ownerId,omitempty"`
 	Permissions []string `json:"permissions"`
 
 	// Prefix First chars of the raw key, for identification
@@ -2282,10 +2286,14 @@ type CreateEntityBodyScope string
 
 // CreatedApiKey defines model for CreatedApiKey.
 type CreatedApiKey struct {
-	CreatedAt   IsoDate  `json:"createdAt"`
-	Id          string   `json:"id"`
-	LastUsedAt  *IsoDate `json:"lastUsedAt,omitempty"`
-	Name        string   `json:"name"`
+	CreatedAt  IsoDate  `json:"createdAt"`
+	ExpiresAt  *IsoDate `json:"expiresAt,omitempty"`
+	Id         string   `json:"id"`
+	LastUsedAt *IsoDate `json:"lastUsedAt,omitempty"`
+	Name       string   `json:"name"`
+
+	// OwnerId User who issued the key
+	OwnerId     *string  `json:"ownerId,omitempty"`
 	Permissions []string `json:"permissions"`
 
 	// Prefix First chars of the raw key, for identification
@@ -3807,6 +3815,7 @@ type GetTokenUsageParams struct {
 
 // CreateApiKeyJSONBody defines parameters for CreateApiKey.
 type CreateApiKeyJSONBody struct {
+	ExpiresAt   *IsoDate  `json:"expiresAt,omitempty"`
 	Name        string    `json:"name"`
 	Permissions *[]string `json:"permissions,omitempty"`
 

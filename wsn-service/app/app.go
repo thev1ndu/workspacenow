@@ -261,21 +261,21 @@ func startServer(ctx context.Context, g *errgroup.Group, cfg *config.Config, db 
 
 	mux := http.NewServeMux()
 	api.Routes(mux, api.Modules{
-		Identity: identity.NewHandler(identitySvc, cfg.DemoMode),
+		Identity: identity.NewHandler(identitySvc, auditor, cfg.DemoMode),
 		Demo:     seed.NewHandler(db, cfg.DemoMode, identitySvc.InvalidateAccess),
 		Data:     data.NewHandler(dataSvc, runtime, engine),
 		BizOps:   bizops.NewHandler(engine),
-		Connect:  connect.NewHandler(connectSvc),
+		Connect:  connect.NewHandler(connectSvc, auditor),
 		Stream:   hub,
 		Studio:   studio.NewHandler(studioSvc),
 		Obs:      obs.NewHandler(obsSvc, auditor),
 		AI:       ai.NewHandler(aiSvc, auditor),
-		Flow:     flow.NewHandler(flowSvc),
+		Flow:     flow.NewHandler(flowSvc, auditor),
 	})
 	mux.HandleFunc("GET /healthz", health(db, c, nc, tc, artifacts, cfg))
 	mux.HandleFunc("GET /readyz", readiness(db, c))
 	// Local system login (used when no OIDC is configured); registered directly on the mux.
-	mux.HandleFunc("POST "+api.BasePath+"/auth/login", identity.NewHandler(identitySvc, cfg.DemoMode).Login)
+	mux.HandleFunc("POST "+api.BasePath+"/auth/login", identity.NewHandler(identitySvc, auditor, cfg.DemoMode).Login)
 
 	public := func(r *http.Request) bool {
 		p := strings.TrimPrefix(r.URL.Path, api.BasePath)

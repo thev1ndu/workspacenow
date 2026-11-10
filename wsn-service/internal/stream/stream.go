@@ -104,8 +104,8 @@ func (h *Hub) StreamEvents(w http.ResponseWriter, r *http.Request, params oapi.S
 	visible := h.visibility(r.Context(), caller)
 	if params.LastEventID != nil && *params.LastEventID != "" {
 		for _, e := range h.since(r.Context(), *params.LastEventID) {
-			if visible(e) {
-				write(w, e)
+			if out, ok := visible(e); ok {
+				write(w, out)
 			}
 		}
 	}
@@ -122,10 +122,11 @@ func (h *Hub) StreamEvents(w http.ResponseWriter, r *http.Request, params oapi.S
 		case <-tick.C:
 			_, _ = fmt.Fprint(w, ": keep-alive\n\n")
 		case e := <-events:
-			if !visible(e) {
+			out, ok := visible(e)
+			if !ok {
 				continue
 			}
-			write(w, e)
+			write(w, out)
 		}
 		if err := rc.Flush(); err != nil {
 			return
@@ -141,19 +142,35 @@ func write(w http.ResponseWriter, e kernel.Event) {
 	_, _ = fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", e.ID, e.Type, b)
 }
 
-// visibility hides events about an entity from callers without its read permission.
-func (h *Hub) visibility(ctx context.Context, caller *kernel.Caller) func(kernel.Event) bool {
+// visibility decides what a caller sees of each event.
+func (h *Hub) visibility(ctx context.Context, caller *kernel.Caller) func(kernel.Event) (kernel.Event, bool) {
 	perms := map[string]string{}
 	if entities, err := h.rt.Entities(ctx); err == nil {
 		for _, e := range entities {
 			perms[e.Name] = e.ReadPermission
 		}
 	}
-	return func(e kernel.Event) bool {
+	return eventFilter(perms, caller)
+}
+
+// eventFilter hides entity events from callers without the entity's read permission. Other events (agent
+// runs, approvals, notifications) reach everyone so live views refresh, but their payload and actor are
+// kept only for auditors and for whoever caused the event.
+func eventFilter(readPermission map[string]string, caller *kernel.Caller) func(kernel.Event) (kernel.Event, bool) {
+	return func(e kernel.Event) (kernel.Event, bool) {
 		subject, _, _ := strings.Cut(e.Type, ".")
-		need, isEntity := perms[subject]
-		return !isEntity || caller.Permissions.Has(need)
+		if need, isEntity := readPermission[subject]; isEntity {
+			return e, caller.Permissions.Has(need)
+		}
+		if caller.Permissions.Has("audit.read") || causedBy(e.Actor, caller) {
+			return e, true
+		}
+		return kernel.Event{ID: e.ID, Type: e.Type, Source: e.Source, TraceID: e.TraceID, Time: e.Time}, true
 	}
+}
+
+func causedBy(a *kernel.Actor, c *kernel.Caller) bool {
+	return a != nil && ((a.Kind == kernel.ActorUser && a.ID == c.UserID) || (a.OnBehalfOf != "" && a.OnBehalfOf == c.Name))
 }
 
 // since returns the events after lastID, oldest first, for a client resuming its stream.

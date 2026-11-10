@@ -41,8 +41,9 @@ The backend must enforce all of this. The console hides what a user cannot do, b
 3. **Service Identities.** Agents and Workflows act with their own `permissions`, never the caller's.
 4. **Acts-as-caller agents.** An agent with `actsAsCaller: true` (Sidekick) runs on behalf of the signed-in user and holds only the permissions **both** the agent and the user hold.
 5. **App-scoped Sidekick.** `POST /sidekick/runs` with `applicationId` confines Sidekick to the MCP tools exposed by that application's APIs. Any other tool call is denied with the reason `"<tool> is outside <app name>"`.
-6. **No escalation.** A user cannot give a Workflow permissions they do not hold themselves (`403`).
-7. **Everything is audited.** Every attempt, whether allowed, denied or failed, writes an Audit Record with the Actor, Entry Point, action, resource and outcome. Records from one origin share a `traceId`, and `GET /traces/{id}` shows them together.
+6. **No escalation.** Nobody can hand out access they do not hold (`403`): not to a Workflow, an Agent, an API key, or a person (roles, group mappings and group members are checked against the granter). The last administrator holding `*` cannot be removed (`409`).
+7. **Separation of duties.** Whoever started a run cannot decide its approvals (`403`).
+8. **Everything is audited.** Every attempt, whether allowed, denied or failed, writes an Audit Record with the Actor, Entry Point, action, resource and outcome. Records from one origin share a `traceId`, and `GET /traces/{id}` shows them together.
 
 ### Permissions
 
@@ -97,8 +98,8 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
 | GET | `/overview` | Counts for the home dashboard | signed in |
-| GET | `/resources` | Every governed resource across workspaces | signed in |
-| GET | `/search?q=&limit=30` | Global search, best first; only what the caller may read | signed in |
+| GET | `/resources` | Every governed resource across workspaces | `control.manage` or `audit.read` |
+| GET | `/search?q=&limit=30` | Global search, best first. Each kind of hit follows its list endpoint's rule (integrations and MCP servers need `connect.manage`, users need `control.manage` or `audit.read`, and so on); records honor the entity read permission and row filters. | signed in |
 | GET | `/analytics/activity?days=14` | Daily API calls, agent tool calls, workflow steps, denials | signed in |
 | GET | `/analytics/tokens?days=14` | Daily tokens per model (one key per model name) | signed in |
 | GET | `/analytics/entry-points` | Allowed, denied and failed counts per entry point | signed in |
@@ -111,10 +112,10 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/organization` | Organization and identity provider settings | signed in |
 | GET | `/departments` | Departments | signed in |
 | GET | `/teams` | Teams | signed in |
-| GET | `/users` | Users with their role names | signed in |
-| GET | `/roles` | Roles and permissions | signed in |
-| GET | `/group-mappings` | Group to role mappings | signed in |
-| PUT | `/group-mappings` | Replace all mappings: `{ mappings: [{ group, roleId }] }`. Every `roleId` must exist. | `control.manage` |
+| GET | `/users` | Users with their role names | `control.manage` or `audit.read` |
+| GET | `/roles` | Roles and permissions | `control.manage`, `audit.read`, `flow.manage` or `ai.manage` |
+| GET | `/group-mappings` | Group to role mappings | `control.manage` or `audit.read` |
+| PUT | `/group-mappings` | Replace all mappings: `{ mappings: [{ group, roleId }] }`. Every `roleId` must exist, and each newly mapped role may only include permissions the caller holds (`403`). | `control.manage` |
 | GET | `/environments` | Development, Staging, Production, with approval flag and limits | signed in |
 
 ### Studio: applications, releases, deployments
@@ -173,7 +174,7 @@ Permission shows what the backend checks; "signed in" means any valid token. "Re
 | GET | `/entities/{name}/versions`, GET `.../versions/diff?from=&to=` | Schema snapshots per migration + field-level diff | signed in |
 | POST | `/entities/{name}/migrate` | Schema migration `{ add, drop, retype, backfill, note }`: add always safe; drop/retype refused (422) while records exist; backfill sets values on existing rows; snapshots the entity version and bumps `version` | `data.manage` |
 | GET/POST | `/entities/{name}/views` | Saved views (own + shared): `{ name, filters: [{field, op, value}], sortField, sortDesc, limit, shared }` | read perm / `data.manage` for writes |
-| PUT/DELETE | `/entities/{name}/views/{viewId}` | Replace / delete a view | `data.manage` |
+| PUT/DELETE | `/entities/{name}/views/{viewId}` | Replace / delete a view. The owner may always change their own view; a shared view also by `data.manage`; someone else's private view is `404`. | owner, or `data.manage` for shared views |
 | POST | `/entities/{name}/views/{viewId}/run?includeDeleted=` | Run the view now; RLS still applies | record perm (read) |
 | GET | `/connections` | Database connections | signed in |
 
@@ -184,7 +185,7 @@ Record writes are validated against the entity's fields: required fields, `uniqu
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
 | GET | `/business-operations` | Every operation: `{ name, summary, permission, kind, entity? }` | signed in |
-| POST | `/business-operations/invoke` | Run `{ operation, input, entryPoint }`. Returns `{ traceId, output }`. | the operation's permission |
+| POST | `/business-operations/invoke` | Run `{ operation, input, entryPoint }`; `entryPoint` may only be `studio` (default) or `api`. Returns `{ traceId, output }`. | the operation's permission |
 
 Operations are registered two ways:
 
@@ -203,31 +204,31 @@ Operations are registered two ways:
 | GET | `/mcp/tools` | All MCP tools: from WorkspaceNow API Operations (with input and output JSON Schema) and from external servers | signed in |
 | GET | `/mcp/servers` | Managed and external MCP servers | signed in |
 | POST | `/mcp/servers` | Register an external server `{ name, url, auth }` and discover its tools | `connect.manage` |
-| GET | `/integrations` | Outbound integrations; `secretRef` points to a secret and never holds the secret | signed in |
+| GET | `/integrations` | Outbound integrations; `secretRef` points to a secret and never holds the secret; stored bearer and refresh tokens come back as `********` | `connect.manage` |
 | POST | `/integrations`, PUT `/integrations/{id}` | Register / change an integration; `secretRef` must be a readable OpenBao path | `connect.manage` |
 | GET | `/secrets?prefix=` | Secret paths in the OpenBao KV mount (never values) | `connect.manage` |
-| GET | `/secrets/read?path=` | Read one secret's values (sensitive; audited as `secret.read`, never stored/logged) | `control.manage` |
+| GET | `/secrets/read?path=` | Read one secret's values (sensitive; audited as `secret.read`, never stored/logged). Only `integrations/` paths, except for the system user. | `control.manage` |
 | POST | `/integrations/{id}/test` | Test the connection. Updates `status` and `lastTestedAt`; a failed test still returns `201` with `status: failing`. | `connect.manage` |
 
-| GET/POST | `/webhooks`, PUT/DELETE `/webhooks/{id}` | Outbound subscriptions; deliveries POSTed signed (`X-WSN-Signature`), retried with backoff | `connect.manage` |
+| GET/POST | `/webhooks`, PUT/DELETE `/webhooks/{id}` | Outbound subscriptions; deliveries POSTed signed (`X-WSN-Signature`), retried with backoff. The signing secret is shown only on create; lists return `********`. | `connect.manage` |
 | GET | `/webhooks/{id}/deliveries`, POST `.../replay`, POST `.../test` | Delivery log, replay, synthetic test | `connect.manage` |
 | GET/POST | `/apis/{id}/versions`, PUT `/apis/{id}/versions/{versionId}` | API versions (active/deprecated/retired, sunset, changelog); invoke takes `?version=` | `connect.manage` |
 | GET | `/portal/apis` | Developer portal catalog (APIs + versions + operations, no secrets) | signed in |
-| GET/POST | `/api-keys`, DELETE `/api-keys/{id}` | Issue/revoke `wsn_` keys (raw once, SHA-256 stored); `X-API-Key` auth + per-key hourly quota | `connect.manage` |
-| POST | `/graphql` | Minimal GraphQL gateway over entity records (`query { Entity(where, first) { fields } }`) | entity read perm |
+| GET/POST | `/api-keys`, DELETE `/api-keys/{id}` | Issue/revoke `wsn_` keys (raw once, SHA-256 stored); `X-API-Key` auth + per-key hourly quota. A key may only carry permissions its creator holds, records `ownerId`, and stops working at its optional `expiresAt`. | `connect.manage` |
+| POST | `/graphql` | Minimal GraphQL gateway over entity records (`query { Entity(where, first) { fields } }`); each field checks its entity's read permission and the query is audited as `graphql.query` | entity read perm |
 
 ### AI: models, agents, Sidekick
 
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
-| GET | `/model-providers` | Model gateway providers, models, tokens and cost this month | signed in |
-| GET | `/agents` | Agents | signed in |
-| GET | `/agents/{id}` | One agent | signed in |
-| PATCH | `/agents/{id}` | Change `tools` (each must be a known MCP tool), `permissions`, `instructions`, `model`, `status` (`active` or `disabled`). Bumps `version`. | `ai.manage` |
-| POST | `/agents/{id}/runs` | Run with `{ prompt }`. Returns the finished `AgentRun`. | signed in; tools run under the agent's identity |
-| GET | `/agent-runs?agentId=` | Agent runs, newest first | signed in |
-| GET | `/agent-runs/{id}` | One run with its steps | signed in |
-| POST | `/sidekick/runs` | Ask Sidekick `{ prompt, applicationId? }`, as the caller | the caller must hold at least one role (`403` otherwise) |
+| GET | `/model-providers` | Model gateway providers, models, tokens and cost this month | `ai.manage` or `audit.read` |
+| GET | `/agents` | Agents | `ai.manage`, `flow.manage` or `audit.read` |
+| GET | `/agents/{id}` | One agent | `ai.manage`, `flow.manage` or `audit.read` |
+| PATCH | `/agents/{id}` | Change `tools` (each must be a known MCP tool), `permissions` (only ones the caller holds), `instructions`, `model`, `status` (`active` or `disabled`). Bumps `version`. | `ai.manage` |
+| POST | `/agents/{id}/runs` | Run with `{ prompt }`. Returns the finished `AgentRun`. An agent with its own identity needs `ai.manage` or every permission it holds, so running it never escalates. | signed in; tools run under the agent's identity |
+| GET | `/agent-runs?agentId=` | Agent runs, newest first; only your own runs unless you hold `ai.manage` or `audit.read` | signed in |
+| GET | `/agent-runs/{id}` | One run with its steps; someone else's run is `404` without `ai.manage` or `audit.read` | signed in |
+| POST | `/sidekick/runs` | Ask Sidekick `{ prompt, applicationId? }`, as the caller. Scoping to an application needs the permission of at least one of its tools. | the caller must hold at least one role (`403` otherwise) |
 
 An agent run returns the whole `AgentRun` when it finishes:
 
@@ -240,15 +241,15 @@ An agent run returns the whole `AgentRun` when it finishes:
 
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
-| GET | `/workflows` | Workflows | signed in |
-| GET | `/workflows/{id}` | One workflow | signed in |
+| GET | `/workflows` | Workflows | `flow.manage` or `audit.read` |
+| GET | `/workflows/{id}` | One workflow | `flow.manage` or `audit.read` |
 | POST | `/workflows` | Create from `{ definition }` | `flow.manage` |
-| PATCH | `/workflows/{id}` | Save a new `{ definition }`, or pause and resume with `{ status }`. Bumps `version`. | `flow.manage` |
-| POST | `/workflows/{id}/executions` | Start by hand with `{ input }`; the workflow must be `active` (`409` otherwise) | `flow.manage` |
-| GET | `/executions?workflowId=` | Executions, newest first | signed in |
-| GET | `/executions/{id}` | One execution with its step states and context | signed in |
-| GET | `/approvals?status=` | Approvals, newest first; `status` is `pending`, `approved` or `rejected` | signed in |
-| POST | `/approvals/{id}/decision` | `{ decision: "approved" \| "rejected", comment }`. Resumes the execution. `409` if already decided. | the approval's own `permission` |
+| PATCH | `/workflows/{id}` | Save a new `{ definition }`, or pause and resume with `{ status }`. Bumps `version`. The editor must hold every permission the steps need, including ones an earlier version had. | `flow.manage` |
+| POST | `/workflows/{id}/executions` | Start by hand with `{ input }`; the workflow must be `active` (`409` otherwise) | `flow.manage` plus every permission the workflow holds |
+| GET | `/executions?workflowId=` | Executions, newest first | `flow.manage` or `audit.read` |
+| GET | `/executions/{id}` | One execution with its step states and context | `flow.manage` or `audit.read` |
+| GET | `/approvals?status=` | Approvals, newest first; `status` is `pending`, `approved` or `rejected`. Without `flow.manage` or `audit.read` you see only approvals you may decide or that you started. | signed in |
+| POST | `/approvals/{id}/decision` | `{ decision: "approved" \| "rejected", comment }`. Resumes the execution. `409` if already decided; `403` if you started the request (separation of duties). | the approval's own `permission` |
 
 **Workflow model.** Triggers are `entity-event` (`{ event: "Stock.LowStockReached" }`), `schedule` (`{ cron }`, five fields) or `manual`. Steps:
 
@@ -274,8 +275,8 @@ Executions are durable and must survive restarts.
 
 | Method | Path | Purpose | Permission |
 |---|---|---|---|
-| GET | `/events?limit=50` | Platform events, newest first | signed in |
-| GET | `/events/stream` | Live platform events as server-sent events (`text/event-stream`); resume with `Last-Event-ID`. Entity events reach only callers holding the entity's read permission. | signed in |
+| GET | `/events?limit=50` | Platform events, newest first | `audit.read` |
+| GET | `/events/stream` | Live platform events as server-sent events (`text/event-stream`); resume with `Last-Event-ID`. Entity events reach only callers holding the entity's read permission; other events reach everyone without payload or actor, except auditors and whoever caused them. | signed in |
 | GET | `/audit?actorKind=&outcome=&q=` | Audit records, newest first; `q` searches action, resource, actor and detail | `audit.read` |
 | GET | `/traces` | Trace summaries built from audit records, newest first | `audit.read` |
 | GET | `/traces/{traceId}` | One trace with its audit records and events | `audit.read` |

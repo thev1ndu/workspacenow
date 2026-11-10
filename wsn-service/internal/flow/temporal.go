@@ -348,6 +348,14 @@ func (a *Activities) RequestApproval(ctx context.Context, in ExecutionInput, ste
 		ID: id, ExecutionID: in.ExecutionID, WorkflowID: in.Workflow.ID, StepID: step.ID, TraceID: in.TraceID, Title: step.Name,
 		Summary: render(step.Description, runCtx), Permission: step.Permission, Status: "pending", RequestedAt: time.Now().UTC(),
 	}
+	if v, ok := in.Context["triggeredById"].(string); ok {
+		approval.RequestedBy = v
+	}
+	if v, ok := in.Context["triggeredByName"].(string); ok {
+		approval.RequestedByName = v
+	} else if approval.RequestedBy != "" {
+		approval.RequestedByName, _ = in.Context["triggeredBy"].(string)
+	}
 	if s, ok := runCtx["subject"].(map[string]any); ok {
 		approval.Subject = &Subject{Entity: fmt.Sprint(s["entity"]), RecordID: fmt.Sprint(s["recordId"]), ApplicationID: in.Workflow.ApplicationID}
 		approval.Summary = a.describe(ctx, approval.Subject, approval.Summary)

@@ -1209,7 +1209,7 @@ paths:
       tags: [Connect]
       operationId: createApiKey
       summary: Issue an API key (wsn_...) with permissions and an hourly quota
-      description: "Requires `connect.manage`. The raw key is returned exactly once. Calls authenticate with the `X-API-Key` header; the hourly quota is enforced per key."
+      description: "Requires `connect.manage`, and the key may only carry permissions the creator holds. The raw key is returned exactly once. Calls authenticate with the `X-API-Key` header; the hourly quota is enforced per key, and an expired key is refused."
       requestBody:
         required: true
         content:
@@ -1221,6 +1221,7 @@ paths:
                 name: { type: string }
                 permissions: { type: array, items: { type: string } }
                 quotaPerHour: { type: integer, minimum: 0, default: 0, description: "0 = unlimited" }
+                expiresAt: { $ref: "#/components/schemas/IsoDate" }
       responses:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/CreatedApiKey" } } } }
         "401": { $ref: "#/components/responses/Unauthenticated" }
@@ -2653,6 +2654,8 @@ components:
         revoked: { type: boolean }
         createdAt: { $ref: "#/components/schemas/IsoDate" }
         lastUsedAt: { $ref: "#/components/schemas/IsoDate" }
+        expiresAt: { $ref: "#/components/schemas/IsoDate" }
+        ownerId: { type: string, description: "User who issued the key" }
     CreatedApiKey:
       allOf:
         - { $ref: "#/components/schemas/ApiKey" }

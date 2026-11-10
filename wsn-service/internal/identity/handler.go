@@ -12,10 +12,20 @@ import (
 // Handler serves the session and Control (organization and access) endpoints.
 type Handler struct {
 	svc      Service
+	auditor  kernel.Auditor
 	demoMode bool
 }
 
-func NewHandler(svc Service, demoMode bool) *Handler { return &Handler{svc: svc, demoMode: demoMode} }
+func NewHandler(svc Service, auditor kernel.Auditor, demoMode bool) *Handler {
+	return &Handler{svc: svc, auditor: auditor, demoMode: demoMode}
+}
+
+// directoryReaders may see people, groups and their access; roles are also readable by the designers
+// who pick permissions for workflows and agents.
+var (
+	directoryReaders = []string{"control.manage", "audit.read"}
+	roleReaders      = []string{"control.manage", "audit.read", "flow.manage", "ai.manage"}
+)
 
 // Login serves POST /api/v1/auth/login: the local system user signs in with the credentials
 // from the wsn-secrets Secret when no OIDC is configured, and receives a session token.
@@ -87,9 +97,15 @@ func (h *Handler) ListTeams(w http.ResponseWriter, r *http.Request) {
 	httpx.ListFrom(w, r, h.svc.Teams)
 }
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "user.list", "users", directoryReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Users)
 }
 func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "role.list", "roles", roleReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Roles)
 }
 func (h *Handler) ListEnvironments(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +113,9 @@ func (h *Handler) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListGroupMappings(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "group_mapping.list", "group-mappings", directoryReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.GroupMappings)
 }
 
@@ -116,6 +135,9 @@ func (h *Handler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, userId
 }
 
 func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
+	if !httpx.Require(w, r, h.auditor, "group.list", "groups", directoryReaders...) {
+		return
+	}
 	httpx.ListFrom(w, r, h.svc.Groups)
 }
 

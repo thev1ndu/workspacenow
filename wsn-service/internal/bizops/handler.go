@@ -32,11 +32,18 @@ func (h *Handler) InvokeBusinessOperation(w http.ResponseWriter, r *http.Request
 		httpx.Error(w, r, err)
 		return
 	}
+	// a person calls from the console or the API; agent, workflow and MCP entry points are set by the
+	// platform itself, so a caller naming one would forge the audit trail
 	entry := body.EntryPoint
-	if entry == "" {
+	switch entry {
+	case "":
 		entry = kernel.EntryStudio
+	case kernel.EntryStudio, kernel.EntryAPI:
+	default:
+		httpx.Error(w, r, kernel.Invalid("entryPoint must be studio or api"))
+		return
 	}
-	ec := httpx.Caller(r).Context(entry, "")
+	ec := httpx.Caller(r).ContextFrom(r.Context(), entry, "")
 	out, err := h.engine.Invoke(r.Context(), ec, body.Operation, body.Input)
 	if err != nil {
 		httpx.Error(w, r, err)

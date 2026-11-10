@@ -97,3 +97,13 @@ func Caller(r *http.Request) *kernel.Caller {
 	}
 	return c
 }
+
+// Require writes a 403 and returns false unless the caller holds one of permissions; denials are audited.
+func Require(w http.ResponseWriter, r *http.Request, a kernel.Auditor, action, resource string, permissions ...string) bool {
+	ec := Caller(r).ContextFrom(r.Context(), kernel.EntryAPI, "")
+	if err := kernel.RequireAnyPermission(r.Context(), a, ec, action, resource, permissions...); err != nil {
+		Error(w, r, err)
+		return false
+	}
+	return true
+}

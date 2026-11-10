@@ -34,9 +34,10 @@ export function useListResources() {
   return useApiQuery({ queryKey: ["resources"], queryFn: () => api.listResources(getToken) });
 }
 
-export function useListEvents(query: { applicationId?: string; limit?: number; offset?: number } = {}) {
+/** The event log needs audit.read; pass `enabled: false` for callers who lack it. */
+export function useListEvents(query: { applicationId?: string; limit?: number; offset?: number } = {}, options: { enabled?: boolean } = {}) {
   const { getToken } = useAuthHooks();
-  return useApiQuery({ queryKey: ["events", query], queryFn: () => api.listEvents(query, getToken) });
+  return useApiQuery({ queryKey: ["events", query], queryFn: () => api.listEvents(query, getToken), enabled: options.enabled ?? true });
 }
 
 export function useListHealth() {

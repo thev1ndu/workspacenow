@@ -19,8 +19,8 @@ const InternalBasePath = "/internal/v1"
 
 // InternalMux serves the API wsn-ai-service calls on :8081: tool invocation under a
 // run grant, the managed MCP catalogue and user-token invocation, and streamed run steps.
-// Everything except /mcp/invoke authenticates with the shared service token; /mcp/invoke
-// authenticates the forwarded user token instead.
+// Everything authenticates with the shared service token; /mcp/invoke also authenticates the
+// forwarded user token and acts as that user.
 func InternalMux(cfg *config.Config, svc Service, resolver middleware.CallerResolver) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+InternalBasePath+"/tools/invoke", serviceOrGrant(cfg, svc, invokeWithGrant(svc)))
@@ -35,7 +35,8 @@ func InternalMux(cfg *config.Config, svc Service, resolver middleware.CallerReso
 		}
 	}
 	userAuth := middleware.Authenticate(cfg.OIDC, cfg.DemoMode, resolver, func(*http.Request) bool { return false }, nil, sessionAuth)
-	mux.Handle("POST "+InternalBasePath+"/mcp/invoke", forwardAuth(userAuth(http.HandlerFunc(invokeAsUser(svc)))))
+	// both the service token (only wsn-ai-service may relay) and the forwarded user token are required
+	mux.Handle("POST "+InternalBasePath+"/mcp/invoke", serviceToken(cfg, forwardAuth(userAuth(http.HandlerFunc(invokeAsUser(svc)))).ServeHTTP))
 	return mux
 }
 
@@ -75,9 +76,12 @@ func serviceToken(cfg *config.Config, next http.HandlerFunc) http.HandlerFunc {
 // forwardAuth moves X-Forwarded-Authorization into Authorization so the user auth middleware reads it.
 func forwardAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if fwd := r.Header.Get("X-Forwarded-Authorization"); fwd != "" {
-			r.Header.Set("Authorization", fwd)
+		fwd := r.Header.Get("X-Forwarded-Authorization")
+		if fwd == "" {
+			httpx.Error(w, r, kernel.Unauthenticated("Sign in to WorkspaceNow and send its access token"))
+			return
 		}
+		r.Header.Set("Authorization", fwd)
 		next.ServeHTTP(w, r)
 	})
 }

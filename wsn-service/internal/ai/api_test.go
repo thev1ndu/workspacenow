@@ -127,10 +127,19 @@ func TestInternalMuxInvokeAsUserRequiresUserToken(t *testing.T) {
 	cfg.DemoMode = true // demo.<userId> tokens resolve through the fake resolver
 	mux := InternalMux(cfg, &stubService{}, fakeResolver{})
 
-	// no forwarded user token -> 401
+	// a forwarded user token without the service token is refused: only wsn-ai-service may relay
 	req := httptest.NewRequest(http.MethodPost, InternalBasePath+"/mcp/invoke", strings.NewReader(`{"tool":"t","input":{}}`))
-	req.Header.Set("Authorization", "Bearer svc")
+	req.Header.Set("X-Forwarded-Authorization", "Bearer demo.u-amaya")
 	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("no service token: %d", rec.Code)
+	}
+
+	// no forwarded user token -> 401
+	req = httptest.NewRequest(http.MethodPost, InternalBasePath+"/mcp/invoke", strings.NewReader(`{"tool":"t","input":{}}`))
+	req.Header.Set("Authorization", "Bearer svc")
+	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("no user token: %d", rec.Code)

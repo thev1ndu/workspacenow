@@ -1,11 +1,19 @@
 import { ApiError, conditionHolds, nextStep, readPath, startStep, validateWorkflow, type Approval, type ExecutionStep, type Permission, type PlatformEvent, type Workflow, type WorkflowDefinition, type WorkflowExecution } from "@workspacenow/types";
 import { runAgent } from "./agents";
-import { fail, type ExecutionContext, type Platform } from "./platform";
+import { fail, PermissionSet, type ExecutionContext, type Platform } from "./platform";
+
+/** An approval with who started the run it belongs to, as wsn-service stores it; they may not decide it. */
+export type RequestedApproval = Approval & { requestedBy?: string; requestedByName?: string };
+
+/** Whether the user started the run the approval belongs to. */
+export function isRequester(approval: RequestedApproval, userId: string, userName: string): boolean {
+  return approval.requestedBy ? approval.requestedBy === userId : Boolean(approval.requestedByName) && approval.requestedByName === userName;
+}
 
 function workflowContext(workflow: Workflow, traceId: string): ExecutionContext {
   return {
     actor: { kind: "workflow", id: workflow.id, name: workflow.name },
-    permissions: new Set(workflow.permissions),
+    permissions: new PermissionSet(workflow.permissions),
     traceId,
     entryPoint: "workflow",
   };
@@ -20,7 +28,12 @@ export function dispatchEvent(platform: Platform, event: PlatformEvent): void {
   for (const workflow of platform.state.workflows) {
     if (workflow.status !== "active") continue;
     if (workflow.trigger.kind === "entity-event" && workflow.trigger.event === event.type) {
-      startExecution(platform, workflow, event.traceId, { ...event.payload, triggeredBy: event.type });
+      const context: Record<string, unknown> = { ...event.payload, triggeredBy: event.type };
+      // An agent acting for a person counts as that person, so its approvals keep separation of duties.
+      const actor = platform.eventActor(event.id);
+      if (actor?.kind === "user") Object.assign(context, { triggeredById: actor.id, triggeredByName: actor.name });
+      else if (actor?.onBehalfOf) context.triggeredByName = actor.onBehalfOf;
+      startExecution(platform, workflow, event.traceId, context);
     }
   }
 }
@@ -105,7 +118,11 @@ function advance(platform: Platform, execution: WorkflowExecution, from: string 
         case "approval": {
           const requestId = String(execution.context.purchaseRequestId ?? "");
           const request = requestId ? platform.records("PurchaseRequest").find((r) => r.id === requestId) : undefined;
-          const approval: Approval = {
+          const requestedBy = typeof execution.context.triggeredById === "string" ? execution.context.triggeredById : undefined;
+          const requestedByName = typeof execution.context.triggeredByName === "string"
+            ? execution.context.triggeredByName
+            : requestedBy && typeof execution.context.triggeredBy === "string" ? execution.context.triggeredBy : undefined;
+          const approval: RequestedApproval = {
             id: platform.nextId("appr"),
             executionId: execution.id,
             workflowId: workflow.id,
@@ -119,6 +136,8 @@ function advance(platform: Platform, execution: WorkflowExecution, from: string 
             subject: request ? { entity: "PurchaseRequest", recordId: request.id, applicationId: workflow.applicationId } : undefined,
             status: "pending",
             requestedAt: platform.now(),
+            requestedBy,
+            requestedByName,
           };
           platform.state.approvals.push(approval);
           platform.audit(ctx, "approval.request", `approval/${approval.id}`, "allowed", step.description);
@@ -191,7 +210,12 @@ export function decideApproval(
   if (!approval) fail(404, "NOT_FOUND", `Approval ${approvalId} not found`);
   const ctx = platform.userContext(userId, "studio", approval.traceId);
   if (approval.status !== "pending") fail(409, "INVALID_STATE", `Approval is already ${approval.status}`, ctx.traceId);
-  platform.requirePermission(ctx, approval.permission, `approval.${decision === "approved" ? "approve" : "reject"}`, `approval/${approval.id}`);
+  const action = `approval.${decision === "approved" ? "approve" : "reject"}`;
+  platform.requirePermission(ctx, approval.permission, action, `approval/${approval.id}`);
+  if (isRequester(approval, ctx.actor.id, ctx.actor.name)) {
+    platform.audit(ctx, action, `approval/${approval.id}`, "denied", "Requester cannot decide their own request");
+    fail(403, "FORBIDDEN", "You started this request, so someone else has to decide it", ctx.traceId);
+  }
 
   if (approval.subject?.entity === "PurchaseRequest") {
     platform.invoke(
@@ -225,14 +249,13 @@ export function runManually(platform: Platform, userId: string, workflowId: stri
   if (!workflow) fail(404, "NOT_FOUND", `Workflow ${workflowId} not found`);
   const ctx = platform.userContext(userId, "workflow");
   platform.requirePermission(ctx, "flow.manage", "workflow.run", `workflow/${workflow.id}`);
+  // The run acts with the workflow's permissions, so starting it must not exceed the starter's own.
+  for (const p of workflow.permissions) platform.requirePermission(ctx, p, "workflow.run", `workflow/${workflow.id}`);
   if (workflow.status !== "active") fail(409, "INVALID_STATE", `${workflow.name} is ${workflow.status}`);
-  return startExecution(platform, workflow, ctx.traceId, { ...input, triggeredBy: ctx.actor.name });
+  return startExecution(platform, workflow, ctx.traceId, { ...input, triggeredBy: ctx.actor.name, triggeredById: ctx.actor.id });
 }
 
-/**
- * Creates a workflow or saves a new version of one. Its service identity gets exactly the permissions
- * its operation steps need, and an author can only grant permissions they hold themselves.
- */
+/** Saves a workflow whose identity gets exactly what its operation steps need; the author must hold all of it. */
 export function saveWorkflow(platform: Platform, ctx: ExecutionContext, workflowId: string | undefined, definition: WorkflowDefinition): Workflow {
   const existing = workflowId ? platform.state.workflows.find((w) => w.id === workflowId) : undefined;
   if (workflowId && !existing) fail(404, "NOT_FOUND", `Workflow ${workflowId} not found`);
@@ -247,7 +270,7 @@ export function saveWorkflow(platform: Platform, ctx: ExecutionContext, workflow
   if (problems.length > 0) fail(422, "VALIDATION_FAILED", problems.slice(0, 3).join("; "), ctx.traceId);
 
   const needed = [...new Set(definition.steps.flatMap((s) => (s.kind === "operation" ? [operations.find((o) => o.name === s.businessOperation)!.permission] : [])))] as Permission[];
-  const granted = needed.filter((p) => !existing?.permissions.includes(p) && !ctx.permissions.has(p));
+  const granted = needed.filter((p) => !ctx.permissions.has(p));
   if (granted.length > 0) {
     platform.audit(ctx, "workflow.save", existing ? `workflow/${existing.id}` : "workflow", "denied", `Would grant ${granted.join(", ")}`);
     fail(403, "FORBIDDEN", `You cannot give a workflow permissions you do not hold: ${granted.join(", ")}`, ctx.traceId);

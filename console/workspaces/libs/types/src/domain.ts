@@ -481,6 +481,9 @@ export interface ApiKey {
   revoked: boolean;
   createdAt: IsoDate;
   lastUsedAt?: IsoDate;
+  expiresAt?: IsoDate;
+  /** User who issued the key. */
+  ownerId?: string;
 }
 
 export interface CreatedApiKey extends ApiKey {
@@ -714,6 +717,9 @@ export interface Approval {
   decidedAt?: IsoDate;
   decidedBy?: string;
   comment?: string;
+  /** Who started the run; they cannot decide it. */
+  requestedBy?: string;
+  requestedByName?: string;
 }
 
 /* Events, audit and observability */

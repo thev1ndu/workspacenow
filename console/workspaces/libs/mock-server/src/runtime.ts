@@ -56,6 +56,7 @@ export function createDemoPlatform(now: Date = new Date()): Platform {
   runAgent(platform, "agent-procurement", "Approve the pending purchase request for coconut oil", {
     trigger: "manual",
     onBehalfOf: "Kavya Fernando",
+    userId: "u-kavya",
   });
 
   platform.setClock(steppingClock(at(2, 11, 5), 5_000));
@@ -68,7 +69,7 @@ export function createDemoPlatform(now: Date = new Date()): Platform {
       values: { name: "Corner Shop Supplies", category: "Grocery", status: "active" },
     }),
   );
-  runAgent(platform, "agent-inventory", "Which items are low on stock?", { trigger: "manual", onBehalfOf: "Nimal Silva" });
+  runAgent(platform, "agent-inventory", "Which items are low on stock?", { trigger: "manual", onBehalfOf: "Nimal Silva", userId: "u-nimal" });
 
   platform.setClock(() => new Date());
   return platform;

@@ -2220,16 +2220,20 @@ type ApplicationPlan struct {
 
 // Approval defines model for Approval.
 type Approval struct {
-	Comment     *string        `json:"comment,omitempty"`
-	DecidedAt   *IsoDate       `json:"decidedAt,omitempty"`
-	DecidedBy   *string        `json:"decidedBy,omitempty"`
-	ExecutionId string         `json:"executionId"`
-	Id          string         `json:"id"`
-	Permission  Permission     `json:"permission"`
-	RequestedAt IsoDate        `json:"requestedAt"`
-	Status      ApprovalStatus `json:"status"`
-	StepId      string         `json:"stepId"`
-	Subject     *struct {
+	Comment     *string    `json:"comment,omitempty"`
+	DecidedAt   *IsoDate   `json:"decidedAt,omitempty"`
+	DecidedBy   *string    `json:"decidedBy,omitempty"`
+	ExecutionId string     `json:"executionId"`
+	Id          string     `json:"id"`
+	Permission  Permission `json:"permission"`
+	RequestedAt IsoDate    `json:"requestedAt"`
+
+	// RequestedBy User id of whoever started the run; they may not decide it
+	RequestedBy     *string        `json:"requestedBy,omitempty"`
+	RequestedByName *string        `json:"requestedByName,omitempty"`
+	Status          ApprovalStatus `json:"status"`
+	StepId          string         `json:"stepId"`
+	Subject         *struct {
 		Entity   string `json:"entity"`
 		RecordId string `json:"recordId"`
 	} `json:"subject,omitempty"`

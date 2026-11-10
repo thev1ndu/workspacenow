@@ -34,6 +34,18 @@ export interface OperationDefinition {
 
 type EventListener = (platform: Platform, event: PlatformEvent) => void;
 
+/** A caller's permissions; holding "*" counts as holding every permission, as in wsn-service. */
+export class PermissionSet extends Set<Permission> {
+  override has(permission: Permission): boolean {
+    return super.has(permission) || super.has("*" as Permission);
+  }
+}
+
+/** Whether the caller holds at least one of the permissions. */
+export function holdsAny(ctx: ExecutionContext, permissions: readonly Permission[]): boolean {
+  return permissions.some((p) => ctx.permissions.has(p));
+}
+
 export function fail(status: number, code: ApiErrorBody["code"], message: string, traceId?: string): never {
   throw new ApiError({ status, code, message, traceId });
 }
@@ -75,14 +87,14 @@ export class Platform {
 
   /* Identity and authorization */
 
-  permissionsForUser(userId: string): Set<Permission> {
+  permissionsForUser(userId: string): PermissionSet {
     const user = this.state.users.find((u) => u.id === userId);
-    if (!user) return new Set();
+    if (!user) return new PermissionSet();
     const roleIds = this.rolesForUser(userId).map((r) => r.id);
     const permissions = this.state.roles
       .filter((role) => roleIds.includes(role.id))
       .flatMap((role) => role.permissions);
-    return new Set(permissions);
+    return new PermissionSet(permissions);
   }
 
   rolesForUser(userId: string) {
@@ -114,6 +126,22 @@ export class Platform {
       this.audit(ctx, action, resource, "denied", `Missing permission ${permission}`);
       fail(403, "FORBIDDEN", `${ctx.actor.name} lacks permission ${permission}`, ctx.traceId);
     }
+  }
+
+  /** Guard for reads open to several permissions: the caller needs at least one of them. */
+  requireAny(ctx: ExecutionContext, permissions: readonly Permission[], action: string, resource: string): void {
+    if (!holdsAny(ctx, permissions)) {
+      const wanted = permissions.join(" or ");
+      this.audit(ctx, action, resource, "denied", `Missing permission ${wanted}`);
+      fail(403, "FORBIDDEN", `${ctx.actor.name} lacks permission ${wanted}`, ctx.traceId);
+    }
+  }
+
+  /** Remembers who published an event so workflows it triggers know their requester; not persisted. */
+  private readonly eventActors = new Map<string, ExecutionContext["actor"]>();
+
+  eventActor(eventId: string): ExecutionContext["actor"] | undefined {
+    return this.eventActors.get(eventId);
   }
 
   /* Business Operations */
@@ -173,6 +201,7 @@ export class Platform {
       time: this.now(),
     };
     this.state.events.push(event);
+    this.eventActors.set(event.id, ctx.actor);
     // Subscribers run after the publishing operation has committed and been audited.
     this.outbox.push(event);
     if (this.depth === 0) this.flushOutbox();

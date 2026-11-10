@@ -3088,6 +3088,8 @@ components:
         decidedAt: { $ref: "#/components/schemas/IsoDate" }
         decidedBy: { type: string }
         comment: { type: string }
+        requestedBy: { type: string, description: "User id of whoever started the run; they may not decide it" }
+        requestedByName: { type: string }
 
     # Observability
     PlatformEvent:

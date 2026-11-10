@@ -601,7 +601,9 @@ describe("ops: alerts, slos, status", () => {
     expect(paths.items.length).toBe(3);
     const values = get(platform, "/secrets/read?path=vault://integrations/erp-db").body as { path: string; values: Record<string, string> };
     expect(values.values.username).toBe("erp_ro");
-    expect(get(platform, "/secrets/read?path=vault://nope").status).toBe(404);
+    expect(get(platform, "/secrets/read?path=vault://integrations/nope").status).toBe(404);
+    // platform secrets outside integrations/ are not readable through the API
+    expect(get(platform, "/secrets/read?path=vault://nope").status).toBe(403);
     expect(platform.state.audit.some((a) => a.action === "secret.read")).toBe(true);
     // integrations: create validates the secretRef, test flips status
     const bad = post(platform, "/integrations", { name: "X", kind: "rest", target: "https://x.example.com", retryPolicy: "None", timeoutMs: 1000, secretRef: "vault://missing" });
@@ -621,7 +623,7 @@ describe("ops: alerts, slos, status", () => {
     expect(post(platform, "/alerts", { name: "SSRF", source: "event", action: "X", threshold: 1, windowMinutes: 60, webhookUrl: "http://169.254.169.254/x" }).status).toBe(422);
     expect(post(platform, "/webhooks", { name: "evil", url: "http://127.0.0.1:8080/x", events: [], active: true }).status).toBe(422);
     expect(post(platform, "/integrations", { name: "evil", kind: "rest", target: "http://10.0.0.5/", retryPolicy: "None", timeoutMs: 1000, secretRef: "" }).status).toBe(422);
-    expect(get(platform, "/secrets/read?path=../other").status).toBe(422);
+    expect(get(platform, "/secrets/read?path=../other").status).toBe(403);
   });
 
   it("fires an SLO burn-rate alert and serves log metrics per day and level", () => {

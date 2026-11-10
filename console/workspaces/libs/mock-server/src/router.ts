@@ -33,6 +33,7 @@ import {
   type WebhookDelivery,
   type WebhookInput,
   type AlertRule,
+  type AuthConfig,
   type AlertRuleInput,
   type BlueprintDiff,
   type EntityInference,
@@ -46,14 +47,14 @@ import {
   type Slo,
   type SloInput
 } from "@workspacenow/types";
-import { runAgent } from "./agents";
+import { runAgent, type OwnedAgentRun } from "./agents";
 import { activitySeries, entryPointBreakdown, logSeries, tokenSeries } from "./analytics";
 import { diffBlueprints, inferEntity, installTemplate, previewApplication, simulateWorkflow, viewFromText } from "./builder";
-import { listMcpTools } from "./mcp";
-import { fail, type ExecutionContext, type Platform } from "./platform";
+import { applicationToolNames, listMcpTools } from "./mcp";
+import { fail, holdsAny, type ExecutionContext, type Platform } from "./platform";
 import { search } from "./search";
 import { applyPlan, createRelease, deploy, planApplication, planApplicationEdit, updateApplication } from "./studio";
-import { decideApproval, runManually, saveWorkflow } from "./workflows";
+import { decideApproval, runManually, saveWorkflow, type RequestedApproval } from "./workflows";
 
 export interface MockRequest {
   method: string;
@@ -115,6 +116,48 @@ function find<T extends { id: string }>(items: T[], id: string, label: string): 
   const item = items.find((i) => i.id === id);
   if (!item) fail(404, "NOT_FOUND", `${label} ${id} not found`);
   return item;
+}
+
+/* Role grants: nobody hands out access they do not hold, and the last full administrator stays. */
+
+const WILDCARD = "*" as Permission;
+
+function mayGrant(platform: Platform, ctx: ExecutionContext, roleId: string, resource: string): void {
+  const role = platform.state.roles.find((r) => r.id === roleId);
+  for (const p of role?.permissions ?? []) {
+    if (!ctx.permissions.has(p)) {
+      platform.audit(ctx, "role.grant", resource, "denied", `Granter lacks ${p} from role ${roleId}`);
+      fail(403, "FORBIDDEN", `You can't grant ${role!.name} because it includes ${p}, which you don't hold`, ctx.traceId);
+    }
+  }
+}
+
+function holdsWildcard(platform: Platform, roleIds: readonly string[]): boolean {
+  return platform.state.roles.some((r) => roleIds.includes(r.id) && r.permissions.includes(WILDCARD));
+}
+
+function wildcardHolders(platform: Platform, except: string): number {
+  return platform.state.users.filter((u) => u.id !== except && holdsWildcard(platform, u.roleIds ?? [])).length;
+}
+
+/** Checks the roles mapped to a group before new members join it. */
+function mayGrantToMembers(platform: Platform, ctx: ExecutionContext, groupName: string, before: readonly string[], after: readonly string[]): void {
+  if (!after.some((m) => !before.includes(m))) return;
+  for (const m of platform.state.groupMappings) {
+    if (m.group === groupName) mayGrant(platform, ctx, m.roleId, `group/${groupName}`);
+  }
+}
+
+/* Credentials are never returned once stored. */
+
+const MASK = "********";
+
+function redactIntegration(integration: Integration): Integration {
+  if (!integration.auth) return integration;
+  const auth: AuthConfig & { refreshToken?: string } = { ...integration.auth };
+  if (auth.token) auth.token = MASK;
+  if (auth.refreshToken) auth.refreshToken = MASK;
+  return { ...integration, auth };
 }
 
 function session(platform: Platform, userId: string): Session {
@@ -213,7 +256,8 @@ route("GET", "/overview", ({ platform }): OverviewStats => {
   };
 });
 
-route("GET", "/resources", ({ platform }) => {
+route("GET", "/resources", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), ["control.manage", "audit.read"], "resource.list", "resources");
   const s = platform.state;
   const dept = (id: string) => s.departments.find((d) => d.id === id)?.name ?? id;
   const appName = (id?: string) => s.applications.find((a) => a.id === id)?.name ?? "Organization";
@@ -253,9 +297,10 @@ route("PUT", "/organization/theme", ({ platform, ctx, body }) => {
 });
 route("GET", "/departments", ({ platform }) => list(platform.state.departments));
 route("GET", "/teams", ({ platform }) => list(platform.state.teams));
-route("GET", "/users", ({ platform }) =>
-  list(platform.state.users.map((u) => ({ ...u, roles: platform.rolesForUser(u.id).map((r) => r.name) }))),
-);
+route("GET", "/users", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), ["control.manage", "audit.read"], "user.list", "users");
+  return list(platform.state.users.map((u) => ({ ...u, roles: platform.rolesForUser(u.id).map((r) => r.name) })));
+});
 route("PUT", "/users/:userId/roles", ({ platform, ctx, params, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "user.roles", `user/${params.userId}`);
@@ -266,14 +311,29 @@ route("PUT", "/users/:userId/roles", ({ platform, ctx, params, body }) => {
   for (const id of roleIds) {
     if (!platform.state.roles.some((r) => r.id === id)) fail(422, "VALIDATION_FAILED", `Unknown role ${id}`);
   }
+  const current = user.roleIds ?? [];
+  for (const id of roleIds) if (!current.includes(id)) mayGrant(platform, c, id, `user/${user.id}`);
+  if (holdsWildcard(platform, current) && !holdsWildcard(platform, roleIds) && wildcardHolders(platform, user.id) === 0) {
+    platform.audit(c, "user.roles", `user/${user.id}`, "denied", "Would remove the last administrator");
+    fail(409, "INVALID_STATE", `${user.name} is the last administrator; give someone else full access first`, c.traceId);
+  }
   user.roleIds = roleIds;
   platform.audit(c, "user.roles", `user/${user.id}`, "allowed", `${roleIds.length} roles`);
   return { ...user, roles: platform.rolesForUser(user.id).map((r) => r.name) };
 });
 route("GET", "/personas", ({ platform }) => list(platform.state.users), { public: true });
-route("GET", "/roles", ({ platform }) => list(platform.state.roles));
-route("GET", "/group-mappings", ({ platform }) => list(platform.state.groupMappings));
-route("GET", "/groups", ({ platform }) => list(platform.state.groups));
+route("GET", "/roles", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), ["control.manage", "audit.read", "flow.manage", "ai.manage"], "role.list", "roles");
+  return list(platform.state.roles);
+});
+route("GET", "/group-mappings", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), ["control.manage", "audit.read"], "group-mapping.list", "group-mappings");
+  return list(platform.state.groupMappings);
+});
+route("GET", "/groups", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), ["control.manage", "audit.read"], "group.list", "groups");
+  return list(platform.state.groups);
+});
 route("POST", "/groups", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "group.create", "groups");
@@ -282,6 +342,7 @@ route("POST", "/groups", ({ platform, ctx, body }) => {
   for (const id of input.memberIds ?? []) {
     if (!platform.state.users.some((u) => u.id === id)) fail(422, "VALIDATION_FAILED", `Unknown member ${id}`);
   }
+  mayGrantToMembers(platform, c, input.name.trim(), [], input.memberIds ?? []);
   const g: Group = { id: platform.nextId("grp"), name: input.name.trim(), description: input.description ?? "", memberIds: input.memberIds ?? [] };
   platform.state.groups.push(g);
   platform.audit(c, "group.create", `group/${g.id}`, "allowed", g.name);
@@ -294,6 +355,7 @@ route("PUT", "/groups/:groupId", ({ platform, ctx, params, body }) => {
   if (!g) fail(404, "NOT_FOUND", `No group ${params.groupId}`);
   const input = body as unknown as GroupInput;
   if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "A group needs a name");
+  mayGrantToMembers(platform, c, input.name.trim(), g.memberIds, input.memberIds ?? []);
   g.name = input.name.trim();
   g.description = input.description ?? "";
   g.memberIds = input.memberIds ?? [];
@@ -316,6 +378,10 @@ route("PUT", "/group-mappings", ({ platform, ctx, body }) => {
   if (!Array.isArray(mappings)) fail(422, "VALIDATION_FAILED", "mappings must be a list");
   for (const m of mappings) {
     if (!platform.state.roles.some((r) => r.id === m.roleId)) fail(422, "VALIDATION_FAILED", `Unknown role ${m.roleId}`);
+  }
+  for (const m of mappings) {
+    const existing = platform.state.groupMappings.some((x) => x.group === m.group && x.roleId === m.roleId);
+    if (!existing) mayGrant(platform, c, m.roleId, "group-mappings");
   }
   platform.state.groupMappings = mappings;
   platform.audit(c, "access.update", "group-mappings", "allowed", `${mappings.length} mappings`);
@@ -675,11 +741,18 @@ route("POST", "/entities/:name/views/from-text", ({ platform, ctx, params, body 
     fail(422, "VALIDATION_FAILED", (e as Error).message);
   }
 });
+/** The owner may always change their own view; others need data.manage and a shared view. */
+function mayChangeView(platform: Platform, ctx: ExecutionContext, view: SavedView | undefined, action: string): asserts view is SavedView {
+  if (!view) fail(404, "NOT_FOUND", "View not found");
+  if (view.ownerId && view.ownerId === ctx.actor.id) return;
+  if (!view.shared) fail(404, "NOT_FOUND", "View not found");
+  platform.requirePermission(ctx, "data.manage", action, `entity/${view.entity}/${view.id}`);
+}
+
 route("PUT", "/entities/:name/views/:viewId", ({ platform, ctx, params, body }) => {
   const c = ctx("studio");
-  platform.requirePermission(c, "data.manage", `${params.name}.view.update`, `entity/${params.name}/${params.viewId}`);
   const view = platform.state.views.find((v) => v.id === params.viewId && v.entity === params.name);
-  if (!view) fail(404, "NOT_FOUND", "View not found");
+  mayChangeView(platform, c, view, `${params.name}.view.update`);
   const input = body as SavedViewInput;
   if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "The view needs a name");
   Object.assign(view, { name: input.name.trim(), filters: input.filters ?? [], sortField: input.sortField, sortDesc: input.sortDesc, limit: input.limit, shared: input.shared, updatedAt: platform.now() });
@@ -687,9 +760,8 @@ route("PUT", "/entities/:name/views/:viewId", ({ platform, ctx, params, body }) 
 });
 route("DELETE", "/entities/:name/views/:viewId", ({ platform, ctx, params }) => {
   const c = ctx("studio");
-  platform.requirePermission(c, "data.manage", `${params.name}.view.delete`, `entity/${params.name}/${params.viewId}`);
   const i = platform.state.views.findIndex((v) => v.id === params.viewId && v.entity === params.name);
-  if (i < 0) fail(404, "NOT_FOUND", "View not found");
+  mayChangeView(platform, c, platform.state.views[i], `${params.name}.view.delete`);
   const [view] = platform.state.views.splice(i, 1);
   platform.audit(c, `${params.name}.view.delete`, `entity/${params.name}/${params.viewId}`, "allowed", view.name);
   return { id: params.viewId, deleted: true };
@@ -713,7 +785,10 @@ route("GET", "/business-operations", ({ platform }) =>
   ),
 );
 route("POST", "/business-operations/invoke", ({ platform, ctx, body }) => {
-  const c = ctx((body.entryPoint as EntryPoint) ?? "studio");
+  // Agent, workflow and MCP entry points are set by the platform; a caller naming one would forge the audit trail.
+  const entry = body.entryPoint === undefined || body.entryPoint === "" ? "studio" : body.entryPoint;
+  if (entry !== "studio" && entry !== "api") fail(422, "VALIDATION_FAILED", "entryPoint must be studio or api");
+  const c = ctx(entry as EntryPoint);
   const output = platform.invoke(c, String(body.operation), (body.input as Record<string, unknown>) ?? {});
   return { traceId: c.traceId, output };
 });
@@ -777,7 +852,10 @@ route("POST", "/mcp/servers", ({ platform, ctx, body }) => {
   platform.audit(c, "mcp.register", `mcp-server/${server.id}`, "allowed", `Discovered ${server.tools.length} tools`);
   return server;
 });
-route("GET", "/integrations", ({ platform }) => list(platform.state.integrations));
+route("GET", "/integrations", ({ platform, ctx }) => {
+  platform.requirePermission(ctx("connect"), "connect.manage", "integration.list", "integrations");
+  return list(platform.state.integrations.map(redactIntegration));
+});
 
 /** Demo-side SSRF guard mirroring wsn-service's netutil.AssertPublicHTTPURL (literal IPs + internal hostnames). */
 function assertPublicUrl(raw: string): void {
@@ -834,6 +912,13 @@ route("GET", "/secrets/read", ({ platform, ctx, query }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "secret.read", `secret/${query.get("path")}`);
   const path = query.get("path") ?? "";
+  // Only integration credentials are readable here; platform secrets stay private to the local system user.
+  const relative = path.replace(/^vault:\/\//, "").replace(/^\//, "");
+  const readable = relative.startsWith("integrations/") && !relative.includes("..");
+  if (!readable && !c.actor.id.startsWith("local:")) {
+    platform.audit(c, "secret.read", `secret/${path}`, "denied", "Outside integrations/");
+    fail(403, "FORBIDDEN", "Only integration credentials can be read here", c.traceId);
+  }
   if (path.split("/").some((seg) => seg === ".." || seg === ".")) fail(422, "VALIDATION_FAILED", "invalid secret path");
   const values = platform.state.secrets[path];
   if (!values) fail(404, "NOT_FOUND", `No secret at ${path}`);
@@ -851,7 +936,11 @@ route("POST", "/integrations/:id/test", ({ platform, ctx, params }) => {
   return integration;
 });
 
-route("GET", "/webhooks", ({ platform }) => list(platform.state.webhooks));
+route("GET", "/webhooks", ({ platform, ctx }) => {
+  platform.requirePermission(ctx("control"), "connect.manage", "webhook.list", "webhooks");
+  // The signing secret is shown once, when the webhook is created.
+  return list(platform.state.webhooks.map((w) => (w.secret ? { ...w, secret: MASK } : w)));
+});
 route("POST", "/webhooks", ({ platform, ctx, body }) => {
   assertPublicUrl((body as WebhookInput).url ?? "");
   const c = ctx("control");
@@ -941,10 +1030,24 @@ route("GET", "/api-keys", ({ platform, ctx }) => {
 route("POST", "/api-keys", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "connect.manage", "api-key.create", "api-key");
-  const input = body as { name: string; permissions?: string[]; quotaPerHour?: number };
+  const input = body as { name: string; permissions?: string[]; quotaPerHour?: number; expiresAt?: string };
   if (!input.name?.trim()) fail(422, "VALIDATION_FAILED", "The key needs a name");
+  let expiresAt: string | undefined;
+  if (input.expiresAt !== undefined && input.expiresAt !== null) {
+    const at = new Date(String(input.expiresAt));
+    if (Number.isNaN(at.getTime())) fail(422, "VALIDATION_FAILED", "expiresAt must be an ISO date");
+    if (at.getTime() <= Date.now()) fail(422, "VALIDATION_FAILED", "expiresAt must be in the future");
+    expiresAt = at.toISOString();
+  }
+  // A key acts with its own permissions, so it may not carry any its creator lacks.
+  const permissions = (input.permissions ?? []) as Permission[];
+  const missing = permissions.filter((p) => !c.permissions.has(p));
+  if (missing.length > 0) {
+    platform.audit(c, "api-key.create", "api-key", "denied", `Would grant ${missing.join(", ")}`);
+    fail(403, "FORBIDDEN", `An API key can't carry permissions you don't hold: ${missing.join(", ")}`, c.traceId);
+  }
   const raw = `wsn_${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
-  const key: ApiKey = { id: platform.nextId("key"), name: input.name.trim(), prefix: raw.slice(0, 12), permissions: (input.permissions ?? []) as Permission[], quotaPerHour: input.quotaPerHour ?? 0, revoked: false, createdAt: platform.now() };
+  const key: ApiKey & { expiresAt?: string; ownerId: string } = { id: platform.nextId("key"), name: input.name.trim(), prefix: raw.slice(0, 12), permissions, quotaPerHour: input.quotaPerHour ?? 0, revoked: false, createdAt: platform.now(), expiresAt, ownerId: c.actor.id };
   platform.state.apiKeys.push(key);
   platform.audit(c, "api-key.create", `api-key/${key.id}`, "allowed", key.name);
   return { ...key, rawKey: raw };
@@ -956,29 +1059,79 @@ route("DELETE", "/api-keys/:id", ({ platform, ctx, params }) => {
   k.revoked = true;
   return { id: k.id, revoked: true };
 });
+/** Splits `query { A(args) { x y } B { z } }` into its top-level fields, as wsn-service's gateway does. */
+function graphqlFields(doc: string): Array<{ name: string; body: string[] }> {
+  let rest = doc.trim().replace(/^query\b/, "").trim();
+  if (rest.startsWith("{") && rest.endsWith("}")) rest = rest.slice(1, -1);
+  const blocks: string[] = [];
+  let depth = 0;
+  let paren = 0;
+  let start = 0;
+  for (let i = 0; i < rest.length; i += 1) {
+    const ch = rest[i];
+    if (ch === "(") paren += 1;
+    else if (ch === ")") paren -= 1;
+    else if (ch === "{" && paren === 0) depth += 1;
+    else if (ch === "}" && paren === 0) {
+      depth -= 1;
+      if (depth === 0) {
+        blocks.push(rest.slice(start, i + 1));
+        start = i + 1;
+      }
+    }
+  }
+  if (rest.slice(start).trim() && depth === 0) blocks.push(rest.slice(start));
+  return blocks.map((b) => b.trim()).filter(Boolean).map((b) => {
+    const name = b.split(/[({]/)[0].trim();
+    const body = b.match(/\{([^{}]*)\}\s*$/)?.[1].trim().split(/\s+/).filter(Boolean) ?? [];
+    return { name, body };
+  });
+}
+
 route("POST", "/graphql", ({ platform, ctx, body }) => {
   const c = ctx("studio");
-  const q = String(body.query ?? "");
-  const m = q.match(/query\s*\{\s*(\w+)(?:\([^)]*\))?\s*\{([^}]*)\}/);
-  if (!m) return { data: null, errors: [{ message: "only 'query { Entity(args) { fields } }' is supported" }] };
-  const entityName = m[1];
-  const fields = m[2].trim().split(/\s+/).filter(Boolean);
-  const entity = platform.state.entities.find((e) => e.name === entityName);
-  if (!entity) return { data: null, errors: [{ message: `Entity ${entityName} not found` }] };
-  platform.requirePermission(c, entity.readPermission, `${entityName}.list`, `entity/${entityName}`);
-  const rows = platform.records(entityName).filter((r) => !r.deletedAt).map((r) => {
-    const row: Record<string, unknown> = { id: r.id };
-    for (const f of fields) if (f in r.values) row[f] = r.values[f];
-    return row;
-  });
-  return { data: { [entityName]: rows } };
+  const fields = graphqlFields(String(body.query ?? ""));
+  if (fields.length === 0 || fields.some((f) => !f.name)) return { data: null, errors: [{ message: "no fields selected" }] };
+  const data: Record<string, unknown> = {};
+  const errors: Array<{ message: string }> = [];
+  for (const field of fields) {
+    const entity = platform.state.entities.find((e) => e.name === field.name);
+    if (!entity) {
+      errors.push({ message: `Entity ${field.name} not found` });
+      continue;
+    }
+    // Each field reads an entity, so it needs that entity's read permission like the records API.
+    if (!c.permissions.has(entity.readPermission)) {
+      platform.audit(c, "graphql.query", `entity/${entity.name}`, "denied", `Missing permission ${entity.readPermission}`);
+      errors.push({ message: `${c.actor.name} lacks permission ${entity.readPermission}` });
+      continue;
+    }
+    data[entity.name] = platform.records(entity.name).filter((r) => !r.deletedAt).map((r) => {
+      const row: Record<string, unknown> = { id: r.id };
+      for (const f of field.body) if (f in r.values) row[f] = r.values[f];
+      return row;
+    });
+  }
+  platform.audit(c, "graphql.query", "graphql", "allowed", fields.map((f) => f.name).join(", "));
+  return errors.length > 0 ? { data, errors } : { data };
 });
 
 /* AI */
 
-route("GET", "/model-providers", ({ platform }) => list(platform.state.modelProviders));
-route("GET", "/agents", ({ platform }) => list(platform.state.agents));
-route("GET", "/agents/:id", ({ platform, params }) => find(platform.state.agents, params.id, "Agent"));
+const AGENT_READERS: Permission[] = ["ai.manage", "flow.manage", "audit.read"];
+
+route("GET", "/model-providers", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), ["ai.manage", "audit.read"], "model_provider.list", "model_providers");
+  return list(platform.state.modelProviders);
+});
+route("GET", "/agents", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), AGENT_READERS, "agent.list", "agents");
+  return list(platform.state.agents);
+});
+route("GET", "/agents/:id", ({ platform, ctx, params }) => {
+  platform.requireAny(ctx("control"), AGENT_READERS, "agent.get", `agent/${params.id}`);
+  return find(platform.state.agents, params.id, "Agent");
+});
 route("PATCH", "/agents/:id", ({ platform, ctx, params, body }) => {
   const c = ctx("control");
   const agent = find(platform.state.agents, params.id, "Agent");
@@ -989,7 +1142,16 @@ route("PATCH", "/agents/:id", ({ platform, ctx, params, body }) => {
     if (unknown.length) fail(422, "VALIDATION_FAILED", `Unknown tools: ${unknown.join(", ")}`);
     agent.tools = body.tools as string[];
   }
-  if (Array.isArray(body.permissions)) agent.permissions = body.permissions as Permission[];
+  if (Array.isArray(body.permissions)) {
+    // An editor can only hand an agent permissions they hold themselves.
+    for (const p of body.permissions as Permission[]) {
+      if (!c.permissions.has(p)) {
+        platform.audit(c, "agent.update", `agent/${agent.id}`, "denied", `Editor lacks permission ${p}`);
+        fail(403, "FORBIDDEN", `You can't grant ${p} because you don't hold it`, c.traceId);
+      }
+    }
+    agent.permissions = body.permissions as Permission[];
+  }
   if (typeof body.instructions === "string") agent.instructions = body.instructions;
   if (typeof body.model === "string") agent.model = body.model;
   if (body.status === "active" || body.status === "disabled") agent.status = body.status;
@@ -997,15 +1159,25 @@ route("PATCH", "/agents/:id", ({ platform, ctx, params, body }) => {
   platform.audit(c, "agent.update", `agent/${agent.id}`, "allowed", `Version ${agent.version}`);
   return agent;
 });
-route("POST", "/agents/:id/runs", ({ platform, userId, params, body }) => {
+route("POST", "/agents/:id/runs", ({ platform, userId, ctx, params, body }) => {
   const user = platform.state.users.find((u) => u.id === userId)!;
   const prompt = String(body.prompt ?? "").trim();
   if (!prompt) fail(422, "VALIDATION_FAILED", "Prompt is required");
   const agent = find(platform.state.agents, params.id, "Agent");
+  const c = ctx("api");
+  // An agent on its own identity may not do more than the person starting it, unless they manage AI.
+  if (!agent.actsAsCaller && !c.permissions.has("ai.manage")) {
+    const missing = agent.permissions.find((p) => !c.permissions.has(p));
+    if (missing) {
+      platform.audit(c, "agent.run", `agent/${agent.id}`, "denied", `Caller lacks agent permission ${missing}`);
+      fail(403, "FORBIDDEN", `Running ${agent.name} needs ai.manage or every permission it holds (missing ${missing})`, c.traceId);
+    }
+  }
   return runAgent(platform, agent.id, prompt, {
     trigger: "manual",
     onBehalfOf: user.name,
     delegatedFrom: agent.actsAsCaller ? platform.permissionsForUser(userId) : undefined,
+    userId,
   });
 });
 route("POST", "/sidekick/runs", ({ platform, userId, ctx, body }) => {
@@ -1017,31 +1189,63 @@ route("POST", "/sidekick/runs", ({ platform, userId, ctx, body }) => {
     platform.audit(c, "sidekick.run", "agent/agent-sidekick", "denied", "User holds no role");
     fail(403, "FORBIDDEN", "Sidekick is available to users who hold a role");
   }
-  const applicationId = body.applicationId === undefined ? undefined : String(body.applicationId);
+  const applicationId = body.applicationId === undefined || body.applicationId === "" ? undefined : String(body.applicationId);
+  if (applicationId) {
+    const c = ctx("agent");
+    if (!platform.state.applications.some((a) => a.id === applicationId)) fail(404, "NOT_FOUND", `Application ${applicationId} not found`, c.traceId);
+    // The caller must be able to use at least one of the application's tools.
+    const appTools = applicationToolNames(platform, applicationId);
+    const usable = listMcpTools(platform).some((t) => appTools.has(t.name) && (!t.permission || c.permissions.has(t.permission)));
+    if (!usable) {
+      platform.audit(c, "sidekick.run", `application/${applicationId}`, "denied", "Caller can use none of the application's tools");
+      fail(403, "FORBIDDEN", "You don't have access to this application", c.traceId);
+    }
+  }
   return runAgent(platform, "agent-sidekick", prompt, {
     trigger: "manual",
     onBehalfOf: user.name,
     delegatedFrom: platform.permissionsForUser(userId),
     applicationId,
+    userId,
   });
 });
-route("GET", "/agent-runs", ({ platform, query }) => {
+/** Limits run history to the caller's own runs unless they manage AI or read audit. */
+function runOwner(ctx: ExecutionContext): string | undefined {
+  return holdsAny(ctx, ["ai.manage", "audit.read"]) ? undefined : ctx.actor.id;
+}
+
+route("GET", "/agent-runs", ({ platform, ctx, query }) => {
   const agentId = query.get("agentId");
   const q = query.get("q")?.toLowerCase();
+  const owner = runOwner(ctx("control"));
   return page(
-    platform.state.agentRuns
+    (platform.state.agentRuns as OwnedAgentRun[])
+      .filter((r) => !owner || r.userId === owner)
       .filter((r) => !agentId || r.agentId === agentId)
       .filter((r) => !q || `${r.id} ${r.prompt}`.toLowerCase().includes(q))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
     query,
   );
 });
-route("GET", "/agent-runs/:id", ({ platform, params }) => find(platform.state.agentRuns, params.id, "Agent run"));
+route("GET", "/agent-runs/:id", ({ platform, ctx, params }) => {
+  const run = find(platform.state.agentRuns as OwnedAgentRun[], params.id, "Agent run");
+  const owner = runOwner(ctx("control"));
+  if (owner && run.userId !== owner) fail(404, "NOT_FOUND", `Agent run ${params.id} not found`);
+  return run;
+});
 
 /* Flow */
 
-route("GET", "/workflows", ({ platform }) => list(platform.state.workflows));
-route("GET", "/workflows/:id", ({ platform, params }) => find(platform.state.workflows, params.id, "Workflow"));
+const FLOW_READERS: Permission[] = ["flow.manage", "audit.read"];
+
+route("GET", "/workflows", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), FLOW_READERS, "workflow.list", "workflows");
+  return list(platform.state.workflows);
+});
+route("GET", "/workflows/:id", ({ platform, ctx, params }) => {
+  platform.requireAny(ctx("control"), FLOW_READERS, "workflow.get", `workflow/${params.id}`);
+  return find(platform.state.workflows, params.id, "Workflow");
+});
 route("PATCH", "/workflows/:id", ({ platform, ctx, params, body }) => {
   const c = ctx("control");
   const workflow = find(platform.state.workflows, params.id, "Workflow");
@@ -1062,7 +1266,8 @@ route("POST", "/workflows/:id/simulate", ({ platform, ctx, params, body }): Work
 route("POST", "/workflows/:id/executions", ({ platform, userId, params, body }) =>
   runManually(platform, userId, params.id, (body.input as Record<string, unknown>) ?? {}),
 );
-route("GET", "/executions", ({ platform, query }) => {
+route("GET", "/executions", ({ platform, ctx, query }) => {
+  platform.requireAny(ctx("control"), FLOW_READERS, "execution.list", "executions");
   const workflowId = query.get("workflowId");
   return list(
     platform.state.executions
@@ -1070,12 +1275,19 @@ route("GET", "/executions", ({ platform, query }) => {
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
   );
 });
-route("GET", "/executions/:id", ({ platform, params }) => find(platform.state.executions, params.id, "Execution"));
-route("GET", "/approvals", ({ platform, query }) => {
+route("GET", "/executions/:id", ({ platform, ctx, params }) => {
+  platform.requireAny(ctx("control"), FLOW_READERS, "execution.get", `execution/${params.id}`);
+  return find(platform.state.executions, params.id, "Execution");
+});
+route("GET", "/approvals", ({ platform, ctx, query }) => {
   const status = query.get("status");
   const applicationId = query.get("applicationId");
+  const c = ctx("control");
+  // Without flow.manage or audit.read a person sees approvals they could decide or that they requested.
+  const viewer = holdsAny(c, FLOW_READERS) ? undefined : c;
   return page(
-    platform.state.approvals
+    (platform.state.approvals as RequestedApproval[])
+      .filter((a) => !viewer || viewer.permissions.has(a.permission) || a.requestedBy === viewer.actor.id)
       .filter((a) => !status || a.status === status)
       .filter((a) => !applicationId || a.subject?.applicationId === applicationId)
       .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
@@ -1090,7 +1302,8 @@ route("POST", "/approvals/:id/decision", ({ platform, userId, params, body }) =>
 
 /* Observability and audit */
 
-route("GET", "/events", ({ platform, query }) => {
+route("GET", "/events", ({ platform, ctx, query }) => {
+  platform.requirePermission(ctx("control"), "audit.read", "event.list", "events");
   const applicationId = query.get("applicationId");
   const rows = [...platform.state.events].reverse();
   return page(applicationId ? rows.filter((e) => (e.payload as Record<string, unknown>)?.applicationId === applicationId) : rows, query);
@@ -1106,7 +1319,12 @@ route("GET", "/status", ({ platform }) => {
   const status = components.some((c) => c.status === "down") ? "down" : components.some((c) => c.status === "degraded") ? "degraded" : "healthy";
   return { status, service: "wsn-service", version: "mock", uptimeSeconds: 3600, time: platform.now(), components };
 }, { public: true });
-route("GET", "/alerts", ({ platform }) => list(platform.state.alertRules));
+const OPS_READERS: Permission[] = ["control.manage", "audit.read"];
+
+route("GET", "/alerts", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), OPS_READERS, "alert.list", "alerts");
+  return list(platform.state.alertRules);
+});
 route("POST", "/alerts", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "alert.create", "alert");
@@ -1158,7 +1376,10 @@ route("DELETE", "/alerts/:id", ({ platform, ctx, params }) => {
   platform.state.alertRules.splice(i, 1);
   return { id: params.id, deleted: true };
 });
-route("GET", "/alerts/:id/fires", ({ platform, params }) => list(platform.state.alertFires.filter((f) => f.ruleId === params.id)));
+route("GET", "/alerts/:id/fires", ({ platform, ctx, params }) => {
+  platform.requireAny(ctx("control"), OPS_READERS, "alert.fires", `alert/${params.id}`);
+  return list(platform.state.alertFires.filter((f) => f.ruleId === params.id));
+});
 route("POST", "/alerts/:id/fires/:fireId/ack", ({ platform, ctx, params }) => {
   platform.requirePermission(ctx("control"), "control.manage", "alert.ack", `alert/${params.id}/${params.fireId}`);
   const f = find(platform.state.alertFires, params.fireId, "Alert fire");
@@ -1168,7 +1389,10 @@ route("POST", "/alerts/:id/fires/:fireId/ack", ({ platform, ctx, params }) => {
   f.ackedAt = platform.now();
   return f;
 });
-route("GET", "/slos", ({ platform }) => list(platform.state.slos));
+route("GET", "/slos", ({ platform, ctx }) => {
+  platform.requireAny(ctx("control"), OPS_READERS, "slo.list", "slos");
+  return list(platform.state.slos);
+});
 route("POST", "/slos", ({ platform, ctx, body }) => {
   const c = ctx("control");
   platform.requirePermission(c, "control.manage", "slo.create", "slo");
@@ -1179,7 +1403,8 @@ route("POST", "/slos", ({ platform, ctx, body }) => {
   platform.state.slos.push(slo);
   return slo;
 });
-route("GET", "/slos/:id/status", ({ platform, params }) => {
+route("GET", "/slos/:id/status", ({ platform, ctx, params }) => {
+  platform.requireAny(ctx("control"), OPS_READERS, "slo.status", `slo/${params.id}`);
   const slo = find(platform.state.slos, params.id, "SLO");
   const since = new Date(Date.now() - slo.windowMinutes * 60000).toISOString();
   const rows = platform.state.audit.filter((a) => a.action === slo.operation && a.time >= since);

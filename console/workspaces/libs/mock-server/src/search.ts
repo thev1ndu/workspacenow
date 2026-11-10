@@ -1,5 +1,5 @@
 import type { EntityRecord, SearchHit } from "@workspacenow/types";
-import type { ExecutionContext, Platform } from "./platform";
+import { holdsAny, type ExecutionContext, type Platform } from "./platform";
 
 /** Breaks ties between equally good matches: what people open most comes first. */
 const TYPE_WEIGHT: Partial<Record<SearchHit["type"], number>> = { application: 3, record: 2, user: 2, entity: 1 };
@@ -22,10 +22,7 @@ function score(terms: string[], title: string, rest: string): number {
   return total;
 }
 
-/**
- * Global search over what the caller can see: platform resources and people for any signed-in
- * user, business records only for entities the caller may read.
- */
+/** Global search: each kind of hit follows its list endpoint's rule; records only for entities the caller may read. */
 export function search(platform: Platform, ctx: ExecutionContext, query: string, limit = 30): SearchHit[] {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [];
@@ -41,11 +38,19 @@ export function search(platform: Platform, ctx: ExecutionContext, query: string,
   for (const a of s.applications) add({ type: "application", id: a.id, title: a.name, subtitle: `Application · ${dept(a.ownerDepartmentId)}` }, a.description);
   for (const e of s.entities) add({ type: "entity", id: e.name, title: e.label, subtitle: `Entity · ${appName(e.ownerApplicationId)}` }, `${e.name} ${e.description}`);
   for (const a of s.apis) add({ type: "api", id: a.id, title: a.name, subtitle: `API · ${appName(a.applicationId)}` });
-  for (const m of s.mcpServers) add({ type: "mcp-server", id: m.id, title: m.name, subtitle: "MCP server" }, m.tools.map((t) => t.name).join(" "));
-  for (const i of s.integrations) add({ type: "integration", id: i.id, title: i.name, subtitle: `Integration · ${i.kind}` }, i.target);
-  for (const a of s.agents) add({ type: "agent", id: a.id, title: a.name, subtitle: `Agent · ${dept(a.ownerDepartmentId)}` }, a.description);
-  for (const w of s.workflows) add({ type: "workflow", id: w.id, title: w.name, subtitle: `Workflow · ${appName(w.applicationId)}` });
-  for (const u of s.users) add({ type: "user", id: u.id, title: u.name, subtitle: `${u.title} · ${dept(u.departmentId)}` }, u.email);
+  if (holdsAny(ctx, ["connect.manage"])) {
+    for (const m of s.mcpServers) add({ type: "mcp-server", id: m.id, title: m.name, subtitle: "MCP server" }, m.tools.map((t) => t.name).join(" "));
+    for (const i of s.integrations) add({ type: "integration", id: i.id, title: i.name, subtitle: `Integration · ${i.kind}` }, i.target);
+  }
+  if (holdsAny(ctx, ["ai.manage", "flow.manage", "audit.read"])) {
+    for (const a of s.agents) add({ type: "agent", id: a.id, title: a.name, subtitle: `Agent · ${dept(a.ownerDepartmentId)}` }, a.description);
+  }
+  if (holdsAny(ctx, ["flow.manage", "audit.read"])) {
+    for (const w of s.workflows) add({ type: "workflow", id: w.id, title: w.name, subtitle: `Workflow · ${appName(w.applicationId)}` });
+  }
+  if (holdsAny(ctx, ["control.manage", "audit.read"])) {
+    for (const u of s.users) add({ type: "user", id: u.id, title: u.name, subtitle: `${u.title} · ${dept(u.departmentId)}` }, u.email);
+  }
 
   const labelOf = (record: EntityRecord) => String(NAME_FIELDS.map((f) => record.values[f]).find((v) => v != null) ?? record.id);
   for (const entity of s.entities) {

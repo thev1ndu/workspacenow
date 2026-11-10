@@ -1,7 +1,10 @@
 import { ApiError, type Agent, type AgentRun, type AgentRunStep, type Permission, type ToolCall } from "@workspacenow/types";
 import { applicationToolNames, callExternalTool, listMcpTools } from "./mcp";
 import type { LowStockItem } from "./operations";
-import { fail, type ExecutionContext, type Platform } from "./platform";
+import { fail, PermissionSet, type ExecutionContext, type Platform } from "./platform";
+
+/** An agent run with the id of the user who started it, as wsn-service stores it. */
+export type OwnedAgentRun = AgentRun & { userId?: string };
 
 export interface AgentRunOptions {
   trigger: AgentRun["trigger"];
@@ -13,6 +16,8 @@ export interface AgentRunOptions {
   delegatedFrom?: Iterable<Permission>;
   /** Confines the run to one application: only the tools its own APIs expose may be called. */
   applicationId?: string;
+  /** The signed-in user who started the run; callers without ai.manage or audit.read see only their own. */
+  userId?: string;
 }
 
 /**
@@ -20,10 +25,10 @@ export interface AgentRunOptions {
  * A delegated run narrows it further to the permissions the caller also holds.
  */
 function agentContext(platform: Platform, agent: Agent, options: AgentRunOptions): ExecutionContext {
-  const caller = options.delegatedFrom ? new Set(options.delegatedFrom) : undefined;
+  const caller = options.delegatedFrom ? new PermissionSet(options.delegatedFrom) : undefined;
   return {
     actor: { kind: "agent", id: agent.id, name: agent.name, onBehalfOf: options.onBehalfOf },
-    permissions: new Set(agent.permissions.filter((p) => !caller || caller.has(p))),
+    permissions: new PermissionSet(agent.permissions.filter((p) => !caller || caller.has(p))),
     traceId: options.traceId ?? platform.newTraceId(),
     entryPoint: "mcp",
   };
@@ -152,8 +157,9 @@ export function runAgent(platform: Platform, agentId: string, prompt: string, op
   if (app && outsideApp) answer = `That is outside ${app.name}, so I can't do it here. Ask Sidekick in the WorkspaceNow console, or open the app that owns it.`;
 
   const durationMs = 600 + steps.length * 450;
-  const run: AgentRun = {
+  const run: OwnedAgentRun = {
     id: platform.nextId("run"),
+    userId: options.userId,
     agentId: agent.id,
     traceId: ctx.traceId,
     prompt,

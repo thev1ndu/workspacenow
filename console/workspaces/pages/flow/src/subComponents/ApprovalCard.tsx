@@ -1,6 +1,7 @@
+import { Checkmark, Close } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, InlineNotification, Tag } from "@carbon/react";
-import { Check, Xmark } from "@workspacenow/icons";
+
 import { useCan, useDecideApproval } from "@workspacenow/api-client";
 import { buildPath, routes, type Approval } from "@workspacenow/types";
 import { StatusChip, TextInput, TextLink, formatDateTime, formatRelative } from "@workspacenow/views";
@@ -51,11 +52,11 @@ export function ApprovalCard({ approval }: { approval: Approval }) {
           <TextInput label="Comment" value={comment} onChange={setComment} placeholder="Comment (optional)" />
           <div className="flex gap-2">
             <Button disabled={decide.isPending} onClick={() => submit("approved")}>
-              <Check className="size-4" aria-hidden />
+              <Checkmark className="size-4" aria-hidden />
               Approve
             </Button>
             <Button kind="secondary" disabled={decide.isPending} onClick={() => submit("rejected")}>
-              <Xmark className="size-4" aria-hidden />
+              <Close className="size-4" aria-hidden />
               Reject
             </Button>
           </div>

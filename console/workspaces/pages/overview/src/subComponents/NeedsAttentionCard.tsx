@@ -1,6 +1,7 @@
+import { ChevronRight, CheckmarkFilled, WarningFilled, Activity } from "@carbon/react/icons";
 import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CircleCheck, CircleExclamation, Pulse } from "@workspacenow/icons";
+
 import { useCan, useListApprovals, useListExecutions, useListHealth, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { NoDataFound, SectionCard, StatusChip, formatRelative, ListSkeleton, Loading } from "@workspacenow/views";
@@ -32,7 +33,7 @@ export function NeedsAttentionCard() {
     ...(approvals.data?.items ?? []).map((a) => ({
       id: `approval-${a.id}`,
       href: routes.flow.approvals,
-      icon: <CircleCheck />,
+      icon: <CheckmarkFilled />,
       title: a.title,
       detail: `Approval requested ${formatRelative(a.requestedAt)}`,
       status: "pending",
@@ -42,7 +43,7 @@ export function NeedsAttentionCard() {
       .map((e) => ({
         id: `execution-${e.id}`,
         href: buildPath(routes.flow.execution, { executionId: e.id }),
-        icon: <CircleExclamation />,
+        icon: <WarningFilled />,
         title: workflowName(e.workflowId),
         detail: `Execution ${e.id} failed ${formatRelative(e.endedAt ?? e.startedAt)}`,
         status: "failed",
@@ -53,7 +54,7 @@ export function NeedsAttentionCard() {
       .map((s) => ({
         id: `health-${s.kind}-${s.resource}`,
         href: routes.control.root,
-        icon: <Pulse />,
+        icon: <Activity />,
         title: s.resource,
         detail: s.detail,
         status: s.status,

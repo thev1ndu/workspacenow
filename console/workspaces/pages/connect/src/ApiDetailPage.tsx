@@ -1,6 +1,7 @@
+import { Play } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Toggle } from "@carbon/react";
-import { Play } from "@workspacenow/icons";
+
 import { useParams } from "react-router-dom";
 import { useCan, useGetApi, useListApiOperations, useListApplications, useUpdateMcpExposure } from "@workspacenow/api-client";
 import { routes, type ApiOperation } from "@workspacenow/types";

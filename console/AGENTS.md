@@ -8,7 +8,7 @@ and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package 
 | Need | Location |
 |---|---|
 | Workspace pages | `workspaces/pages/<area>/src` (`ai`, `connect`, `control`, `data`, `flow`, `overview`, `studio`) |
-| Shared libs | `workspaces/libs/{types,api-client,views,icons,auth,charting,mock-server}` |
+| Shared libs | `workspaces/libs/{types,api-client,views,auth,charting,mock-server}` |
 | Domain types + routes | `workspaces/libs/types/src` (`domain.ts`, `routes.ts` — use `routes` + `buildPath`, never hand-written paths) |
 | API transport | `workspaces/libs/api-client/src/apis/<area>.ts` (pure fetch, takes `getToken`) + `hooks/<area>.ts` (`useApiQuery`/`useApiMutation`) |
 | Shared UI | `workspaces/libs/views/src/component` (`PageLayout`, `SectionCard`, `QueryState`, `TablePager`, `Metric`/`MetricGrid`, `TextInput`/`SelectInput`, …) |
@@ -25,7 +25,7 @@ and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package 
 
 ## Rules
 
-- UI comes only from `@carbon/react` (plus the `@workspacenow/views` primitives), charts from `@workspacenow/charts`, icons from `@workspacenow/icons`. Follow `docs/UI-GUIDE.md`.
+- UI comes only from `@carbon/react` (plus the `@workspacenow/views` primitives), charts from `@workspacenow/charts`, icons from `@carbon/react/icons`. Follow `docs/UI-GUIDE.md`.
 - API calls follow the two-file pattern above. Never call the transport from a component.
 - Mutations refresh every query on settle: platform writes fan out through events, workflows and audit.
 - Forms are manual `useState`; server state is TanStack Query; there is no global store.

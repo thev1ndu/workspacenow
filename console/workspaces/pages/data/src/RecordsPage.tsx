@@ -1,6 +1,7 @@
+import { Download, ArrowUp, Add, AiGenerate, List } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, InlineNotification, Select, SelectItem } from "@carbon/react";
-import { ArrowDownToLine, ArrowUp, Plus, Sparkles, SquareListUl } from "@workspacenow/icons";
+
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
 import { exportRecords, useCreateRecord, useGetEntity, useListEntities, useListRecords, useListViews } from "@workspacenow/api-client";
@@ -87,13 +88,13 @@ export function RecordsPage() {
               <SelectItem key={v.id} value={v.id} text={v.name} />
             ))}
           </Select>
-          <Button kind="tertiary" onClick={() => download("csv")} disabled={!entity.data} renderIcon={(p) => <ArrowDownToLine className="size-4" aria-hidden {...p} />}>
+          <Button kind="tertiary" onClick={() => download("csv")} disabled={!entity.data} renderIcon={(p) => <Download className="size-4" aria-hidden {...p} />}>
             Export CSV
           </Button>
-          <Button kind="tertiary" onClick={() => setViewsOpen(true)} disabled={!entity.data} renderIcon={(p) => <SquareListUl className="size-4" aria-hidden {...p} />}>
+          <Button kind="tertiary" onClick={() => setViewsOpen(true)} disabled={!entity.data} renderIcon={(p) => <List className="size-4" aria-hidden {...p} />}>
             Views
           </Button>
-          <Button kind="secondary" onClick={() => setAskOpen(true)} disabled={!entity.data} renderIcon={(p) => <Sparkles className="size-4" aria-hidden {...p} />}>
+          <Button kind="secondary" onClick={() => setAskOpen(true)} disabled={!entity.data} renderIcon={(p) => <AiGenerate className="size-4" aria-hidden {...p} />}>
             Ask
           </Button>
           {!readOnly && (
@@ -105,7 +106,7 @@ export function RecordsPage() {
             {includeDeleted ? "Hide deleted" : "Show deleted"}
           </Button>
           {!readOnly && (
-            <Button kind="primary" onClick={() => setCreating(true)} disabled={!entity.data} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+            <Button kind="primary" onClick={() => setCreating(true)} disabled={!entity.data} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
               New record
             </Button>
           )}

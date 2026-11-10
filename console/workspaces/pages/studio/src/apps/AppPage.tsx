@@ -1,4 +1,5 @@
-import { Pencil } from "@workspacenow/icons";
+import { Edit } from "@carbon/react/icons";
+
 import { useParams } from "react-router-dom";
 import { useCan, useGetApplication } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -44,7 +45,7 @@ export function AppPage() {
             <PinButton app={app} variant="secondary" />
             {canBuild && (
               <LinkButton size="sm" variant="secondary" href={buildPath(routes.studio.applicationEdit, { appId: app.id })}>
-                <Pencil className="size-3.5" aria-hidden />
+                <Edit className="size-3.5" aria-hidden />
                 Edit in Studio
               </LinkButton>
             )}

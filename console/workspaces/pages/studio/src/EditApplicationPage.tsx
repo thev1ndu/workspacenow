@@ -1,6 +1,7 @@
+import { Checkmark, AiGenerate, Close } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, Tag, TextArea } from "@carbon/react";
-import { Check, Sparkles, Xmark } from "@workspacenow/icons";
+
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetApplication, useListEntities, usePlanApplicationEdit, useUpdateApplication } from "@workspacenow/api-client";
 import { buildPath, planFromApplication, routes, validatePlan, validatePlanChanges, type Application, type Entity } from "@workspacenow/types";
@@ -44,14 +45,14 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
         </div>
         <div className="flex gap-2">
           <Button kind="tertiary" onClick={() => navigate(detailPath)}>
-            <Xmark className="size-4" aria-hidden />
+            <Close className="size-4" aria-hidden />
             Discard
           </Button>
           <Button
             disabled={!dirty || problems.length > 0 || !canBuild || update.isPending}
             onClick={() => update.mutate({ appId: app.id, plan }, { onSuccess: () => navigate(detailPath) })}
           >
-            <Check className="size-4" aria-hidden />
+            <Checkmark className="size-4" aria-hidden />
             Save changes
           </Button>
         </div>
@@ -65,7 +66,7 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
             </p>
           </div>
           <Button kind="tertiary" onClick={() => setAiOpen((v) => !v)} disabled={!canBuild}>
-            <Sparkles className="size-4" aria-hidden />
+            <AiGenerate className="size-4" aria-hidden />
             {aiOpen ? "Close" : "Ask the Architect"}
           </Button>
         </div>
@@ -91,7 +92,7 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
                   )
                 }
               >
-                <Sparkles className="size-4" aria-hidden />
+                <AiGenerate className="size-4" aria-hidden />
                 Revise plan
               </Button>
               {!!planEdit.error && <span className="text-sm text-danger">{errorMessage(planEdit.error)}</span>}

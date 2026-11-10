@@ -1,6 +1,7 @@
+import { Add, AiGenerate } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { Plus, Sparkles } from "@workspacenow/icons";
+
 import { useCan, useListApplications, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
@@ -23,11 +24,11 @@ export function EntitiesPage() {
       actions={
         <>
           {canManage && (
-            <Button kind="secondary" onClick={() => setInferOpen(true)} renderIcon={(p) => <Sparkles className="size-4" aria-hidden {...p} />}>
+            <Button kind="secondary" onClick={() => setInferOpen(true)} renderIcon={(p) => <AiGenerate className="size-4" aria-hidden {...p} />}>
               New from data
             </Button>
           )}
-          <Button kind="primary" onClick={() => setOpen(true)} disabled={!canManage} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+          <Button kind="primary" onClick={() => setOpen(true)} disabled={!canManage} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
             New entity
           </Button>
         </>

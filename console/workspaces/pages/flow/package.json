@@ -18,7 +18,6 @@
     "@workspacenow/api-client": "workspace:*",
     "@workspacenow/auth": "workspace:*",
     "@workspacenow/charts": "workspace:*",
-    "@workspacenow/icons": "workspace:*",
     "@workspacenow/types": "workspace:*",
     "@workspacenow/views": "workspace:*",
     "@xyflow/react": "12.12.1",

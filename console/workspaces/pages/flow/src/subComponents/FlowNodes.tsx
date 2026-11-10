@@ -1,18 +1,19 @@
+import { Time, Bot, Settings, Flow, Send, User, Flash } from "@carbon/react/icons";
 import type { ComponentType, ReactNode } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Clock, FaceRobot, Gear, NodesRight, PaperPlane, Person, Thunderbolt } from "@workspacenow/icons";
+
 import type { StepStatus, WorkflowStep, WorkflowStepKind } from "@workspacenow/types";
 import { StatusChip } from "@workspacenow/views";
 import { TriggerLabel } from "./TriggerLabel";
 import type { FlowNode, StepNodeData, TriggerNodeData } from "./graphModel";
 
 export const STEP_KINDS: Array<{ kind: WorkflowStepKind; label: string; hint: string; icon: ComponentType<{ className?: string }> }> = [
-  { kind: "agent", label: "Agent", hint: "An AI agent works the task", icon: FaceRobot },
-  { kind: "approval", label: "Approval", hint: "A person approves or rejects", icon: Person },
-  { kind: "operation", label: "Operation", hint: "Run a business operation", icon: Gear },
-  { kind: "notify", label: "Notify", hint: "Send a message", icon: PaperPlane },
-  { kind: "condition", label: "Condition", hint: "Branch on a value", icon: NodesRight },
-  { kind: "wait", label: "Wait", hint: "Pause for a while", icon: Clock },
+  { kind: "agent", label: "Agent", hint: "An AI agent works the task", icon: Bot },
+  { kind: "approval", label: "Approval", hint: "A person approves or rejects", icon: User },
+  { kind: "operation", label: "Operation", hint: "Run a business operation", icon: Settings },
+  { kind: "notify", label: "Notify", hint: "Send a message", icon: Send },
+  { kind: "condition", label: "Condition", hint: "Branch on a value", icon: Flow },
+  { kind: "wait", label: "Wait", hint: "Pause for a while", icon: Time },
 ];
 
 const KIND = Object.fromEntries(STEP_KINDS.map((k) => [k.kind, k])) as Record<WorkflowStepKind, (typeof STEP_KINDS)[number]>;
@@ -63,7 +64,7 @@ function TriggerNode({ data, selected }: NodeProps<FlowNode & { data: TriggerNod
   return (
     <Shell selected={selected}>
       <div className="flex items-center gap-2 text-xs font-medium text-muted">
-        <Thunderbolt className="size-3.5" aria-hidden />
+        <Flash className="size-3.5" aria-hidden />
         Trigger
       </div>
       <div className="mt-1 text-foreground">

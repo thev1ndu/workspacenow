@@ -1,6 +1,7 @@
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Checkbox, InlineNotification, Modal, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { Plus, TrashBin } from "@workspacenow/icons";
+
 import {
   useCan,
   useCreateGroup,
@@ -35,7 +36,7 @@ export function GroupEditor() {
       title="WorkspaceNow groups"
       subtitle="Groups live here, not in the IdP. Map their names to roles below; members can also be IdP group claims."
       actions={
-        <Button size="sm" kind="primary" onClick={() => setEditing({ group: null, input: { name: "", description: "", memberIds: [] } })} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+        <Button size="sm" kind="primary" onClick={() => setEditing({ group: null, input: { name: "", description: "", memberIds: [] } })} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
           New group
         </Button>
       }
@@ -87,7 +88,7 @@ export function GroupEditor() {
                             disabled={remove.isPending}
                             onClick={() => remove.mutate(g.id)}
                             aria-label={`Delete group ${g.name}`}
-                            renderIcon={(p) => <TrashBin className="size-4" aria-hidden {...p} />}
+                            renderIcon={(p) => <TrashCan className="size-4" aria-hidden {...p} />}
                           />
                         </div>
                       </TableCell>

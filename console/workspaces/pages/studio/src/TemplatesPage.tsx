@@ -1,6 +1,7 @@
+import { Layers, Add } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Modal } from "@carbon/react";
-import { Layers, Plus } from "@workspacenow/icons";
+
 import { useNavigate } from "react-router-dom";
 import { useCan, useInstallTemplate, useListTemplates } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -33,7 +34,7 @@ export function TemplatesPage() {
                   subtitle={`${t.category} · v${t.version}`}
                   actions={
                     <Button size="sm" kind="primary" disabled={!canBuild} onClick={() => { setSelected(t); setName(t.name); }}>
-                      <Plus className="size-3.5" aria-hidden />
+                      <Add className="size-3.5" aria-hidden />
                       Install
                     </Button>
                   }

@@ -1,9 +1,10 @@
+import { Checkmark, Layers, Close } from "@carbon/react/icons";
 import { useMemo, useState, type DragEvent } from "react";
 import { Button, InlineNotification } from "@carbon/react";
 import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type Connection, type EdgeChange, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./flow.css";
-import { Check, Layers, Xmark } from "@workspacenow/icons";
+
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetWorkflow, useListAgents, useListBusinessOperations, useListEntities, useListRoles, useSaveWorkflow } from "@workspacenow/api-client";
 import { buildPath, routes, validateWorkflow, type WorkflowDefinition, type WorkflowStepKind } from "@workspacenow/types";
@@ -104,14 +105,14 @@ function Editor({ initial, workflowId, options, refs }: { initial: WorkflowDefin
         </div>
         <div className="flex gap-2">
           <Button kind="tertiary" onClick={() => navigate(detail)}>
-            <Xmark className="size-4" aria-hidden />
+            <Close className="size-4" aria-hidden />
             {dirty ? "Discard" : "Close"}
           </Button>
           <Button
             disabled={!dirty || problems.length > 0 || !canEdit || save.isPending}
             onClick={() => save.mutate({ workflowId, definition }, { onSuccess: (saved) => navigate(buildPath(routes.flow.workflow, { workflowId: saved.id })) })}
           >
-            <Check className="size-4" aria-hidden />
+            <Checkmark className="size-4" aria-hidden />
             {workflowId ? "Save new version" : "Create workflow"}
           </Button>
         </div>

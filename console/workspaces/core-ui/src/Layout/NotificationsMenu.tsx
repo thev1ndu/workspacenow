@@ -1,6 +1,7 @@
+import { Notification, CheckmarkFilled } from "@carbon/react/icons";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@carbon/react";
-import { Bell, CircleCheck } from "@workspacenow/icons";
+
 import { useCan, useListApprovals, useListEvents } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, TextLink, formatRelative } from "@workspacenow/views";
@@ -63,7 +64,7 @@ export function NotificationsMenu({ applicationId }: { applicationId?: string })
     <div className="relative" ref={ref}>
       <span className="relative inline-flex">
         <Button kind="ghost" size="sm" hasIconOnly iconDescription={unread ? `Notifications, ${unread} unread` : "Notifications"} onClick={() => markSeen(!open)}>
-          <Bell className="size-4" />
+          <Notification className="size-4" />
         </Button>
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
@@ -82,7 +83,7 @@ export function NotificationsMenu({ applicationId }: { applicationId?: string })
           <hr className="border-separator" />
           {(approvals.data?.items ?? []).map((approval) => (
             <div key={approval.id} className="flex items-start gap-3 bg-warning-soft/40 px-4 py-3">
-              <CircleCheck className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+              <CheckmarkFilled className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{approval.title} needed</p>
                 <p className="mt-0.5 line-clamp-2 text-xs text-muted">{approval.summary}</p>

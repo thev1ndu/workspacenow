@@ -1,5 +1,6 @@
+import { Chat, Tools } from "@carbon/react/icons";
 import { Accordion, AccordionItem } from "@carbon/react";
-import { Comment, Wrench } from "@workspacenow/icons";
+
 import { buildPath, routes, type AgentRun, type ToolCall } from "@workspacenow/types";
 import { JsonView, LinkButton, StatusChip, formatDateTime, formatNumber } from "@workspacenow/views";
 
@@ -7,7 +8,7 @@ function ToolCallCard({ call }: { call: ToolCall }) {
   return (
     <div className={`flex flex-col gap-3 rounded-xl border border-separator bg-surface p-4 ${call.outcome === "denied" ? "ring-1 ring-danger/40" : ""}`}>
       <div className="flex items-center gap-2">
-        <Wrench className="size-3.5 text-muted" aria-hidden />
+        <Tools className="size-3.5 text-muted" aria-hidden />
         <span className="flex-1 font-mono text-sm font-medium">{call.tool}</span>
         <StatusChip status={call.outcome === "error" ? "failed" : call.outcome} label={call.outcome === "error" ? "Error" : undefined} />
       </div>
@@ -58,7 +59,7 @@ export function RunTranscript({ run, agentName }: { run: AgentRun; agentName?: s
         ),
       )}
       <div className="flex gap-3 rounded-xl border border-separator bg-surface px-4 py-3">
-        <Comment className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+        <Chat className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
         <p className="text-sm">{run.answer}</p>
       </div>
     </div>

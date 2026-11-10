@@ -1,5 +1,6 @@
+import { ArrowLeft, ArrowRight } from "@carbon/react/icons";
 import { Button } from "@carbon/react";
-import { ArrowLeft, ArrowRight } from "@workspacenow/icons";
+
 
 export interface TablePagerProps {
   page: number;

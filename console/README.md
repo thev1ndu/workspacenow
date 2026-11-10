@@ -11,7 +11,7 @@ The demo needs no backend. `@workspacenow/mock-server` is an in-browser platform
 installation's REST API: Entity Runtime, Business Operations, MCP tools, agent runs, durable-style workflows,
 approvals, events and audit. State persists in `localStorage`; reset it from the account menu.
 
-The UI is IBM Carbon (@carbon/react) with a small app utility layer on Carbon theme variables, with EvilCharts (Recharts) for charts and Gravity UI icons. See
+The UI is IBM Carbon (@carbon/react) with a small app utility layer on Carbon theme variables, with EvilCharts (Recharts) for charts and Carbon icons. See
 `docs/UI-GUIDE.md` before changing any screen.
 
 

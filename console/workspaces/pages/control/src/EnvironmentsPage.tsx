@@ -1,5 +1,6 @@
+import { Security } from "@carbon/react/icons";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { ShieldCheck } from "@workspacenow/icons";
+
 import { useListApplications, useListDeployments, useListEnvironments } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, formatDateTime, CardGridSkeleton } from "@workspacenow/views";
@@ -23,7 +24,7 @@ export function EnvironmentsPage() {
                     <h3 className="flex-1 text-sm font-semibold">{env.name}</h3>
                     {env.requiresApproval && (
                       <Tag size="sm" type="warm-gray">
-                        <ShieldCheck className="size-3" aria-hidden />
+                        <Security className="size-3" aria-hidden />
                         Promotion approval
                       </Tag>
                     )}

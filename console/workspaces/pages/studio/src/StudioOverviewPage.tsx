@@ -1,6 +1,7 @@
+import { ChevronRight, CircleDash, OverflowMenuHorizontal, Rocket } from "@carbon/react/icons";
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CircleDashed, DotsNine, Rocket } from "@workspacenow/icons";
+
 import { useListApplications } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, formatRelative, MetricGridSkeleton, SectionCardSkeleton, ListSkeleton, DetailSkeleton } from "@workspacenow/views";
@@ -39,9 +40,9 @@ export function StudioOverviewPage() {
           return (
             <div className="grid gap-6">
               <MetricGrid columns={3}>
-                <Metric label="Applications" value={data.total} icon={<DotsNine />} />
+                <Metric label="Applications" value={data.total} icon={<OverflowMenuHorizontal />} />
                 <Metric label="Released" value={data.items.filter((a) => a.lifecycle === "released").length} icon={<Rocket />} />
-                <Metric label="In draft" value={data.items.filter((a) => a.lifecycle === "draft").length} icon={<CircleDashed />} />
+                <Metric label="In draft" value={data.items.filter((a) => a.lifecycle === "draft").length} icon={<CircleDash />} />
               </MetricGrid>
               <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
                 <SectionCard

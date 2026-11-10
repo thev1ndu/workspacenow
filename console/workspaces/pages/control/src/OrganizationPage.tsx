@@ -1,6 +1,7 @@
+import { Settings } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, InlineNotification, Tag } from "@carbon/react";
-import { Gear } from "@workspacenow/icons";
+
 import { useOrganization, useOrganizationTheme, useUpdateOrganizationTheme } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
 import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TextInput } from "@workspacenow/views";
@@ -63,7 +64,7 @@ export function OrganizationPage() {
               kind="secondary"
               disabled={updateTheme.isPending}
               onClick={() => updateTheme.mutate({ primaryColor: effectiveColor, logoUrl: effectiveLogo })}
-              renderIcon={(p) => <Gear className="size-3.5" aria-hidden {...p} />}
+              renderIcon={(p) => <Settings className="size-3.5" aria-hidden {...p} />}
             >
               Save theme
             </Button>

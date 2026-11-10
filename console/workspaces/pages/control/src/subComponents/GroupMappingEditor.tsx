@@ -1,6 +1,7 @@
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useEffect, useState } from "react";
 import { Button, InlineNotification, Select, SelectItem, TextInput } from "@carbon/react";
-import { Plus, TrashBin } from "@workspacenow/icons";
+
 import { useCan, useListGroupMappings, useListRoles, useUpdateGroupMappings } from "@workspacenow/api-client";
 import type { GroupRoleMapping } from "@workspacenow/types";
 import { QueryState, SectionCard, TableSkeleton } from "@workspacenow/views";
@@ -28,7 +29,7 @@ export function GroupMappingEditor() {
       subtitle="Group claims in the OIDC token decide each user's WorkspaceNow roles."
       actions={
         <>
-          <Button size="sm" kind="ghost" onClick={() => setRows((prev) => [...prev, { group: "", roleId: "" }])} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+          <Button size="sm" kind="ghost" onClick={() => setRows((prev) => [...prev, { group: "", roleId: "" }])} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
             Add
           </Button>
           <Button size="sm" kind="tertiary" disabled={!dirty} onClick={() => setRows(mappings.data?.items ?? [])}>
@@ -91,7 +92,7 @@ export function GroupMappingEditor() {
                       kind="ghost"
                       iconDescription="Remove mapping"
                       onClick={() => setRows((prev) => prev.filter((_r, i) => i !== index))}
-                      renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+                      renderIcon={(p) => <TrashCan className="size-4" {...p} />}
                     />
                   </div>
                 </div>

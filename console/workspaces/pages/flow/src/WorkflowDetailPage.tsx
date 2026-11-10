@@ -1,5 +1,6 @@
+import { Pause, Edit, Play, Rocket } from "@carbon/react/icons";
 import { Button, Tag } from "@carbon/react";
-import { Pause, Pencil, Play, Rocket } from "@workspacenow/icons";
+
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetWorkflow, useListApplications, useListExecutions, useSimulateWorkflow, useStartWorkflow, useUpdateWorkflow } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -32,7 +33,7 @@ export function WorkflowDetailPage() {
           <>
             {canDesign && (
               <LinkButton variant="secondary" href={buildPath(routes.flow.workflowEdit, { workflowId: wf.id })}>
-                <Pencil className="size-4" aria-hidden />
+                <Edit className="size-4" aria-hidden />
                 Edit flow
               </LinkButton>
             )}

@@ -1,4 +1,5 @@
-import { Database } from "@workspacenow/icons";
+import { DataBase } from "@carbon/react/icons";
+
 import { Navigate } from "react-router-dom";
 import { buildPath, routes } from "@workspacenow/types";
 import { useListEntities } from "@workspacenow/api-client";
@@ -23,7 +24,7 @@ export const dataWorkspace: WorkspaceModule = {
   key: "data",
   title: "Data",
   description: "Define business entities, their relationships and access, and work with their records.",
-  icon: <Database className="size-4" />,
+  icon: <DataBase className="size-4" />,
   basePath: routes.data.root,
   navigation: [
     { label: "Overview", href: routes.data.root, end: true },

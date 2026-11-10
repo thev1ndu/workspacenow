@@ -1,6 +1,7 @@
+import { ArrowLeft, AiGenerate } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button } from "@carbon/react";
-import { ArrowLeft, SparklesFill } from "@workspacenow/icons";
+
 import { Link, Outlet, useMatch } from "react-router-dom";
 import { useGetApplication, useSession } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -48,7 +49,7 @@ export function AppShell() {
           {scopedApp && <NotificationsMenu applicationId={scopedApp.id} />}
           {scopedApp && (
             <Button kind={sidekickOpen ? "secondary" : "ghost"} size="sm" aria-pressed={sidekickOpen} onClick={() => setSidekickPreferred(!sidekickOpen)}>
-              <SparklesFill className="size-4 text-accent" aria-hidden />
+              <AiGenerate className="size-4 text-accent" aria-hidden />
               <span className="sr-only sm:not-sr-only">Sidekick</span>
             </Button>
           )}

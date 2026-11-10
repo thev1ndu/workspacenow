@@ -1,4 +1,5 @@
-import { PlugConnection } from "@workspacenow/icons";
+import { Plug } from "@carbon/react/icons";
+
 import { routes } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
 import { ApiDetailPage } from "./ApiDetailPage";
@@ -11,7 +12,7 @@ export const connectWorkspace: WorkspaceModule = {
   key: "connect",
   title: "Connect",
   description: "Build APIs, integrate external systems and expose business operations as MCP tools.",
-  icon: <PlugConnection className="size-4" />,
+  icon: <Plug className="size-4" />,
   basePath: routes.connect.root,
   navigation: [
     { label: "Overview", href: routes.connect.root, end: true },

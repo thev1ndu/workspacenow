@@ -1,5 +1,6 @@
+import { Archive } from "@carbon/react/icons";
 import type { ReactNode } from "react";
-import { Archive } from "@workspacenow/icons";
+
 
 /** Empty state: an icon, a message and an optional action. */
 export function NoDataFound({ message, action, icon }: { message: string; action?: ReactNode; icon?: ReactNode }) {

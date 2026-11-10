@@ -1,7 +1,8 @@
+import { Grid, Add, QrCode, ShoppingCart } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, IconButton, InlineNotification } from "@carbon/react";
 import { Close } from "@carbon/react/icons";
-import { LayoutCells, Plus, QrCode, ShoppingCart } from "@workspacenow/icons";
+
 import { useCreateRecord, useGetEntity, useListRecords } from "@workspacenow/api-client";
 import type { AppPage, EntityRecord } from "@workspacenow/types";
 import { Metric, MetricGrid, NoDataFound, QueryState, SectionCard } from "@workspacenow/views";
@@ -71,7 +72,7 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
         if (page.kind === "dashboard") {
           return (
             <MetricGrid columns={3}>
-              <Metric label={`${e.label} records`} value={records.data?.total ?? "—"} icon={<LayoutCells />} />
+              <Metric label={`${e.label} records`} value={records.data?.total ?? "—"} icon={<Grid />} />
             </MetricGrid>
           );
         }
@@ -81,7 +82,7 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
             actions={
               !readOnly && (
                 <Button size="sm" onClick={() => setCreating(true)}>
-                  <Plus className="size-3.5" aria-hidden />
+                  <Add className="size-3.5" aria-hidden />
                   New {e.label.toLowerCase()}
                 </Button>
               )

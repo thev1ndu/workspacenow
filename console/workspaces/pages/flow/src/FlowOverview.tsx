@@ -1,5 +1,6 @@
+import { Flow, CheckmarkFilled, WarningFilled, Hourglass, Play } from "@carbon/react/icons";
 import { InlineNotification } from "@carbon/react";
-import { BranchesRight, CircleCheck, CircleExclamation, Hourglass, Play } from "@workspacenow/icons";
+
 import { EvilAreaChart, type ChartConfig } from "@workspacenow/charts";
 import { useActivity, useListApprovals, useListExecutions, useListWorkflows } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -29,12 +30,12 @@ export function FlowOverview() {
           <Metric
             label="Active workflows"
             value={workflows.data?.items.filter((w) => w.status === "active").length ?? "—"}
-            icon={<BranchesRight />}
+            icon={<Flow />}
           />
           <Metric label="Running" value={count("running")} icon={<Play />} />
           <Metric label="Waiting" value={count("waiting")} icon={<Hourglass />} />
-          <Metric label="Failed" value={count("failed")} icon={<CircleExclamation />} />
-          <Metric label="Pending approvals" value={approvals.data?.total ?? "—"} icon={<CircleCheck />} />
+          <Metric label="Failed" value={count("failed")} icon={<WarningFilled />} />
+          <Metric label="Pending approvals" value={approvals.data?.total ?? "—"} icon={<CheckmarkFilled />} />
         </MetricGrid>
 
         <InlineNotification

@@ -1,6 +1,7 @@
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, Checkbox, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
-import { Plus, TrashBin } from "@workspacenow/icons";
+
 import { useNavigate } from "react-router-dom";
 import { useCreateEntity, useListApplications, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes, type EntityField, type EntityScope, type FieldType } from "@workspacenow/types";
@@ -63,7 +64,7 @@ export function FieldRowEditor({
             aria-label="Remove field"
             iconDescription="Remove field"
             onClick={onRemove}
-            renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+            renderIcon={(p) => <TrashCan className="size-4" {...p} />}
           />
         ) : (
           <span />
@@ -169,7 +170,7 @@ export function NewEntityDialog({ open, onClose }: { open: boolean; onClose: () 
         <TextInput label="Description" value={description} onChange={setDescription} multiline rows={2} />
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Fields</h3>
-          <Button size="sm" kind="secondary" onClick={() => setRows((prev) => [...prev, emptyRow()])} renderIcon={(p) => <Plus className="size-3.5" aria-hidden {...p} />}>
+          <Button size="sm" kind="secondary" onClick={() => setRows((prev) => [...prev, emptyRow()])} renderIcon={(p) => <Add className="size-3.5" aria-hidden {...p} />}>
             Add field
           </Button>
         </div>

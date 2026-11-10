@@ -1,6 +1,7 @@
+import { Download } from "@carbon/react/icons";
 import { useEffect, useState } from "react";
 import { Modal } from "@carbon/react";
-import { ArrowDownToLine } from "@workspacenow/icons";
+
 import QRCode from "qrcode";
 
 /** A record's QR code, as a scan page reads it, ready to show on screen or save and print. */
@@ -32,7 +33,7 @@ export function QrCodeDialog({ title, code, onClose }: { title: string; code: st
         <p className="font-mono text-sm">{code}</p>
         {image && (
           <a href={image} download={`${code}.png`} className="inline-flex items-center gap-1.5 text-sm text-accent no-underline hover:underline">
-            <ArrowDownToLine className="size-4" aria-hidden />
+            <Download className="size-4" aria-hidden />
             Save image
           </a>
         )}

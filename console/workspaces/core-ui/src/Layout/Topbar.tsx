@@ -1,5 +1,6 @@
+import { Menu, CheckmarkFilled, OverflowMenuHorizontal, Search, AiGenerate } from "@carbon/react/icons";
 import { Button } from "@carbon/react";
-import { Bars, CircleCheck, DotsNine, Magnifier, SparklesFill } from "@workspacenow/icons";
+
 import { Link, useLocation } from "react-router-dom";
 import { useListApprovals } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
@@ -42,7 +43,7 @@ export function Topbar({
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-separator bg-background/85 px-4 backdrop-blur lg:px-6">
       <Button kind="ghost" size="sm" hasIconOnly iconDescription={t("Open navigation")} className="lg:hidden" onClick={onOpenMenu}>
-        <Bars className="size-4" />
+        <Menu className="size-4" />
       </Button>
 
       <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
@@ -52,29 +53,29 @@ export function Topbar({
       </nav>
 
       <Button kind="tertiary" size="sm" className="hidden w-64 justify-start font-normal text-muted md:flex" onClick={onOpenSearch}>
-        <Magnifier className="size-4" aria-hidden />
+        <Search className="size-4" aria-hidden />
         <span className="flex-1 text-left">{t("Search")}</span>
         <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono text-[10px] text-muted">⌘K</kbd>
       </Button>
       <Button kind="ghost" size="sm" hasIconOnly iconDescription={t("Search")} className="md:hidden" onClick={onOpenSearch}>
-        <Magnifier className="size-4" />
+        <Search className="size-4" />
       </Button>
 
       <LinkButton size="sm" variant="ghost" href={routes.catalog}>
-        <DotsNine className="size-4" aria-hidden />
+        <OverflowMenuHorizontal className="size-4" aria-hidden />
         <span className="sr-only sm:not-sr-only">{t("Applications")}</span>
       </LinkButton>
 
       {sidekick && (
         <Button kind={sidekick.open ? "secondary" : "ghost"} size="sm" aria-pressed={sidekick.open} onClick={sidekick.onToggle}>
-          <SparklesFill className="size-4 text-accent" aria-hidden />
+          <AiGenerate className="size-4 text-accent" aria-hidden />
           {t("Sidekick")}
         </Button>
       )}
 
       <span className="relative inline-flex">
         <LinkButton isIconOnly variant="ghost" size="sm" aria-label={pending === 1 ? "1 pending approval" : `${pending} pending approvals`} href={routes.flow.approvals}>
-          <CircleCheck className="size-4" />
+          <CheckmarkFilled className="size-4" />
         </LinkButton>
         {pending > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-foreground">

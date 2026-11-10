@@ -1,6 +1,7 @@
+import { Checkmark, Edit, AiGenerate, Close } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Tab, TabList, TabPanel, TabPanels, Tabs, Tag } from "@carbon/react";
-import { Check, PencilToSquare, Sparkles, Xmark } from "@workspacenow/icons";
+
 import { useNavigate } from "react-router-dom";
 import { useApplyApplicationPlan, useCan, useListEntities, usePlanApplication } from "@workspacenow/api-client";
 import { buildPath, routes, validatePlan, type ApplicationPlan } from "@workspacenow/types";
@@ -44,11 +45,11 @@ export function BuilderPage() {
           <Tabs>
             <TabList aria-label="How to start" className="self-start">
               <Tab>
-                <Sparkles className="size-4" aria-hidden />
+                <AiGenerate className="size-4" aria-hidden />
                 Generate with AI
               </Tab>
               <Tab>
-                <PencilToSquare className="size-4" aria-hidden />
+                <Edit className="size-4" aria-hidden />
                 Design it yourself
               </Tab>
             </TabList>
@@ -80,7 +81,7 @@ export function BuilderPage() {
               <TabPanel className="mt-5">
                 <SectionCard title="Design it yourself" subtitle="Define the entities, fields and pages in the visual editor. The platform generates the CRUD API for you.">
                   <Button disabled={!canBuild} onClick={() => setPlan(blankPlan())}>
-                    <PencilToSquare className="size-4" aria-hidden />
+                    <Edit className="size-4" aria-hidden />
                     Open the editor
                   </Button>
                 </SectionCard>
@@ -106,14 +107,14 @@ export function BuilderPage() {
               </div>
               <div className="flex gap-2">
                 <Button kind="tertiary" onClick={() => setPlan(null)}>
-                  <Xmark className="size-4" aria-hidden />
+                  <Close className="size-4" aria-hidden />
                   Discard
                 </Button>
                 <Button
                   disabled={problems.length > 0 || !canBuild || applyPlan.isPending}
                   onClick={() => applyPlan.mutate(plan, { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) })}
                 >
-                  <Check className="size-4" aria-hidden />
+                  <Checkmark className="size-4" aria-hidden />
                   {plan.prompt ? "Approve and create" : "Create application"}
                 </Button>
               </div>

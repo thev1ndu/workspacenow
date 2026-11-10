@@ -6,8 +6,7 @@ utility classes (`apps/web-ui/src/utilities.scss`), which are mapped onto Carbon
 `border-separator`, `bg-default`, and status colours `text-success` / `text-warning` / `text-danger` /
 `text-accent`. Never use hex colours; light and dark both come from the Carbon theme (`cds--white` /
 `cds--g100` on `<html>`, plus `data-palette` accent overrides in `themes.scss`).
-Charts are **EvilCharts** (Recharts) from `@workspacenow/charts`. Icons are `@workspacenow/icons` (or
-`@carbon/react/icons` where a Carbon-native icon fits better).
+Charts are **EvilCharts** (Recharts) from `@workspacenow/charts`. Icons come only from `@carbon/react/icons`.
 No raw `<button>`, `<input>`, `<select>` or `<table>` outside Carbon components and the views wrappers.
 
 ## Shared primitives (`@workspacenow/views`)
@@ -16,7 +15,7 @@ No raw `<button>`, `<input>`, `<select>` or `<table>` outside Carbon components 
 |---|---|
 | Page frame, title, description, back link, actions | `PageLayout` |
 | A titled block; `flush` for tables and lists | `SectionCard` |
-| Headline number | `Metric` (icon from gravity or carbon, `size` handled) |
+| Headline number | `Metric` (Carbon icon, `size` handled) |
 | Lifecycle / outcome state | `StatusChip status="…"` (Carbon `Tag`, tone from the status) |
 | Neutral tag | `<Tag size="sm" type="gray">` |
 | Label/value pairs | `DetailList` (`fullWidth` for long values) |

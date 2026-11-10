@@ -1,4 +1,5 @@
-import { FaceRobot } from "@workspacenow/icons";
+import { Bot } from "@carbon/react/icons";
+
 import { routes } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
 import { AgentDetailPage } from "./AgentDetailPage";
@@ -12,7 +13,7 @@ export const aiWorkspace: WorkspaceModule = {
   key: "ai",
   title: "AI",
   description: "Build, test and govern AI agents that act through MCP tools with their own identities.",
-  icon: <FaceRobot className="size-4" />,
+  icon: <Bot className="size-4" />,
   basePath: routes.ai.root,
   navigation: [
     { label: "Overview", href: routes.ai.root, end: true },

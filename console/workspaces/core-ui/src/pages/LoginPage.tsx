@@ -1,6 +1,7 @@
+import { Security } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, SkeletonPlaceholder, Tag } from "@carbon/react";
-import { ShieldCheck } from "@workspacenow/icons";
+
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
 import { useT } from "@workspacenow/i18n";
@@ -71,7 +72,7 @@ export function LoginPage() {
         {oidcMode && (
           <div className="mb-6 flex flex-col items-center gap-4">
             <Button kind="primary" size="lg" onClick={() => signIn()}>
-              <ShieldCheck className="size-4" aria-hidden />
+              <Security className="size-4" aria-hidden />
               {t("Sign in with your identity provider")}
             </Button>
           </div>
@@ -97,7 +98,7 @@ export function LoginPage() {
           </div>
         ) : (
           <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <Security className="mt-0.5 size-4 shrink-0" aria-hidden />
             <p>
               This is a demo installation, so you choose a person instead of entering credentials. Each person's identity-provider groups map to
               different roles, so each one sees and can do different things.

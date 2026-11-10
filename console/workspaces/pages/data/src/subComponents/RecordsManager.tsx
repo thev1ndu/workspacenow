@@ -1,6 +1,7 @@
+import { View, Edit, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
-import { Eye, Pencil, TrashBin } from "@workspacenow/icons";
+
 import { useDeleteRecord, useUpdateRecord } from "@workspacenow/api-client";
 import type { Entity, EntityRecord } from "@workspacenow/types";
 import { DetailList, TablePager, TextInput, formatDateTime, formatRelative, usePagedSearch } from "@workspacenow/views";
@@ -126,11 +127,11 @@ export function RecordsManager({
 
   const actions = (record: EntityRecord): RecordAction[] =>
     readOnly
-      ? [{ id: "view", label: "View", icon: <Eye />, onAction: () => setViewing(record) }]
+      ? [{ id: "view", label: "View", icon: <View />, onAction: () => setViewing(record) }]
       : [
-          { id: "edit", label: "Edit", icon: <Pencil />, onAction: () => setEditing(record) },
+          { id: "edit", label: "Edit", icon: <Edit />, onAction: () => setEditing(record) },
           ...(extraActions?.(record) ?? []),
-          { id: "delete", label: "Delete", icon: <TrashBin />, danger: true, onAction: () => setDeleting(record) },
+          { id: "delete", label: "Delete", icon: <TrashCan />, danger: true, onAction: () => setDeleting(record) },
         ];
 
   return (

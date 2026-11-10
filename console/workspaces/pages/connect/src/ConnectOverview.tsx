@@ -1,5 +1,6 @@
+import { Code, Api, Flow, Plug, Network_3 } from "@carbon/react/icons";
 import { InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { Code, LogoMcp, NodesRight, PlugConnection, Server } from "@workspacenow/icons";
+
 import { useListApiOperations, useListApis, useListIntegrations, useListMcpServers, useListMcpTools } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, TextLink, formatRelative } from "@workspacenow/views";
@@ -27,13 +28,13 @@ export function ConnectOverview() {
 
         <MetricGrid columns={5}>
           <Metric label="APIs" value={apis.data?.total ?? "—"} icon={<Code />} />
-          <Metric label="Operations" value={operations.data?.total ?? "—"} icon={<NodesRight />} />
-          <Metric label="MCP tools" value={tools.data?.total ?? "—"} icon={<LogoMcp />} />
-          <Metric label="External MCP servers" value={external} icon={<Server />} />
+          <Metric label="Operations" value={operations.data?.total ?? "—"} icon={<Flow />} />
+          <Metric label="MCP tools" value={tools.data?.total ?? "—"} icon={<Api />} />
+          <Metric label="External MCP servers" value={external} icon={<Network_3 />} />
           <Metric
             label="Healthy integrations"
             value={integrations.data ? `${healthyIntegrations}/${integrations.data.total}` : "—"}
-            icon={<PlugConnection />}
+            icon={<Plug />}
           />
         </MetricGrid>
 

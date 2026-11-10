@@ -1,6 +1,7 @@
+import { ArrowRight, Undo } from "@carbon/react/icons";
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Button, SkeletonPlaceholder, Tag } from "@carbon/react";
-import { ArrowRight, ArrowRotateLeft } from "@workspacenow/icons";
+
 import { useNavigate } from "react-router-dom";
 import { useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes, type Entity } from "@workspacenow/types";
@@ -205,7 +206,7 @@ function RelationshipGraph({ entities }: { entities: Entity[] }) {
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">1 and N mark one or many at each end. Drag entities to arrange them and drag a connector's dot to bend it.</p>
         {customised && (
-          <Button size="sm" kind="ghost" onClick={() => update({ nodes: {}, bends: {} })} renderIcon={(p) => <ArrowRotateLeft className="size-3.5" aria-hidden {...p} />}>
+          <Button size="sm" kind="ghost" onClick={() => update({ nodes: {}, bends: {} })} renderIcon={(p) => <Undo className="size-3.5" aria-hidden {...p} />}>
             Reset layout
           </Button>
         )}

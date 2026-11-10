@@ -1,6 +1,7 @@
+import { Locked, Add, Rocket } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Modal, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { Lock, Plus, Rocket } from "@workspacenow/icons";
+
 import { useCreateDeployment, useCreateRelease, useListDeployments, useListEnvironments, useListReleases } from "@workspacenow/api-client";
 import type { Application, EnvironmentKey } from "@workspacenow/types";
 import { NoDataFound, QueryState, SectionCard, StatusChip, TextInput, formatDateTime, formatRelative, CardGridSkeleton } from "@workspacenow/views";
@@ -17,7 +18,7 @@ export function ReleasesTab({ app }: { app: Application }) {
       subtitle="Releases are immutable snapshots of the blueprint."
       actions={
         <Button size="sm" kind="secondary" onClick={() => setOpen(true)}>
-          <Plus className="size-3.5" aria-hidden />
+          <Add className="size-3.5" aria-hidden />
           Create release
         </Button>
       }
@@ -108,7 +109,7 @@ export function DeploymentsTab({ app }: { app: Application }) {
                     <h3 className="flex-1 text-sm font-semibold">{env?.name ?? key}</h3>
                     {env?.requiresApproval && (
                       <span title="Requires deployment.promote (Release Manager)">
-                        <Lock className="size-4 text-muted" aria-label="Promotion requires approval" />
+                        <Locked className="size-4 text-muted" aria-label="Promotion requires approval" />
                       </span>
                     )}
                   </div>

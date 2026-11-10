@@ -1,5 +1,6 @@
+import { Checkmark } from "@carbon/react/icons";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { Check } from "@workspacenow/icons";
+
 import { useListRoles } from "@workspacenow/api-client";
 import { QueryState, SectionCard } from "@workspacenow/views";
 
@@ -37,7 +38,7 @@ export function RoleMatrix() {
                         {permissions.map((p) => (
                           <TableCell key={p} className="px-1 text-center">
                             {role.permissions.includes(p) ? (
-                              <Check className="mx-auto size-4 text-success" aria-label={`${role.name} holds ${p}`} />
+                              <Checkmark className="mx-auto size-4 text-success" aria-label={`${role.name} holds ${p}`} />
                             ) : null}
                           </TableCell>
                         ))}

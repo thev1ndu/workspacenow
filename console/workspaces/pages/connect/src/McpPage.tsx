@@ -1,6 +1,7 @@
+import { Add } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { Plus } from "@workspacenow/icons";
+
 import { useListMcpServers, useListMcpTools } from "@workspacenow/api-client";
 import type { McpTool } from "@workspacenow/types";
 import { DetailList, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, formatRelative } from "@workspacenow/views";
@@ -24,7 +25,7 @@ export function McpPage() {
       description="WorkspaceNow is both an MCP server, exposing selected business operations as tools, and an MCP client of external servers."
       actions={
         <Button onClick={() => setRegistering(true)}>
-          <Plus className="size-4" aria-hidden />
+          <Add className="size-4" aria-hidden />
           Register MCP server
         </Button>
       }

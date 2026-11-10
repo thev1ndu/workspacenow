@@ -1,6 +1,7 @@
+import { Subtract, Add, Printer, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, InlineNotification, Modal } from "@carbon/react";
-import { Minus, Plus, Printer, TrashBin } from "@workspacenow/icons";
+
 import { useInvokeBusinessOperation, useListRecords } from "@workspacenow/api-client";
 import type { EntityRecord, OperationResult } from "@workspacenow/types";
 import { NoDataFound, QueryState, SectionCard, SelectInput, TextInput, errorMessage, formatCurrency, CardGridSkeleton } from "@workspacenow/views";
@@ -209,7 +210,7 @@ export function TillPage() {
                     aria-label={`One fewer ${String(product.values.name)}`}
                     onClick={() => setQuantity(product.id, (current) => current - 1)}
                   >
-                    <Minus className="size-3.5" />
+                    <Subtract className="size-3.5" />
                   </Button>
                   <span className="w-8 text-center text-sm tabular-nums" aria-label="Quantity">
                     {quantity}
@@ -223,7 +224,7 @@ export function TillPage() {
                     disabled={quantity >= (onHand(product.id) ?? 0)}
                     onClick={() => setQuantity(product.id, (current) => current + 1)}
                   >
-                    <Plus className="size-3.5" />
+                    <Add className="size-3.5" />
                   </Button>
                   <Button
                     hasIconOnly
@@ -234,7 +235,7 @@ export function TillPage() {
                     aria-label={`Remove ${String(product.values.name)}`}
                     onClick={() => setQuantity(product.id, 0)}
                   >
-                    <TrashBin className="size-4" />
+                    <TrashCan className="size-4" />
                   </Button>
                 </div>
               </li>

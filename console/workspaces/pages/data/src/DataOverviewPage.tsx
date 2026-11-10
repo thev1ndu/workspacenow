@@ -1,5 +1,6 @@
+import { ArrowUpRight, DataBase, Layers, Group } from "@carbon/react/icons";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { ArrowUpRightFromSquare, Database, Layers, Persons } from "@workspacenow/icons";
+
 import { EvilPieChart, type ChartConfig } from "@workspacenow/charts";
 import { useListApplications, useListConnections, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -51,10 +52,10 @@ export function DataOverviewPage() {
           return (
             <div className="grid gap-6">
               <MetricGrid columns={4}>
-                <Metric label="Entities" value={data.total} icon={<Database />} />
+                <Metric label="Entities" value={data.total} icon={<DataBase />} />
                 <Metric label="Application-scoped" value={count("application")} icon={<Layers />} />
-                <Metric label="Organization-shared" value={count("organization")} icon={<Persons />} />
-                <Metric label="External" value={count("external")} icon={<ArrowUpRightFromSquare />} />
+                <Metric label="Organization-shared" value={count("organization")} icon={<Group />} />
+                <Metric label="External" value={count("external")} icon={<ArrowUpRight />} />
               </MetricGrid>
 
               <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">

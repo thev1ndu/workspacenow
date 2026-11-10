@@ -1,5 +1,6 @@
+import { Add } from "@carbon/react/icons";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { Plus } from "@workspacenow/icons";
+
 import { useCan, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
@@ -15,7 +16,7 @@ export function WorkflowsPage() {
       actions={
         canDesign && (
           <LinkButton variant="primary" href={routes.flow.workflowNew}>
-            <Plus className="size-4" aria-hidden />
+            <Add className="size-4" aria-hidden />
             New workflow
           </LinkButton>
         )

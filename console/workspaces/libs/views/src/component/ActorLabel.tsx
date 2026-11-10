@@ -1,7 +1,8 @@
-import { BranchesRight, FaceRobot, Gear, Person } from "@workspacenow/icons";
+import { Flow, Bot, Settings, User } from "@carbon/react/icons";
+
 import type { Actor } from "@workspacenow/types";
 
-const ICONS = { user: Person, agent: FaceRobot, workflow: BranchesRight, system: Gear };
+const ICONS = { user: User, agent: Bot, workflow: Flow, system: Settings };
 
 /** Who acted, marked by kind so agent and workflow actions stand out from people's. */
 export function ActorLabel({ actor }: { actor: Actor }) {

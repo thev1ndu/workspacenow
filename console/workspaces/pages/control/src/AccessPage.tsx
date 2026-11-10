@@ -1,6 +1,7 @@
+import { Edit } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { Pencil } from "@workspacenow/icons";
+
 import { useListUsers, useOrganization, type UserWithRoles } from "@workspacenow/api-client";
 import { DetailList, PageLayout, QueryState, SectionCard, DetailSkeleton, TableSkeleton } from "@workspacenow/views";
 import { GroupEditor } from "./subComponents/GroupEditor";
@@ -103,7 +104,7 @@ export function AccessPage() {
                               size="sm"
                               onClick={() => setEditing(u)}
                               aria-label={`Edit roles for ${u.name}`}
-                              renderIcon={(p) => <Pencil className="size-4" aria-hidden {...p} />}
+                              renderIcon={(p) => <Edit className="size-4" aria-hidden {...p} />}
                             >
                               Edit roles
                             </Button>

@@ -1,5 +1,6 @@
+import { ArrowUpRight, Add } from "@carbon/react/icons";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { ArrowUpRightFromSquare, Plus } from "@workspacenow/icons";
+
 import { useListApplications } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, formatRelative } from "@workspacenow/views";
@@ -17,7 +18,7 @@ export function ApplicationsPage() {
       description="Every application is a versioned blueprint over shared entities, APIs, workflows and agents."
       actions={
         <LinkButton variant="primary" href={routes.studio.builder}>
-          <Plus className="size-4" aria-hidden />
+          <Add className="size-4" aria-hidden />
           New application
         </LinkButton>
       }
@@ -74,7 +75,7 @@ export function ApplicationsPage() {
                           <div className="flex justify-end gap-1">
                             <PinButton app={app} />
                             <LinkButton isIconOnly size="sm" variant="ghost" aria-label={`Open ${app.name}`} href={buildPath(routes.app, { appId: app.id })}>
-                              <ArrowUpRightFromSquare className="size-4" />
+                              <ArrowUpRight className="size-4" />
                             </LinkButton>
                           </div>
                         </TableCell>

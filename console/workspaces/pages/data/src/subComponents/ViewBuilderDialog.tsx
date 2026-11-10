@@ -1,6 +1,7 @@
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, Checkbox, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
-import { Plus, TrashBin } from "@workspacenow/icons";
+
 import { useCreateView, useDeleteView, useListViews, useUpdateView } from "@workspacenow/api-client";
 import type { Entity, FilterOp, SavedView, SavedViewInput } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
@@ -66,7 +67,7 @@ export function ViewBuilderDialog({ entity, onClose }: { entity: Entity; onClose
               {v.shared ? " · shared" : ""}
             </Button>
           ))}
-          <Button size="sm" kind="tertiary" onClick={() => startEdit()} renderIcon={(p) => <Plus className="size-3.5" aria-hidden {...p} />}>
+          <Button size="sm" kind="tertiary" onClick={() => startEdit()} renderIcon={(p) => <Add className="size-3.5" aria-hidden {...p} />}>
             New view
           </Button>
         </div>
@@ -93,12 +94,12 @@ export function ViewBuilderDialog({ entity, onClose }: { entity: Entity; onClose
                   aria-label="Remove filter"
                   iconDescription="Remove filter"
                   onClick={() => setFilters((p) => p.filter((_, j) => j !== i))}
-                  renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+                  renderIcon={(p) => <TrashCan className="size-4" {...p} />}
                 />
               </div>
             ))}
             <div>
-              <Button size="sm" kind="ghost" onClick={() => setFilters((p) => [...p, { field: entity.fields[0]?.name ?? "", op: "eq", value: "" }])} renderIcon={(p) => <Plus className="size-3.5" aria-hidden {...p} />}>
+              <Button size="sm" kind="ghost" onClick={() => setFilters((p) => [...p, { field: entity.fields[0]?.name ?? "", op: "eq", value: "" }])} renderIcon={(p) => <Add className="size-3.5" aria-hidden {...p} />}>
                 Add filter
               </Button>
             </div>

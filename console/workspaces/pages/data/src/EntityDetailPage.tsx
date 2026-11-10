@@ -1,6 +1,7 @@
+import { ArrowRight, Add, List } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { ArrowRight, Plus, SquareListUl } from "@workspacenow/icons";
+
 import { useParams } from "react-router-dom";
 import { useCan, useGetEntity, useListApplications } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -28,12 +29,12 @@ export function EntityDetailPage() {
         entity.data && (
           <>
             {entity.data.scope !== "external" && (
-              <Button kind="secondary" disabled={!canManage} onClick={() => setAdding(true)} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+              <Button kind="secondary" disabled={!canManage} onClick={() => setAdding(true)} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
                 Add field
               </Button>
             )}
             <LinkButton variant="primary" href={buildPath(routes.data.records, { entityName: entity.data.name })}>
-              <SquareListUl className="size-4" aria-hidden />
+              <List className="size-4" aria-hidden />
               Browse records
             </LinkButton>
           </>

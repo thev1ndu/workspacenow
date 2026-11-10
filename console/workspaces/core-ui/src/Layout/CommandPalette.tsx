@@ -1,17 +1,6 @@
+import { Flow, DataBase, OverflowMenuHorizontal, Bot, Home, Link as LinkIcon, User, Plug, Network_3, TextAlignLeft } from "@carbon/react/icons";
 import { useEffect, useState, type ReactNode } from "react";
 import { Loading, Modal, Search } from "@carbon/react";
-import {
-  BranchesRight,
-  Database,
-  DotsNine,
-  FaceRobot,
-  House,
-  Link as LinkIcon,
-  Person,
-  PlugConnection,
-  Server,
-  TextAlignLeft,
-} from "@workspacenow/icons";
 import { useNavigate } from "react-router-dom";
 import { useListApplications, useSearch } from "@workspacenow/api-client";
 import { AppIcon, usePinnedApplicationIds } from "@workspacenow/studio";
@@ -39,15 +28,15 @@ const GROUPS: Array<{ type: SearchHit["type"]; label: string }> = [
 ];
 
 const HIT_ICON: Record<SearchHit["type"], ReactNode> = {
-  application: <DotsNine />,
+  application: <OverflowMenuHorizontal />,
   record: <TextAlignLeft />,
-  user: <Person />,
-  entity: <Database />,
-  agent: <FaceRobot />,
-  workflow: <BranchesRight />,
+  user: <User />,
+  entity: <DataBase />,
+  agent: <Bot />,
+  workflow: <Flow />,
   api: <LinkIcon />,
-  "mcp-server": <Server />,
-  integration: <PlugConnection />,
+  "mcp-server": <Network_3 />,
+  integration: <Plug />,
 };
 
 function hrefFor(hit: SearchHit): string {
@@ -87,7 +76,7 @@ function useDebounced<T>(value: T, ms: number): T {
 /** Every page in the console, for "go to" results. */
 function pageItems(workspaces: WorkspaceModule[]): Item[] {
   return [
-    { id: "page:/", title: "Home", href: routes.home, icon: <House /> },
+    { id: "page:/", title: "Home", href: routes.home, icon: <Home /> },
     ...workspaces.flatMap((w) =>
       w.navigation.map((n) => ({
         id: `page:${n.href}`,

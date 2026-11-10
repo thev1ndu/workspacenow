@@ -20,7 +20,6 @@
     "@workspacenow/auth": "workspace:*",
     "@workspacenow/charts": "workspace:*",
     "@workspacenow/control": "workspace:*",
-    "@workspacenow/icons": "workspace:*",
     "@workspacenow/studio": "workspace:*",
     "@workspacenow/types": "workspace:*",
     "@workspacenow/views": "workspace:*",

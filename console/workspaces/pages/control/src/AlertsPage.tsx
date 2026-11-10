@@ -1,6 +1,7 @@
+import { Notification, Edit, Add, TrashCan } from "@carbon/react/icons";
 import { useState, type ReactNode } from "react";
 import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { Bell, Pencil, Plus, TrashBin } from "@workspacenow/icons";
+
 import {
   useAckAlertFire,
   useCan,
@@ -46,10 +47,10 @@ export function AlertsPage() {
       description="Alert rules over audit actions, platform events or SLO burn rates. Webhook is the only notification channel for now; fires also appear in the events stream."
       actions={
         <>
-          <Button kind="secondary" disabled={!canManage} onClick={() => setDefiningSlo(true)} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+          <Button kind="secondary" disabled={!canManage} onClick={() => setDefiningSlo(true)} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
             Define SLO
           </Button>
-          <Button kind="primary" disabled={!canManage} onClick={() => setEditing("new")} renderIcon={(p) => <Plus className="size-4" aria-hidden {...p} />}>
+          <Button kind="primary" disabled={!canManage} onClick={() => setEditing("new")} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
             New alert
           </Button>
         </>
@@ -105,7 +106,7 @@ export function AlertsPage() {
                                   kind={selected?.id === rule.id ? "secondary" : "ghost"}
                                   iconDescription={`Show fires of ${rule.name}`}
                                   onClick={() => setSelected(rule)}
-                                  renderIcon={(p) => <Bell className="size-4" {...p} />}
+                                  renderIcon={(p) => <Notification className="size-4" {...p} />}
                                 />
                                 <Button
                                   hasIconOnly
@@ -114,7 +115,7 @@ export function AlertsPage() {
                                   iconDescription={`Edit ${rule.name}`}
                                   disabled={!canManage}
                                   onClick={() => setEditing(rule)}
-                                  renderIcon={(p) => <Pencil className="size-4" {...p} />}
+                                  renderIcon={(p) => <Edit className="size-4" {...p} />}
                                 />
                                 <Button
                                   hasIconOnly
@@ -123,7 +124,7 @@ export function AlertsPage() {
                                   iconDescription={`Delete ${rule.name}`}
                                   disabled={!canManage || del.isPending}
                                   onClick={() => del.mutate(rule.id)}
-                                  renderIcon={(p) => <TrashBin className="size-4" {...p} />}
+                                  renderIcon={(p) => <TrashCan className="size-4" {...p} />}
                                 />
                               </div>
                             </TableCell>

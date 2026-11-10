@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, InlineNotification } from "@carbon/react";
-import { Camera, Magnifier, Stop } from "@workspacenow/icons";
+import { Camera, Search, Stop } from "@carbon/react/icons";
 import jsQR from "jsqr";
 import { useListRecords, useUpdateRecord } from "@workspacenow/api-client";
 import { formatFieldValue, useReferenceLabels } from "@workspacenow/data";
@@ -160,7 +160,7 @@ export function ScanPage({ title, entity, scan }: { title: string; entity: Entit
               <TextInput label="Or enter the code" value={typed} onChange={setTyped} placeholder={scan.matchField === "id" ? "TKT-1001" : undefined} />
             </div>
             <Button type="submit" kind="secondary" disabled={!typed.trim() || !!outcome}>
-              <Magnifier className="size-4" aria-hidden />
+              <Search className="size-4" aria-hidden />
               Look up
             </Button>
           </form>

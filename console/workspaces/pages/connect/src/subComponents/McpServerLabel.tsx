@@ -1,4 +1,5 @@
-import { Globe } from "@workspacenow/icons";
+import { Globe } from "@carbon/react/icons";
+
 import type { McpServer } from "@workspacenow/types";
 import { BrandMark } from "@workspacenow/views";
 

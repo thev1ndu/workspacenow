@@ -1,6 +1,7 @@
+import { Home, ChevronLeft } from "@carbon/react/icons";
 import type { ReactNode } from "react";
 import { Button } from "@carbon/react";
-import { House, LayoutSideContentLeft } from "@workspacenow/icons";
+
 import { Link, useLocation } from "react-router-dom";
 import { useListApplications } from "@workspacenow/api-client";
 import { AppIcon, usePinnedApplicationIds } from "@workspacenow/studio";
@@ -107,13 +108,13 @@ export function Sidebar({ workspaces, active, collapsed = false, onToggleCollaps
         {collapsed ? <BrandMark /> : <Brand />}
         {!collapsed && onToggleCollapsed && (
           <Button kind="ghost" size="sm" hasIconOnly iconDescription="Collapse sidebar" onClick={onToggleCollapsed}>
-            <LayoutSideContentLeft className="size-4" />
+            <ChevronLeft className="size-4" />
           </Button>
         )}
       </div>
 
       <nav aria-label="Primary" className={`flex-1 overflow-y-auto pb-4 ${collapsed ? "px-2" : "px-3"}`}>
-        <NavRow href="/" icon={<House />} label="Home" selected={pathname === "/"} collapsed={collapsed} />
+        <NavRow href="/" icon={<Home />} label="Home" selected={pathname === "/"} collapsed={collapsed} />
 
         <PinnedAppRows pathname={pathname} collapsed={collapsed} />
 
@@ -149,7 +150,7 @@ export function Sidebar({ workspaces, active, collapsed = false, onToggleCollaps
       <div className={collapsed ? "flex flex-col items-center gap-1 p-2" : "p-2"}>
         {collapsed && onToggleCollapsed && (
           <Button kind="ghost" size="sm" hasIconOnly iconDescription="Expand sidebar" onClick={onToggleCollapsed}>
-            <LayoutSideContentLeft className="size-4" />
+            <ChevronLeft className="size-4" />
           </Button>
         )}
         <UserMenu compact={collapsed} />

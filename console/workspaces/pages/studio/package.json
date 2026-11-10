@@ -19,7 +19,6 @@
     "@workspacenow/auth": "workspace:*",
     "@workspacenow/charts": "workspace:*",
     "@workspacenow/data": "workspace:*",
-    "@workspacenow/icons": "workspace:*",
     "@workspacenow/types": "workspace:*",
     "@workspacenow/views": "workspace:*",
     "jsqr": "1.4.0",

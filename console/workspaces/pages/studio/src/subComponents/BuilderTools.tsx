@@ -1,6 +1,7 @@
+import { Settings, Rocket } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, InlineNotification, Select, SelectItem, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { Gear, Rocket } from "@workspacenow/icons";
+
 import { useDiffApplication, useListReleases, usePreviewApplication, useSetApplicationTheme } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
 import { NoDataFound, QueryState, SectionCard, StatusChip, TextInput } from "@workspacenow/views";
@@ -122,7 +123,7 @@ export function BuilderTools({ app }: { app: Application }) {
               disabled={setTheme.isPending}
               onClick={() => setTheme.mutate({ appId: app.id, body: { primaryColor: color, logoUrl } })}
             >
-              <Gear className="size-3.5" aria-hidden />
+              <Settings className="size-3.5" aria-hidden />
               Save theme
             </Button>
           </div>

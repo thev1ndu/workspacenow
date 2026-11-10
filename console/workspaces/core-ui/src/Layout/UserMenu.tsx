@@ -1,6 +1,7 @@
+import { Launch, ChevronDown, Settings } from "@carbon/react/icons";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@carbon/react";
-import { ArrowRightFromSquare, ChevronsExpandVertical, Gear } from "@workspacenow/icons";
+
 import { useAuthHooks } from "@workspacenow/auth";
 import { useSession } from "@workspacenow/api-client";
 import { initials } from "../pages/LoginPage";
@@ -48,17 +49,17 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
               <span className="block truncate text-sm font-medium text-foreground">{name}</span>
               <span className="block truncate text-xs text-muted">{session?.roles.join(", ") ?? userInfo?.title}</span>
             </span>
-            <ChevronsExpandVertical className="size-4 shrink-0 text-muted" aria-hidden />
+            <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
           </Button>
         )}
         {open && (
           <div className="absolute bottom-full left-0 z-50 mb-1 min-w-64 rounded-lg border border-separator bg-surface p-1 shadow-lg" role="menu" aria-label="Account">
             <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-default" onClick={() => onAction("preferences")}>
-              <Gear className="size-4 text-muted" aria-hidden />
+              <Settings className="size-4 text-muted" aria-hidden />
               Preferences
             </button>
             <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger hover:bg-default" onClick={() => onAction("logout")}>
-              <ArrowRightFromSquare className="size-4" aria-hidden />
+              <Launch className="size-4" aria-hidden />
               Sign out
             </button>
           </div>

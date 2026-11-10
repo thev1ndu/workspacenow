@@ -1,9 +1,10 @@
-import { Calendar, Hand, Thunderbolt } from "@workspacenow/icons";
+import { Calendar, Draggable, Flash } from "@carbon/react/icons";
+
 import type { WorkflowTrigger } from "@workspacenow/types";
 
 /** A trigger in words: event names in monospace, schedules as cron. */
 export function TriggerLabel({ trigger, showIcon = true }: { trigger: WorkflowTrigger; showIcon?: boolean }) {
-  const Icon = trigger.kind === "entity-event" ? Thunderbolt : trigger.kind === "schedule" ? Calendar : Hand;
+  const Icon = trigger.kind === "entity-event" ? Flash : trigger.kind === "schedule" ? Calendar : Draggable;
   return (
     <span className="inline-flex items-center gap-1.5 text-sm">
       {showIcon && <Icon className="size-3.5 shrink-0 text-muted" aria-hidden />}

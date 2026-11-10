@@ -1,8 +1,9 @@
+import { ArrowUp, CheckmarkFilled, ErrorFilled, AiGenerate, Close } from "@carbon/react/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { Button, Loading, TextInput } from "@carbon/react";
-import { ArrowUp, CircleCheck, CircleXmark, SparklesFill, Xmark } from "@workspacenow/icons";
+
 import { useAuthHooks } from "@workspacenow/auth";
 import { useListApiOperations, useListApis, useRunSidekick, useSession , hasPermission } from "@workspacenow/api-client";
 import { buildPath, routes, type AgentRun, type Application, type Permission } from "@workspacenow/types";
@@ -50,9 +51,9 @@ function SidekickReply({ run }: { run: AgentRun }) {
           {calls.map((call, i) => (
             <li key={i} className="flex items-start gap-2 text-xs">
               {call.outcome === "allowed" ? (
-                <CircleCheck className="mt-px size-3.5 shrink-0 text-success" aria-label="Allowed" />
+                <CheckmarkFilled className="mt-px size-3.5 shrink-0 text-success" aria-label="Allowed" />
               ) : (
-                <CircleXmark className="mt-px size-3.5 shrink-0 text-danger" aria-label={call.outcome === "denied" ? "Denied" : "Failed"} />
+                <ErrorFilled className="mt-px size-3.5 shrink-0 text-danger" aria-label={call.outcome === "denied" ? "Denied" : "Failed"} />
               )}
               <span className="min-w-0">
                 <span className="text-foreground">{humanize(call.tool)}</span>
@@ -105,7 +106,7 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
   return (
     <section aria-label="Sidekick" className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-separator pr-2 pl-4">
-        <SparklesFill className="size-4 text-accent" aria-hidden />
+        <AiGenerate className="size-4 text-accent" aria-hidden />
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
           Sidekick
           {scope && <span className="font-normal text-muted"> / {scope.app.name}</span>}
@@ -116,7 +117,7 @@ export function Sidekick({ onClose, scope }: { onClose: () => void; scope?: { ap
           </Button>
         )}
         <Button kind="ghost" size="sm" hasIconOnly iconDescription="Close Sidekick" onClick={onClose}>
-          <Xmark className="size-4" />
+          <Close className="size-4" />
         </Button>
       </header>
 

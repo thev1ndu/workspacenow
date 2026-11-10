@@ -1,5 +1,6 @@
+import { Checkmark } from "@carbon/react/icons";
 import { Modal } from "@carbon/react";
-import { Check } from "@workspacenow/icons";
+
 import { PALETTES, useAppearance, type ColorMode } from "@workspacenow/views";
 import { LOCALES, useLocale, useT } from "@workspacenow/i18n";
 
@@ -67,7 +68,7 @@ export function PreferencesDialog({ onClose }: { onClose: () => void }) {
                   <input type="radio" name="palette" value={p.id} checked={selected} onChange={() => setPalette(p.id)} className="sr-only" />
                   <span aria-hidden className="size-5 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: p.swatch }} />
                   <span className="min-w-0 flex-1 truncate">{p.label}</span>
-                  {selected && <Check className="size-4 shrink-0 text-accent" aria-hidden />}
+                  {selected && <Checkmark className="size-4 shrink-0 text-accent" aria-hidden />}
                 </label>
               );
             })}

@@ -1,6 +1,7 @@
+import { Send } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, InlineNotification, TextInput as CarbonTextInput } from "@carbon/react";
-import { PaperPlane } from "@workspacenow/icons";
+
 import { useRunAgent } from "@workspacenow/api-client";
 import type { Agent, AgentRun } from "@workspacenow/types";
 import { NoDataFound, SectionCard } from "@workspacenow/views";
@@ -74,7 +75,7 @@ export function AgentPlayground({ agent }: { agent: Agent }) {
             placeholder={`Message ${agent.name}`}
           />
           <Button type="submit" kind="primary" disabled={!prompt.trim() || run.isPending}>
-            <PaperPlane className="size-3.5" aria-hidden />
+            <Send className="size-3.5" aria-hidden />
             Send
           </Button>
         </form>

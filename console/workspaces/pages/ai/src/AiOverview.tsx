@@ -1,5 +1,6 @@
+import { CurrencyDollar, Chip, Bot, Play, Activity, WarningAlt } from "@carbon/react/icons";
 import { InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { CircleDollar, Cpu, FaceRobot, Play, Pulse, ShieldExclamation } from "@workspacenow/icons";
+
 import { useListAgentRuns, useListAgents, useListModelProviders } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
 import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, formatNumber } from "@workspacenow/views";
@@ -31,12 +32,12 @@ export function AiOverview() {
         />
 
         <MetricGrid columns={6}>
-          <Metric label="Business agents" value={agents.data?.items.filter((a) => a.kind === "business").length ?? "—"} icon={<FaceRobot />} href={routes.ai.agents} />
+          <Metric label="Business agents" value={agents.data?.items.filter((a) => a.kind === "business").length ?? "—"} icon={<Bot />} href={routes.ai.agents} />
           <Metric label="Agent runs" value={runs.data?.total ?? "—"} hint={`${runsToday} today`} icon={<Play />} href={routes.ai.runs} />
-          <Metric label="Tokens this month" value={formatNumber(tokens)} icon={<Cpu />} href={routes.ai.models} />
-          <Metric label="Model cost this month" value={`$${cost.toFixed(2)}`} icon={<CircleDollar />} href={routes.ai.models} />
-          <Metric label="Denied tool calls" value={deniedCalls} hint="Review in the audit log" icon={<ShieldExclamation />} href={routes.control.audit} />
-          <Metric label="Failed runs" value={failedRuns} icon={<Pulse />} href={routes.ai.runs} />
+          <Metric label="Tokens this month" value={formatNumber(tokens)} icon={<Chip />} href={routes.ai.models} />
+          <Metric label="Model cost this month" value={`$${cost.toFixed(2)}`} icon={<CurrencyDollar />} href={routes.ai.models} />
+          <Metric label="Denied tool calls" value={deniedCalls} hint="Review in the audit log" icon={<WarningAlt />} href={routes.control.audit} />
+          <Metric label="Failed runs" value={failedRuns} icon={<Activity />} href={routes.ai.runs} />
         </MetricGrid>
 
         <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">

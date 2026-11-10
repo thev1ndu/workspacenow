@@ -1,5 +1,6 @@
+import { Pin, PinFilled } from "@carbon/react/icons";
 import { Button } from "@carbon/react";
-import { Pin, PinFill } from "@workspacenow/icons";
+
 import { useListPinnedApplications, useSetApplicationPinned } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
 
@@ -31,7 +32,7 @@ export function PinButton({ app, variant = "ghost" }: { app: Pick<Application, "
       disabled={setPinned.isPending}
       onClick={() => setPinned.mutate({ appId: app.id, name: app.name, pinned: !pinned })}
     >
-      {pinned ? <PinFill className="size-4 text-accent" /> : <Pin className="size-4" />}
+      {pinned ? <PinFilled className="size-4 text-accent" /> : <Pin className="size-4" />}
     </Button>
   );
 }

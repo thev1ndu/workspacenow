@@ -1,7 +1,8 @@
+import { ArrowLeft } from "@carbon/react/icons";
 import { useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { SkeletonText } from "@carbon/react";
-import { ArrowLeft } from "@workspacenow/icons";
+
 import { globalConfig } from "@workspacenow/types";
 import { Loading } from "./QueryState";
 import { PageSkeleton } from "./Skeletons";

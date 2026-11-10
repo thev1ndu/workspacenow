@@ -1,6 +1,7 @@
+import { AiGenerate } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, ComposedModal, InlineNotification, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
-import { Sparkles } from "@workspacenow/icons";
+
 import { useCreateViewFromText } from "@workspacenow/api-client";
 import type { Entity, SavedView } from "@workspacenow/types";
 import { TextInput } from "@workspacenow/views";
@@ -48,7 +49,7 @@ export function AskViewDialog({ entity, onClose, onCreated }: { entity: Entity; 
               },
             )
           }
-          renderIcon={(p) => <Sparkles className="size-4" aria-hidden {...p} />}
+          renderIcon={(p) => <AiGenerate className="size-4" aria-hidden {...p} />}
         >
           Build view
         </Button>

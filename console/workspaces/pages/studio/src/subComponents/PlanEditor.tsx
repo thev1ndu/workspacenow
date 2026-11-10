@@ -1,6 +1,7 @@
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useId, useState } from "react";
 import { Button, Checkbox, Select, SelectItem, Tag, TextInput as CarbonTextInput } from "@carbon/react";
-import { Plus, TrashBin } from "@workspacenow/icons";
+
 import { useCreateDepartment, useListDepartments } from "@workspacenow/api-client";
 import { planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
 import { SectionCard, SelectInput, TextInput } from "@workspacenow/views";
@@ -140,7 +141,7 @@ function RemoveButton({ label, onPress, isDisabled }: { label: string; onPress: 
       disabled={isDisabled}
       onClick={onPress}
     >
-      <TrashBin className="size-4" />
+      <TrashCan className="size-4" />
     </Button>
   );
 }
@@ -262,7 +263,7 @@ function EntityEditor({
           kind="ghost"
           onClick={() => onChange({ ...entity, fields: [...entity.fields, { name: `field${entity.fields.length + 1}`, label: `Field ${entity.fields.length + 1}`, type: "string" }] })}
         >
-          <Plus className="size-3.5" aria-hidden />
+          <Add className="size-3.5" aria-hidden />
           Add field
         </Button>
       </div>
@@ -441,7 +442,7 @@ export function PlanEditor({
       ))}
       <div>
         <Button kind="secondary" onClick={() => onChange({ ...plan, entities: [...plan.entities, newEntity(plan.entities.map((e) => e.name))] })}>
-          <Plus className="size-4" aria-hidden />
+          <Add className="size-4" aria-hidden />
           Add entity
         </Button>
       </div>
@@ -459,7 +460,7 @@ export function PlanEditor({
               onChange({ ...plan, pages: [...plan.pages, { title: first ? `${first.label}s` : "", kind: "list", entity: first?.name }] });
             }}
           >
-            <Plus className="size-3.5" aria-hidden />
+            <Add className="size-3.5" aria-hidden />
             Add page
           </Button>
         }

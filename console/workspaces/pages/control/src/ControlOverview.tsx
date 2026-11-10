@@ -1,5 +1,6 @@
+import { CheckmarkFilled, WarningFilled, ErrorFilled, Key, Layers, Group } from "@carbon/react/icons";
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
-import { CircleCheck, CircleExclamation, CircleXmark, Key, Layers, Persons } from "@workspacenow/icons";
+
 import {
   useListAudit,
   useListEnvironments,
@@ -41,12 +42,12 @@ export function ControlOverview() {
     <PageLayout title="Control" description="Administration, security, governance and operations for this installation.">
       <div className="grid gap-6">
         <MetricGrid columns={6}>
-          <Metric label="Users" value={users.data?.total ?? "—"} icon={<Persons />} href={routes.control.organization} />
+          <Metric label="Users" value={users.data?.total ?? "—"} icon={<Group />} href={routes.control.organization} />
           <Metric label="Roles" value={roles.data?.total ?? "—"} icon={<Key />} href={routes.control.access} />
           <Metric label="Environments" value={environments.data?.total ?? "—"} icon={<Layers />} href={routes.control.environments} />
-          <Metric label="Healthy" value={count("healthy")} icon={<CircleCheck />} href="#health-signals" />
-          <Metric label="Degraded" value={count("degraded")} icon={<CircleExclamation />} href="#health-signals" />
-          <Metric label="Down" value={count("down")} icon={<CircleXmark />} href="#health-signals" />
+          <Metric label="Healthy" value={count("healthy")} icon={<CheckmarkFilled />} href="#health-signals" />
+          <Metric label="Degraded" value={count("degraded")} icon={<WarningFilled />} href="#health-signals" />
+          <Metric label="Down" value={count("down")} icon={<ErrorFilled />} href="#health-signals" />
         </MetricGrid>
 
         <SectionCard title="Installation">

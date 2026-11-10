@@ -1,3 +1,4 @@
+import { OverflowMenuHorizontal } from "@carbon/react/icons";
 import type { ReactNode } from "react";
 import {
   OverflowMenu,
@@ -10,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@carbon/react";
-import { Ellipsis } from "@workspacenow/icons";
+
 import type { Entity, EntityField, EntityRecord, FieldValue } from "@workspacenow/types";
 import { NoDataFound, StatusChip, formatCurrency, formatDateTime, formatRelative } from "@workspacenow/views";
 
@@ -125,7 +126,7 @@ function RowMenu({ record, actions }: { record: EntityRecord; actions: RecordAct
   return (
     <OverflowMenu
       aria-label={`Actions for ${record.id}`}
-      renderIcon={(p) => <Ellipsis className="size-4" {...p} />}
+      renderIcon={(p) => <OverflowMenuHorizontal className="size-4" {...p} />}
     >
       {regular.map((a) => (
         <OverflowMenuItem key={a.id} itemText={itemText(a)} onClick={a.onAction} />

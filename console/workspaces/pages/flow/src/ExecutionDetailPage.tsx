@@ -1,4 +1,5 @@
-import { CircleCheckFill, CircleDashed, CircleXmark, Clock, FaceRobot, FileText, ListTimeline } from "@workspacenow/icons";
+import { CheckmarkFilled, CircleDash, ErrorFilled, Time, Bot, Document, History } from "@carbon/react/icons";
+
 import { useParams } from "react-router-dom";
 import { useGetExecution, useGetWorkflow } from "@workspacenow/api-client";
 import { buildPath, routes, type StepStatus } from "@workspacenow/types";
@@ -7,10 +8,10 @@ import { WorkflowGraph } from "./subComponents/WorkflowGraph";
 import { formatDuration } from "./utils";
 
 function StepIcon({ status }: { status: StepStatus }) {
-  if (status === "completed") return <CircleCheckFill className="size-4 text-foreground" aria-hidden />;
-  if (status === "failed") return <CircleXmark className="size-4 text-danger" aria-hidden />;
-  if (status === "waiting" || status === "running") return <Clock className="size-4 text-warning" aria-hidden />;
-  return <CircleDashed className="size-4 text-muted" aria-hidden />;
+  if (status === "completed") return <CheckmarkFilled className="size-4 text-foreground" aria-hidden />;
+  if (status === "failed") return <ErrorFilled className="size-4 text-danger" aria-hidden />;
+  if (status === "waiting" || status === "running") return <Time className="size-4 text-warning" aria-hidden />;
+  return <CircleDash className="size-4 text-muted" aria-hidden />;
 }
 
 export function ExecutionDetailPage() {
@@ -34,18 +35,18 @@ export function ExecutionDetailPage() {
           <>
             {agentRunId && (
               <LinkButton size="sm" variant="secondary" href={buildPath(routes.ai.run, { runId: agentRunId })}>
-                <FaceRobot className="size-4" aria-hidden />
+                <Bot className="size-4" aria-hidden />
                 Agent run
               </LinkButton>
             )}
             {purchaseRequestId && (
               <LinkButton size="sm" variant="secondary" href={buildPath(routes.data.records, { entityName: "PurchaseRequest" })}>
-                <FileText className="size-4" aria-hidden />
+                <Document className="size-4" aria-hidden />
                 Purchase request {purchaseRequestId}
               </LinkButton>
             )}
             <LinkButton size="sm" variant="primary" href={buildPath(routes.control.trace, { traceId: exec.traceId })}>
-              <ListTimeline className="size-4" aria-hidden />
+              <History className="size-4" aria-hidden />
               Trace
             </LinkButton>
           </>

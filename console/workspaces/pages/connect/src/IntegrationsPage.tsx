@@ -1,6 +1,7 @@
+import { View, Edit, Plug, Add } from "@carbon/react/icons";
 import { useState } from "react";
 import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
-import { Eye, Pencil, PlugConnection, Plus } from "@workspacenow/icons";
+
 import { useCan, useListIntegrations, useListSecrets, useTestIntegration } from "@workspacenow/api-client";
 import type { Integration } from "@workspacenow/types";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TableSkeleton, formatRelative } from "@workspacenow/views";
@@ -22,7 +23,7 @@ export function IntegrationsPage() {
       description="Connections to external systems, with retry and timeout policies. Credentials live in OpenBao; only references are stored here."
       actions={
         <Button disabled={!canManage} onClick={() => setEditing("new")}>
-          <Plus className="size-4" aria-hidden />
+          <Add className="size-4" aria-hidden />
           New integration
         </Button>
       }
@@ -81,7 +82,7 @@ export function IntegrationsPage() {
                               size="sm"
                               hasIconOnly
                               iconDescription={`Edit ${i.name}`}
-                              renderIcon={() => <Pencil className="size-3.5" aria-hidden />}
+                              renderIcon={() => <Edit className="size-3.5" aria-hidden />}
                               disabled={!canManage}
                               onClick={() => setEditing(i)}
                             />
@@ -91,7 +92,7 @@ export function IntegrationsPage() {
                               disabled={test.isPending && test.variables === i.id}
                               onClick={() => test.mutate(i.id)}
                             >
-                              <PlugConnection className="size-3.5" aria-hidden />
+                              <Plug className="size-3.5" aria-hidden />
                               Test connection
                             </Button>
                           </TableCell>
@@ -135,7 +136,7 @@ export function IntegrationsPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <Button kind="ghost" size="sm" disabled={!canReadSecrets} onClick={() => setViewingSecret(p)}>
-                              <Eye className="size-3.5" aria-hidden />
+                              <View className="size-3.5" aria-hidden />
                               View values
                             </Button>
                           </TableCell>

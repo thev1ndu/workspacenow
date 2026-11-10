@@ -1,5 +1,6 @@
+import { TrashCan } from "@carbon/react/icons";
 import { Button } from "@carbon/react";
-import { TrashBin } from "@workspacenow/icons";
+
 import type { ConditionOperator, Workflow, WorkflowStep } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
 import { OPERATORS, STEP_KINDS } from "./FlowNodes";
@@ -72,7 +73,7 @@ export function StepInspector({ step, options, onChange, onDelete }: { step: Wor
       )}
       <div>
         <Button size="sm" kind="danger--ghost" onClick={onDelete}>
-          <TrashBin className="size-4" aria-hidden />
+          <TrashCan className="size-4" aria-hidden />
           Delete step
         </Button>
       </div>

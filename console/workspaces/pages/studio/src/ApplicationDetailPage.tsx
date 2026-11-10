@@ -1,5 +1,6 @@
+import { ArrowUpRight, Edit } from "@carbon/react/icons";
 import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
-import { ArrowUpRightFromSquare, Pencil } from "@workspacenow/icons";
+
 import { useParams } from "react-router-dom";
 import { useCan, useGetApplication } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
@@ -29,12 +30,12 @@ export function ApplicationDetailPage() {
             <PinButton app={application.data} variant="secondary" />
             {canBuild && (
               <LinkButton variant="secondary" href={buildPath(routes.studio.applicationEdit, { appId: application.data.id })}>
-                <Pencil className="size-4" aria-hidden />
+                <Edit className="size-4" aria-hidden />
                 Edit
               </LinkButton>
             )}
             <LinkButton variant="primary" href={buildPath(routes.app, { appId: application.data.id })}>
-              <ArrowUpRightFromSquare className="size-4" aria-hidden />
+              <ArrowUpRight className="size-4" aria-hidden />
               Open app
             </LinkButton>
           </>

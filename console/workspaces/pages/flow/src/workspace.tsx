@@ -1,4 +1,5 @@
-import { BranchesRight } from "@workspacenow/icons";
+import { Flow } from "@carbon/react/icons";
+
 import { routes } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
 import { ApprovalsPage } from "./ApprovalsPage";
@@ -13,7 +14,7 @@ export const flowWorkspace: WorkspaceModule = {
   key: "flow",
   title: "Flow",
   description: "Orchestrate durable workflows, events and human approvals across applications and agents.",
-  icon: <BranchesRight className="size-4" />,
+  icon: <Flow className="size-4" />,
   basePath: routes.flow.root,
   navigation: [
     { label: "Overview", href: routes.flow.root, end: true },

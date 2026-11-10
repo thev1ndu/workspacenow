@@ -1,4 +1,5 @@
-import { ShieldCheck } from "@workspacenow/icons";
+import { Security } from "@carbon/react/icons";
+
 import { routes } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
 import { AccessPage } from "./AccessPage";
@@ -16,7 +17,7 @@ export const controlWorkspace: WorkspaceModule = {
   key: "control",
   title: "Control",
   description: "Govern identity, access, environments, deployments, audit and health across the installation.",
-  icon: <ShieldCheck className="size-4" />,
+  icon: <Security className="size-4" />,
   basePath: routes.control.root,
   navigation: [
     { label: "Overview", href: routes.control.root, end: true },

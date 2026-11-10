@@ -20,7 +20,6 @@
     "@workspacenow/api-client": "workspace:*",
     "@workspacenow/auth": "workspace:*",
     "@workspacenow/charts": "workspace:*",
-    "@workspacenow/icons": "workspace:*",
     "@workspacenow/types": "workspace:*",
     "@workspacenow/views": "workspace:*",
     "qrcode.react": "^4.2.0",

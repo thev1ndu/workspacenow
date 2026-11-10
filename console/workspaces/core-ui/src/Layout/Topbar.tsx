@@ -1,91 +1,123 @@
-import { Menu, CheckmarkFilled, OverflowMenuHorizontal, Search, AiGenerate } from "@carbon/react/icons";
-import { Button } from "@carbon/react";
-
-import { Link, useLocation } from "react-router-dom";
+import { AiGenerate, Apps, ArrowLeft, Search, TaskApproved } from "@carbon/react/icons";
+import { useEffect, useState, type ReactNode } from "react";
+import { Header, HeaderGlobalAction, HeaderGlobalBar, HeaderMenuButton, HeaderName, SkipToContent, Theme } from "@carbon/react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useListApprovals } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
-import { LinkButton, type WorkspaceModule } from "@workspacenow/views";
 import { useT } from "@workspacenow/i18n";
+import { HeaderBadge } from "./HeaderBadge";
 import { NotificationsMenu } from "./NotificationsMenu";
-import { activeItem } from "./Sidebar";
+import { UserMenu } from "./UserMenu";
 
-function Crumb({ href, children }: { href: string; children: React.ReactNode }) {
+export const MAIN_ID = "main-content";
+
+type Panel = "notifications" | "user" | null;
+
+/** Carbon's UI Shell header, always in the g100 theme as Carbon recommends, whichever theme the page uses. */
+function HeaderFrame({ menu, name, children }: { menu?: ReactNode; name: ReactNode; children: ReactNode }) {
+  const t = useT();
   return (
-    <>
-      <Link to={href} className="text-muted no-underline hover:text-foreground hover:underline">
-        {children}
-      </Link>
-      <span className="text-muted" aria-hidden>
-        /
-      </span>
-    </>
+    <Theme as={Header} theme="g100" aria-label="WorkspaceNow">
+      <SkipToContent href={`#${MAIN_ID}`}>{t("Skip to main content")}</SkipToContent>
+      {menu}
+      {name}
+      <HeaderGlobalBar>{children}</HeaderGlobalBar>
+    </Theme>
   );
 }
 
-export function Topbar({
-  active,
-  onOpenMenu,
-  onOpenSearch,
-  sidekick,
-}: {
-  active?: WorkspaceModule;
-  onOpenMenu: () => void;
+/** Sidekick toggle: a pressed state, offered only to users who may use it. */
+function SidekickAction({ sidekick }: { sidekick: { open: boolean; onToggle: () => void } }) {
+  const t = useT();
+  return (
+    <HeaderGlobalAction aria-label={t("Sidekick")} isActive={sidekick.open} onClick={sidekick.onToggle} tooltipAlignment="end">
+      <AiGenerate size={20} />
+    </HeaderGlobalAction>
+  );
+}
+
+/** One panel at a time; moving to another page closes it. */
+function usePanel(): [Panel, (panel: Exclude<Panel, null>) => (open: boolean) => void] {
+  const { pathname } = useLocation();
+  const [panel, setPanel] = useState<Panel>(null);
+  useEffect(() => setPanel(null), [pathname]);
+  return [panel, (name) => (open) => setPanel((current) => (open ? name : current === name ? null : current))];
+}
+
+interface TopbarProps {
+  /** The side navigation's expanded state and its toggle (the hamburger). */
+  nav: { expanded: boolean; onToggle: () => void };
   onOpenSearch: () => void;
+  onOpenPreferences: () => void;
   /** Present only when the user may use Sidekick. */
   sidekick?: { open: boolean; onToggle: () => void };
-}) {
-  const { pathname } = useLocation();
+}
+
+/** The console header: menu, product name and the global actions (search, apps, approvals, Sidekick, notifications, account). */
+export function Topbar({ nav, onOpenSearch, onOpenPreferences, sidekick }: TopbarProps) {
   const t = useT();
+  const navigate = useNavigate();
   const { data: approvals } = useListApprovals({ status: "pending" });
   const pending = approvals?.total ?? 0;
-  const page = active ? activeItem(pathname, active.navigation) : undefined;
+  const [panel, panelOpener] = usePanel();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-separator bg-background/85 px-4 backdrop-blur lg:px-6">
-      <Button kind="ghost" size="sm" hasIconOnly iconDescription={t("Open navigation")} className="lg:hidden" onClick={onOpenMenu}>
-        <Menu className="size-4" />
-      </Button>
+    <HeaderFrame
+      menu={<HeaderMenuButton aria-label={t("Open navigation")} isActive={nav.expanded} isCollapsible onClick={nav.onToggle} />}
+      name={
+        <HeaderName as={Link} to={routes.home} prefix="">
+          WorkspaceNow
+        </HeaderName>
+      }
+    >
+      <HeaderGlobalAction aria-label={`${t("Search")} (Ctrl K)`} onClick={onOpenSearch} tooltipAlignment="end">
+        <Search size={20} />
+      </HeaderGlobalAction>
+      <HeaderGlobalAction aria-label={t("Applications")} onClick={() => navigate(routes.catalog)} tooltipAlignment="end">
+        <Apps size={20} />
+      </HeaderGlobalAction>
+      <HeaderGlobalAction
+        aria-label={pending === 1 ? "1 pending approval" : `${pending} pending approvals`}
+        onClick={() => navigate(routes.flow.approvals)}
+        tooltipAlignment="end"
+      >
+        <TaskApproved size={20} />
+        <HeaderBadge count={pending} />
+      </HeaderGlobalAction>
+      {sidekick && <SidekickAction sidekick={sidekick} />}
+      <NotificationsMenu open={panel === "notifications"} onOpenChange={panelOpener("notifications")} />
+      <UserMenu open={panel === "user"} onOpenChange={panelOpener("user")} onOpenPreferences={onOpenPreferences} />
+    </HeaderFrame>
+  );
+}
 
-      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-        <Crumb href="/">{t("Home")}</Crumb>
-        {active && <Crumb href={active.basePath}>{active.title}</Crumb>}
-        {active && page && !page.end && <span className="text-foreground">{page.label}</span>}
-      </nav>
+interface AppTopbarProps {
+  /** The open app, when there is one: its notifications and Sidekick are offered. */
+  applicationId?: string;
+  onOpenPreferences: () => void;
+  sidekick?: { open: boolean; onToggle: () => void };
+}
 
-      <Button kind="tertiary" size="sm" className="hidden w-64 justify-start font-normal text-muted md:flex" onClick={onOpenSearch}>
-        <Search className="size-4" aria-hidden />
-        <span className="flex-1 text-left">{t("Search")}</span>
-        <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono text-[10px] text-muted">⌘K</kbd>
-      </Button>
-      <Button kind="ghost" size="sm" hasIconOnly iconDescription={t("Search")} className="md:hidden" onClick={onOpenSearch}>
-        <Search className="size-4" />
-      </Button>
+/** The header of the full-screen app frame: the catalogue, the way back to the console, and the app's own inbox. */
+export function AppTopbar({ applicationId, onOpenPreferences, sidekick }: AppTopbarProps) {
+  const t = useT();
+  const navigate = useNavigate();
+  const [panel, panelOpener] = usePanel();
 
-      <LinkButton size="sm" variant="ghost" href={routes.catalog}>
-        <OverflowMenuHorizontal className="size-4" aria-hidden />
-        <span className="sr-only sm:not-sr-only">{t("Applications")}</span>
-      </LinkButton>
-
-      {sidekick && (
-        <Button kind={sidekick.open ? "secondary" : "ghost"} size="sm" aria-pressed={sidekick.open} onClick={sidekick.onToggle}>
-          <AiGenerate className="size-4 text-accent" aria-hidden />
-          {t("Sidekick")}
-        </Button>
-      )}
-
-      <span className="relative inline-flex">
-        <LinkButton isIconOnly variant="ghost" size="sm" aria-label={pending === 1 ? "1 pending approval" : `${pending} pending approvals`} href={routes.flow.approvals}>
-          <CheckmarkFilled className="size-4" />
-        </LinkButton>
-        {pending > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-foreground">
-            {pending}
-          </span>
-        )}
-      </span>
-
-      <NotificationsMenu />
-
-    </header>
+  return (
+    <HeaderFrame
+      name={
+        <HeaderName as={Link} to={routes.catalog} prefix="WorkspaceNow">
+          {t("Applications")}
+        </HeaderName>
+      }
+    >
+      <HeaderGlobalAction aria-label={t("Back to WorkspaceNow")} onClick={() => navigate(routes.home)} tooltipAlignment="end">
+        <ArrowLeft size={20} />
+      </HeaderGlobalAction>
+      {applicationId && <NotificationsMenu applicationId={applicationId} open={panel === "notifications"} onOpenChange={panelOpener("notifications")} />}
+      {sidekick && <SidekickAction sidekick={sidekick} />}
+      <UserMenu open={panel === "user"} onOpenChange={panelOpener("user")} onOpenPreferences={onOpenPreferences} />
+    </HeaderFrame>
   );
 }

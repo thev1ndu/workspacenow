@@ -1,0 +1,26 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.versions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-05;
+  margin-block-end: $spacing-05;
+}
+
+.theme {
+  max-inline-size: 28rem;
+}
+
+.change {
+  @include type-style('body-compact-01');
+
+  color: $text-primary;
+}
+
+.detail {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}

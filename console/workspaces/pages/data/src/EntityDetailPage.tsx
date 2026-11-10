@@ -1,6 +1,6 @@
 import { ArrowRight, Add, List } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
+import { Button, ContainedList, ContainedListItem, InlineNotification, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
 
 import { useParams } from "react-router-dom";
 import { useCan, useGetEntity, useListApplications } from "@workspacenow/api-client";
@@ -10,6 +10,9 @@ import { SCOPE_EXPLANATION } from "./constants";
 import { AddFieldDialog } from "./subComponents/AddFieldDialog";
 import { SchemaHistoryCard } from "./subComponents/SchemaHistoryCard";
 import { ScopeChip } from "./subComponents/ScopeChip";
+
+import common from "./common.module.scss";
+import styles from "./EntityDetailPage.module.scss";
 
 export function EntityDetailPage() {
   const { entityName } = useParams();
@@ -29,12 +32,11 @@ export function EntityDetailPage() {
         entity.data && (
           <>
             {entity.data.scope !== "external" && (
-              <Button kind="secondary" disabled={!canManage} onClick={() => setAdding(true)} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
+              <Button kind="secondary" disabled={!canManage} onClick={() => setAdding(true)} renderIcon={Add}>
                 Add field
               </Button>
             )}
-            <LinkButton variant="primary" href={buildPath(routes.data.records, { entityName: entity.data.name })}>
-              <List className="size-4" aria-hidden />
+            <LinkButton variant="primary" href={buildPath(routes.data.records, { entityName: entity.data.name })} renderIcon={List}>
               Browse records
             </LinkButton>
           </>
@@ -45,26 +47,26 @@ export function EntityDetailPage() {
         {(e) => {
           const owner = apps?.items.find((a) => a.id === e.ownerApplicationId);
           return (
-            <div className="grid gap-6">
+            <Stack gap={6}>
               <SchemaHistoryCard entity={e} />
-              <div className="grid items-start gap-6 md:grid-cols-[2fr_1fr]">
+              <div className={styles.twoOne}>
                 <SectionCard title="Definition">
                   <DetailList
                     columns={3}
                     items={[
-                      { label: "Name", value: <code className="text-xs">{e.name}</code> },
+                      { label: "Name", value: <code className={common.code}>{e.name}</code> },
                       { label: "Scope", value: <ScopeChip scope={e.scope} /> },
                       {
                         label: "Owning application",
-                        value: owner ? <TextLink to={buildPath(routes.studio.application, { appId: owner.id })}>{owner.name}</TextLink> : "—",
+                        value: owner ? <TextLink to={buildPath(routes.studio.application, { appId: owner.id })}>{owner.name}</TextLink> : "-",
                       },
-                      { label: "Read permission", value: <code className="text-xs">{e.readPermission}</code> },
-                      { label: "Write permission", value: <code className="text-xs">{e.writePermission}</code> },
+                      { label: "Read permission", value: <code className={common.code}>{e.readPermission}</code> },
+                      { label: "Write permission", value: <code className={common.code}>{e.writePermission}</code> },
                       {
                         label: "Version",
                         value: (
-                          <span className="flex items-center gap-2">
-                            <span className="tabular-nums">v{e.version}</span>
+                          <span className={common.row}>
+                            <span className={common.numeric}>v{e.version}</span>
                             <StatusChip status={e.lifecycle} />
                           </span>
                         ),
@@ -85,7 +87,7 @@ export function EntityDetailPage() {
 
               <SectionCard title="Fields" subtitle={`${e.fields.length} fields`} flush>
                 <TableContainer aria-label={`${e.label} fields`}>
-                  <Table className="min-w-[680px]">
+                  <Table>
                     <TableHead>
                       <TableRow>
                         <TableHeader>Field</TableHeader>
@@ -100,27 +102,27 @@ export function EntityDetailPage() {
                       {e.fields.map((f) => (
                         <TableRow key={f.name} id={f.name}>
                           <TableCell>
-                            <p className="font-medium">{f.label}</p>
-                            <p className="font-mono text-xs text-muted">{f.name}</p>
+                            <p>{f.label}</p>
+                            <p className={common.subtle}>{f.name}</p>
                           </TableCell>
                           <TableCell>
                             <Tag size="sm" type="gray">
                               {f.type}
                             </Tag>
                           </TableCell>
-                          <TableCell className={f.required ? "" : "text-muted"}>{f.required ? "Yes" : "—"}</TableCell>
-                          <TableCell className={f.unique ? "" : "text-muted"}>{f.unique ? "Yes" : "—"}</TableCell>
+                          <TableCell className={f.required ? undefined : common.muted}>{f.required ? "Yes" : "-"}</TableCell>
+                          <TableCell className={f.unique ? undefined : common.muted}>{f.unique ? "Yes" : "-"}</TableCell>
                           <TableCell>
-                            {f.type === "enum" && <span className="text-sm text-muted">{f.enumValues?.join(", ")}</span>}
+                            {f.type === "enum" && <span className={common.muted}>{f.enumValues?.join(", ")}</span>}
                             {f.type === "reference" && f.reference && (
-                              <span className="inline-flex items-center gap-1">
-                                <ArrowRight className="size-3.5 text-muted" aria-hidden />
+                              <span className={common.row}>
+                                <ArrowRight size={16} className={common.arrow} aria-hidden />
                                 <TextLink to={buildPath(routes.data.entity, { entityName: f.reference })}>{f.reference}</TextLink>
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className={f.defaultValue !== undefined ? "" : "text-muted"}>
-                            {f.defaultValue !== undefined ? String(f.defaultValue) : "—"}
+                          <TableCell className={f.defaultValue !== undefined ? undefined : common.muted}>
+                            {f.defaultValue !== undefined ? String(f.defaultValue) : "-"}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -129,33 +131,35 @@ export function EntityDetailPage() {
                 </TableContainer>
               </SectionCard>
 
-              <div className="grid items-start gap-6 md:grid-cols-2">
+              <div className={styles.pair}>
                 <SectionCard title="Relationships">
                   {e.relationships.length === 0 ? (
-                    <p className="text-sm text-muted">No relationships.</p>
+                    <p className={common.helper}>No relationships.</p>
                   ) : (
-                    <ul className="grid gap-2.5">
+                    <ContainedList label="Relationships" kind="on-page">
                       {e.relationships.map((r) => (
-                        <li key={r.name} className="flex flex-wrap items-center gap-2 text-sm">
-                          <code className="text-xs">{r.name}</code>
-                          <Tag size="sm" type="gray">
-                            {r.kind}
-                          </Tag>
-                          <ArrowRight className="size-3.5 text-muted" aria-hidden />
-                          <TextLink to={buildPath(routes.data.entity, { entityName: r.target })}>{r.target}</TextLink>
-                          {r.via && <span className="text-xs text-muted">via {r.via}</span>}
-                        </li>
+                        <ContainedListItem key={r.name}>
+                          <div className={common.row}>
+                            <code className={common.code}>{r.name}</code>
+                            <Tag size="sm" type="gray">
+                              {r.kind}
+                            </Tag>
+                            <ArrowRight size={16} className={common.arrow} aria-hidden />
+                            <TextLink to={buildPath(routes.data.entity, { entityName: r.target })}>{r.target}</TextLink>
+                            {r.via && <span className={common.subtle}>via {r.via}</span>}
+                          </div>
+                        </ContainedListItem>
                       ))}
-                    </ul>
+                    </ContainedList>
                   )}
                 </SectionCard>
                 <SectionCard title="Events published">
                   {e.events.length === 0 ? (
-                    <p className="text-sm text-muted">This entity publishes no events.</p>
+                    <p className={common.helper}>This entity publishes no events.</p>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className={common.tags}>
                       {e.events.map((ev) => (
-                        <Tag key={ev} size="sm" type="gray" className="font-mono">
+                        <Tag key={ev} size="sm" type="gray" className={common.code}>
                           {ev}
                         </Tag>
                       ))}
@@ -164,7 +168,7 @@ export function EntityDetailPage() {
                 </SectionCard>
               </div>
               <AddFieldDialog entity={e} open={adding} onClose={() => setAdding(false)} />
-            </div>
+            </Stack>
           );
         }}
       </QueryState>

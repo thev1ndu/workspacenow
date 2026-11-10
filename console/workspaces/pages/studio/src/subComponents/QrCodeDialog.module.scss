@@ -1,0 +1,13 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.content {
+  display: grid;
+  justify-items: center;
+  gap: $spacing-05;
+  padding-block-end: $spacing-03;
+}
+
+.qr {
+  inline-size: 15rem;
+  block-size: 15rem;
+}

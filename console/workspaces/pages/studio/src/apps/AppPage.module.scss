@@ -1,0 +1,31 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: $spacing-05;
+}
+
+.titleText {
+  min-inline-size: 0;
+}
+
+.name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  @include type-style('body-compact-01');
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+  margin-block-start: $spacing-02;
+  color: $text-secondary;
+}

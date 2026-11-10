@@ -1,0 +1,31 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.endpoint {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-03;
+  white-space: nowrap;
+}
+
+.mono {
+  @include type-style('code-01');
+}
+
+.subtle {
+  @include type-style('code-01');
+
+  color: $text-secondary;
+}
+
+.description {
+  @include type-style('helper-text-01');
+
+  margin-block-start: $spacing-01;
+  color: $text-secondary;
+}
+
+.entityLink {
+  text-decoration: none;
+}

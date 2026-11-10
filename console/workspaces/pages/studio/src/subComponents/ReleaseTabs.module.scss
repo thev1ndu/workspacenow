@@ -1,0 +1,82 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.envGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .envGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.env:global(.cds--tile) {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100%;
+}
+
+.envHead {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.envName {
+  @include type-style('heading-compact-01');
+
+  flex: 1;
+  color: $text-primary;
+}
+
+.lock {
+  fill: $icon-secondary;
+}
+
+// Grows to absorb uneven description heights so Running and the action line up across the row.
+.envDescription {
+  @include type-style('body-compact-01');
+
+  flex: 1;
+  margin-block-start: $spacing-03;
+  color: $text-secondary;
+}
+
+.running {
+  margin-block: $spacing-05;
+}
+
+.runningLabel {
+  @include type-style('label-01');
+
+  color: $text-secondary;
+}
+
+.version {
+  @include type-style('productive-heading-05');
+
+  margin-block-start: $spacing-02;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+}
+
+.by {
+  @include type-style('helper-text-01');
+
+  margin-block-start: $spacing-02;
+  color: $text-secondary;
+}
+
+.deploy:global(.cds--btn) {
+  max-inline-size: none;
+  inline-size: 100%;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}

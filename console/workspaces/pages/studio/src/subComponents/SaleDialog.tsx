@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { InlineNotification, Modal } from "@carbon/react";
+import { InlineNotification, Modal, Stack } from "@carbon/react";
 import { useInvokeBusinessOperation } from "@workspacenow/api-client";
 import type { EntityRecord } from "@workspacenow/types";
 import { TextInput, errorMessage } from "@workspacenow/views";
+import shared from "../shared.module.scss";
 
 /** Records a sale through the inventory.recordSale Business Operation, which may raise a low-stock event. */
 export function SaleDialog({ stock, label, onClose }: { stock: EntityRecord; label: string; onClose: () => void }) {
@@ -30,10 +31,10 @@ export function SaleDialog({ stock, label, onClose }: { stock: EntityRecord; lab
         )
       }
     >
-      <div className="grid gap-4">
-        <p className="text-sm text-muted">
-          {label} at {String(stock.values.store)}: <span className="tabular-nums text-foreground">{String(stock.values.quantity)}</span> on
-          hand, reorder level <span className="tabular-nums text-foreground">{String(stock.values.reorderLevel)}</span>.
+      <Stack gap={5}>
+        <p className={shared.body}>
+          {label} at {String(stock.values.store)}: <strong className={shared.numeric}>{String(stock.values.quantity)}</strong> on
+          hand, reorder level <strong className={shared.numeric}>{String(stock.values.reorderLevel)}</strong>.
         </p>
         <TextInput label="Units sold" type="number" required value={quantity} onChange={setQuantity} />
         {crosses && (
@@ -42,7 +43,7 @@ export function SaleDialog({ stock, label, onClose }: { stock: EntityRecord; lab
         {!!recordSale.error && (
           <InlineNotification kind="error" lowContrast hideCloseButton title={errorMessage(recordSale.error)} />
         )}
-      </div>
+      </Stack>
     </Modal>
   );
 }

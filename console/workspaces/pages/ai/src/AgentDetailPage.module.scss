@@ -1,0 +1,5 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.panel:global(.cds--tab-content) {
+  padding: $spacing-06 0 0;
+}

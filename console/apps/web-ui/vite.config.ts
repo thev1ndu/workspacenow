@@ -12,7 +12,7 @@ export default defineConfig({
         name: 'WorkspaceNow',
         short_name: 'WorkspaceNow',
         description: "Build, connect and operate your organization's applications, agents and workflows.",
-        theme_color: '#2563eb',
+        theme_color: '#0f62fe',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',

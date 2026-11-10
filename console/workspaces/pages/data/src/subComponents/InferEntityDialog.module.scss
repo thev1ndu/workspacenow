@@ -1,0 +1,14 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

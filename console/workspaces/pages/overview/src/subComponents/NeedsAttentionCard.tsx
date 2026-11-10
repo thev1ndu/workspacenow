@@ -1,17 +1,20 @@
-import { ChevronRight, CheckmarkFilled, WarningFilled, Activity } from "@carbon/react/icons";
-import { Fragment, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Activity, CheckmarkFilled, WarningFilled } from "@carbon/react/icons";
+import type { ComponentType } from "react";
+import { useNavigate } from "react-router-dom";
+import { ContainedList, ContainedListItem } from "@carbon/react";
 
 import { useCan, useListApprovals, useListExecutions, useListHealth, useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { NoDataFound, SectionCard, StatusChip, formatRelative, ListSkeleton, Loading } from "@workspacenow/views";
+import { ListSkeleton, Loading, NoDataFound, SectionCard, StatusChip, formatRelative } from "@workspacenow/views";
+
+import styles from "./NeedsAttentionCard.module.scss";
 
 const MAX_ITEMS = 6;
 
 interface AttentionItem {
   id: string;
   href: string;
-  icon: ReactNode;
+  icon: ComponentType;
   title: string;
   detail: string;
   status: string;
@@ -27,13 +30,14 @@ export function NeedsAttentionCard() {
   const executions = useListExecutions({}, { enabled: seesFlow });
   const workflows = useListWorkflows({ enabled: seesFlow });
   const health = useListHealth();
+  const navigate = useNavigate();
   const workflowName = (id: string) => workflows.data?.items.find((w) => w.id === id)?.name ?? id;
 
   const items: AttentionItem[] = [
     ...(approvals.data?.items ?? []).map((a) => ({
       id: `approval-${a.id}`,
       href: routes.flow.approvals,
-      icon: <CheckmarkFilled />,
+      icon: CheckmarkFilled,
       title: a.title,
       detail: `Approval requested ${formatRelative(a.requestedAt)}`,
       status: "pending",
@@ -43,7 +47,7 @@ export function NeedsAttentionCard() {
       .map((e) => ({
         id: `execution-${e.id}`,
         href: buildPath(routes.flow.execution, { executionId: e.id }),
-        icon: <WarningFilled />,
+        icon: WarningFilled,
         title: workflowName(e.workflowId),
         detail: `Execution ${e.id} failed ${formatRelative(e.endedAt ?? e.startedAt)}`,
         status: "failed",
@@ -54,7 +58,7 @@ export function NeedsAttentionCard() {
       .map((s) => ({
         id: `health-${s.kind}-${s.resource}`,
         href: routes.control.root,
-        icon: <Activity />,
+        icon: Activity,
         title: s.resource,
         detail: s.detail,
         status: s.status,
@@ -75,27 +79,19 @@ export function NeedsAttentionCard() {
       ) : items.length === 0 ? (
         <NoDataFound message="All clear: no pending approvals, failed executions or unhealthy resources." />
       ) : (
-        <ul>
-          {items.slice(0, MAX_ITEMS).map((item, i) => (
-            <Fragment key={item.id}>
-              {i > 0 && <hr className="border-separator" />}
-              <li>
-                <Link
-                  to={item.href}
-                  className="group flex w-full items-center gap-3 rounded-none px-5 py-3 text-left no-underline transition-colors hover:bg-surface-secondary"
-                >
-                  <span className="text-muted [&_svg]:size-4">{item.icon}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{item.title}</span>
-                    <span className="block truncate text-xs text-muted">{item.detail}</span>
-                  </span>
-                  <StatusChip status={item.status} />
-                  <ChevronRight className="size-4 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />
-                </Link>
-              </li>
-            </Fragment>
+        <ContainedList aria-label="Needs attention" kind="on-page">
+          {items.slice(0, MAX_ITEMS).map((item) => (
+            <ContainedListItem key={item.id} renderIcon={item.icon} onClick={() => navigate(item.href)}>
+              <span className={styles.row}>
+                <span className={styles.text}>
+                  <span className={styles.title}>{item.title}</span>
+                  <span className={styles.detail}>{item.detail}</span>
+                </span>
+                <StatusChip status={item.status} />
+              </span>
+            </ContainedListItem>
           ))}
-        </ul>
+        </ContainedList>
       )}
     </SectionCard>
   );

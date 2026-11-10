@@ -1,11 +1,59 @@
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
+import { Tag } from "@carbon/react";
 import { useListTraces } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { useState } from "react";
-import { NoDataFound, PageLayout, QueryState, SectionCard, TablePager, TextInput, TextLink, formatRelative, useDebouncedValue } from "@workspacenow/views";
+import { PageLayout, SectionCard, TextLink, formatRelative, useDebouncedValue } from "@workspacenow/views";
+
+import styles from "./control.module.scss";
+import { ControlTable } from "./subComponents/ControlTable";
 import { formatSpan } from "./utils";
 
 const PAGE_SIZE = 15;
+
+type TraceRow = NonNullable<ReturnType<typeof useListTraces>["data"]>["items"][number];
+
+const rowId = (trace: TraceRow) => trace.traceId;
+
+const columns = [
+  {
+    key: "trace",
+    header: "Trace",
+    cell: (trace: TraceRow) => (
+      <>
+        <TextLink to={buildPath(routes.control.trace, { traceId: trace.traceId })}>{trace.title}</TextLink>
+        <p className={`${styles.mono} ${styles.muted}`}>{trace.traceId}</p>
+      </>
+    ),
+  },
+  {
+    key: "actors",
+    header: "Actors",
+    cell: (trace: TraceRow) => (
+      <div className={styles.tags}>
+        {trace.actors.map((a) => (
+          <Tag key={a} size="sm" type="gray">
+            {a}
+          </Tag>
+        ))}
+      </div>
+    ),
+  },
+  { key: "spans", header: "Spans", cell: (trace: TraceRow) => <span className={styles.tabular}>{trace.spanCount}</span> },
+  {
+    key: "denied",
+    header: "Denied",
+    cell: (trace: TraceRow) =>
+      trace.denied > 0 ? (
+        <Tag size="sm" type="red">
+          {trace.denied}
+        </Tag>
+      ) : (
+        <span className={`${styles.muted} ${styles.tabular}`}>0</span>
+      ),
+  },
+  { key: "started", header: "Started", cell: (trace: TraceRow) => <span className={`${styles.nowrap} ${styles.muted}`}>{formatRelative(trace.startedAt)}</span> },
+  { key: "duration", header: "Duration", cell: (trace: TraceRow) => <span className={styles.tabular}>{formatSpan(trace.startedAt, trace.endedAt)}</span> },
+];
 
 export function TracesPage() {
   const [search, setSearch] = useState("");
@@ -14,69 +62,29 @@ export function TracesPage() {
   const traces = useListTraces({ q: q || undefined, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
   return (
     <PageLayout title="Traces" description="One trace follows a request across Studio, APIs, MCP tools, agents and workflows.">
-      <div className="grid gap-5">
-        <div className="max-w-sm">
-          <TextInput label="Search traces" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Trace id, title or actor" />
-        </div>
-        <SectionCard flush>
-          <QueryState query={traces}>
-            {(data) =>
-              data.items.length === 0 ? (
-                <NoDataFound message="No traces yet." />
-              ) : (
-              <div>
-                <TableContainer>
-                  <Table aria-label="Traces" className="min-w-[880px]">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader scope="row">Trace</TableHeader>
-                        <TableHeader>Actors</TableHeader>
-                        <TableHeader>Spans</TableHeader>
-                        <TableHeader>Denied</TableHeader>
-                        <TableHeader>Started</TableHeader>
-                        <TableHeader>Duration</TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.items.map((trace) => (
-                        <TableRow key={trace.traceId} id={trace.traceId}>
-                          <TableCell>
-                            <TextLink to={buildPath(routes.control.trace, { traceId: trace.traceId })}>{trace.title}</TextLink>
-                            <p className="font-mono text-xs text-muted">{trace.traceId}</p>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {trace.actors.map((a) => (
-                                <Tag key={a} size="sm" type="gray">
-                                  {a}
-                                </Tag>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="tabular-nums">{trace.spanCount}</TableCell>
-                          <TableCell>
-                            {trace.denied > 0 ? (
-                              <Tag size="sm" type="red">
-                                {trace.denied}
-                              </Tag>
-                            ) : (
-                              <span className="text-muted tabular-nums">0</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-muted">{formatRelative(trace.startedAt)}</TableCell>
-                          <TableCell className="tabular-nums">{formatSpan(trace.startedAt, trace.endedAt)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </div>
-            )
-          }
-        </QueryState>
-        <TablePager page={page} totalPages={Math.max(1, Math.ceil((traces.data?.total ?? 0) / PAGE_SIZE))} total={traces.data?.total ?? 0} pageSize={PAGE_SIZE} onPageChange={setPage} />
+      <SectionCard flush>
+        <ControlTable
+          label="Traces"
+          rows={traces.data?.items ?? []}
+          rowId={rowId}
+          columns={columns}
+          emptyMessage="No traces yet."
+          loading={traces.isLoading}
+          error={traces.error}
+          searchLabel="Search by trace id, title or actor"
+          server={{
+            search,
+            onSearchChange: (v) => {
+              setSearch(v);
+              setPage(1);
+            },
+            page,
+            pageSize: PAGE_SIZE,
+            total: traces.data?.total ?? 0,
+            onPageChange: setPage,
+          }}
+        />
       </SectionCard>
-      </div>
     </PageLayout>
   );
 }

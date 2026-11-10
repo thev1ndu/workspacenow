@@ -1,0 +1,40 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+// Row gap for page grids; columns bring their own gutters.
+.grid {
+  row-gap: $spacing-05;
+}
+
+.mono {
+  @include type-style('code-01');
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-03;
+}
+
+.muted {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.cellStack {
+  display: grid;
+  gap: $spacing-01;
+}
+
+.cellHelper {
+  @include type-style('helper-text-01');
+
+  max-inline-size: 32rem;
+  color: $text-secondary;
+}

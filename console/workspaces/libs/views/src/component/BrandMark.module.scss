@@ -1,0 +1,31 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.mark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  background: $background-inverse;
+  color: $text-inverse;
+}
+
+.sm {
+  inline-size: $spacing-06;
+  block-size: $spacing-06;
+
+  svg {
+    inline-size: $spacing-05;
+    block-size: $spacing-05;
+  }
+}
+
+.md {
+  inline-size: $spacing-07;
+  block-size: $spacing-07;
+
+  svg {
+    inline-size: $spacing-06;
+    block-size: $spacing-06;
+  }
+}

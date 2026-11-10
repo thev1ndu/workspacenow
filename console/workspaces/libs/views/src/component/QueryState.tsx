@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { InlineNotification } from "@carbon/react";
 import { ApiError } from "@workspacenow/types";
 import { TableSkeleton } from "./Skeletons";
+import styles from "./QueryState.module.scss";
 import { NoDataFound } from "./NoDataFound";
 
 interface QueryLike<T> {
@@ -35,7 +36,7 @@ export function QueryState<T>({ query, skeleton, empty, children }: { query: Que
   if (query.error) {
     const forbidden = query.error instanceof ApiError && query.error.status === 403;
     return (
-      <div className="p-4">
+      <div className={styles.error}>
         <InlineNotification
           kind={forbidden ? "warning" : "error"}
           lowContrast

@@ -67,7 +67,7 @@ describe("layoutRelationships", () => {
   });
 
   it("never lets different connected components overlap in 2D", () => {
-    // Bands wrap vertically, so components may share an x-range — but their nodes must never overlap.
+    // Bands wrap vertically, so components may share an x-range, but their nodes must never overlap.
     const componentOf = (name: string) => {
       if (["Supplier", "Product", "PurchaseOrder", "PurchaseRequest", "Stock"].includes(name)) return "main";
       if (name === "Event" || name === "Ticket") return "events";

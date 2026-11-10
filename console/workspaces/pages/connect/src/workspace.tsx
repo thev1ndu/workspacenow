@@ -12,7 +12,7 @@ export const connectWorkspace: WorkspaceModule = {
   key: "connect",
   title: "Connect",
   description: "Build APIs, integrate external systems and expose business operations as MCP tools.",
-  icon: <Plug className="size-4" />,
+  icon: <Plug size={16} />,
   basePath: routes.connect.root,
   navigation: [
     { label: "Overview", href: routes.connect.root, end: true },

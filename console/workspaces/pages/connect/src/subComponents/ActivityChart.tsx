@@ -1,13 +1,22 @@
-import { EvilBarChart, type ChartConfig } from "@workspacenow/charts";
+import { LineChart, ScaleTypes, isEmptySeries, type LineChartOptions } from "@workspacenow/charts";
 import { useActivity } from "@workspacenow/api-client";
-import { QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
+import type { ActivityPoint } from "@workspacenow/types";
+import { ChartSkeleton, NoDataFound, QueryState, SectionCard } from "@workspacenow/views";
 
-const config = {
-  apiCalls: { label: "API and app calls", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } },
-  agentToolCalls: { label: "MCP tool calls", colors: { light: ["var(--success)"], dark: ["var(--success)"] } },
-} satisfies ChartConfig;
+const options: LineChartOptions = {
+  axes: {
+    bottom: { mapsTo: "date", scaleType: ScaleTypes.TIME },
+    left: { mapsTo: "value" },
+  },
+  curve: "curveMonotoneX",
+};
 
-const dayLabel = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+/** Long-format series for Carbon charts: one row per group and day. */
+const toSeries = (items: ActivityPoint[]) =>
+  items.flatMap((point) => [
+    { group: "API and app calls", date: point.date, value: point.apiCalls },
+    { group: "MCP tool calls", date: point.date, value: point.agentToolCalls },
+  ]);
 
 /** Calls reaching business operations through REST and MCP, per day. */
 export function ActivityChart() {
@@ -15,17 +24,11 @@ export function ActivityChart() {
   return (
     <SectionCard title="Traffic" subtitle="Calls through APIs and MCP tools per day, last 14 days">
       <QueryState query={activity} skeleton={<ChartSkeleton />}>
-        {(data) => (
-          <EvilBarChart config={config} data={data.items} className="aspect-auto h-56 flex-none" barRadius={3}>
-            <EvilBarChart.Grid vertical={false} />
-            <EvilBarChart.XAxis dataKey="date" tickFormatter={dayLabel} />
-            <EvilBarChart.YAxis width={36} />
-            <EvilBarChart.Tooltip />
-            <EvilBarChart.Legend align="left" isClickable />
-            <EvilBarChart.Bar dataKey="apiCalls" />
-            <EvilBarChart.Bar dataKey="agentToolCalls" />
-          </EvilBarChart>
-        )}
+        {(data) => {
+          const series = toSeries(data.items);
+          if (isEmptySeries(series)) return <NoDataFound message="No traffic yet." />;
+          return <LineChart title="Traffic" data={series} options={options} />;
+        }}
       </QueryState>
     </SectionCard>
   );

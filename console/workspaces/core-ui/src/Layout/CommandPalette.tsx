@@ -1,11 +1,13 @@
 import { Flow, DataBase, OverflowMenuHorizontal, Bot, Home, Link as LinkIcon, User, Plug, Network_3, TextAlignLeft } from "@carbon/react/icons";
-import { useEffect, useState, type ReactNode } from "react";
-import { Loading, Modal, Search } from "@carbon/react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ComposedModal, ContainedList, ContainedListItem, InlineLoading, ModalBody, ModalHeader, Search } from "@carbon/react";
 import { useNavigate } from "react-router-dom";
 import { useListApplications, useSearch } from "@workspacenow/api-client";
 import { AppIcon, usePinnedApplicationIds } from "@workspacenow/studio";
 import { buildPath, routes, type SearchHit } from "@workspacenow/types";
 import type { WorkspaceModule } from "@workspacenow/views";
+import { useT } from "@workspacenow/i18n";
+import styles from "./CommandPalette.module.scss";
 
 interface Item {
   id: string;
@@ -80,7 +82,7 @@ function pageItems(workspaces: WorkspaceModule[]): Item[] {
     ...workspaces.flatMap((w) =>
       w.navigation.map((n) => ({
         id: `page:${n.href}`,
-        title: n.end ? w.title : `${w.title} › ${n.label}`,
+        title: n.end ? w.title : `${w.title} / ${n.label}`,
         subtitle: n.end ? "Workspace" : "Page",
         href: n.href,
         icon: w.icon,
@@ -89,35 +91,19 @@ function pageItems(workspaces: WorkspaceModule[]): Item[] {
   ];
 }
 
-function Row({ item, onPick }: { item: Item; onPick: (item: Item) => void }) {
-  return (
-    <li>
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left hover:bg-default"
-        onClick={() => onPick(item)}
-      >
-        <span className="text-muted [&_svg]:size-4">{item.icon}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm text-foreground">{item.title}</span>
-          {item.subtitle && <span className="block truncate text-xs text-muted">{item.subtitle}</span>}
-        </span>
-      </button>
-    </li>
-  );
-}
-
-/** Opens with ⌘K / Ctrl+K anywhere: jump to any page, or search everything the user can see. */
+/** Opens with Cmd+K / Ctrl+K anywhere: jump to any page, or search everything the user can see. */
 export function CommandPalette({ workspaces, isOpen, onOpenChange }: { workspaces: WorkspaceModule[]; isOpen: boolean; onOpenChange: (open: boolean) => void }) {
+  const t = useT();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const results = useRef<HTMLDivElement>(null);
   const debounced = useDebounced(query, 150);
   const search = useSearch(debounced);
   const applications = useListApplications();
   const pinnedIds = usePinnedApplicationIds();
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         onOpenChange(!isOpen);
@@ -132,7 +118,7 @@ export function CommandPalette({ workspaces, isOpen, onOpenChange }: { workspace
   }, [isOpen]);
 
   const term = query.trim().toLowerCase();
-  const pages = pageItems(workspaces).filter((p) => !term || term.split(/\s+/).every((t) => p.title.toLowerCase().includes(t)));
+  const pages = pageItems(workspaces).filter((p) => !term || term.split(/\s+/).every((word) => p.title.toLowerCase().includes(word)));
   const pinned: Item[] = pinnedIds.flatMap((id) =>
     (applications.data?.items ?? [])
       .filter((a) => a.id === id)
@@ -160,56 +146,72 @@ export function CommandPalette({ workspaces, isOpen, onOpenChange }: { workspace
     navigate(item.href);
   };
 
+  const rows = () => Array.from(results.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+  const onSearchKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      rows()[0]?.focus();
+    } else if (event.key === "Enter") {
+      const first = visible[0]?.items[0];
+      if (first) pick(first);
+    } else if (event.key === "Escape" && !query) {
+      // Search keeps Escape for clearing its text; an empty field means the user wants out.
+      onOpenChange(false);
+    }
+  };
+  const onResultsKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const all = rows();
+    const index = all.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === "ArrowUp" && index <= 0) document.getElementById("command-palette-search")?.focus();
+    else all[Math.min(all.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))]?.focus();
+  };
+
   return (
-    <Modal
-      open={isOpen}
-      onRequestClose={() => onOpenChange(false)}
-      modalHeading=""
-      passiveModal
-      size="lg"
-      className="mt-[12vh]"
-      aria-label="Search"
-    >
-      <div className="flex items-center gap-2 border-b border-separator p-3">
-        <Search
-          id="command-palette-search"
-          labelText="Search everything"
-          placeholder="Search apps, records, people, agents, pages…"
-          size="lg"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-          className="flex-1"
-        />
-        {search.isFetching && <Loading small withOverlay={false} description="Searching" />}
-      </div>
-      <div className="max-h-[60vh] overflow-y-auto p-2">
-        {visible.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-muted">{search.isFetching ? "Searching…" : `No results for “${query.trim()}”`}</p>
-        ) : (
-          visible.map((section) => (
-            <div key={section.label}>
-              <p className="px-3 pt-2 pb-1 text-xs font-medium text-muted">{section.label}</p>
-              <ul>
+    <ComposedModal open={isOpen} onClose={() => onOpenChange(false)} size="md" aria-label={t("Search")} selectorPrimaryFocus="#command-palette-search">
+      <ModalHeader title={t("Search")} closeModal={() => onOpenChange(false)} />
+      <ModalBody className={styles.body}>
+        <div className={styles.field}>
+          <Search
+            id="command-palette-search"
+            labelText="Search everything"
+            placeholder="Search apps, records, people, agents, pages"
+            size="lg"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+          />
+          {search.isFetching && <InlineLoading description={t("Searching")} />}
+        </div>
+        <div ref={results} className={styles.results} onKeyDown={onResultsKeyDown}>
+          {visible.length === 0 ? (
+            <p className={styles.empty}>{search.isFetching ? "Searching" : `No results for "${query.trim()}"`}</p>
+          ) : (
+            visible.map((section) => (
+              <ContainedList key={section.label} kind="disclosed" label={section.label}>
                 {section.items.map((item) => (
-                  <Row key={item.id} item={item} onPick={pick} />
+                  <ContainedListItem key={item.id} renderIcon={() => <>{item.icon}</>} onClick={() => pick(item)}>
+                    <span className={styles.title}>{item.title}</span>
+                    {item.subtitle && <span className={styles.subtitle}>{item.subtitle}</span>}
+                  </ContainedListItem>
                 ))}
-              </ul>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="flex items-center gap-4 border-t border-separator px-4 py-2 text-xs text-muted">
-        <span className="flex items-center gap-1.5">
-          <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono">↑↓</kbd> to navigate
-        </span>
-        <span className="flex items-center gap-1.5">
-          <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono">↵</kbd> to open
-        </span>
-        <span className="flex items-center gap-1.5">
-          <kbd className="rounded border border-separator bg-default px-1.5 py-0.5 font-mono">esc</kbd> to close
-        </span>
-      </div>
-    </Modal>
+              </ContainedList>
+            ))
+          )}
+        </div>
+        <p className={styles.hints}>
+          <span>
+            <kbd>Up</kbd> <kbd>Down</kbd> to navigate
+          </span>
+          <span>
+            <kbd>Enter</kbd> to open
+          </span>
+          <span>
+            <kbd>Esc</kbd> to close
+          </span>
+        </p>
+      </ModalBody>
+    </ComposedModal>
   );
 }

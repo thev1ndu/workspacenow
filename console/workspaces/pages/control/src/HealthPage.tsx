@@ -1,16 +1,71 @@
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
+import { Stack, Tag } from "@carbon/react";
 import { useListErrorGroups, useListObservedServices } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { useState } from "react";
-import { NoDataFound, PageLayout, QueryState, SectionCard, TablePager, TextInput, TextLink, formatRelative, useDebouncedValue } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, TextLink, formatRelative, useDebouncedValue } from "@workspacenow/views";
+
+import styles from "./control.module.scss";
+import { ControlTable } from "./subComponents/ControlTable";
 
 const PAGE_SIZE = 15;
+
+type ServiceRow = NonNullable<ReturnType<typeof useListObservedServices>["data"]>["items"][number];
+type ErrorRow = NonNullable<ReturnType<typeof useListErrorGroups>["data"]>["items"][number];
+
+const serviceId = (s: ServiceRow) => s.service;
+const errorId = (g: ErrorRow) => g.fingerprint;
 
 function errorRateChip(rate: number) {
   if (rate >= 0.05) return <Tag size="sm" type="red">{(rate * 100).toFixed(1)}%</Tag>;
   if (rate > 0) return <Tag size="sm" type="warm-gray">{(rate * 100).toFixed(1)}%</Tag>;
   return <Tag size="sm" type="gray">0%</Tag>;
 }
+
+const serviceColumns = [
+  { key: "service", header: "Service", cell: (s: ServiceRow) => <span className={styles.monoLarge}>{s.service}</span> },
+  { key: "spans", header: "Spans", cell: (s: ServiceRow) => <span className={styles.tabular}>{s.spans}</span> },
+  { key: "errors", header: "Errors", cell: (s: ServiceRow) => <span className={styles.tabular}>{s.errors}</span> },
+  { key: "rate", header: "Error rate", cell: (s: ServiceRow) => errorRateChip(s.errorRate) },
+  { key: "logs", header: "Logs", cell: (s: ServiceRow) => <span className={styles.tabular}>{s.logs}</span> },
+  { key: "lastSeen", header: "Last seen", cell: (s: ServiceRow) => <span className={`${styles.nowrap} ${styles.muted}`}>{s.lastSeen ? formatRelative(s.lastSeen) : "-"}</span> },
+];
+
+const errorColumns = [
+  {
+    key: "error",
+    header: "Error",
+    cell: (g: ErrorRow) => (
+      <>
+        <p className={styles.name}>{g.message}</p>
+        <p className={`${styles.mono} ${styles.muted}`}>{g.spanName}</p>
+      </>
+    ),
+  },
+  { key: "service", header: "Service", cell: (g: ErrorRow) => <span className={styles.mono}>{g.service}</span> },
+  {
+    key: "count",
+    header: "Count",
+    cell: (g: ErrorRow) => (
+      <Tag size="sm" type="red">
+        {g.count}
+      </Tag>
+    ),
+  },
+  { key: "lastSeen", header: "Last seen", cell: (g: ErrorRow) => <span className={`${styles.nowrap} ${styles.muted}`}>{formatRelative(g.lastSeen)}</span> },
+  {
+    key: "traces",
+    header: "Traces",
+    cell: (g: ErrorRow) => (
+      <div className={styles.tags}>
+        {g.traceIds.map((t) => (
+          <span key={t} className={styles.mono}>
+            <TextLink to={buildPath(routes.control.trace, { traceId: t })}>{t.slice(0, 8)}</TextLink>
+          </span>
+        ))}
+      </div>
+    ),
+  },
+];
 
 export function HealthPage() {
   const [search, setSearch] = useState("");
@@ -21,101 +76,48 @@ export function HealthPage() {
   return (
     <PageLayout
       title="Health & errors"
-      description="Per-service telemetry health and grouped error spans from the observer — every error links back to its trace."
+      description="Per-service telemetry health and grouped error spans from the observer. Every error links back to its trace."
     >
-      <div className="grid gap-5">
+      <Stack gap={6}>
         <SectionCard title="Services" flush>
           <QueryState query={services}>
-            {(data) =>
-              data.items.length === 0 ? (
-                <NoDataFound message="No telemetry yet — the observer has not received spans." />
-              ) : (
-                <div>
-                  <TableContainer>
-                    <Table aria-label="Observed services" className="min-w-[880px]">
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader scope="row">Service</TableHeader>
-                          <TableHeader>Spans</TableHeader>
-                          <TableHeader>Errors</TableHeader>
-                          <TableHeader>Error rate</TableHeader>
-                          <TableHeader>Logs</TableHeader>
-                          <TableHeader>Last seen</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.items.map((s) => (
-                          <TableRow key={s.service} id={s.service}>
-                            <TableCell className="font-mono text-sm">{s.service}</TableCell>
-                            <TableCell className="tabular-nums">{s.spans}</TableCell>
-                            <TableCell className="tabular-nums">{s.errors}</TableCell>
-                            <TableCell>{errorRateChip(s.errorRate)}</TableCell>
-                            <TableCell className="tabular-nums">{s.logs}</TableCell>
-                            <TableCell className="whitespace-nowrap text-muted">{s.lastSeen ? formatRelative(s.lastSeen) : "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </div>
-              )
-            }
+            {(data) => (
+              <ControlTable
+                label="Observed services"
+                rows={data.items}
+                rowId={serviceId}
+                columns={serviceColumns}
+                emptyMessage="No telemetry yet. The observer has not received spans."
+                searchText={(s) => s.service}
+                searchLabel="Search services"
+              />
+            )}
           </QueryState>
         </SectionCard>
-        <div className="max-w-sm">
-          <TextInput label="Search errors" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Message or span name" />
-        </div>
         <SectionCard title="Error groups" flush>
-          <QueryState query={errors}>
-            {(data) =>
-              data.items.length === 0 ? (
-                <NoDataFound message="No error spans recorded." />
-              ) : (
-                <div>
-                  <TableContainer>
-                    <Table aria-label="Error groups" className="min-w-[880px]">
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader scope="row">Error</TableHeader>
-                          <TableHeader>Service</TableHeader>
-                          <TableHeader>Count</TableHeader>
-                          <TableHeader>Last seen</TableHeader>
-                          <TableHeader>Traces</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.items.map((g) => (
-                          <TableRow key={g.fingerprint} id={g.fingerprint}>
-                            <TableCell>
-                              <p className="text-sm font-medium">{g.message}</p>
-                              <p className="font-mono text-xs text-muted">{g.spanName}</p>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">{g.service}</TableCell>
-                            <TableCell>
-                              <Tag size="sm" type="red">{g.count}</Tag>
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap text-muted">{formatRelative(g.lastSeen)}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {g.traceIds.map((t) => (
-                                  <span key={t} className="font-mono text-xs">
-                                    <TextLink to={buildPath(routes.control.trace, { traceId: t })}>{t.slice(0, 8)}</TextLink>
-                                  </span>
-                                ))}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </div>
-              )
-            }
-          </QueryState>
-          <TablePager page={page} totalPages={Math.max(1, Math.ceil((errors.data?.total ?? 0) / PAGE_SIZE))} total={errors.data?.total ?? 0} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          <ControlTable
+            label="Error groups"
+            rows={errors.data?.items ?? []}
+            rowId={errorId}
+            columns={errorColumns}
+            emptyMessage="No error spans recorded."
+            loading={errors.isLoading}
+            error={errors.error}
+            server={{
+              search,
+              onSearchChange: (v) => {
+                setSearch(v);
+                setPage(1);
+              },
+              page,
+              pageSize: PAGE_SIZE,
+              total: errors.data?.total ?? 0,
+              onPageChange: setPage,
+            }}
+            searchLabel="Search errors by message or span name"
+          />
         </SectionCard>
-      </div>
+      </Stack>
     </PageLayout>
   );
 }

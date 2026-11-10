@@ -1,0 +1,63 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.page {
+  padding-block: $spacing-07;
+}
+
+.header {
+  margin-block-end: $spacing-07;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-03;
+  margin-block-end: $spacing-05;
+
+  svg {
+    fill: currentcolor;
+  }
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-05;
+}
+
+.titles {
+  min-inline-size: 12rem;
+  flex: 1;
+}
+
+.title {
+  @include type-style('heading-04');
+
+  margin: 0;
+  color: $text-primary;
+}
+
+.description {
+  @include type-style('body-01');
+
+  margin-block-start: $spacing-03;
+  color: $text-secondary;
+}
+
+.actions {
+  display: flex;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.skeletonTitle {
+  display: grid;
+  gap: $spacing-04;
+}

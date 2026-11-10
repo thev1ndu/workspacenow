@@ -1,0 +1,20 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+
+.twoOne,
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .twoOne {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

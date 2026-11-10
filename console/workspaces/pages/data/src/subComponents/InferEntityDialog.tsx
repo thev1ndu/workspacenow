@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import {
   Button,
   ComposedModal,
@@ -6,8 +6,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -20,11 +19,13 @@ import { useNavigate } from "react-router-dom";
 import { useCreateEntity, useInferEntity } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import type { EntityField, InferEntityInput } from "@workspacenow/types";
-import { TextInput } from "@workspacenow/views";
+import { SelectInput, TextInput } from "@workspacenow/views";
+
+import common from "../common.module.scss";
+import styles from "./InferEntityDialog.module.scss";
 
 export function InferEntityDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
-  const formatId = useId();
   const [name, setName] = useState("");
   const [format, setFormat] = useState<"json" | "csv">("csv");
   const [data, setData] = useState("");
@@ -37,21 +38,18 @@ export function InferEntityDialog({ onClose }: { onClose: () => void }) {
     <ComposedModal open onClose={onClose} size="lg">
       <ModalHeader title="New entity from data" closeModal={onClose} />
       <ModalBody>
-        <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-3">
+        <Stack gap={5}>
+          <div className={styles.pair}>
             <TextInput label="Entity name (optional)" value={name} onChange={setName} placeholder="Product" />
-            <Select
-              id={formatId}
-              labelText="Data format"
-              hideLabel
-              aria-label="Data format"
-              className="w-full"
+            <SelectInput
+              label="Data format"
               value={format}
-              onChange={(e) => setFormat(e.target.value as "json" | "csv")}
-            >
-              <SelectItem value="csv" text="CSV (first row = headers)" />
-              <SelectItem value="json" text="JSON array of objects" />
-            </Select>
+              onChange={(v) => setFormat(v as "json" | "csv")}
+              options={[
+                { value: "csv", label: "CSV (first row = headers)" },
+                { value: "json", label: "JSON array of objects" },
+              ]}
+            />
           </div>
           <TextInput
             label="Paste sample data"
@@ -86,7 +84,7 @@ export function InferEntityDialog({ onClose }: { onClose: () => void }) {
                   <TableBody>
                     {inferred.fields.map((f) => (
                       <TableRow key={f.name} id={f.name}>
-                        <TableCell className="font-mono text-xs">{f.name}</TableCell>
+                        <TableCell className={common.code}>{f.name}</TableCell>
                         <TableCell>{f.type}{f.enumValues ? ` (${f.enumValues.join(", ")})` : ""}</TableCell>
                         <TableCell>{f.required ? "yes" : "no"}</TableCell>
                         <TableCell>{f.unique ? "yes" : "no"}</TableCell>
@@ -97,7 +95,7 @@ export function InferEntityDialog({ onClose }: { onClose: () => void }) {
               </TableContainer>
             </>
           )}
-        </div>
+        </Stack>
       </ModalBody>
       <ModalFooter>
         <Button kind="tertiary" onClick={onClose}>

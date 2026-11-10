@@ -1,18 +1,19 @@
 import { Flow, CheckmarkFilled, WarningFilled, Hourglass, Play } from "@carbon/react/icons";
-import { InlineNotification } from "@carbon/react";
+import { InlineNotification, Stack } from "@carbon/react";
 
-import { EvilAreaChart, type ChartConfig } from "@workspacenow/charts";
+import { AreaChart, ScaleTypes, isEmptySeries, type AreaChartOptions } from "@workspacenow/charts";
 import { useActivity, useListApprovals, useListExecutions, useListWorkflows } from "@workspacenow/api-client";
 import { routes } from "@workspacenow/types";
-import { LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
+import { ChartSkeleton, LinkButton, Metric, MetricGrid, NoDataFound, PageLayout, QueryState, SectionCard } from "@workspacenow/views";
 import { ExecutionsTable } from "./subComponents/ExecutionsTable";
 
-const activityConfig = {
-  workflowSteps: { label: "Workflow steps", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } },
-  denied: { label: "Denied actions", colors: { light: ["var(--danger)"], dark: ["var(--danger)"] } },
-} satisfies ChartConfig;
-
-const dayLabel = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const activityOptions: AreaChartOptions = {
+  curve: "curveMonotoneX",
+  axes: {
+    bottom: { mapsTo: "date", scaleType: ScaleTypes.TIME },
+    left: { mapsTo: "value" },
+  },
+};
 
 export function FlowOverview() {
   const workflows = useListWorkflows();
@@ -25,17 +26,17 @@ export function FlowOverview() {
 
   return (
     <PageLayout title="Flow" description="Durable workflows that connect entities, APIs, agents and people.">
-      <div className="grid gap-6">
+      <Stack gap={6}>
         <MetricGrid columns={5}>
           <Metric
             label="Active workflows"
-            value={workflows.data?.items.filter((w) => w.status === "active").length ?? "—"}
+            value={workflows.data?.items.filter((w) => w.status === "active").length ?? "-"}
             icon={<Flow />}
           />
           <Metric label="Running" value={count("running")} icon={<Play />} />
           <Metric label="Waiting" value={count("waiting")} icon={<Hourglass />} />
           <Metric label="Failed" value={count("failed")} icon={<WarningFilled />} />
-          <Metric label="Pending approvals" value={approvals.data?.total ?? "—"} icon={<CheckmarkFilled />} />
+          <Metric label="Pending approvals" value={approvals.data?.total ?? "-"} icon={<CheckmarkFilled />} />
         </MetricGrid>
 
         <InlineNotification
@@ -47,17 +48,14 @@ export function FlowOverview() {
 
         <SectionCard title="Workflow activity" subtitle="Steps executed and actions denied per day, last 14 days">
           <QueryState query={activity} skeleton={<ChartSkeleton />}>
-            {(data) => (
-              <EvilAreaChart config={activityConfig} data={data.items} className="aspect-auto h-56 flex-none" curveType="monotone">
-                <EvilAreaChart.Grid />
-                <EvilAreaChart.XAxis dataKey="date" tickFormatter={dayLabel} />
-                <EvilAreaChart.YAxis width={36} />
-                <EvilAreaChart.Tooltip />
-                <EvilAreaChart.Legend align="left" isClickable />
-                <EvilAreaChart.Area dataKey="workflowSteps" variant="gradient" strokeVariant="solid" />
-                <EvilAreaChart.Area dataKey="denied" variant="gradient" strokeVariant="solid" />
-              </EvilAreaChart>
-            )}
+            {(data) => {
+              const series = data.items.flatMap((p) => [
+                { group: "Workflow steps", date: p.date, value: p.workflowSteps },
+                { group: "Denied actions", date: p.date, value: p.denied },
+              ]);
+              if (isEmptySeries(series)) return <NoDataFound message="No workflow activity in the last 14 days." />;
+              return <AreaChart data={series} options={activityOptions} title="Workflow activity" />;
+            }}
           </QueryState>
         </SectionCard>
 
@@ -70,9 +68,9 @@ export function FlowOverview() {
           }
           flush
         >
-          <QueryState query={executions}>{(data) => <ExecutionsTable executions={data.items.slice(0, 8)} />}</QueryState>
+          <QueryState query={executions}>{(data) => <ExecutionsTable executions={data.items.slice(0, 8)} searchable={false} paginate={false} />}</QueryState>
         </SectionCard>
-      </div>
+      </Stack>
     </PageLayout>
   );
 }

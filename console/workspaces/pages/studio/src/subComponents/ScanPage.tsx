@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, InlineNotification } from "@carbon/react";
+import { Button, Column, CodeSnippet, Grid, InlineNotification, Stack } from "@carbon/react";
 import { Camera, Search, Stop } from "@carbon/react/icons";
 import jsQR from "jsqr";
 import { useListRecords, useUpdateRecord } from "@workspacenow/api-client";
 import { formatFieldValue, useReferenceLabels } from "@workspacenow/data";
 import type { Entity, EntityRecord, ScanConfig } from "@workspacenow/types";
 import { DetailList, SectionCard, TextInput, errorMessage, formatRelative } from "@workspacenow/views";
+import shared from "../shared.module.scss";
+
+import styles from "./ScanPage.module.scss";
 
 /** Frames are decoded at this width; plenty for a QR code held up to the camera, and cheap per frame. */
 const DECODE_WIDTH = 480;
@@ -119,79 +122,79 @@ export function ScanPage({ title, entity, scan }: { title: string; entity: Entit
   };
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
-      <SectionCard
-        title={title}
-        subtitle={scan.onScan ? `Scanning sets ${onScanField?.label.toLowerCase() ?? scan.onScan.field} to ${humanize(scan.onScan.value)}.` : `Scanning opens the matching ${entity.label.toLowerCase()}.`}
-        actions={
-          camera.state.kind === "on" ? (
-            <Button size="sm" kind="secondary" onClick={camera.stop}>
-              <Stop className="size-3.5" aria-hidden />
-              Stop camera
-            </Button>
-          ) : (
-            <Button size="sm" disabled={camera.state.kind === "starting"} onClick={() => void camera.start()}>
-              <Camera className="size-3.5" aria-hidden />
-              Start camera
-            </Button>
-          )
-        }
-      >
-        <div className="grid gap-4">
-          <div className="relative aspect-video overflow-hidden rounded-xl bg-default">
-            {/* Muted and inline so mobile browsers play the preview without going full screen. */}
-            <video ref={camera.videoRef} muted playsInline aria-label="Camera preview" className={`size-full object-cover ${camera.state.kind === "on" ? "" : "hidden"}`} />
-            {camera.state.kind === "on" ? (
-              <div aria-hidden className="pointer-events-none absolute inset-0 m-auto aspect-square h-3/5 rounded-2xl border-2 border-accent/80" />
+    <Grid narrow withRowGap>
+      <Column sm={4} md={8} lg={8}>
+        <SectionCard
+          title={title}
+          subtitle={scan.onScan ? `Scanning sets ${onScanField?.label.toLowerCase() ?? scan.onScan.field} to ${humanize(scan.onScan.value)}.` : `Scanning opens the matching ${entity.label.toLowerCase()}.`}
+          actions={
+            camera.state.kind === "on" ? (
+              <Button size="sm" kind="secondary" renderIcon={Stop} onClick={camera.stop}>
+                Stop camera
+              </Button>
             ) : (
-              <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted">
-                {camera.state.kind === "error" ? camera.state.message : "Start the camera and hold a QR code inside the frame."}
+              <Button size="sm" renderIcon={Camera} disabled={camera.state.kind === "starting"} onClick={() => void camera.start()}>
+                Start camera
+              </Button>
+            )
+          }
+        >
+          <Stack gap={5}>
+            <div className={styles.viewfinder}>
+              <video ref={camera.videoRef} muted playsInline aria-label="Camera preview" className={`${styles.video} ${camera.state.kind === "on" ? "" : styles.hidden}`} />
+              {camera.state.kind === "on" ? (
+                <div aria-hidden className={styles.reticle} />
+              ) : (
+                <div className={styles.placeholder}>
+                  {camera.state.kind === "error" ? camera.state.message : "Start the camera and hold a QR code inside the frame."}
+                </div>
+              )}
+            </div>
+            <form
+              className={styles.lookup}
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                handle(typed.trim());
+              }}
+            >
+              <div className={styles.lookupField}>
+                <TextInput label="Or enter the code" value={typed} onChange={setTyped} placeholder={scan.matchField === "id" ? "TKT-1001" : undefined} />
+              </div>
+              <Button type="submit" kind="secondary" renderIcon={Search} disabled={!typed.trim() || !!outcome}>
+                Look up
+              </Button>
+            </form>
+          </Stack>
+        </SectionCard>
+      </Column>
+
+      <Column sm={4} md={8} lg={8}>
+        <SectionCard title="Result" subtitle={outcome ? `Code ${outcome.code}` : "Waiting for a code"}>
+          <Stack gap={5} aria-live="polite">
+            {!outcome && !updateRecord.isPending && <p className={shared.body}>The {entity.label.toLowerCase()} you scan appears here.</p>}
+            {updateRecord.isPending && <p className={shared.body}>Recording the scan…</p>}
+            {!!updateRecord.error && <ScanAlert status="danger" text={errorMessage(updateRecord.error)} />}
+            {outcome?.kind === "missing" && <ScanAlert status="danger" text={`No ${entity.label.toLowerCase()} matches this code.`} />}
+            {outcome?.kind === "updated" && <ScanAlert status="success" text={`${capitalize(humanize(scan.onScan!.value))}: ${summary(entity, outcome.record)}`} />}
+            {outcome?.kind === "found" && outcome.note && <ScanAlert status="warning" text={outcome.note} />}
+            {outcome && outcome.kind !== "missing" && (
+              <DetailList
+                columns={2}
+                items={[
+                  { label: "Code", value: <CodeSnippet type="inline" hideCopyButton>{outcome.record.id}</CodeSnippet> },
+                  ...entity.fields.map((f) => ({ label: f.label, value: formatFieldValue(f, outcome.record.values[f.name], labels) })),
+                ]}
+              />
+            )}
+            {outcome && (
+              <div>
+                <Button onClick={next}>Scan next</Button>
               </div>
             )}
-          </div>
-          <form
-            className="flex items-end gap-2"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              handle(typed.trim());
-            }}
-          >
-            <div className="min-w-0 flex-1">
-              <TextInput label="Or enter the code" value={typed} onChange={setTyped} placeholder={scan.matchField === "id" ? "TKT-1001" : undefined} />
-            </div>
-            <Button type="submit" kind="secondary" disabled={!typed.trim() || !!outcome}>
-              <Search className="size-4" aria-hidden />
-              Look up
-            </Button>
-          </form>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Result" subtitle={outcome ? `Code ${outcome.code}` : "Waiting for a code"}>
-        <div aria-live="polite" className="grid gap-4">
-          {!outcome && !updateRecord.isPending && <p className="text-sm text-muted">The {entity.label.toLowerCase()} you scan appears here.</p>}
-          {updateRecord.isPending && <p className="text-sm text-muted">Recording the scan…</p>}
-          {!!updateRecord.error && <ScanAlert status="danger" text={errorMessage(updateRecord.error)} />}
-          {outcome?.kind === "missing" && <ScanAlert status="danger" text={`No ${entity.label.toLowerCase()} matches this code.`} />}
-          {outcome?.kind === "updated" && <ScanAlert status="success" text={`${capitalize(humanize(scan.onScan!.value))}: ${summary(entity, outcome.record)}`} />}
-          {outcome?.kind === "found" && outcome.note && <ScanAlert status="warning" text={outcome.note} />}
-          {outcome && outcome.kind !== "missing" && (
-            <DetailList
-              columns={2}
-              items={[
-                { label: "Code", value: <span className="font-mono text-[13px]">{outcome.record.id}</span> },
-                ...entity.fields.map((f) => ({ label: f.label, value: formatFieldValue(f, outcome.record.values[f.name], labels) })),
-              ]}
-            />
-          )}
-          {outcome && (
-            <div>
-              <Button onClick={next}>Scan next</Button>
-            </div>
-          )}
-        </div>
-      </SectionCard>
-    </div>
+          </Stack>
+        </SectionCard>
+      </Column>
+    </Grid>
   );
 }
 

@@ -1,0 +1,17 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.run {
+  padding-block-end: $spacing-06;
+  border-block-end: 1px solid $border-subtle-01;
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-03;
+}
+
+.input {
+  flex: 1;
+}

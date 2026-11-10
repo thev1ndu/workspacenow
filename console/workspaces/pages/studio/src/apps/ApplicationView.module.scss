@@ -1,0 +1,20 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+// A single shrinkable column, so wide content scrolls inside its own box instead of widening the page on phones.
+.view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-06;
+}
+
+.draggable {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.dragging {
+  opacity: 0.5;
+}

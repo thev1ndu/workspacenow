@@ -1,0 +1,52 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.stepCell:global(.cds--structured-list-td),
+.stepCell:global(.cds--structured-list-th) {
+  inline-size: 8rem;
+}
+
+.thought {
+  @include type-style('body-compact-01');
+
+  color: $text-secondary;
+  font-style: italic;
+}
+
+.callHead {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+
+  svg {
+    flex-shrink: 0;
+    fill: $icon-secondary;
+  }
+}
+
+.callName {
+  flex: 1;
+}
+
+.answer {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-04;
+
+  svg {
+    flex-shrink: 0;
+    fill: $icon-secondary;
+  }
+}

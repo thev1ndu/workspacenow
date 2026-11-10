@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Button, Checkbox, CheckboxGroup, InlineNotification } from "@carbon/react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { Button, Checkbox, CheckboxGroup, Column, Grid, InlineNotification, Stack } from "@carbon/react";
 import { useListMcpTools, useUpdateAgent } from "@workspacenow/api-client";
 import type { Agent, Permission } from "@workspacenow/types";
-import { QueryState, SectionCard, ListSkeleton } from "@workspacenow/views";
+import { ListSkeleton, QueryState, SectionCard } from "@workspacenow/views";
+
+import common from "../common.module.scss";
 
 const PERMISSIONS: Permission[] = [
   "inventory.read",
@@ -35,60 +37,62 @@ export function AgentAccess({ agent }: { agent: Agent }) {
 
   const dirty = !sameSet(tools, agent.tools) || !sameSet(permissions, agent.permissions);
 
-  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string, checked: boolean) =>
+  const toggle = (setter: Dispatch<SetStateAction<string[]>>, value: string, checked: boolean) =>
     setter((previous) => (checked ? [...previous, value] : previous.filter((v) => v !== value)));
 
   return (
-    <div className="grid gap-6">
+    <Stack gap={6}>
       <InlineNotification
+        className={common.notice}
         kind="info"
         lowContrast
         hideCloseButton
         subtitle="Two checks guard every tool call: the tool must be assigned here, and the agent's own service identity must hold the permission of the business operation behind it. Agents never inherit the permissions of the user or workflow that invokes them."
       />
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <SectionCard title="Assigned MCP tools" subtitle="Tool-level authorization">
-          <QueryState query={allTools} skeleton={<ListSkeleton rows={5} />}>
-            {(data) => (
-              <CheckboxGroup legendText={<span className="sr-only">Assigned MCP tools</span>} className="grid gap-3">
-                {data.items.map((tool) => (
-                  <Checkbox
-                    key={`${tool.serverId}-${tool.name}`}
-                    id={`tool-${tool.serverId}-${tool.name}`}
-                    checked={tools.includes(tool.name)}
-                    onChange={(_e, { checked }) => toggle(setTools, tool.name, checked)}
-                    labelText={
-                      <>
-                        <span className="font-mono text-sm">{tool.name}</span>
-                        <span className="block text-xs text-muted">
-                          {tool.permission ? `Requires ${tool.permission}` : `External · ${tool.description}`}
-                        </span>
-                      </>
-                    }
-                  />
-                ))}
-              </CheckboxGroup>
-            )}
-          </QueryState>
-        </SectionCard>
-        <SectionCard title="Service identity permissions" subtitle="What the agent itself may do">
-          <CheckboxGroup
-            legendText={<span className="sr-only">Service identity permissions</span>}
-            className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2"
-          >
-            {PERMISSIONS.map((permission) => (
-              <Checkbox
-                key={permission}
-                id={`permission-${permission}`}
-                checked={permissions.includes(permission)}
-                onChange={(_e, { checked }) => toggle(setPermissions, permission, checked)}
-                labelText={<span className="font-mono text-sm">{permission}</span>}
-              />
-            ))}
-          </CheckboxGroup>
-        </SectionCard>
-      </div>
-      <div className="flex justify-end gap-2">
+      <Grid fullWidth withRowGap>
+        <Column sm={4} md={8} lg={8}>
+          <SectionCard title="Assigned MCP tools" subtitle="Tool-level authorization">
+            <QueryState query={allTools} skeleton={<ListSkeleton rows={5} />}>
+              {(data) => (
+                <CheckboxGroup legendText={<span className="cds--visually-hidden">Assigned MCP tools</span>}>
+                  {data.items.map((tool) => (
+                    <Checkbox
+                      key={`${tool.serverId}-${tool.name}`}
+                      id={`tool-${tool.serverId}-${tool.name}`}
+                      checked={tools.includes(tool.name)}
+                      onChange={(_e, { checked }) => toggle(setTools, tool.name, checked)}
+                      labelText={
+                        <>
+                          <span className={common.mono}>{tool.name}</span>
+                          <span className={`${common.secondary} ${common.block}`}>
+                            {tool.permission ? `Requires ${tool.permission}` : `External · ${tool.description}`}
+                          </span>
+                        </>
+                      }
+                    />
+                  ))}
+                </CheckboxGroup>
+              )}
+            </QueryState>
+          </SectionCard>
+        </Column>
+        <Column sm={4} md={8} lg={8}>
+          <SectionCard title="Service identity permissions" subtitle="What the agent itself may do">
+            <CheckboxGroup legendText={<span className="cds--visually-hidden">Service identity permissions</span>}>
+              {PERMISSIONS.map((permission) => (
+                <Checkbox
+                  key={permission}
+                  id={`permission-${permission}`}
+                  checked={permissions.includes(permission)}
+                  onChange={(_e, { checked }) => toggle(setPermissions, permission, checked)}
+                  labelText={<span className={common.mono}>{permission}</span>}
+                />
+              ))}
+            </CheckboxGroup>
+          </SectionCard>
+        </Column>
+      </Grid>
+      <div className={common.actions}>
         <Button
           kind="tertiary"
           disabled={!dirty}
@@ -107,6 +111,6 @@ export function AgentAccess({ agent }: { agent: Agent }) {
           Save access
         </Button>
       </div>
-    </div>
+    </Stack>
   );
 }

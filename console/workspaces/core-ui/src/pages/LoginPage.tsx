@@ -1,32 +1,14 @@
-import { Security } from "@carbon/react/icons";
+import { Security, UserAvatar } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, SkeletonPlaceholder, Tag } from "@carbon/react";
+import { Button, ContainedList, ContainedListItem, InlineNotification, PasswordInput, SkeletonPlaceholder, Stack, Tag, TextInput } from "@carbon/react";
 
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuthHooks } from "@workspacenow/auth";
 import { useT } from "@workspacenow/i18n";
 import { useListPersonas } from "@workspacenow/api-client";
 import { globalConfig } from "@workspacenow/types";
-import { TextInput } from "@workspacenow/views";
 import { Brand } from "../Layout/Brand";
-
-export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w.charAt(0))
-    .join("")
-    .toUpperCase();
-}
-
-/** A round initials badge in place of a photo avatar. */
-function AvatarBadge({ name }: { name: string }) {
-  return (
-    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-default text-xs font-medium text-foreground" aria-hidden>
-      {initials(name)}
-    </span>
-  );
-}
+import styles from "./Login.module.scss";
 
 /** Sign-in page: OIDC redirect, system-user credentials, or demo persona picker. */
 export function LoginPage() {
@@ -59,84 +41,81 @@ export function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8 flex flex-col items-center gap-4 text-center">
-          <Brand />
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">{t("Sign in")} {globalConfig.organizationName}</h1>
-            <p className="mt-1 text-sm text-muted">Authentication is handled by your organization's identity provider.</p>
+    <main className={styles.page}>
+      <div className={styles.panel}>
+        <Stack gap={5}>
+          <div className={styles.heading}>
+            <Brand />
+            <h1 className={styles.title}>
+              {t("Sign in")} {globalConfig.organizationName}
+            </h1>
+            <p className={styles.subtitle}>Authentication is handled by your organization's identity provider.</p>
           </div>
-        </div>
 
-        {oidcMode && (
-          <div className="mb-6 flex flex-col items-center gap-4">
-            <Button kind="primary" size="lg" onClick={() => signIn()}>
-              <Security className="size-4" aria-hidden />
+          {oidcMode && (
+            <Button kind="primary" renderIcon={Security} onClick={() => signIn()}>
               {t("Sign in with your identity provider")}
             </Button>
-          </div>
-        )}
-        {oidcMode && (
-          <div className="mb-6 flex items-center gap-3 text-xs text-muted">
-            <span className="h-px flex-1 bg-border" />
-            {t("or use a system user")}
-            <span className="h-px flex-1 bg-border" />
-          </div>
-        )}
-        {(localMode || oidcMode) ? (
-          <div className="mb-6 flex flex-col gap-3">
-            <TextInput label={t("Email")} value={email} onChange={setEmail} placeholder="admin@workspacenow.local" />
-            <TextInput label={t("Password")} value={password} onChange={setPassword} type="password" />
-            {error && <p className="text-sm text-danger">{error}</p>}
-            <Button kind="primary" size="lg" disabled={busy} onClick={() => void submitCredentials()}>
-              {busy ? t("Signing in…") : t("Sign in")}
-            </Button>
-            <p className="text-center text-xs text-muted">
-              {t("System user sign-in; your administrator provisions the credentials.")}
-            </p>
-          </div>
-        ) : (
-          <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-secondary px-4 py-3 text-sm text-muted">
-            <Security className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <p>
-              This is a demo installation, so you choose a person instead of entering credentials. Each person's identity-provider groups map to
-              different roles, so each one sees and can do different things.
-            </p>
-          </div>
-        )}
+          )}
+          {oidcMode && <p className={styles.divider}>{t("or use a system user")}</p>}
 
-        {!oidcMode && !localMode && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {isLoading
-              ? Array.from({ length: 6 }, (_, i) => <SkeletonPlaceholder key={i} className="h-24 rounded-2xl" />)
-              : data?.items.map((user) => (
-                  <div key={user.id} className="rounded-xl border border-separator bg-surface">
-                    <Button
-                      kind="ghost"
-                      className="h-auto w-full items-start justify-start gap-3 rounded-xl p-4 text-left font-normal whitespace-normal"
+          {(localMode || oidcMode) && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitCredentials();
+              }}
+            >
+              <Stack gap={5}>
+                <TextInput id="login-email" labelText={t("Email")} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@workspacenow.local" autoComplete="username" />
+                <PasswordInput id="login-password" labelText={t("Password")} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+                {error && <InlineNotification kind="error" lowContrast hideCloseButton title={t("Sign in")} subtitle={error} />}
+                <Button type="submit" kind="primary" disabled={busy}>
+                  {busy ? t("Signing in…") : t("Sign in")}
+                </Button>
+                <p className={styles.note}>{t("System user sign-in; your administrator provisions the credentials.")}</p>
+              </Stack>
+            </form>
+          )}
+
+          {!oidcMode && !localMode && (
+            <>
+              <InlineNotification
+                kind="info"
+                lowContrast
+                hideCloseButton
+                title="Demo installation"
+                subtitle="You choose a person instead of entering credentials. Each person's identity-provider groups map to different roles, so each one sees and can do different things."
+              />
+              {isLoading ? (
+                <SkeletonPlaceholder className={styles.skeleton} />
+              ) : (
+                <ContainedList kind="on-page" label="People" isInset>
+                  {data?.items.map((user) => (
+                    <ContainedListItem
+                      key={user.id}
+                      renderIcon={UserAvatar}
                       onClick={() => {
                         signIn({ id: user.id, name: user.name, email: user.email, title: user.title });
                         navigate(from, { replace: true });
                       }}
                     >
-                      <AvatarBadge name={user.name} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-foreground">{user.name}</span>
-                        <span className="block text-xs text-muted">{user.title}</span>
-                        <span className="mt-2 flex flex-wrap gap-1">
-                          {user.groups.map((g) => (
-                            <Tag key={g} size="sm" type="gray">
-                              {g}
-                            </Tag>
-                          ))}
-                        </span>
+                      <span className={styles.name}>{user.name}</span>
+                      <span className={styles.role}>{user.title}</span>
+                      <span className={styles.tags}>
+                        {user.groups.map((g) => (
+                          <Tag key={g} size="sm" type="gray">
+                            {g}
+                          </Tag>
+                        ))}
                       </span>
-                    </Button>
-                  </div>
-                ))}
-          </div>
-        )}
+                    </ContainedListItem>
+                  ))}
+                </ContainedList>
+              )}
+            </>
+          )}
+        </Stack>
       </div>
     </main>
   );

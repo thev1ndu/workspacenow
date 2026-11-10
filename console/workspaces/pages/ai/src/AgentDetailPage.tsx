@@ -8,6 +8,8 @@ import { AgentConfiguration } from "./subComponents/AgentConfiguration";
 import { AgentPlayground } from "./subComponents/AgentPlayground";
 import { RunsTable } from "./subComponents/RunsTable";
 
+import styles from "./AgentDetailPage.module.scss";
+
 export function AgentDetailPage() {
   const { agentId } = useParams();
   const agent = useGetAgent({ agentId });
@@ -32,19 +34,19 @@ export function AgentDetailPage() {
               <Tab>Runs{runs.data ? ` (${runs.data.total})` : ""}</Tab>
             </TabList>
             <TabPanels>
-              <TabPanel className="pt-6">
+              <TabPanel className={styles.panel}>
                 <AgentPlayground agent={data} />
               </TabPanel>
               {/* Keyed by version so a saved change resets the form to the stored agent. */}
-              <TabPanel className="pt-6">
+              <TabPanel className={styles.panel}>
                 <AgentConfiguration key={data.version} agent={data} />
               </TabPanel>
-              <TabPanel className="pt-6">
+              <TabPanel className={styles.panel}>
                 <AgentAccess key={data.version} agent={data} />
               </TabPanel>
-              <TabPanel className="pt-6">
+              <TabPanel className={styles.panel}>
                 <SectionCard flush>
-                  <QueryState query={runs}>{(r) => <RunsTable runs={r.items} showAgent={false} />}</QueryState>
+                  <QueryState query={runs}>{(r) => <RunsTable paged runs={r.items} showAgent={false} />}</QueryState>
                 </SectionCard>
               </TabPanel>
             </TabPanels>

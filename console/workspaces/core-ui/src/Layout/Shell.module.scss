@@ -1,0 +1,38 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+// The area right of the side navigation and below the header. Carbon's own content margins only
+// apply when Content is a sibling of the side nav, so the offsets are set here instead.
+.body {
+  min-block-size: 100dvh;
+  padding-block-start: $spacing-09;
+}
+
+.body--nav {
+  @include breakpoint-up('lg') {
+    margin-inline-start: 16rem;
+  }
+}
+
+.body--sidekick {
+  @include breakpoint-up('xlg') {
+    padding-inline-end: 21.25rem;
+  }
+}
+
+// Pages own their padding through PageLayout, so Content adds none.
+.content {
+  padding: 0;
+  outline: none;
+}
+
+.crumbs {
+  padding-block-start: $spacing-05;
+  padding-inline: $spacing-05;
+
+  @include breakpoint-up('lg') {
+    padding-inline: $spacing-07;
+  }
+}

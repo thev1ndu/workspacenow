@@ -1,9 +1,11 @@
 import { TrashCan } from "@carbon/react/icons";
-import { Button } from "@carbon/react";
+import { Button, Stack } from "@carbon/react";
 
 import type { ConditionOperator, Workflow, WorkflowStep } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
 import { OPERATORS, STEP_KINDS } from "./FlowNodes";
+
+import styles from "./StepInspector.module.scss";
 
 export interface InspectorOptions {
   agents: Array<{ value: string; label: string }>;
@@ -19,9 +21,9 @@ const TEMPLATE_HINT = "Insert values from the run with {{field}}, e.g. {{product
 export function StepInspector({ step, options, onChange, onDelete }: { step: WorkflowStep; options: InspectorOptions; onChange: (step: WorkflowStep) => void; onDelete: () => void }) {
   const kind = STEP_KINDS.find((k) => k.kind === step.kind)!;
   return (
-    <div className="grid gap-4">
-      <div className="flex items-center gap-2 text-xs font-medium text-muted">
-        <kind.icon className="size-3.5" />
+    <Stack gap={5}>
+      <div className={styles.heading}>
+        <kind.icon size={16} />
         {kind.label} step
       </div>
       <TextInput label="Name" required value={step.name} onChange={(name) => onChange({ ...step, name })} />
@@ -35,7 +37,7 @@ export function StepInspector({ step, options, onChange, onDelete }: { step: Wor
         <>
           <SelectInput label="Approver needs" required value={step.permission} onChange={(permission) => onChange({ ...step, permission: permission as typeof step.permission })} options={options.permissions} />
           <TextInput label="What to check" multiline rows={3} value={step.description} onChange={(description) => onChange({ ...step, description })} />
-          <p className="text-xs text-muted">Drag from the red handle on the node's right to choose what happens when it is rejected; otherwise a rejection ends the run.</p>
+          <p className={styles.hint}>Drag from the red handle on the node's right to choose what happens when it is rejected; otherwise a rejection ends the run.</p>
         </>
       )}
       {step.kind === "operation" && (
@@ -65,19 +67,18 @@ export function StepInspector({ step, options, onChange, onDelete }: { step: Wor
           />
           <SelectInput label="Test" value={step.operator} onChange={(operator) => onChange({ ...step, operator: operator as ConditionOperator })} options={OPERATOR_OPTIONS} />
           {step.operator !== "exists" && <TextInput label="Compare with" required value={step.value} onChange={(value) => onChange({ ...step, value })} />}
-          <p className="text-xs text-muted">Connect the green handle for "yes" and the red one for "no".</p>
+          <p className={styles.hint}>Connect the green handle for "yes" and the red one for "no".</p>
         </>
       )}
       {step.kind === "wait" && (
         <TextInput label="Minutes" type="number" required value={String(step.minutes)} onChange={(minutes) => onChange({ ...step, minutes: Number(minutes) })} />
       )}
       <div>
-        <Button size="sm" kind="danger--ghost" onClick={onDelete}>
-          <TrashCan className="size-4" aria-hidden />
+        <Button size="sm" kind="danger--ghost" renderIcon={TrashCan} onClick={onDelete}>
           Delete step
         </Button>
       </div>
-    </div>
+    </Stack>
   );
 }
 
@@ -90,8 +91,8 @@ const TRIGGER_KINDS = [
 /** What starts the workflow. */
 export function TriggerInspector({ trigger, events, onChange }: { trigger: Workflow["trigger"]; events: InspectorOptions["events"]; onChange: (trigger: Workflow["trigger"]) => void }) {
   return (
-    <div className="grid gap-4">
-      <p className="text-xs font-medium text-muted">Trigger</p>
+    <Stack gap={5}>
+      <p className={styles.heading}>Trigger</p>
       <SelectInput
         label="Starts"
         value={trigger.kind}
@@ -104,6 +105,6 @@ export function TriggerInspector({ trigger, events, onChange }: { trigger: Workf
       {trigger.kind === "schedule" && (
         <TextInput label="Cron" required value={trigger.cron} onChange={(cron) => onChange({ kind: "schedule", cron })} helperText="Minute hour day month weekday, e.g. 0 9 * * 1 for Mondays at 9:00." />
       )}
-    </div>
+    </Stack>
   );
 }

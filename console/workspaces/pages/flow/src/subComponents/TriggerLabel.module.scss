@@ -1,0 +1,20 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.label {
+  @include type-style('body-compact-01');
+
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.icon {
+  flex-shrink: 0;
+  fill: $icon-secondary;
+}
+
+.code {
+  @include type-style('code-01');
+}

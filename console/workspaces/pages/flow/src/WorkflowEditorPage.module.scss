@@ -1,0 +1,153 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.notice {
+  max-inline-size: none;
+  margin-block-end: $spacing-05;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $spacing-05;
+  margin-block-end: $spacing-05;
+}
+
+.name {
+  inline-size: 100%;
+  max-inline-size: 28rem;
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-03;
+}
+
+.workspace {
+  row-gap: $spacing-05;
+}
+
+// Palette, canvas and settings share one height: fixed when stacked, filling the viewport side by side.
+.pane {
+  block-size: 35rem;
+}
+
+@include breakpoint-up('lg') {
+  .pane {
+    block-size: calc(100dvh - 19.5rem);
+    min-block-size: 26rem;
+  }
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  overflow-y: auto;
+  border: 1px solid $border-subtle-01;
+  background: $layer-01;
+}
+
+.palette {
+  gap: $spacing-01;
+  padding: $spacing-03;
+}
+
+.settings {
+  gap: $spacing-05;
+  padding: $spacing-05;
+}
+
+.paletteHint {
+  @include type-style('helper-text-01');
+
+  padding: $spacing-03;
+  color: $text-secondary;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: $spacing-04;
+  inline-size: 100%;
+  padding: $spacing-03;
+  border: 0;
+  background: transparent;
+  color: $text-primary;
+  cursor: grab;
+  text-align: start;
+  transition: background-color 110ms;
+
+  &:hover {
+    background: $layer-hover-01;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus;
+    outline-offset: -2px;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.chip {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  inline-size: $spacing-07;
+  block-size: $spacing-07;
+  border: 1px solid $border-subtle-01;
+  background: $layer-02;
+  color: $icon-secondary;
+
+  svg {
+    fill: currentcolor;
+  }
+}
+
+.step:hover .chip {
+  border-color: $focus;
+  color: $icon-primary;
+}
+
+.stepText {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.stepLabel {
+  @include type-style('heading-compact-01');
+}
+
+.stepHint {
+  @include type-style('helper-text-01');
+
+  overflow: hidden;
+  color: $text-secondary;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label {
+  @include type-style('label-01');
+
+  color: $text-secondary;
+}
+
+.hint {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.problems {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

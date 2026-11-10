@@ -13,7 +13,7 @@ export const studioWorkspace: WorkspaceModule = {
   key: "studio",
   title: "Studio",
   description: "Build, preview and release business applications from shared entities, with AI-assisted design.",
-  icon: <Edit className="size-4" />,
+  icon: <Edit size={16} />,
   basePath: routes.studio.root,
   navigation: [
     { label: "Overview", href: routes.studio.root, end: true },

@@ -1,9 +1,14 @@
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
+import { Accordion, AccordionItem, StructuredListBody, StructuredListCell, StructuredListRow, StructuredListWrapper, Stack, Tag } from "@carbon/react";
 import { useParams } from "react-router-dom";
 import { useGetTrace } from "@workspacenow/api-client";
-import { routes } from "@workspacenow/types";
+import { routes, type AuditRecord } from "@workspacenow/types";
 import { ActorLabel, DetailList, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, formatDateTime, PageSkeleton } from "@workspacenow/views";
+
+import styles from "./control.module.scss";
+import { ControlTable } from "./subComponents/ControlTable";
 import { formatOffset, formatSpan } from "./utils";
+
+const rowId = (record: AuditRecord) => record.id;
 
 export function TraceDetailPage() {
   const { traceId } = useParams();
@@ -12,141 +17,132 @@ export function TraceDetailPage() {
   return (
     <PageLayout
       title={trace.data?.title ?? "Trace"}
-      description={<span className="font-mono">{traceId}</span>}
+      description={<span className={styles.monoLarge}>{traceId}</span>}
       backHref={routes.control.traces}
       backLabel="Traces"
     >
       <QueryState query={trace} skeleton={<PageSkeleton />}>
-        {(data) => (
-          <div className="grid gap-6">
-            <SectionCard>
-              <DetailList
-                columns={4}
-                items={[
-                  { label: "Started", value: formatDateTime(data.startedAt) },
-                  { label: "Duration", value: formatSpan(data.startedAt, data.endedAt) },
-                  { label: "Spans", value: data.spanCount },
-                  {
-                    label: "Denied",
-                    value:
-                      data.denied > 0 ? (
-                        <Tag size="sm" type="red">
-                          {data.denied}
-                        </Tag>
-                      ) : (
-                        "0"
-                      ),
-                  },
-                  {
-                    label: "Actors",
-                    fullWidth: true,
-                    value: (
-                      <div className="flex flex-wrap gap-1">
-                        {data.actors.map((a) => (
-                          <Tag key={a} size="sm" type="gray">
-                            {a}
+        {(data) => {
+          const timelineColumns = [
+            { key: "offset", header: "Offset", cell: (record: AuditRecord) => <span className={`${styles.monoLarge} ${styles.nowrap} ${styles.muted}`}>{formatOffset(data.startedAt, record.time)}</span> },
+            {
+              key: "actor",
+              header: "Actor",
+              cell: (record: AuditRecord) => (
+                <>
+                  <ActorLabel actor={record.actor} />
+                  {record.actor.onBehalfOf && <p className={styles.caption}>on behalf of {record.actor.onBehalfOf}</p>}
+                </>
+              ),
+            },
+            {
+              key: "entryPoint",
+              header: "Entry point",
+              cell: (record: AuditRecord) => (
+                <Tag size="sm" type="gray">
+                  {record.entryPoint}
+                </Tag>
+              ),
+            },
+            {
+              key: "action",
+              header: "Action",
+              cell: (record: AuditRecord) => (
+                <>
+                  <p className={styles.monoLarge}>{record.action}</p>
+                  {record.detail && <p className={`${styles.caption} ${record.outcome === "denied" ? styles.danger : ""}`}>{record.detail}</p>}
+                </>
+              ),
+            },
+            { key: "resource", header: "Resource", cell: (record: AuditRecord) => <span className={`${styles.monoLarge} ${styles.nowrap}`}>{record.resource}</span> },
+            { key: "outcome", header: "Outcome", cell: (record: AuditRecord) => <StatusChip status={record.outcome} /> },
+          ];
+          return (
+            <Stack gap={6}>
+              <SectionCard>
+                <DetailList
+                  columns={4}
+                  items={[
+                    { label: "Started", value: formatDateTime(data.startedAt) },
+                    { label: "Duration", value: formatSpan(data.startedAt, data.endedAt) },
+                    { label: "Spans", value: data.spanCount },
+                    {
+                      label: "Denied",
+                      value:
+                        data.denied > 0 ? (
+                          <Tag size="sm" type="red">
+                            {data.denied}
                           </Tag>
-                        ))}
-                      </div>
-                    ),
-                  },
-                ]}
-              />
-            </SectionCard>
+                        ) : (
+                          "0"
+                        ),
+                    },
+                    {
+                      label: "Actors",
+                      fullWidth: true,
+                      value: (
+                        <div className={styles.tags}>
+                          {data.actors.map((a) => (
+                            <Tag key={a} size="sm" type="gray">
+                              {a}
+                            </Tag>
+                          ))}
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              </SectionCard>
 
-            <SectionCard title="Timeline" subtitle="Each governed step, in order. Denied steps are highlighted." flush>
-              <div>
-                <TableContainer>
-                  <Table aria-label="Trace timeline" className="min-w-[880px]">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader>Offset</TableHeader>
-                        <TableHeader scope="row">Actor</TableHeader>
-                        <TableHeader>Entry point</TableHeader>
-                        <TableHeader>Action</TableHeader>
-                        <TableHeader>Resource</TableHeader>
-                        <TableHeader>Outcome</TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.audit.map((record) => {
-                        const denied = record.outcome === "denied";
-                        return (
-                          <TableRow key={record.id} id={record.id} className={denied ? "bg-danger-soft/40" : undefined}>
-                            <TableCell className="font-mono text-[13px] whitespace-nowrap text-muted">
-                              {formatOffset(data.startedAt, record.time)}
-                            </TableCell>
-                            <TableCell>
-                              <ActorLabel actor={record.actor} />
-                              {record.actor.onBehalfOf && <p className="text-xs text-muted">on behalf of {record.actor.onBehalfOf}</p>}
-                            </TableCell>
-                            <TableCell>
-                              <Tag size="sm" type="gray">
-                                {record.entryPoint}
-                              </Tag>
-                            </TableCell>
-                            <TableCell className="max-w-md">
-                              <p className="font-mono text-[13px]">{record.action}</p>
-                              {record.detail && <p className={`text-xs ${denied ? "text-danger" : "text-muted"}`}>{record.detail}</p>}
-                            </TableCell>
-                            <TableCell className="font-mono text-[13px] whitespace-nowrap">{record.resource}</TableCell>
-                            <TableCell>
-                              <StatusChip status={record.outcome} />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </div>
-            </SectionCard>
+              <SectionCard title="Timeline" subtitle="Each governed step, in order. Denied steps are highlighted." flush>
+                <ControlTable
+                  label="Trace timeline"
+                  rows={data.audit}
+                  rowId={rowId}
+                  columns={timelineColumns}
+                  emptyMessage="No governed steps in this trace."
+                  paginate={false}
+                  rowTone={(record) => (record.outcome === "denied" ? "error" : undefined)}
+                />
+              </SectionCard>
 
-            <SectionCard title="Events published" subtitle="Domain events raised inside this trace" flush>
-              {data.events.length === 0 ? (
-                <NoDataFound message="No events were published in this trace." />
-              ) : (
-                <div>
-                  <TableContainer>
-                    <Table aria-label="Events published" className="min-w-[720px]">
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader>Offset</TableHeader>
-                          <TableHeader scope="row">Event</TableHeader>
-                          <TableHeader>Payload</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.events.map((event) => (
-                          <TableRow key={event.id} id={event.id}>
-                            <TableCell className="font-mono text-[13px] whitespace-nowrap text-muted">
-                              {formatOffset(data.startedAt, event.time)}
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              <p className="font-mono text-[13px]">{event.type}</p>
-                              <p className="text-xs text-muted">{event.source}</p>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(event.payload).map(([key, value]) => (
-                                  <Tag key={key} size="sm" type="gray" className="max-w-[420px]">
-                                    <span className="truncate font-mono">
-                                      {key}: {Array.isArray(value) ? value.join(", ") : String(value)}
-                                    </span>
-                                  </Tag>
-                                ))}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </div>
-              )}
-            </SectionCard>
-          </div>
-        )}
+              <SectionCard title="Events published" subtitle="Domain events raised inside this trace" flush>
+                {data.events.length === 0 ? (
+                  <NoDataFound message="No events were published in this trace." />
+                ) : (
+                  <Accordion isFlush>
+                    {data.events.map((event) => (
+                      <AccordionItem
+                        key={event.id}
+                        title={
+                          <span>
+                            <span className={styles.monoLarge}>{event.type}</span>
+                            <span className={styles.caption}>{` ${formatOffset(data.startedAt, event.time)} from ${event.source}`}</span>
+                          </span>
+                        }
+                      >
+                        <StructuredListWrapper isCondensed aria-label={`Payload of ${event.type}`}>
+                          <StructuredListBody>
+                            {Object.entries(event.payload).map(([key, value]) => (
+                              <StructuredListRow key={key}>
+                                <StructuredListCell noWrap>
+                                  <span className={styles.mono}>{key}</span>
+                                </StructuredListCell>
+                                <StructuredListCell>
+                                  <span className={styles.mono}>{Array.isArray(value) ? value.join(", ") : String(value)}</span>
+                                </StructuredListCell>
+                              </StructuredListRow>
+                            ))}
+                          </StructuredListBody>
+                        </StructuredListWrapper>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                )}
+              </SectionCard>
+            </Stack>
+          );
+        }}
       </QueryState>
     </PageLayout>
   );

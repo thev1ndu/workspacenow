@@ -1,0 +1,64 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.body {
+  display: grid;
+  gap: $spacing-05;
+}
+
+.field {
+  display: grid;
+  gap: $spacing-03;
+}
+
+.results {
+  max-block-size: 50vh;
+  overflow-y: auto;
+}
+
+.title,
+.subtitle {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  @include type-style('body-compact-01');
+
+  color: $text-primary;
+}
+
+.subtitle {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.empty {
+  @include type-style('body-compact-01');
+
+  color: $text-secondary;
+  padding: $spacing-07 $spacing-05;
+  text-align: center;
+}
+
+.hints {
+  @include type-style('helper-text-01');
+
+  display: flex;
+  flex-wrap: wrap;
+  border-block-start: 1px solid $border-subtle;
+  color: $text-secondary;
+  gap: $spacing-05;
+  padding-block-start: $spacing-04;
+}
+
+.hints kbd {
+  @include type-style('code-01');
+
+  border: 1px solid $border-strong-01;
+  padding-inline: $spacing-02;
+}

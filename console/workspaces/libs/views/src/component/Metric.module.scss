@@ -1,0 +1,104 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-05;
+}
+
+.cols3 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@include breakpoint-up('md') {
+  .cols3,
+  .cols4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cols4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .cols5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cols6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@include breakpoint-up('xlg') {
+  .cols5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .cols6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.tile:global(.cds--tile) {
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.tileBody {
+  display: block;
+  min-inline-size: 0;
+  padding: $spacing-05;
+  color: inherit;
+  text-decoration: none;
+}
+
+.clickable:global(.cds--tile) {
+  transition: background-color 110ms;
+
+  &:hover {
+    background: $layer-hover-01;
+  }
+}
+
+.link:focus-visible {
+  outline: 2px solid $focus;
+  outline-offset: -2px;
+}
+
+.label {
+  @include type-style('label-01');
+
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  color: $text-secondary;
+
+  svg {
+    flex-shrink: 0;
+    fill: currentcolor;
+  }
+}
+
+.labelText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value {
+  @include type-style('productive-heading-05');
+
+  margin-block-start: $spacing-03;
+  font-variant-numeric: tabular-nums;
+  color: $text-primary;
+}
+
+.hint {
+  @include type-style('helper-text-01');
+
+  margin-block-start: $spacing-02;
+  color: $text-secondary;
+}

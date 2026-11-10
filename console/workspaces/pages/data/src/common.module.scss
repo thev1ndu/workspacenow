@@ -1,0 +1,64 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.muted {
+  color: $text-secondary;
+}
+
+.helper {
+  @include type-style('body-compact-01');
+
+  margin: 0;
+  color: $text-secondary;
+}
+
+.code {
+  @include type-style('code-01');
+}
+
+// Identifiers and machine names: Carbon's monospace, secondary colour, one per line.
+.subtle {
+  @include type-style('code-01');
+
+  margin: 0;
+  color: $text-secondary;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-02;
+}
+
+.arrow {
+  flex-shrink: 0;
+  fill: $icon-secondary;
+}
+
+.strong {
+  @include type-style('heading-compact-01');
+
+  margin: 0;
+}

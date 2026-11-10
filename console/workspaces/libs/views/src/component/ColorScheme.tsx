@@ -1,79 +1,123 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
+/** The four Carbon themes: White and Gray 10 are light, Gray 90 and Gray 100 are dark. */
+export type CarbonTheme = "white" | "g10" | "g90" | "g100";
+
+export const CARBON_THEMES: { id: CarbonTheme; label: string }[] = [
+  { id: "white", label: "White" },
+  { id: "g10", label: "Gray 10" },
+  { id: "g90", label: "Gray 90" },
+  { id: "g100", label: "Gray 100" },
+];
+
+export type ThemePreference = CarbonTheme | "system";
+
+/** Light, dark or following the system: the coarse choice older code made. */
 export type ColorMode = "light" | "dark" | "system";
 
-/** Colour themes: an accent plus tinted neutrals, each with light and dark variants (apps/web-ui/src/themes.css). */
-export const PALETTES = [
-  { id: "blue", label: "Default blue", swatch: "oklch(0.62 0.195 254)" },
-  { id: "orange", label: "Acrylic orange", swatch: "oklch(0.64 0.19 45)" },
-  { id: "green", label: "Forest green", swatch: "oklch(0.58 0.15 155)" },
-  { id: "teal", label: "Lagoon teal", swatch: "oklch(0.6 0.11 200)" },
-  { id: "purple", label: "Royal purple", swatch: "oklch(0.56 0.2 295)" },
-  { id: "rose", label: "Rose", swatch: "oklch(0.6 0.2 10)" },
-  { id: "graphite", label: "Graphite", swatch: "oklch(0.35 0.01 260)" },
-] as const;
+// The key the boot script in apps/web-ui/index.html reads, so the theme applies before first paint.
+export const THEME_STORAGE_KEY = "workspacenow-carbon-theme";
 
-export type PaletteId = (typeof PALETTES)[number]["id"];
+const IDS = CARBON_THEMES.map((t) => t.id);
+const DARK: CarbonTheme[] = ["g90", "g100"];
+const QUERY = "(prefers-color-scheme: dark)";
 
-// The same keys the boot script in apps/web-ui/index.html reads, so the theme applies before first paint.
-const MODE_KEY = "workspacenow-theme";
-const PALETTE_KEY = "workspacenow-palette";
+function isPreference(value: unknown): value is ThemePreference {
+  return value === "system" || IDS.includes(value as CarbonTheme);
+}
 
-function read<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+function readStored(): ThemePreference {
   try {
-    const saved = localStorage.getItem(key);
-    return allowed.includes(saved as T) ? (saved as T) : fallback;
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return isPreference(saved) ? saved : "system";
   } catch {
-    return fallback;
+    return "system";
   }
 }
 
-function write(key: string, value: string): void {
+function writeStored(value: ThemePreference): void {
   try {
-    localStorage.setItem(key, value);
+    localStorage.setItem(THEME_STORAGE_KEY, value);
   } catch {
     // The choice still applies for this session.
   }
 }
 
-const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
+// One store shared by every hook instance, so the layout and the preferences dialog never disagree.
+let preference: ThemePreference = readStored();
+const listeners = new Set<() => void>();
 
-/** Applies a mode and palette to <html>: Carbon's theme class (cds--white/cds--g100) plus light/dark and data-palette. */
-function apply(mode: ColorMode, palette: PaletteId): void {
-  const scheme = mode === "system" ? (systemDark() ? "dark" : "light") : mode;
-  const root = document.documentElement;
-  root.classList.remove("light", "dark", "cds--white", "cds--g100");
-  root.classList.add(scheme);
-  root.classList.add(scheme === "dark" ? "cds--g100" : "cds--white");
-  root.dataset.theme = scheme;
-  if (palette === "blue") delete root.dataset.palette;
-  else root.dataset.palette = palette;
+function emit() {
+  listeners.forEach((l) => l());
 }
 
-/** The viewer's appearance: light, dark or following the system, and a colour theme. Remembered per browser. */
+function setPreferenceValue(next: ThemePreference) {
+  if (next === preference) return;
+  preference = next;
+  writeStored(next);
+  emit();
+}
+
+function onStorage(event: StorageEvent) {
+  if (event.key !== THEME_STORAGE_KEY) return;
+  const next = readStored();
+  if (next === preference) return;
+  preference = next;
+  emit();
+}
+
+function subscribe(listener: () => void) {
+  if (listeners.size === 0) window.addEventListener("storage", onStorage);
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) window.removeEventListener("storage", onStorage);
+  };
+}
+
+function subscribeSystem(listener: () => void) {
+  const query = window.matchMedia(QUERY);
+  query.addEventListener("change", listener);
+  return () => query.removeEventListener("change", listener);
+}
+
+const getPreference = () => preference;
+const getSystemDark = () => window.matchMedia(QUERY).matches;
+
+/** Puts the Carbon theme class (cds--white, cds--g10, cds--g90, cds--g100) on <html>, plus light/dark for code that only needs the scheme. */
+function apply(theme: CarbonTheme): void {
+  const root = document.documentElement;
+  const dark = DARK.includes(theme);
+  root.classList.remove(...IDS.map((id) => `cds--${id}`), "light", "dark");
+  root.classList.add(`cds--${theme}`, dark ? "dark" : "light");
+  root.dataset.carbonTheme = theme;
+  root.style.colorScheme = dark ? "dark" : "light";
+}
+
+export interface CarbonThemeState {
+  /** The theme in effect: the saved choice, or white/g100 when following the system. */
+  theme: CarbonTheme;
+  /** What the viewer picked, which may be "system". */
+  preference: ThemePreference;
+  setPreference: (preference: ThemePreference) => void;
+  isDark: boolean;
+}
+
+/** The viewer's Carbon theme, remembered per browser. "system" follows prefers-color-scheme: white for light, g100 for dark. */
+export function useCarbonTheme(): CarbonThemeState {
+  const chosen = useSyncExternalStore(subscribe, getPreference);
+  const systemDark = useSyncExternalStore(subscribeSystem, getSystemDark);
+  const theme: CarbonTheme = chosen === "system" ? (systemDark ? "g100" : "white") : chosen;
+  useEffect(() => apply(theme), [theme]);
+  const setPreference = useCallback((next: ThemePreference) => setPreferenceValue(next), []);
+  return { theme, preference: chosen, setPreference, isDark: DARK.includes(theme) };
+}
+
+/** Compatibility alias over useCarbonTheme; mode/setMode map the old light, dark and system choice onto Carbon themes. */
 export function useAppearance() {
-  const [mode, setModeState] = useState<ColorMode>(() => read(MODE_KEY, ["light", "dark", "system"], "system"));
-  const [palette, setPaletteState] = useState<PaletteId>(() => read(PALETTE_KEY, PALETTES.map((p) => p.id), "blue"));
-
-  useEffect(() => {
-    apply(mode, palette);
-    if (mode !== "system") return;
-    // Follow the operating system while it changes. Read the saved choice rather than this hook's copy,
-    // since the layout and the Preferences dialog each hold one and either may be the one listening.
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    const follow = () => apply(read(MODE_KEY, ["light", "dark", "system"], "system"), read(PALETTE_KEY, PALETTES.map((p) => p.id), "blue"));
-    query.addEventListener("change", follow);
-    return () => query.removeEventListener("change", follow);
-  }, [mode, palette]);
-
-  const setMode = useCallback((next: ColorMode) => {
-    write(MODE_KEY, next);
-    setModeState(next);
-  }, []);
-  const setPalette = useCallback((next: PaletteId) => {
-    write(PALETTE_KEY, next);
-    setPaletteState(next);
-  }, []);
-
-  return { mode, palette, setMode, setPalette };
+  const state = useCarbonTheme();
+  const { preference: chosen, isDark, theme, setPreference } = state;
+  const mode: ColorMode = chosen === "system" ? "system" : isDark ? "dark" : "light";
+  const setMode = useCallback((next: ColorMode) => setPreference(next === "system" ? "system" : next === "dark" ? "g100" : "white"), [setPreference]);
+  return { ...state, mode, setMode, palette: theme, setPalette: setPreference };
 }

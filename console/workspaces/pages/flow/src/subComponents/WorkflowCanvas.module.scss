@@ -1,0 +1,106 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+// React Flow drawn with Carbon tokens, so the canvas follows whichever Carbon theme is active.
+.canvas {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid $border-subtle-01;
+  background: $background;
+
+  :global(.react-flow),
+  :global(.react-flow.dark) {
+    --xy-background-color: transparent;
+    --xy-background-pattern-color: #{$border-subtle-01};
+    --xy-edge-stroke: #{$icon-secondary};
+    --xy-edge-stroke-selected: #{$focus};
+    --xy-connectionline-stroke: #{$focus};
+    --xy-edge-label-background-color: #{$layer-01};
+    --xy-edge-label-color: #{$text-secondary};
+    --xy-controls-button-background-color: #{$layer-01};
+    --xy-controls-button-background-color-hover: #{$layer-hover-01};
+    --xy-controls-button-color: #{$icon-primary};
+    --xy-controls-button-border-color: #{$border-subtle-01};
+    --xy-minimap-background-color: #{$layer-01};
+    --xy-minimap-mask-background-color: #{$layer-02};
+    --xy-minimap-node-background-color: #{$layer-accent-01};
+    --xy-attribution-background-color: transparent;
+  }
+
+  :global(.react-flow__edge-textbg) {
+    rx: 0;
+  }
+
+  :global(.react-flow__edge-text) {
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
+  :global(.react-flow__edge-path) {
+    stroke-width: 1.5;
+  }
+
+  :global(.react-flow__edge.selected .react-flow__edge-path) {
+    stroke-width: 2.5;
+  }
+
+  // The path a run took.
+  :global(.react-flow__edge.edge-taken .react-flow__edge-path) {
+    stroke: $support-success;
+    stroke-width: 2;
+  }
+
+  :global(.react-flow__controls) {
+    border: 1px solid $border-subtle-01;
+    box-shadow: none;
+  }
+
+  :global(.react-flow__controls-button) {
+    border-radius: 0;
+  }
+
+  // Connection dots: small at rest, easy to grab on hover.
+  :global(.react-flow__handle) {
+    transition: transform 110ms;
+  }
+
+  :global(.react-flow__node:hover .react-flow__handle),
+  :global(.react-flow__handle.connectingfrom),
+  :global(.react-flow__handle.connectingto) {
+    transform: translate(-50%, 50%) scale(1.6);
+  }
+
+  :global(.react-flow__handle-top) {
+    transform: translate(-50%, -50%);
+  }
+
+  :global(.react-flow__node:hover .react-flow__handle-top) {
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+
+  :global(.react-flow__handle-right) {
+    transform: translate(50%, -50%);
+  }
+
+  :global(.react-flow__node:hover .react-flow__handle-right) {
+    transform: translate(50%, -50%) scale(1.6);
+  }
+}
+
+// A step is being dragged over the canvas.
+.dropping {
+  outline: 2px solid $focus;
+  outline-offset: -2px;
+}
+
+.emptyHint {
+  @include type-style('body-compact-01');
+
+  margin-block-end: $spacing-07;
+  padding: $spacing-04 $spacing-05;
+  border: 1px dashed $border-strong-01;
+  background: $layer-01;
+  color: $text-secondary;
+  text-align: center;
+}

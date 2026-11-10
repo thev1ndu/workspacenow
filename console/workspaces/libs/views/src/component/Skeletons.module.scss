@@ -1,0 +1,154 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-05;
+  padding: $spacing-04 $spacing-05;
+  border-block-end: 1px solid $border-subtle-01;
+
+  &:last-child {
+    border-block-end: 0;
+  }
+}
+
+.listText {
+  display: grid;
+  min-inline-size: 0;
+  flex: 1;
+  gap: $spacing-03;
+
+  :global(.cds--skeleton__text) {
+    margin: 0;
+  }
+}
+
+.icon:global(.cds--skeleton__placeholder) {
+  flex-shrink: 0;
+  inline-size: $spacing-07;
+  block-size: $spacing-07;
+}
+
+.chip:global(.cds--skeleton__placeholder) {
+  flex-shrink: 0;
+  inline-size: $spacing-09;
+  block-size: $spacing-05;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(var(--cards-sm, 1), minmax(0, 1fr));
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .cards {
+    grid-template-columns: repeat(var(--cards-md, 2), minmax(0, 1fr));
+  }
+}
+
+@include breakpoint-up('xlg') {
+  .cards {
+    grid-template-columns: repeat(var(--cards-xl, 4), minmax(0, 1fr));
+  }
+}
+
+.card {
+  display: grid;
+  gap: $spacing-04;
+  padding: $spacing-05;
+  background: $layer-01;
+
+  :global(.cds--skeleton__text) {
+    margin: 0;
+  }
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-04;
+}
+
+.chart:global(.cds--skeleton__placeholder) {
+  inline-size: 100%;
+  block-size: 16rem;
+}
+
+.donut {
+  display: grid;
+  justify-items: center;
+  gap: $spacing-06;
+  padding-block: $spacing-04;
+}
+
+.ring:global(.cds--skeleton__placeholder) {
+  inline-size: 9rem;
+  block-size: 9rem;
+  border-radius: 50%;
+  mask: radial-gradient(circle, transparent 52%, currentcolor 53%);
+}
+
+.legend {
+  display: flex;
+  gap: $spacing-05;
+}
+
+.legendItem:global(.cds--skeleton__text) {
+  inline-size: 3.5rem;
+  margin: 0;
+}
+
+.detailItem {
+  display: grid;
+  gap: $spacing-03;
+
+  :global(.cds--skeleton__text) {
+    margin: 0;
+  }
+}
+
+.metricTile {
+  display: grid;
+  gap: $spacing-04;
+  padding: $spacing-05;
+  background: $layer-01;
+
+  :global(.cds--skeleton__text) {
+    margin: 0;
+  }
+}
+
+.cardSkeleton {
+  overflow: hidden;
+  background: $layer-01;
+}
+
+.cardSkeletonHead {
+  display: grid;
+  gap: $spacing-03;
+  padding: $spacing-05;
+  border-block-end: 1px solid $border-subtle-01;
+
+  :global(.cds--skeleton__text) {
+    margin: 0;
+  }
+}
+
+.cardSkeletonBody {
+  padding: $spacing-05;
+}
+
+.stack {
+  display: grid;
+  gap: $spacing-06;
+}

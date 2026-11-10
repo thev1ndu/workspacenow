@@ -1,0 +1,14 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.body {
+  display: grid;
+  gap: $spacing-06;
+}
+
+.note {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}

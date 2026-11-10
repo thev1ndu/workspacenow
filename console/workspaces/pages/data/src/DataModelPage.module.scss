@@ -1,0 +1,146 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+// Graph card beside the entity list; the list scrolls inside the viewport so more entities never grow the page.
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: $spacing-05;
+}
+
+.list {
+  display: grid;
+  align-content: start;
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('lg') {
+  .split {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .list {
+    max-block-size: calc(100dvh - 12rem);
+    overflow-y: auto;
+  }
+}
+
+.graphSkeleton {
+  inline-size: 100%;
+  block-size: 28rem;
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  max-block-size: calc(100dvh - 16rem);
+  touch-action: none;
+  user-select: none;
+}
+
+.dragging {
+  cursor: grabbing;
+}
+
+.edge {
+  color: $text-secondary;
+}
+
+.edgeActive {
+  color: $interactive;
+}
+
+.dimmed {
+  opacity: 0.25;
+}
+
+.path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-opacity: 0.6;
+  stroke-width: 1.5;
+}
+
+.edgeActive .path {
+  stroke-opacity: 1;
+}
+
+.end {
+  @include type-style('label-01');
+
+  font-weight: 600;
+  fill: currentcolor;
+}
+
+.handle {
+  fill: $background;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  cursor: move;
+  opacity: 0.4;
+  transition: opacity 110ms;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.node {
+  color: $interactive;
+  cursor: grab;
+  outline: none;
+}
+
+.dragging .node,
+.dragging .handle {
+  cursor: grabbing;
+}
+
+.box {
+  fill: $layer;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+}
+
+.external {
+  stroke-dasharray: 4 3;
+}
+
+.tint {
+  fill: currentcolor;
+  fill-opacity: 0.12;
+}
+
+.nodeFocused .tint {
+  fill-opacity: 0.2;
+}
+
+.node:focus-visible .box {
+  stroke: $focus;
+  stroke-width: 3;
+}
+
+.name {
+  @include type-style('heading-compact-01');
+
+  fill: $text-primary;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-03;
+  margin-block-start: $spacing-05;
+}
+
+.hint {
+  @include type-style('helper-text-01');
+
+  margin: 0;
+  color: $text-secondary;
+}

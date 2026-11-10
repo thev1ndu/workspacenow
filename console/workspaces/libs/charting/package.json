@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "EvilCharts (Recharts) components for the WorkspaceNow console",
+  "description": "Carbon Charts wrappers for the WorkspaceNow console",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -14,19 +14,17 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "clsx": "2.1.1",
-    "motion": "14.9.1",
+    "@carbon/charts-react": "1.27.27",
     "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "recharts": "3.10.1"
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "typescript": "6.0.3",
-    "vite": "8.3.5",
+    "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@types/node": "26.6.6",
+    "@workspacenow/eslint-config": "workspace:*",
     "eslint": "10.14.0",
-    "@workspacenow/eslint-config": "workspace:*"
+    "typescript": "6.0.3",
+    "vite": "8.3.5"
   }
 }

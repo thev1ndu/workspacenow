@@ -1,11 +1,30 @@
+import { Download } from "@carbon/react/icons";
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useState } from "react";
-import { Button, ComposedModal, InlineNotification, ModalBody, ModalHeader } from "@carbon/react";
+import { useEffect, useId, useState } from "react";
+import {
+  Button,
+  ButtonSet,
+  ComboBox,
+  DatePicker,
+  DatePickerInput,
+  FileUploaderButton,
+  Form,
+  FormItem,
+  FormLabel,
+  InlineLoading,
+  InlineNotification,
+  Modal,
+  NumberInput,
+  Stack,
+  Toggle,
+} from "@carbon/react";
 import { useQueries } from "@tanstack/react-query";
 import { useAuthHooks } from "@workspacenow/auth";
 import { downloadRecordFile, listRecords, uploadRecordFile, useListRecords } from "@workspacenow/api-client";
 import type { Entity, EntityField, EntityRecord, FieldValue, FileRef } from "@workspacenow/types";
-import { SelectInput, TextInput, errorMessage } from "@workspacenow/views";
+import { SelectInput, TextInput, errorMessage, type SelectOption } from "@workspacenow/views";
+
+import common from "../common.module.scss";
 
 /** The human-readable name of a record, by the entity's most descriptive field. */
 export function recordLabel(record: EntityRecord): string {
@@ -32,20 +51,27 @@ export function useReferenceLabels(entity?: Entity): Record<string, Record<strin
 }
 
 function ReferenceSelect({ field, value, onChange }: { field: EntityField; value: string; onChange: (v: string) => void }) {
+  const id = useId();
   const { data, error } = useListRecords({ entityName: field.reference });
+  const options: SelectOption[] = (data?.items ?? []).map((r) => ({ value: r.id, label: `${recordLabel(r)} (${r.id})` }));
   return (
-    <SelectInput
-      label={field.label}
-      required={field.required}
-      value={value}
-      onChange={onChange}
-      helperText={error ? `You cannot read ${field.reference} records: ${errorMessage(error)}` : `References ${field.reference}`}
-      options={(data?.items ?? []).map((r) => ({ value: r.id, label: `${recordLabel(r)} (${r.id})` }))}
+    <ComboBox
+      id={id}
+      titleText={field.required ? `${field.label} *` : field.label}
+      placeholder="Search records"
+      items={options}
+      itemToString={(item) => item?.label ?? ""}
+      selectedItem={options.find((o) => o.value === value) ?? null}
+      onChange={({ selectedItem }) => onChange(selectedItem?.value ?? "")}
+      shouldFilterItem={({ item, inputValue }) => item.label.toLowerCase().includes((inputValue ?? "").toLowerCase())}
+      helperText={error ? undefined : `References ${field.reference}`}
+      invalid={!!error}
+      invalidText={error ? `You cannot read ${field.reference} records: ${errorMessage(error)}` : undefined}
     />
   );
 }
 
-/** A file field: uploads into object storage, the record stores only the FileRef; click the name to download. */
+/** A file field: uploads into object storage, the record stores only the FileRef; use the button to download. */
 function FileInput({
   field,
   value,
@@ -97,30 +123,69 @@ function FileInput({
     URL.revokeObjectURL(url);
   };
   return (
-    <div className="grid gap-1">
-      <label className="text-xs font-medium">{field.label}</label>
-      <div className="flex items-center gap-2">
-        <input
-          type="file"
-          aria-label={field.label}
-          disabled={busy || !recordId}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void upload(f);
-            e.target.value = "";
-          }}
-        />
-        {busy && <span className="text-xs text-muted">Uploading…</span>}
-        {ref && (
-          <button type="button" className="text-xs text-accent underline" onClick={() => void download()}>
-            {ref.name} ({Math.round(ref.sizeBytes / 1024)} KB)
-          </button>
-        )}
-      </div>
-      {!!error && <span className="text-xs text-danger">{error}</span>}
-      {!recordId && <span className="text-xs text-muted">Save the record first, then attach a file</span>}
-    </div>
+    <FormItem>
+      <FormLabel>{field.label}</FormLabel>
+      <Stack gap={3}>
+        <div className={common.row}>
+          <FileUploaderButton
+            labelText={ref ? "Replace file" : "Choose file"}
+            buttonKind="tertiary"
+            size="md"
+            disableLabelChanges
+            disabled={busy || !recordId}
+            name={field.name}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void upload(f);
+              e.target.value = "";
+            }}
+          />
+          {busy && <InlineLoading description="Uploading..." />}
+          {ref && (
+            <Button kind="ghost" size="md" renderIcon={Download} onClick={() => void download()}>
+              {ref.name} ({Math.round(ref.sizeBytes / 1024)} KB)
+            </Button>
+          )}
+        </div>
+        {!!error && <InlineNotification kind="error" lowContrast hideCloseButton title={error} />}
+        {!recordId && <p className={common.helper}>Save the record first, then attach a file</p>}
+      </Stack>
+    </FormItem>
   );
+}
+
+function NumberField({ field, value, onChange }: { field: EntityField; value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  return (
+    <NumberInput
+      id={id}
+      label={field.required ? `${field.label} *` : field.label}
+      value={value}
+      allowEmpty
+      step={field.type === "integer" ? 1 : 0.01}
+      helperText={field.unique ? "Must be unique" : undefined}
+      onChange={(_e, state) => onChange(String(state.value))}
+    />
+  );
+}
+
+function DateField({ field, value, onChange }: { field: EntityField; value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  return (
+    <DatePicker datePickerType="single" dateFormat="Y-m-d" value={value.slice(0, 10)} onChange={(_dates, dateStr) => onChange(dateStr)}>
+      <DatePickerInput
+        id={id}
+        labelText={field.required ? `${field.label} *` : field.label}
+        placeholder="yyyy-mm-dd"
+        helperText={field.unique ? "Must be unique" : undefined}
+      />
+    </DatePicker>
+  );
+}
+
+function BooleanField({ field, value, onChange }: { field: EntityField; value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  return <Toggle id={id} labelText={field.required ? `${field.label} *` : field.label} labelA="No" labelB="Yes" toggled={value === "true"} onToggle={(checked) => onChange(String(checked))} />;
 }
 
 export function FieldInput({
@@ -140,14 +205,14 @@ export function FieldInput({
     case "qr":
       // QR fields render as a scannable code of the record id; the value is the record id itself.
       return (
-        <div className="grid gap-1.5">
-          <span className="text-sm font-medium">{field.label}</span>
+        <FormItem>
+          <FormLabel>{field.label}</FormLabel>
           {recordId ? (
-            <QRCodeSVG value={`${entityName ?? ""}/${recordId}`} size={160} className="rounded-lg bg-white p-2" />
+            <QRCodeSVG value={`${entityName ?? ""}/${recordId}`} size={160} marginSize={2} />
           ) : (
-            <span className="text-xs text-muted">Save the record first — the QR code is generated from its id</span>
+            <p className={common.helper}>Save the record first - the QR code is generated from its id</p>
           )}
-        </div>
+        </FormItem>
       );
     case "file":
       return <FileInput field={field} value={value} entityName={entityName ?? ""} recordId={recordId} onChange={onChange} />;
@@ -160,22 +225,17 @@ export function FieldInput({
           required={field.required}
           value={value}
           onChange={onChange}
+          placeholder="Choose an option"
           options={(field.enumValues ?? []).map((v) => ({ value: v, label: v }))}
         />
       );
     case "boolean":
-      return (
-        <SelectInput
-          label={field.label}
-          required={field.required}
-          value={value}
-          onChange={onChange}
-          options={[
-            { value: "true", label: "Yes" },
-            { value: "false", label: "No" },
-          ]}
-        />
-      );
+      return <BooleanField field={field} value={value} onChange={onChange} />;
+    case "number":
+    case "integer":
+      return <NumberField field={field} value={value} onChange={onChange} />;
+    case "date":
+      return <DateField field={field} value={value} onChange={onChange} />;
     default:
       return (
         <TextInput
@@ -185,7 +245,6 @@ export function FieldInput({
           onChange={onChange}
           multiline={field.type === "text"}
           rows={field.type === "text" ? 3 : undefined}
-          type={field.type === "number" || field.type === "integer" ? "number" : field.type === "date" ? "date" : undefined}
           helperText={field.unique ? "Must be unique" : undefined}
         />
       );
@@ -198,6 +257,34 @@ function initialValues(entity: Entity, record?: EntityRecord): Record<string, st
       const v = record?.values[f.name] ?? f.defaultValue;
       return [f.name, v === null || v === undefined ? "" : String(v)];
     }),
+  );
+}
+
+/** Form state for an entity's record, reset whenever the entity or record changes. */
+function useRecordValues(entity: Entity, record?: EntityRecord) {
+  const [values, setValues] = useState<Record<string, string>>(() => initialValues(entity, record));
+  useEffect(() => setValues(initialValues(entity, record)), [entity, record]);
+  const toPayload = (): Record<string, FieldValue> => Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v === "" ? null : v]));
+  return { values, setValues, toPayload };
+}
+
+type RecordValues = ReturnType<typeof useRecordValues>;
+
+/** One input per field of the entity definition. */
+function RecordFields({ entity, record, state }: { entity: Entity; record?: EntityRecord; state: RecordValues }) {
+  return (
+    <>
+      {entity.fields.map((field) => (
+        <FieldInput
+          key={field.name}
+          field={field}
+          value={state.values[field.name] ?? ""}
+          onChange={(v) => state.setValues((prev) => ({ ...prev, [field.name]: v }))}
+          entityName={entity.name}
+          recordId={record?.id}
+        />
+      ))}
+    </>
   );
 }
 
@@ -219,37 +306,30 @@ export function RecordForm({
   submitLabel?: string;
   onCancel?: () => void;
 }) {
-  const [values, setValues] = useState<Record<string, string>>(() => initialValues(entity, record));
-  useEffect(() => setValues(initialValues(entity, record)), [entity, record]);
-
+  const state = useRecordValues(entity, record);
   return (
-    <div className="grid gap-4">
-      {entity.fields.map((field) => (
-        <FieldInput
-          key={field.name}
-          field={field}
-          value={values[field.name] ?? ""}
-          onChange={(v) => setValues((prev) => ({ ...prev, [field.name]: v }))}
-          entityName={entity.name}
-          recordId={record?.id}
-        />
-      ))}
-      {!!error && <ErrorAlert error={error} />}
-      <div className="flex justify-end gap-2">
-        {onCancel && (
-          <Button kind="tertiary" onClick={onCancel}>
-            Cancel
+    <Form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(state.toPayload());
+      }}
+    >
+      <Stack gap={6}>
+        <RecordFields entity={entity} record={record} state={state} />
+        {!!error && <ErrorAlert error={error} />}
+        <ButtonSet>
+          {onCancel && (
+            <Button kind="secondary" type="button" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+          <Button kind="primary" type="submit" disabled={isPending}>
+            {submitLabel}
           </Button>
-        )}
-        <Button
-          kind="primary"
-          disabled={isPending}
-          onClick={() => onSubmit(Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v === "" ? null : v])))}
-        >
-          {submitLabel}
-        </Button>
-      </div>
-    </div>
+        </ButtonSet>
+      </Stack>
+    </Form>
   );
 }
 
@@ -275,15 +355,23 @@ export function RecordFormDialog({
   isPending?: boolean;
   error?: unknown;
 }) {
+  const state = useRecordValues(entity, record);
   return (
-    <ComposedModal open={open} onClose={onClose} size="md">
-      <ModalHeader
-        title={record ? `Edit ${entity.label.toLowerCase()} ${record.id}` : `New ${entity.label.toLowerCase()}`}
-        closeModal={onClose}
-      />
-      <ModalBody hasScrollingContent>
-        <RecordForm entity={entity} record={record} onSubmit={onSubmit} isPending={isPending} error={error} onCancel={onClose} />
-      </ModalBody>
-    </ComposedModal>
+    <Modal
+      open={open}
+      size="md"
+      modalLabel={entity.label}
+      modalHeading={record ? `Edit ${entity.label.toLowerCase()} ${record.id}` : `New ${entity.label.toLowerCase()}`}
+      primaryButtonText="Save"
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={isPending}
+      onRequestClose={onClose}
+      onRequestSubmit={() => onSubmit(state.toPayload())}
+    >
+      <Stack gap={6}>
+        <RecordFields entity={entity} record={record} state={state} />
+        {!!error && <ErrorAlert error={error} />}
+      </Stack>
+    </Modal>
   );
 }

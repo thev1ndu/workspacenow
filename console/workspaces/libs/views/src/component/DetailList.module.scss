@@ -1,0 +1,48 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-05 $spacing-09;
+  margin: 0;
+}
+
+// Columns grow to their content, so a long URL is not squeezed to the width of a count.
+@include breakpoint-up('md') {
+  .cols2 {
+    grid-template-columns: repeat(2, minmax(0, max-content));
+  }
+
+  .cols3 {
+    grid-template-columns: repeat(3, minmax(0, max-content));
+  }
+
+  .cols4 {
+    grid-template-columns: repeat(4, minmax(0, max-content));
+  }
+}
+
+.item {
+  min-inline-size: 0;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.label {
+  @include type-style('label-01');
+
+  color: $text-secondary;
+}
+
+.value {
+  @include type-style('body-compact-01');
+
+  margin: $spacing-02 0 0;
+  overflow-wrap: anywhere;
+  color: $text-primary;
+}

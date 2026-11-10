@@ -1,0 +1,40 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-05;
+}
+
+.text {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.name {
+  @include type-style('heading-compact-01');
+
+  color: $text-primary;
+}
+
+.description {
+  @include type-style('body-compact-01');
+
+  margin-block-start: $spacing-02;
+  color: $text-secondary;
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-03;
+}

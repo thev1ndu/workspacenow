@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@fontsource-variable/geist'
-import '@fontsource-variable/geist-mono'
+import '@ibm/plex-sans/css/ibm-plex-sans-default.css'
+import '@ibm/plex-mono/css/ibm-plex-mono-default.css'
 import './index.scss'
 import { CoreUI } from '@workspacenow/core-ui'
 

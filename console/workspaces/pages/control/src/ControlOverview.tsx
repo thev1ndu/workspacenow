@@ -1,17 +1,13 @@
-import { CheckmarkFilled, WarningFilled, ErrorFilled, Key, Layers, Group } from "@carbon/react/icons";
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { CheckmarkFilled, WarningFilled, ErrorFilled, Key, Layers, Group as GroupIcon } from "@carbon/react/icons";
+import { CodeSnippet, Column, Grid, Stack } from "@carbon/react";
 
-import {
-  useListAudit,
-  useListEnvironments,
-  useListHealth,
-  useListRoles,
-  useListUsers,
-  useOrganization,
-} from "@workspacenow/api-client";
-import { globalConfig, routes } from "@workspacenow/types";
+import { useListAudit, useListEnvironments, useListHealth, useListRoles, useListUsers, useOrganization } from "@workspacenow/api-client";
+import { globalConfig, routes, type HealthSignal } from "@workspacenow/types";
 import { DetailList, LinkButton, Metric, MetricGrid, PageLayout, QueryState, SectionCard, StatusChip, DetailSkeleton } from "@workspacenow/views";
+
+import styles from "./control.module.scss";
 import { AuditTable } from "./subComponents/AuditTable";
+import { ControlTable } from "./subComponents/ControlTable";
 import { EntryPointOutcomesChart } from "./subComponents/EntryPointOutcomesChart";
 import { HealthChart } from "./subComponents/HealthChart";
 
@@ -27,6 +23,15 @@ const KIND_LABELS: Record<string, string> = {
 
 const STATUS_ORDER = ["down", "degraded", "healthy"];
 
+const signalId = (signal: HealthSignal) => `${signal.kind}-${signal.resource}`;
+
+const signalColumns = [
+  { key: "resource", header: "Resource", cell: (signal: HealthSignal) => <span className={styles.name}>{signal.resource}</span> },
+  { key: "kind", header: "Kind", cell: (signal: HealthSignal) => <span className={styles.muted}>{KIND_LABELS[signal.kind]}</span> },
+  { key: "status", header: "Status", cell: (signal: HealthSignal) => <StatusChip status={signal.status} /> },
+  { key: "detail", header: "Detail", cell: (signal: HealthSignal) => <span className={`${styles.monoLarge} ${styles.muted}`}>{signal.detail}</span> },
+];
+
 export function ControlOverview() {
   const organization = useOrganization();
   const users = useListUsers();
@@ -40,11 +45,11 @@ export function ControlOverview() {
 
   return (
     <PageLayout title="Control" description="Administration, security, governance and operations for this installation.">
-      <div className="grid gap-6">
+      <Stack gap={6}>
         <MetricGrid columns={6}>
-          <Metric label="Users" value={users.data?.total ?? "—"} icon={<Group />} href={routes.control.organization} />
-          <Metric label="Roles" value={roles.data?.total ?? "—"} icon={<Key />} href={routes.control.access} />
-          <Metric label="Environments" value={environments.data?.total ?? "—"} icon={<Layers />} href={routes.control.environments} />
+          <Metric label="Users" value={users.data?.total ?? "-"} icon={<GroupIcon />} href={routes.control.organization} />
+          <Metric label="Roles" value={roles.data?.total ?? "-"} icon={<Key />} href={routes.control.access} />
+          <Metric label="Environments" value={environments.data?.total ?? "-"} icon={<Layers />} href={routes.control.environments} />
           <Metric label="Healthy" value={count("healthy")} icon={<CheckmarkFilled />} href="#health-signals" />
           <Metric label="Degraded" value={count("degraded")} icon={<WarningFilled />} href="#health-signals" />
           <Metric label="Down" value={count("down")} icon={<ErrorFilled />} href="#health-signals" />
@@ -60,17 +65,21 @@ export function ControlOverview() {
                   { label: "Installation", value: org.installationName },
                   { label: "Version", value: globalConfig.version },
                   { label: "Identity provider", value: org.identityProvider.type },
-                  { label: "Issuer", fullWidth: true, value: <code className="font-mono text-[13px]">{org.identityProvider.issuer}</code> },
+                  { label: "Issuer", fullWidth: true, value: <CodeSnippet type="inline">{org.identityProvider.issuer}</CodeSnippet> },
                 ]}
               />
             )}
           </QueryState>
         </SectionCard>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
-          <EntryPointOutcomesChart />
-          <HealthChart />
-        </div>
+        <Grid fullWidth>
+          <Column sm={4} md={8} lg={10} className={styles.cell}>
+            <EntryPointOutcomesChart />
+          </Column>
+          <Column sm={4} md={8} lg={6} className={styles.cell}>
+            <HealthChart />
+          </Column>
+        </Grid>
 
         <SectionCard
           title="Recent denied actions"
@@ -82,49 +91,27 @@ export function ControlOverview() {
           }
           flush
         >
-          <QueryState query={denied}>{(data) => <AuditTable records={data.items.slice(0, 6)} />}</QueryState>
+          <QueryState query={denied}>{(data) => <AuditTable records={data.items.slice(0, 6)} plain />}</QueryState>
         </SectionCard>
 
-        <div id="health-signals" className="scroll-mt-20">
+        <div id="health-signals" className={styles.anchor}>
           <SectionCard title="Health signals" subtitle="Applications, APIs, MCP servers, integrations, databases and workflows" flush>
             <QueryState query={health}>
               {(data) => (
-                <div>
-                  <TableContainer>
-                    <Table aria-label="Health signals" className="min-w-[640px]">
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader scope="row">Resource</TableHeader>
-                          <TableHeader>Kind</TableHeader>
-                          <TableHeader>Status</TableHeader>
-                          <TableHeader>Detail</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {[...data.items]
-                          .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status))
-                          .map((signal) => {
-                            const id = `${signal.kind}-${signal.resource}`;
-                            return (
-                              <TableRow key={id} id={id}>
-                                <TableCell className="font-medium">{signal.resource}</TableCell>
-                                <TableCell className="text-muted">{KIND_LABELS[signal.kind]}</TableCell>
-                                <TableCell>
-                                  <StatusChip status={signal.status} />
-                                </TableCell>
-                                <TableCell className="font-mono text-[13px] text-muted">{signal.detail}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </div>
+                <ControlTable
+                  label="Health signals"
+                  rows={[...data.items].sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status))}
+                  rowId={signalId}
+                  columns={signalColumns}
+                  emptyMessage="No health signals yet."
+                  searchText={(signal) => `${signal.resource} ${KIND_LABELS[signal.kind] ?? signal.kind} ${signal.status} ${signal.detail ?? ""}`}
+                  searchLabel="Search health signals"
+                />
               )}
             </QueryState>
           </SectionCard>
         </div>
-      </div>
+      </Stack>
     </PageLayout>
   );
 }

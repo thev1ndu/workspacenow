@@ -1,0 +1,16 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+
+// Entities table beside the scope chart, stacked on narrow screens.
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('xlg') {
+  .split {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Checkbox, Modal } from "@carbon/react";
+import { InlineNotification, ListItem, Modal, NumberInput, Stack, Toggle, UnorderedList } from "@carbon/react";
 import { useCreateAlertRule, useListSLOs, useListWebhooks, useUpdateAlertRule } from "@workspacenow/api-client";
 import type { AlertRule, AlertRuleInput } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
@@ -51,90 +51,84 @@ export function AlertRuleDialog({ onClose, rule }: { onClose: () => void; rule?:
     active,
   };
 
+  const save = () => (rule ? update.mutate({ ruleId: rule.id, body }, { onSuccess: onClose }) : create.mutate(body, { onSuccess: onClose }));
+
   return (
-    <Modal open onRequestClose={onClose} modalHeading={rule ? "Edit alert rule" : "New alert rule"} size="md" passiveModal>
-      <div className="grid gap-4">
-            <TextInput label="Name" required value={name} onChange={setName} placeholder="Denied approvals" />
-            <SelectInput label="Watches" required value={source} onChange={(v) => setSource(v as AlertRule["source"])} options={SOURCES} />
-            {source === "slo" ? (
-              <SelectInput
-                label="SLO"
-                value={sloId}
-                onChange={setSloId}
-                options={(slos.data?.items ?? []).map((s) => ({ value: s.id, label: `${s.operation} (${(s.targetSuccess * 100).toFixed(1)}% / p95 ${s.targetP95Ms} ms)` }))}
-                placeholder="Pick an SLO…"
-              />
-            ) : null}
-            <TextInput
-              label={source === "slo" ? "Operation (optional when an SLO is picked)" : source === "event" ? "Event type" : "Audit action"}
-              value={action}
-              onChange={setAction}
-              placeholder={source === "event" ? "Stock.LowStockReached" : "approval.decision"}
-            />
-            {source === "audit" && (
-              <SelectInput
-                label="Outcome"
-                value={outcome}
-                onChange={setOutcome}
-                options={[
-                  { value: "", label: "Any outcome" },
-                  { value: "denied", label: "Denied only" },
-                  { value: "allowed", label: "Allowed only" },
-                ]}
-              />
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <TextInput
-                label={source === "slo" ? "Burn-rate threshold ×100" : "Threshold (count)"}
-                type="number"
-                required
-                value={threshold}
-                onChange={setThreshold}
-                placeholder={source === "slo" ? "600" : "5"}
-              />
-              <TextInput label="Window (minutes)" type="number" required value={windowMinutes} onChange={setWindowMinutes} placeholder="60" />
-            </div>
-            <SelectInput
-              label="Notify via registered webhook"
-              value={webhookId}
-              onChange={setWebhookId}
-              options={[{ value: "", label: "None" }, ...(webhooks.data?.items ?? []).map((w) => ({ value: w.id, label: w.name }))]}
-            />
-            <TextInput
-              label="…or custom webhook URL"
-              value={webhookUrl}
-              onChange={setWebhookUrl}
-              placeholder="https://hooks.example.com/alerts (POSTed unsigned when the rule fires)"
-              error={webhookUrl.trim() && !/^https?:\/\/.+/.test(webhookUrl.trim()) ? "Must be an absolute http(s) URL" : undefined}
-            />
-            <Checkbox
-              id="alert-rule-active"
-              checked={active}
-              onChange={(_e, { checked }) => setActive(checked)}
-              labelText={<span className="text-sm">Active</span>}
-            />
-            {problems.length > 0 && (
-              <ul className="list-disc pl-5 text-sm text-danger">
-                {problems.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            )}
-      </div>
-      <div className="flex justify-end gap-2 pt-6">
-        <Button kind="tertiary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          kind="primary"
-          disabled={problems.length > 0 || pending}
-          onClick={() =>
-            (rule ? update.mutate({ ruleId: rule.id, body }, { onSuccess: onClose }) : create.mutate(body, { onSuccess: onClose }))
-          }
-        >
-          {rule ? "Save changes" : "Create alert"}
-        </Button>
-      </div>
+    <Modal
+      open
+      onRequestClose={onClose}
+      onRequestSubmit={save}
+      modalHeading={rule ? "Edit alert rule" : "New alert rule"}
+      primaryButtonText={rule ? "Save changes" : "Create alert"}
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={problems.length > 0 || pending}
+      size="md"
+      hasScrollingContent
+    >
+      <Stack gap={5}>
+        <TextInput label="Name" required value={name} onChange={setName} placeholder="Denied approvals" />
+        <SelectInput label="Watches" required value={source} onChange={(v) => setSource(v as AlertRule["source"])} options={SOURCES} />
+        {source === "slo" ? (
+          <SelectInput
+            label="SLO"
+            value={sloId}
+            onChange={setSloId}
+            options={(slos.data?.items ?? []).map((s) => ({ value: s.id, label: `${s.operation} (${(s.targetSuccess * 100).toFixed(1)}% / p95 ${s.targetP95Ms} ms)` }))}
+            placeholder="Pick an SLO..."
+          />
+        ) : null}
+        <TextInput
+          label={source === "slo" ? "Operation (optional when an SLO is picked)" : source === "event" ? "Event type" : "Audit action"}
+          value={action}
+          onChange={setAction}
+          placeholder={source === "event" ? "Stock.LowStockReached" : "approval.decision"}
+        />
+        {source === "audit" && (
+          <SelectInput
+            label="Outcome"
+            value={outcome}
+            onChange={setOutcome}
+            options={[
+              { value: "", label: "Any outcome" },
+              { value: "denied", label: "Denied only" },
+              { value: "allowed", label: "Allowed only" },
+            ]}
+          />
+        )}
+        <NumberInput
+          id="alert-rule-threshold"
+          label={source === "slo" ? "Burn-rate threshold x100" : "Threshold (count)"}
+          min={1}
+          allowEmpty
+          value={threshold}
+          onChange={(_event, state) => setThreshold(String(state.value))}
+        />
+        <NumberInput id="alert-rule-window" label="Window (minutes)" min={1} allowEmpty value={windowMinutes} onChange={(_event, state) => setWindowMinutes(String(state.value))} />
+        <SelectInput
+          label="Notify via registered webhook"
+          value={webhookId}
+          onChange={setWebhookId}
+          options={[{ value: "", label: "None" }, ...(webhooks.data?.items ?? []).map((w) => ({ value: w.id, label: w.name }))]}
+        />
+        <TextInput
+          label="Or custom webhook URL"
+          value={webhookUrl}
+          onChange={setWebhookUrl}
+          placeholder="https://hooks.example.com/alerts"
+          helperText="POSTed unsigned when the rule fires"
+          error={webhookUrl.trim() && !/^https?:\/\/.+/.test(webhookUrl.trim()) ? "Must be an absolute http(s) URL" : undefined}
+        />
+        <Toggle id="alert-rule-active" labelText="Active" labelA="Off" labelB="On" toggled={active} onToggle={setActive} />
+        {problems.length > 0 && (
+          <InlineNotification kind="warning" lowContrast hideCloseButton title="Check before saving">
+            <UnorderedList>
+              {problems.map((p) => (
+                <ListItem key={p}>{p}</ListItem>
+              ))}
+            </UnorderedList>
+          </InlineNotification>
+        )}
+      </Stack>
     </Modal>
   );
 }

@@ -1,0 +1,66 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-04;
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-block-start: $spacing-01;
+}
+
+.done {
+  fill: $support-success;
+}
+
+.failed {
+  fill: $support-error;
+}
+
+.active {
+  fill: $support-warning;
+}
+
+.idle {
+  fill: $icon-secondary;
+}
+
+.stepBody {
+  display: grid;
+  min-inline-size: 0;
+  gap: $spacing-02;
+}
+
+.name {
+  @include type-style('heading-compact-01');
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+  color: $text-primary;
+}
+
+.timing {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.detail {
+  @include type-style('body-compact-01');
+
+  color: $text-primary;
+}
+
+.action {
+  margin-block-start: $spacing-03;
+}
+
+.code {
+  @include type-style('code-01');
+}

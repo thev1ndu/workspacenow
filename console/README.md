@@ -11,8 +11,8 @@ The demo needs no backend. `@workspacenow/mock-server` is an in-browser platform
 installation's REST API: Entity Runtime, Business Operations, MCP tools, agent runs, durable-style workflows,
 approvals, events and audit. State persists in `localStorage`; reset it from the account menu.
 
-The UI is IBM Carbon (@carbon/react) with a small app utility layer on Carbon theme variables, with EvilCharts (Recharts) for charts and Carbon icons. See
-`docs/UI-GUIDE.md` before changing any screen.
+The UI is IBM Carbon Design System only: `@carbon/react` components and UI Shell, Carbon icons, Carbon Charts and the four Carbon themes
+(white, g10, g90, g100) with self-hosted IBM Plex. See the rules in `AGENTS.md` before changing any screen.
 
 
 ## Quick start
@@ -62,7 +62,7 @@ groups map to which roles.
 | `workspaces/libs/api-client` | Fetch functions and TanStack Query hooks (two-file pattern) |
 | `workspaces/libs/auth` | Demo OIDC persona sign-in |
 | `workspaces/libs/views` | Carbon-based primitives (page frame, cards, tags, fields, toasts) |
-| `workspaces/libs/charting` | `@workspacenow/charts`: vendored EvilCharts components (MIT) |
+| `workspaces/libs/charting` | `@workspacenow/charts`: Carbon Charts wrappers that follow the app theme |
 | `workspaces/pages/<workspace>` | One package per Workspace, plus `overview` for Home |
 
 To run against a real backend, replace the transport in `libs/api-client/src/utils/http.ts` with `fetch`; nothing

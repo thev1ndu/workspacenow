@@ -1,0 +1,23 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.actor {
+  @include type-style('body-compact-01');
+
+  display: inline-flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.icon {
+  flex-shrink: 0;
+  fill: $icon-secondary;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,45 +1,37 @@
 import { Tag } from "@carbon/react";
 
-type Tone = "default" | "accent" | "success" | "warning" | "danger";
+type TagType = "green" | "blue" | "purple" | "magenta" | "warm-gray" | "red" | "gray";
 
-// Carbon Tag types: no yellow, so warning uses warm-gray.
-const TAG_TYPES: Record<Tone, "blue" | "green" | "warm-gray" | "red" | "gray"> = {
-  accent: "blue",
-  success: "green",
-  warning: "warm-gray",
-  danger: "red",
-  default: "gray",
-};
-
-const TONES: Record<string, Tone> = {
-  active: "success",
-  allowed: "success",
-  approved: "success",
-  completed: "success",
-  connected: "success",
-  healthy: "success",
-  released: "success",
-  issued: "success",
-  delivered: "success",
-  checked_in: "success",
-  valid: "accent",
-  ordered: "accent",
-  running: "accent",
-  preview: "accent",
-  waiting: "warning",
-  pending: "warning",
-  "pending-approval": "warning",
-  degraded: "warning",
-  suspended: "warning",
-  failed: "danger",
-  failing: "danger",
-  denied: "danger",
-  rejected: "danger",
-  down: "danger",
-  disabled: "danger",
-  unreachable: "danger",
-  disconnected: "danger",
-  cancelled: "danger",
+// Carbon has no yellow tag: in-flight work is blue, waiting is purple, degraded is magenta, inactive is warm gray.
+const TAG_TYPES: Record<string, TagType> = {
+  active: "green",
+  allowed: "green",
+  approved: "green",
+  completed: "green",
+  connected: "green",
+  healthy: "green",
+  released: "green",
+  issued: "green",
+  delivered: "green",
+  checked_in: "green",
+  valid: "blue",
+  ordered: "blue",
+  running: "blue",
+  preview: "blue",
+  waiting: "purple",
+  pending: "purple",
+  "pending-approval": "purple",
+  degraded: "magenta",
+  suspended: "warm-gray",
+  disabled: "warm-gray",
+  cancelled: "warm-gray",
+  failed: "red",
+  failing: "red",
+  denied: "red",
+  rejected: "red",
+  down: "red",
+  unreachable: "red",
+  disconnected: "red",
 };
 
 function label(status: string): string {
@@ -47,10 +39,10 @@ function label(status: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** Lifecycle and outcome states, always as a soft tag so colour carries meaning without shouting. */
+/** Lifecycle and outcome states, as a Carbon tag whose colour carries the meaning. */
 export function StatusChip({ status, label: text }: { status: string; label?: string }) {
   return (
-    <Tag size="sm" type={TAG_TYPES[TONES[status] ?? "default"]}>
+    <Tag size="sm" type={TAG_TYPES[status] ?? "gray"}>
       {text ?? label(status)}
     </Tag>
   );

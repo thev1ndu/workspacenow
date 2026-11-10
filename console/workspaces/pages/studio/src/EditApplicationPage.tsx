@@ -1,13 +1,15 @@
 import { Checkmark, AiGenerate, Close } from "@carbon/react/icons";
 import { useId, useState } from "react";
-import { Button, Tag, TextArea } from "@carbon/react";
+import { Button, Stack, TextArea, Tile } from "@carbon/react";
 
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetApplication, useListEntities, usePlanApplicationEdit, useUpdateApplication } from "@workspacenow/api-client";
 import { buildPath, planFromApplication, routes, validatePlan, validatePlanChanges, type Application, type Entity } from "@workspacenow/types";
 import { PageLayout, QueryState, errorMessage } from "@workspacenow/views";
-import { Notice } from "./subComponents/Notice";
+import { Notice, ProblemNotice } from "./subComponents/Notice";
+import { PlanBanner } from "./subComponents/PlanBanner";
 import { PlanEditor } from "./subComponents/PlanEditor";
+import styles from "./EditApplicationPage.module.scss";
 
 /** Edits an application's plan in place: details, pages, new entities and fields, and safe changes to existing ones. */
 function ApplicationEditor({ app, entities }: { app: Application; entities: Entity[] }) {
@@ -28,92 +30,75 @@ function ApplicationEditor({ app, entities }: { app: Application; entities: Enti
   const detailPath = buildPath(routes.studio.application, { appId: app.id });
 
   return (
-    <div className="grid gap-6">
+    <Stack gap={6}>
       {!canBuild && <Notice>Editing applications needs studio.manage. Switch to Sahan Gunawardena (Application Developer) or Amaya Perera.</Notice>}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-secondary px-5 py-4">
-        <div className="grid min-w-0 flex-1 gap-1">
-          <div className="flex items-center gap-2">
-            <Tag size="sm" type="gray">
-              {dirty ? "Unsaved changes" : "No changes"}
-            </Tag>
-            <span className="text-sm font-medium">{plan.name || "Untitled application"}</span>
-          </div>
-          <p className="text-sm text-muted">
-            Saving applies the changes right away. Existing entities and fields keep their name and type because records depend on them; new
-            entities get CRUD operations in the application's API.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button kind="tertiary" onClick={() => navigate(detailPath)}>
-            <Close className="size-4" aria-hidden />
-            Discard
-          </Button>
-          <Button
-            disabled={!dirty || problems.length > 0 || !canBuild || update.isPending}
-            onClick={() => update.mutate({ appId: app.id, plan }, { onSuccess: () => navigate(detailPath) })}
-          >
-            <Checkmark className="size-4" aria-hidden />
-            Save changes
-          </Button>
-        </div>
-      </div>
-      <div className="rounded-2xl bg-surface-secondary px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="grid min-w-0 flex-1 gap-1">
-            <span className="text-sm font-medium">Edit with AI</span>
-            <p className="text-sm text-muted">
-              Describe the change and the Application Architect revises the plan — nothing is saved until you review and press Save changes.
+      <PlanBanner
+        badge={dirty ? "Unsaved changes" : "No changes"}
+        name={plan.name}
+        description="Saving applies the changes right away. Existing entities and fields keep their name and type because records depend on them; new entities get CRUD operations in the application's API."
+        actions={
+          <>
+            <Button kind="tertiary" renderIcon={Close} onClick={() => navigate(detailPath)}>
+              Discard
+            </Button>
+            <Button
+              renderIcon={Checkmark}
+              disabled={!dirty || problems.length > 0 || !canBuild || update.isPending}
+              onClick={() => update.mutate({ appId: app.id, plan }, { onSuccess: () => navigate(detailPath) })}
+            >
+              Save changes
+            </Button>
+          </>
+        }
+      />
+      <Tile>
+        <div className={styles.aiHead}>
+          <div className={styles.aiText}>
+            <span className={styles.aiTitle}>Edit with AI</span>
+            <p className={styles.aiBody}>
+              Describe the change and the Application Architect revises the plan. Nothing is saved until you review and press Save changes.
             </p>
           </div>
-          <Button kind="tertiary" onClick={() => setAiOpen((v) => !v)} disabled={!canBuild}>
-            <AiGenerate className="size-4" aria-hidden />
+          <Button kind="tertiary" renderIcon={AiGenerate} onClick={() => setAiOpen((v) => !v)} disabled={!canBuild}>
             {aiOpen ? "Close" : "Ask the Architect"}
           </Button>
         </div>
         {aiOpen && (
-          <div className="mt-3 grid gap-2">
-            <TextArea
-              id={aiPromptId}
-              labelText="Describe the change"
-              hideLabel
-              placeholder="e.g. Add a comments field to PurchaseRequest and a page to review open orders"
-              rows={3}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                disabled={prompt.trim().length < 8 || planEdit.isPending || !canBuild}
-                onClick={() =>
-                  planEdit.mutate(
-                    { appId: app.id, prompt: prompt.trim() },
-                    { onSuccess: (revised) => { setPlan(revised); setAiOpen(false); } },
-                  )
-                }
-              >
-                <AiGenerate className="size-4" aria-hidden />
-                Revise plan
-              </Button>
-              {!!planEdit.error && <span className="text-sm text-danger">{errorMessage(planEdit.error)}</span>}
-            </div>
+          <div className={styles.aiForm}>
+            <Stack gap={3}>
+              <TextArea
+                id={aiPromptId}
+                labelText="Describe the change"
+                hideLabel
+                placeholder="e.g. Add a comments field to PurchaseRequest and a page to review open orders"
+                rows={3}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+              <div>
+                <Button
+                  size="sm"
+                  renderIcon={AiGenerate}
+                  disabled={prompt.trim().length < 8 || planEdit.isPending || !canBuild}
+                  onClick={() =>
+                    planEdit.mutate(
+                      { appId: app.id, prompt: prompt.trim() },
+                      { onSuccess: (revised) => { setPlan(revised); setAiOpen(false); } },
+                    )
+                  }
+                >
+                  Revise plan
+                </Button>
+              </div>
+              {!!planEdit.error && <Notice status="danger">{errorMessage(planEdit.error)}</Notice>}
+            </Stack>
           </div>
         )}
-      </div>
-      {problems.length > 0 && (
-        <Notice>
-          <span className="font-medium">Fix these before saving:</span>
-          <ul className="mt-1 list-disc pl-5">
-            {problems.slice(0, 6).map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-            {problems.length > 6 && <li>and {problems.length - 6} more</li>}
-          </ul>
-        </Notice>
-      )}
+      </Tile>
+      <ProblemNotice heading="Fix these before saving:" problems={problems} />
       {!!update.error && <Notice status="danger">{errorMessage(update.error)}</Notice>}
       <PlanEditor plan={plan} onChange={setPlan} existingEntities={others} saved={saved} />
-    </div>
+    </Stack>
   );
 }
 

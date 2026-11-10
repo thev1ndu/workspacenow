@@ -1,0 +1,85 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.appGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .appGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .span2 {
+    grid-column: span 2;
+  }
+}
+
+.newDepartment {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-03;
+}
+
+.newDepartmentField {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.entityMeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-05;
+  padding: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .entityMeta {
+    grid-template-columns: 1fr 1fr 2fr;
+  }
+}
+
+.entityFooter {
+  padding: $spacing-03 $spacing-05;
+  border-block-start: 1px solid $border-subtle-01;
+}
+
+// Controls inside table cells keep a readable width instead of collapsing with the column.
+.control {
+  min-inline-size: 8rem;
+}
+
+.controlWide {
+  min-inline-size: 12rem;
+}
+
+.mono {
+  @include type-style('code-01');
+}
+
+.scan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: $spacing-03;
+}
+
+@include breakpoint-up('md') {
+  .scan {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+}
+
+.scanLabel {
+  @include type-style('label-01');
+
+  color: $text-secondary;
+}
+
+.empty {
+  border-block-start: 1px solid $border-subtle-01;
+}

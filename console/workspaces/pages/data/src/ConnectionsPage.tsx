@@ -2,6 +2,8 @@ import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, Ta
 import { useListConnections } from "@workspacenow/api-client";
 import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip } from "@workspacenow/views";
 
+import styles from "./common.module.scss";
+
 export function ConnectionsPage() {
   const connections = useListConnections();
   return (
@@ -16,7 +18,7 @@ export function ConnectionsPage() {
               <NoDataFound message="No connections configured." />
             ) : (
               <TableContainer aria-label="Connections">
-                <Table className="min-w-[760px]">
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableHeader>Name</TableHeader>
@@ -30,15 +32,15 @@ export function ConnectionsPage() {
                   <TableBody>
                     {data.items.map((c) => (
                       <TableRow key={c.id} id={c.id}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>{c.name}</TableCell>
                         <TableCell>
                           <Tag size="sm" type="gray">
                             {c.engine}
                           </Tag>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">{c.host}</TableCell>
-                        <TableCell className="text-muted">{c.managed ? "Managed by WorkspaceNow" : "External"}</TableCell>
-                        <TableCell className="capitalize">{c.environment}</TableCell>
+                        <TableCell className={styles.code}>{c.host}</TableCell>
+                        <TableCell className={styles.muted}>{c.managed ? "Managed by WorkspaceNow" : "External"}</TableCell>
+                        <TableCell className={styles.capitalize}>{c.environment}</TableCell>
                         <TableCell>
                           <StatusChip status={c.status} />
                         </TableCell>

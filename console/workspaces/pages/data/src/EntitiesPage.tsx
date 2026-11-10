@@ -9,13 +9,15 @@ import { NewEntityDialog } from "./subComponents/NewEntityDialog";
 import { InferEntityDialog } from "./subComponents/InferEntityDialog";
 import { ScopeChip } from "./subComponents/ScopeChip";
 
+import styles from "./common.module.scss";
+
 export function EntitiesPage() {
   const entities = useListEntities();
   const { data: apps } = useListApplications();
   const canManage = useCan("data.manage");
   const [open, setOpen] = useState(false);
   const [inferOpen, setInferOpen] = useState(false);
-  const appName = (id?: string) => apps?.items.find((a) => a.id === id)?.name ?? "—";
+  const appName = (id?: string) => apps?.items.find((a) => a.id === id)?.name ?? "-";
 
   return (
     <PageLayout
@@ -24,11 +26,11 @@ export function EntitiesPage() {
       actions={
         <>
           {canManage && (
-            <Button kind="secondary" onClick={() => setInferOpen(true)} renderIcon={(p) => <AiGenerate className="size-4" aria-hidden {...p} />}>
+            <Button kind="secondary" onClick={() => setInferOpen(true)} renderIcon={AiGenerate}>
               New from data
             </Button>
           )}
-          <Button kind="primary" onClick={() => setOpen(true)} disabled={!canManage} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
+          <Button kind="primary" onClick={() => setOpen(true)} disabled={!canManage} renderIcon={Add}>
             New entity
           </Button>
         </>
@@ -41,13 +43,13 @@ export function EntitiesPage() {
               <NoDataFound message="No entities defined yet." />
             ) : (
               <TableContainer aria-label="Entities">
-                <Table className="min-w-[860px]">
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableHeader>Name</TableHeader>
                       <TableHeader>Scope</TableHeader>
                       <TableHeader>Owner</TableHeader>
-                      <TableHeader className="text-right">Fields</TableHeader>
+                      <TableHeader className={styles.numeric}>Fields</TableHeader>
                       <TableHeader>Events</TableHeader>
                       <TableHeader>Read / write</TableHeader>
                       <TableHeader>Version</TableHeader>
@@ -58,23 +60,23 @@ export function EntitiesPage() {
                       <TableRow key={e.id} id={e.id}>
                         <TableCell>
                           <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
-                          <p className="font-mono text-xs text-muted">{e.name}</p>
+                          <p className={styles.subtle}>{e.name}</p>
                         </TableCell>
                         <TableCell>
                           <ScopeChip scope={e.scope} />
                         </TableCell>
-                        <TableCell className="text-muted">{appName(e.ownerApplicationId)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{e.fields.length}</TableCell>
-                        <TableCell className="text-xs text-muted">
-                          {e.events.length ? e.events.map((ev) => ev.split(".")[1]).join(", ") : "—"}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          <div>{e.readPermission}</div>
-                          <div className="text-muted">{e.writePermission}</div>
+                        <TableCell className={styles.muted}>{appName(e.ownerApplicationId)}</TableCell>
+                        <TableCell className={styles.numeric}>{e.fields.length}</TableCell>
+                        <TableCell className={styles.muted}>
+                          {e.events.length ? e.events.map((ev) => ev.split(".")[1]).join(", ") : "-"}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 whitespace-nowrap">
-                            <span className="tabular-nums">v{e.version}</span>
+                          <p className={styles.code}>{e.readPermission}</p>
+                          <p className={styles.subtle}>{e.writePermission}</p>
+                        </TableCell>
+                        <TableCell>
+                          <div className={`${styles.row} ${styles.nowrap}`}>
+                            <span className={styles.numeric}>v{e.version}</span>
                             <StatusChip status={e.lifecycle} />
                           </div>
                         </TableCell>

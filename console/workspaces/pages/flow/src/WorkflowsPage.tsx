@@ -1,10 +1,29 @@
 import { Add } from "@carbon/react/icons";
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 
 import { useCan, useListWorkflows } from "@workspacenow/api-client";
-import { buildPath, routes } from "@workspacenow/types";
-import { LinkButton, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
+import { buildPath, routes, type Workflow } from "@workspacenow/types";
+import { LinkButton, PageLayout, QueryState, StatusChip, TextLink } from "@workspacenow/views";
+import { PagedTable, type PagedTableColumn } from "./subComponents/PagedTable";
 import { TriggerLabel } from "./subComponents/TriggerLabel";
+
+import styles from "./Flow.module.scss";
+
+const columns: PagedTableColumn<Workflow>[] = [
+  {
+    key: "name",
+    header: "Name",
+    render: (w) => (
+      <div className={styles.cellStack}>
+        <TextLink to={buildPath(routes.flow.workflow, { workflowId: w.id })}>{w.name}</TextLink>
+        <span className={styles.cellHelper}>{w.description}</span>
+      </div>
+    ),
+  },
+  { key: "trigger", header: "Trigger", render: (w) => <TriggerLabel trigger={w.trigger} /> },
+  { key: "steps", header: "Steps", render: (w) => w.steps.length },
+  { key: "status", header: "Status", render: (w) => <StatusChip status={w.status} /> },
+  { key: "version", header: "Version", render: (w) => `v${w.version}` },
+];
 
 export function WorkflowsPage() {
   const workflows = useListWorkflows();
@@ -15,54 +34,24 @@ export function WorkflowsPage() {
       description="Business processes and the events, schedules or people that start them."
       actions={
         canDesign && (
-          <LinkButton variant="primary" href={routes.flow.workflowNew}>
-            <Add className="size-4" aria-hidden />
+          <LinkButton variant="primary" href={routes.flow.workflowNew} renderIcon={Add}>
             New workflow
           </LinkButton>
         )
       }
     >
-      <SectionCard flush>
-        <QueryState query={workflows}>
-          {(data) =>
-            data.items.length === 0 ? (
-              <NoDataFound message="No workflows yet." />
-            ) : (
-              <TableContainer aria-label="Workflows">
-                <Table className="min-w-[720px]">
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader>Name</TableHeader>
-                      <TableHeader>Trigger</TableHeader>
-                      <TableHeader>Steps</TableHeader>
-                      <TableHeader>Status</TableHeader>
-                      <TableHeader>Version</TableHeader>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.items.map((workflow) => (
-                      <TableRow key={workflow.id} id={workflow.id}>
-                        <TableCell>
-                          <TextLink to={buildPath(routes.flow.workflow, { workflowId: workflow.id })}>{workflow.name}</TextLink>
-                          <p className="mt-0.5 max-w-md text-xs text-muted">{workflow.description}</p>
-                        </TableCell>
-                        <TableCell>
-                          <TriggerLabel trigger={workflow.trigger} />
-                        </TableCell>
-                        <TableCell className="tabular-nums">{workflow.steps.length}</TableCell>
-                        <TableCell>
-                          <StatusChip status={workflow.status} />
-                        </TableCell>
-                        <TableCell className="tabular-nums">v{workflow.version}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )
-          }
-        </QueryState>
-      </SectionCard>
+      <QueryState query={workflows}>
+        {(data) => (
+          <PagedTable
+            label="Workflows"
+            items={data.items}
+            columns={columns}
+            searchText={(w) => `${w.name} ${w.description} ${w.status} ${w.trigger.kind}`}
+            searchPlaceholder="Search workflows"
+            emptyMessage="No workflows yet."
+          />
+        )}
+      </QueryState>
     </PageLayout>
   );
 }

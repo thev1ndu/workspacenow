@@ -1,6 +1,5 @@
-import { AiGenerate } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, ComposedModal, InlineNotification, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
+import { InlineNotification, Modal, Stack } from "@carbon/react";
 
 import { useCreateViewFromText } from "@workspacenow/api-client";
 import type { Entity, SavedView } from "@workspacenow/types";
@@ -13,9 +12,28 @@ export function AskViewDialog({ entity, onClose, onCreated }: { entity: Entity; 
   const askErr = ask.error as Error | null;
 
   return (
-    <ComposedModal open onClose={onClose} size="md">
-      <ModalHeader title={`Ask for a view of ${entity.label}`} closeModal={onClose} />
-      <ModalBody>
+    <Modal
+      open
+      size="md"
+      modalLabel={entity.label}
+      modalHeading={`Ask for a view of ${entity.label}`}
+      primaryButtonText="Build view"
+      secondaryButtonText="Close"
+      primaryButtonDisabled={ask.isPending || !text.trim() || !!explanation}
+      onRequestClose={onClose}
+      onRequestSubmit={() =>
+        ask.mutate(
+          { entityName: entity.name, text },
+          {
+            onSuccess: (res) => {
+              setExplanation(res.explanation);
+              onCreated?.(res.view);
+            },
+          },
+        )
+      }
+    >
+      <Stack gap={5}>
         <TextInput
           label="Describe the records you want"
           value={text}
@@ -24,36 +42,9 @@ export function AskViewDialog({ entity, onClose, onCreated }: { entity: Entity; 
           rows={2}
           placeholder='e.g. "unitPrice below 1000 ordered by name desc, limit 20"'
         />
-        {askErr && (
-          <InlineNotification kind="error" lowContrast hideCloseButton title="Could not build a view" subtitle={askErr.message} />
-        )}
-        {explanation && (
-          <InlineNotification kind="success" lowContrast hideCloseButton title="View created" subtitle={explanation} />
-        )}
-      </ModalBody>
-      <ModalFooter>
-        <Button kind="tertiary" onClick={onClose}>
-          Close
-        </Button>
-        <Button
-          kind="primary"
-          disabled={ask.isPending || !text.trim() || !!explanation}
-          onClick={() =>
-            ask.mutate(
-              { entityName: entity.name, text },
-              {
-                onSuccess: (res) => {
-                  setExplanation(res.explanation);
-                  onCreated?.(res.view);
-                },
-              },
-            )
-          }
-          renderIcon={(p) => <AiGenerate className="size-4" aria-hidden {...p} />}
-        >
-          Build view
-        </Button>
-      </ModalFooter>
-    </ComposedModal>
+        {askErr && <InlineNotification kind="error" lowContrast hideCloseButton title="Could not build a view" subtitle={askErr.message} />}
+        {explanation && <InlineNotification kind="success" lowContrast hideCloseButton title="View created" subtitle={explanation} />}
+      </Stack>
+    </Modal>
   );
 }

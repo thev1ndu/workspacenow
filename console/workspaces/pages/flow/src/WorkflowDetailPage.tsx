@@ -1,5 +1,5 @@
 import { Pause, Edit, Play, Rocket } from "@carbon/react/icons";
-import { Button, Tag } from "@carbon/react";
+import { Button, Column, Grid, Stack, Tag } from "@carbon/react";
 
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetWorkflow, useListApplications, useListExecutions, useSimulateWorkflow, useStartWorkflow, useUpdateWorkflow } from "@workspacenow/api-client";
@@ -8,6 +8,8 @@ import { DetailList, LinkButton, PageLayout, QueryState, SectionCard, StatusChip
 import { ExecutionsTable } from "./subComponents/ExecutionsTable";
 import { WorkflowGraph } from "./subComponents/WorkflowGraph";
 import { describeTrigger } from "./utils";
+
+import styles from "./Flow.module.scss";
 
 export function WorkflowDetailPage() {
   const { workflowId } = useParams();
@@ -32,13 +34,13 @@ export function WorkflowDetailPage() {
         wf && (
           <>
             {canDesign && (
-              <LinkButton variant="secondary" href={buildPath(routes.flow.workflowEdit, { workflowId: wf.id })}>
-                <Edit className="size-4" aria-hidden />
+              <LinkButton variant="secondary" href={buildPath(routes.flow.workflowEdit, { workflowId: wf.id })} renderIcon={Edit}>
                 Edit flow
               </LinkButton>
             )}
             {wf.trigger.kind === "manual" && (
               <Button
+                renderIcon={Play}
                 disabled={wf.status !== "active" || startWorkflow.isPending}
                 onClick={() =>
                   startWorkflow.mutate(
@@ -47,24 +49,23 @@ export function WorkflowDetailPage() {
                   )
                 }
               >
-                <Play className="size-4" aria-hidden />
                 Run now
               </Button>
             )}
             <Button
               kind="tertiary"
+              renderIcon={Rocket}
               disabled={simulate.isPending}
               onClick={() => simulate.mutate({ workflowId: wf.id, event: {} })}
             >
-              <Rocket className="size-4" aria-hidden />
               Simulate
             </Button>
             <Button
               kind="secondary"
+              renderIcon={wf.status === "active" ? Pause : Play}
               disabled={updateWorkflow.isPending}
               onClick={() => updateWorkflow.mutate({ workflowId: wf.id, status: wf.status === "active" ? "paused" : "active" })}
             >
-              {wf.status === "active" ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
               {wf.status === "active" ? "Pause" : "Resume"}
             </Button>
           </>
@@ -73,12 +74,14 @@ export function WorkflowDetailPage() {
     >
       <QueryState query={workflow}>
         {(data) => (
-          <div className="grid gap-6">
-            <div className="grid items-start gap-6 lg:grid-cols-[3fr_2fr]">
+          <Grid narrow className={styles.grid}>
+            <Column sm={4} md={8} lg={10}>
               <SectionCard title="Flow" subtitle="What starts the workflow and every path it can take">
                 <WorkflowGraph definition={data} />
               </SectionCard>
-              <div className="grid gap-6">
+            </Column>
+            <Column sm={4} md={8} lg={6}>
+              <Stack gap={5}>
                 <SectionCard title="Details">
                   <DetailList
                     items={[
@@ -87,36 +90,40 @@ export function WorkflowDetailPage() {
                       { label: "Trigger", value: describeTrigger(data.trigger) },
                       {
                         label: "Application",
-                        value: applications?.items.find((a) => a.id === data.applicationId)?.name ?? "—",
+                        value: applications?.items.find((a) => a.id === data.applicationId)?.name ?? "-",
                       },
                     ]}
                   />
                 </SectionCard>
                 <SectionCard title="Service identity" subtitle="Steps run with only these permissions, never the caller's.">
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className={styles.tags}>
                     {data.permissions.map((p) => (
                       <Tag key={p} size="sm" type="gray">
-                        <span className="font-mono">{p}</span>
+                        <span className={styles.mono}>{p}</span>
                       </Tag>
                     ))}
                   </div>
                 </SectionCard>
-              </div>
-            </div>
+              </Stack>
+            </Column>
             {simulate.data && (
-              <SectionCard title="Dry-run simulation" subtitle={simulate.data.summary}>
-                <DetailList
-                  items={simulate.data.steps.map((s) => ({
-                    label: s.name,
-                    value: `${s.outcome}: ${s.detail}`,
-                  }))}
-                />
-              </SectionCard>
+              <Column sm={4} md={8} lg={16}>
+                <SectionCard title="Dry-run simulation" subtitle={simulate.data.summary}>
+                  <DetailList
+                    items={simulate.data.steps.map((s) => ({
+                      label: s.name,
+                      value: `${s.outcome}: ${s.detail}`,
+                    }))}
+                  />
+                </SectionCard>
+              </Column>
             )}
-            <SectionCard title="Execution history" flush>
-              <QueryState query={executions}>{(list) => <ExecutionsTable executions={list.items} hideWorkflow />}</QueryState>
-            </SectionCard>
-          </div>
+            <Column sm={4} md={8} lg={16}>
+              <SectionCard title="Execution history" flush>
+                <QueryState query={executions}>{(list) => <ExecutionsTable executions={list.items} hideWorkflow />}</QueryState>
+              </SectionCard>
+            </Column>
+          </Grid>
         )}
       </QueryState>
     </PageLayout>

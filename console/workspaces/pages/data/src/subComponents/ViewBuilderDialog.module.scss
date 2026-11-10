@@ -1,0 +1,43 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-03;
+}
+
+.editor {
+  padding-block-start: $spacing-05;
+  border-block-start: 1px solid $border-subtle;
+}
+
+.nameRow,
+.filter,
+.sortRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .nameRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .filter {
+    grid-template-columns: minmax(0, 1fr) 9rem minmax(0, 1fr) auto;
+  }
+
+  .sortRow {
+    grid-template-columns: minmax(0, 1fr) 9rem 9rem;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-03;
+}

@@ -1,9 +1,8 @@
 import { Checkmark, Layers, Close } from "@carbon/react/icons";
 import { useMemo, useState, type DragEvent } from "react";
-import { Button, InlineNotification } from "@carbon/react";
+import { Button, Column, Grid, InlineNotification, Stack } from "@carbon/react";
 import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type Connection, type EdgeChange, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import "./flow.css";
 
 import { useNavigate, useParams } from "react-router-dom";
 import { useCan, useGetWorkflow, useListAgents, useListBusinessOperations, useListEntities, useListRoles, useSaveWorkflow } from "@workspacenow/api-client";
@@ -12,14 +11,17 @@ import { PageLayout, QueryState, TextInput, errorMessage } from "@workspacenow/v
 import { STEP_KINDS, nodeTypes } from "./subComponents/FlowNodes";
 import { useCanvasColorMode } from "./subComponents/WorkflowGraph";
 import { StepInspector, TriggerInspector, type InspectorOptions } from "./subComponents/StepInspector";
+import canvasStyles from "./subComponents/WorkflowCanvas.module.scss";
 import { TRIGGER_ID, connect, disconnect, explicit, moveNode, newStep, removeStep, tidy, toGraph, type LinkPath } from "./subComponents/graphModel";
+
+import styles from "./WorkflowEditorPage.module.scss";
 
 const DRAG_TYPE = "application/x-workflow-step";
 
 const BLANK: WorkflowDefinition = { name: "", description: "", trigger: { kind: "manual" }, steps: [], start: null };
 
 function Notice({ status, children }: { status?: "danger"; children: string }) {
-  return <InlineNotification kind={status === "danger" ? "error" : "info"} lowContrast hideCloseButton subtitle={children} />;
+  return <InlineNotification className={styles.notice} kind={status === "danger" ? "error" : "info"} lowContrast hideCloseButton subtitle={children} />;
 }
 
 /** The editor proper; lives inside a ReactFlowProvider so it can place new steps where they are dropped. */
@@ -97,143 +99,152 @@ function Editor({ initial, workflowId, options, refs }: { initial: WorkflowDefin
   const detail = workflowId ? buildPath(routes.flow.workflow, { workflowId }) : routes.flow.workflows;
 
   return (
-    <div className="grid gap-4">
+    <>
       {!canEdit && <Notice>Designing workflows needs flow.manage. Switch to Sahan Gunawardena (Application Developer) or Amaya Perera.</Notice>}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="w-full max-w-md">
+      <div className={styles.toolbar}>
+        <div className={styles.name}>
           <TextInput label="Workflow name" required value={definition.name} onChange={(name) => setDefinition((d) => ({ ...d, name }))} placeholder="Low-stock replenishment" />
         </div>
-        <div className="flex gap-2">
-          <Button kind="tertiary" onClick={() => navigate(detail)}>
-            <Close className="size-4" aria-hidden />
+        <div className={styles.actions}>
+          <Button kind="tertiary" renderIcon={Close} onClick={() => navigate(detail)}>
             {dirty ? "Discard" : "Close"}
           </Button>
           <Button
+            renderIcon={Checkmark}
             disabled={!dirty || problems.length > 0 || !canEdit || save.isPending}
             onClick={() => save.mutate({ workflowId, definition }, { onSuccess: (saved) => navigate(buildPath(routes.flow.workflow, { workflowId: saved.id })) })}
           >
-            <Checkmark className="size-4" aria-hidden />
             {workflowId ? "Save new version" : "Create workflow"}
           </Button>
         </div>
       </div>
       {!!save.error && <Notice status="danger">{errorMessage(save.error)}</Notice>}
 
-      <div className="grid gap-4 lg:h-[calc(100dvh-19.5rem)] lg:min-h-[420px] lg:grid-cols-[220px_minmax(0,1fr)_320px]">
-        <aside aria-label="Steps" className="flex min-h-0 flex-col gap-1 overflow-y-auto rounded-xl border border-separator bg-surface p-2">
-          <p className="px-2 pt-1 pb-1.5 text-xs text-muted">Drag onto the canvas, or click to add below the selected step</p>
-          {STEP_KINDS.map(({ kind, label, hint, icon: Icon }) => (
-            <button
-              key={kind}
-              type="button"
-              draggable
-              title={hint}
-              onDragStart={(ev) => {
-                ev.dataTransfer.setData(DRAG_TYPE, kind);
-                ev.dataTransfer.effectAllowed = "copy";
-                // Drag a small chip rather than a ghost of the whole row.
-                const chip = ev.currentTarget.querySelector<HTMLElement>("[data-chip]");
-                if (chip) ev.dataTransfer.setDragImage(chip, 14, 14);
-              }}
-              onClick={() => add(kind)}
-              className="group flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-focus active:cursor-grabbing"
-            >
-              <span data-chip className="grid size-7 shrink-0 place-items-center rounded-md border border-separator bg-surface text-muted transition-colors group-hover:border-accent group-hover:text-accent">
-                <Icon className="size-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{label}</span>
-                <span className="block truncate text-xs text-muted">{hint}</span>
-              </span>
-            </button>
-          ))}
-        </aside>
-
-        <div
-          className={`workflow-canvas relative h-[560px] overflow-hidden rounded-xl border bg-surface-secondary/40 transition-colors lg:h-auto ${dropping ? "border-accent ring-2 ring-accent/25" : "border-separator"}`}
-          onDragOver={(ev) => {
-            if (!ev.dataTransfer.types.includes(DRAG_TYPE)) return;
-            ev.preventDefault();
-            ev.dataTransfer.dropEffect = "copy";
-            setDropping(true);
-          }}
-          onDragLeave={(ev) => !ev.currentTarget.contains(ev.relatedTarget as Node | null) && setDropping(false)}
-          onDrop={onDrop}
-        >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            colorMode={colorMode}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onPaneClick={() => setSelected(null)}
-            deleteKeyCode={["Backspace", "Delete"]}
-            fitView
-            fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={20} />
-            <Controls showInteractive={false} position="bottom-right" />
-            <Panel position="top-right">
-              <Button
-                size="sm"
-                kind="secondary"
-                disabled={definition.steps.length === 0}
-                onClick={() => {
-                  setDefinition((d) => tidy(d));
-                  // Fit once React Flow has the new positions.
-                  requestAnimationFrame(() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }));
+      <Grid narrow className={styles.workspace}>
+        <Column sm={4} md={8} lg={3}>
+          <aside aria-label="Steps" className={`${styles.side} ${styles.palette} ${styles.pane}`}>
+            <p className={styles.paletteHint}>Drag onto the canvas, or click to add below the selected step</p>
+            {STEP_KINDS.map(({ kind, label, hint, icon: Icon }) => (
+              <button
+                key={kind}
+                type="button"
+                draggable
+                title={hint}
+                onDragStart={(ev) => {
+                  ev.dataTransfer.setData(DRAG_TYPE, kind);
+                  ev.dataTransfer.effectAllowed = "copy";
+                  // Drag a small chip rather than a ghost of the whole row.
+                  const chip = ev.currentTarget.querySelector<HTMLElement>("[data-chip]");
+                  if (chip) ev.dataTransfer.setDragImage(chip, 14, 14);
                 }}
+                onClick={() => add(kind)}
+                className={styles.step}
               >
-                <Layers className="size-4" aria-hidden />
-                Tidy up
-              </Button>
-            </Panel>
-            {definition.steps.length === 0 && (
-              <Panel position="bottom-center" className="!mb-8 rounded-xl border border-dashed border-separator bg-surface px-4 py-3 text-center text-sm text-muted">
-                Drag a step here, or click one on the left. It connects to the trigger automatically.
-              </Panel>
-            )}
-          </ReactFlow>
-        </div>
+                <span data-chip className={styles.chip}>
+                  <Icon size={16} />
+                </span>
+                <span className={styles.stepText}>
+                  <span className={styles.stepLabel}>{label}</span>
+                  <span className={styles.stepHint}>{hint}</span>
+                </span>
+              </button>
+            ))}
+          </aside>
+        </Column>
 
-        <aside aria-label="Settings" className="flex min-h-0 flex-col gap-4 overflow-y-auto rounded-xl border border-separator bg-surface p-4">
-          {step ? (
-            <StepInspector
-              key={step.id}
-              step={step}
-              options={options}
-              onChange={(next) => setDefinition((d) => ({ ...d, steps: d.steps.map((s) => (s.id === next.id ? next : s)) }))}
-              onDelete={() => {
-                setDefinition((d) => removeStep(d, step.id));
-                setSelected(null);
-              }}
-            />
-          ) : selected === TRIGGER_ID ? (
-            <TriggerInspector trigger={definition.trigger} events={options.events} onChange={(trigger) => setDefinition((d) => ({ ...d, trigger }))} />
-          ) : (
-            <>
-              <p className="text-xs font-medium text-muted">Workflow</p>
-              <TextInput label="Description" multiline rows={3} value={definition.description} onChange={(description) => setDefinition((d) => ({ ...d, description }))} />
-              <p className="text-xs text-muted">Select the trigger or a step to configure it. Connect a node's bottom handle to the next step; select an arrow and press Delete to remove it.</p>
-            </>
-          )}
-          {problems.length > 0 && (
-            <div className="grid gap-1.5 border-t border-separator pt-4">
-              <p className="text-xs font-medium text-muted">Before saving</p>
-              <ul className="grid gap-1 text-xs text-warning-soft-foreground">
-                {problems.slice(0, 8).map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-                {problems.length > 8 && <li>and {problems.length - 8} more</li>}
-              </ul>
-            </div>
-          )}
-        </aside>
-      </div>
-    </div>
+        <Column sm={4} md={8} lg={9}>
+          <div
+            className={`${canvasStyles.canvas} ${styles.pane} ${dropping ? canvasStyles.dropping : ""}`}
+            onDragOver={(ev) => {
+              if (!ev.dataTransfer.types.includes(DRAG_TYPE)) return;
+              ev.preventDefault();
+              ev.dataTransfer.dropEffect = "copy";
+              setDropping(true);
+            }}
+            onDragLeave={(ev) => !ev.currentTarget.contains(ev.relatedTarget as Node | null) && setDropping(false)}
+            onDrop={onDrop}
+          >
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              colorMode={colorMode}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onPaneClick={() => setSelected(null)}
+              deleteKeyCode={["Backspace", "Delete"]}
+              fitView
+              fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background gap={20} />
+              <Controls showInteractive={false} position="bottom-right" />
+              <Panel position="top-right">
+                <Button
+                  size="sm"
+                  kind="secondary"
+                  renderIcon={Layers}
+                  disabled={definition.steps.length === 0}
+                  onClick={() => {
+                    setDefinition((d) => tidy(d));
+                    // Fit once React Flow has the new positions.
+                    requestAnimationFrame(() => flow.fitView({ padding: 0.25, maxZoom: 1, duration: 300 }));
+                  }}
+                >
+                  Tidy up
+                </Button>
+              </Panel>
+              {definition.steps.length === 0 && (
+                <Panel position="bottom-center" className={canvasStyles.emptyHint}>
+                  Drag a step here, or click one on the left. It connects to the trigger automatically.
+                </Panel>
+              )}
+            </ReactFlow>
+          </div>
+        </Column>
+
+        <Column sm={4} md={8} lg={4}>
+          <aside aria-label="Settings" className={`${styles.side} ${styles.settings} ${styles.pane}`}>
+            {step ? (
+              <StepInspector
+                key={step.id}
+                step={step}
+                options={options}
+                onChange={(next) => setDefinition((d) => ({ ...d, steps: d.steps.map((s) => (s.id === next.id ? next : s)) }))}
+                onDelete={() => {
+                  setDefinition((d) => removeStep(d, step.id));
+                  setSelected(null);
+                }}
+              />
+            ) : selected === TRIGGER_ID ? (
+              <TriggerInspector trigger={definition.trigger} events={options.events} onChange={(trigger) => setDefinition((d) => ({ ...d, trigger }))} />
+            ) : (
+              <Stack gap={5}>
+                <p className={styles.label}>Workflow</p>
+                <TextInput label="Description" multiline rows={3} value={definition.description} onChange={(description) => setDefinition((d) => ({ ...d, description }))} />
+                <p className={styles.hint}>Select the trigger or a step to configure it. Connect a node's bottom handle to the next step; select an arrow and press Delete to remove it.</p>
+              </Stack>
+            )}
+            {problems.length > 0 && (
+              <InlineNotification
+                kind="warning"
+                lowContrast
+                hideCloseButton
+                title="Before saving"
+              >
+                <ul className={styles.problems}>
+                  {problems.slice(0, 8).map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                  {problems.length > 8 && <li>and {problems.length - 8} more</li>}
+                </ul>
+              </InlineNotification>
+            )}
+          </aside>
+        </Column>
+      </Grid>
+    </>
   );
 }
 
@@ -271,7 +282,7 @@ export function WorkflowEditorPage() {
           kind="warning"
           lowContrast
           hideCloseButton
-          className="mb-4"
+          className={styles.notice}
           title="Some choices could not be loaded"
           subtitle={`Couldn't load ${failed.join(", ")}, so those pickers are empty. Steps that need them will show as problems.`}
         />

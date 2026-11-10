@@ -1,4 +1,4 @@
-import { Tag } from "@carbon/react";
+import { Column, Grid, Stack, Tag } from "@carbon/react";
 import { TokenUsageChart } from "@workspacenow/ai";
 import { useAuthHooks } from "@workspacenow/auth";
 import { useSession } from "@workspacenow/api-client";
@@ -10,6 +10,8 @@ import { LogMetricsChart } from "./subComponents/LogMetricsChart";
 import { AppsSection } from "./subComponents/AppsSection";
 import { NeedsAttentionCard } from "./subComponents/NeedsAttentionCard";
 
+import styles from "./OverviewPage.module.scss";
+
 export function OverviewPage() {
   const { userInfo } = useAuthHooks();
   const session = useSession();
@@ -18,34 +20,43 @@ export function OverviewPage() {
     <PageLayout
       title={globalConfig.organizationName}
       description={
-        <span className="flex flex-wrap items-center gap-2">
+        <Stack orientation="horizontal" gap={3}>
           <span>Signed in as {userInfo?.name ?? ""}</span>
           {session.data?.roles.map((role) => (
             <Tag key={role} size="sm" type="blue">
               {role}
             </Tag>
           ))}
-        </span>
+        </Stack>
       }
     >
-      <div className="grid gap-6">
-        <AppsSection />
+      <Grid className={styles.grid} narrow>
+        <Column sm={4} md={8} lg={16}>
+          <AppsSection />
+        </Column>
 
-        <div className="grid items-start gap-6 xl:grid-cols-[3fr_2fr]">
+        <Column sm={4} md={8} lg={10}>
           <NeedsAttentionCard />
+        </Column>
+        <Column sm={4} md={8} lg={6}>
           <HealthChart />
-        </div>
+        </Column>
 
-        <ActivityChart />
+        <Column sm={4} md={8} lg={16}>
+          <ActivityChart />
+        </Column>
 
-        <div className="grid items-start gap-6 xl:grid-cols-2">
+        <Column sm={4} md={8} lg={8}>
           <EntryPointOutcomesChart />
+        </Column>
+        <Column sm={4} md={8} lg={8}>
           <TokenUsageChart />
-        </div>
+        </Column>
 
-        <LogMetricsChart />
-
-      </div>
+        <Column sm={4} md={8} lg={16}>
+          <LogMetricsChart />
+        </Column>
+      </Grid>
     </PageLayout>
   );
 }

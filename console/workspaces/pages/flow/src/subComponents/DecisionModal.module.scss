@@ -1,0 +1,26 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.summary {
+  @include type-style('body-01');
+
+  margin-block-end: $spacing-05;
+  color: $text-primary;
+}
+
+.meta {
+  @include type-style('helper-text-01');
+
+  margin-block-end: $spacing-05;
+  color: $text-secondary;
+}
+
+.code {
+  @include type-style('code-01');
+}
+
+.notice {
+  margin-block-end: $spacing-05;
+  max-inline-size: none;
+}

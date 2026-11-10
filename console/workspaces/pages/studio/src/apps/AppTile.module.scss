@@ -1,0 +1,80 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.item {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.tile:global(.cds--tile) {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: $spacing-05;
+  min-inline-size: 0;
+  transition: background-color 110ms;
+
+  &:hover {
+    background: $layer-hover-01;
+  }
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-03;
+}
+
+// The pin button sits above the link's overlay so it stays clickable.
+.pin {
+  position: relative;
+  z-index: 1;
+  margin-block-start: -$spacing-03;
+  margin-inline-end: -$spacing-03;
+}
+
+.body {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+// The link's overlay makes the whole tile open the app.
+.link:global(.cds--link) {
+  @include type-style('heading-compact-01');
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+  }
+}
+
+.description {
+  @include type-style('body-compact-01');
+
+  display: -webkit-box;
+  margin-block-start: $spacing-03;
+  overflow: hidden;
+  color: $text-secondary;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.foot {
+  @include type-style('helper-text-01');
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-03;
+  color: $text-secondary;
+}
+
+.meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

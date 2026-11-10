@@ -1,0 +1,106 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+@use '@carbon/styles/scss/components/notification/tokens' as notification;
+
+// Small text roles shared by the control pages, all from Carbon type styles and tokens.
+
+.mono {
+  @include type-style('code-01');
+
+  overflow-wrap: anywhere;
+}
+
+.monoLarge {
+  @include type-style('code-02');
+
+  overflow-wrap: anywhere;
+}
+
+.name {
+  @include type-style('heading-compact-01');
+}
+
+.caption {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.muted {
+  color: $text-secondary;
+}
+
+.danger {
+  color: $text-error;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-02;
+}
+
+.tags > :global(.cds--tag) {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-02;
+}
+
+.cell {
+  margin-block-end: $spacing-05;
+}
+
+.notice {
+  padding: $spacing-05;
+}
+
+.anchor {
+  scroll-margin-block-start: $spacing-09;
+}
+
+.filters {
+  margin-block-end: $spacing-05;
+}
+
+.tile {
+  block-size: 100%;
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-03;
+  margin-block-end: $spacing-03;
+}
+
+.checkbox {
+  display: flex;
+  justify-content: center;
+}
+
+.matrixHead {
+  white-space: nowrap;
+}
+
+// Table row tones: denied records and the rule whose fires are open.
+tr.rowError > td {
+  background: notification.$notification-background-error;
+}
+
+tr.rowSelected > td {
+  background: $layer-selected-01;
+}

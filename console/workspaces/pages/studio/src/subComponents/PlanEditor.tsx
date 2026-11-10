@@ -1,10 +1,13 @@
 import { Add, TrashCan } from "@carbon/react/icons";
-import { useId, useState } from "react";
-import { Button, Checkbox, Select, SelectItem, Tag, TextInput as CarbonTextInput } from "@carbon/react";
+import { Fragment, useId, useState, type ReactNode } from "react";
+import { Button, DataTable, Select, SelectItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag, TextInput as CarbonTextInput, Toggle, Column, Grid } from "@carbon/react";
 
 import { useCreateDepartment, useListDepartments } from "@workspacenow/api-client";
 import { planOperations, toEntityName, toFieldName, type ApplicationPlan, type AppPage, type EntityField, type FieldType } from "@workspacenow/types";
-import { SectionCard, SelectInput, TextInput } from "@workspacenow/views";
+import { NoDataFound, SectionCard, SelectInput, TextInput } from "@workspacenow/views";
+import shared from "../shared.module.scss";
+
+import styles from "./PlanEditor.module.scss";
 
 type PlannedEntity = ApplicationPlan["entities"][number];
 type PlannedPage = ApplicationPlan["pages"][number];
@@ -53,7 +56,7 @@ function newEntity(taken: string[]): PlannedEntity {
   return { name: toEntityName(label), label, description: "", fields: [{ name: "name", label: "Name", type: "string", required: true }], relationships: [] };
 }
 
-/* Compact controls for table-like rows, labelled for assistive technology only. */
+/* Compact controls for table cells, labelled for assistive technology only. */
 
 function CellInput({
   label,
@@ -72,18 +75,17 @@ function CellInput({
 }) {
   const id = useId();
   return (
-    <div className="min-w-0">
-      <CarbonTextInput
-        id={id}
-        labelText={label}
-        hideLabel
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={isDisabled}
-        placeholder={placeholder}
-        className={mono ? "font-mono text-xs" : undefined}
-      />
-    </div>
+    <CarbonTextInput
+      id={id}
+      size="sm"
+      labelText={label}
+      hideLabel
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={isDisabled}
+      placeholder={placeholder}
+      className={mono ? styles.mono : undefined}
+    />
   );
 }
 
@@ -102,14 +104,7 @@ function CellSelect({
 }) {
   const id = useId();
   return (
-    <Select
-      id={id}
-      aria-label={label}
-      value={value || ""}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={isDisabled}
-      className="min-w-0"
-    >
+    <Select id={id} size="sm" labelText={label} hideLabel value={value || ""} onChange={(e) => onChange(e.target.value)} disabled={isDisabled}>
       <SelectItem value="" text="Select…" hidden />
       {options.map((o) => (
         <SelectItem key={o.value} value={o.value} text={o.label} />
@@ -118,35 +113,84 @@ function CellSelect({
   );
 }
 
-function Flag({ label, isSelected, onChange }: { label: string; isSelected: boolean; onChange: (v: boolean) => void }) {
+function CellToggle({ label, isSelected, onChange }: { label: string; isSelected: boolean; onChange: (v: boolean) => void }) {
   const id = useId();
-  return (
-    <Checkbox
-      id={id}
-      checked={isSelected}
-      onChange={(_e, { checked }) => onChange(checked)}
-      labelText={<span className="text-xs text-muted">{label}</span>}
-    />
-  );
+  return <Toggle id={id} size="sm" labelText={label} hideLabel labelA="No" labelB="Yes" toggled={isSelected} onToggle={onChange} />;
 }
 
 function RemoveButton({ label, onPress, isDisabled }: { label: string; onPress: () => void; isDisabled?: boolean }) {
+  return <Button hasIconOnly renderIcon={TrashCan} iconDescription={label} size="sm" kind="ghost" aria-label={label} disabled={isDisabled} onClick={onPress} />;
+}
+
+interface GridColumn {
+  key: string;
+  header: string;
+}
+
+interface GridRowContent {
+  cells: ReactNode[];
+  /** A full-width row under this one, for settings that do not fit a column. */
+  extra?: ReactNode;
+}
+
+/** An editable grid: a Carbon DataTable whose cells hold inline controls, one row per entry of `count`. */
+function EditableGrid({ label, columns, count, row }: { label: string; columns: GridColumn[]; count: number; row: (index: number) => GridRowContent }) {
+  const rows = Array.from({ length: count }, (_, i) => ({ id: String(i) }));
   return (
-    <Button
-      hasIconOnly
-      iconDescription={label}
-      size="sm"
-      kind="ghost"
-      aria-label={label}
-      disabled={isDisabled}
-      onClick={onPress}
-    >
-      <TrashCan className="size-4" />
-    </Button>
+    <DataTable rows={rows} headers={columns} size="lg">
+      {({ rows: tableRows, headers, getTableProps, getHeaderProps, getRowProps }) => (
+        <TableContainer aria-label={label}>
+          <Table {...getTableProps()} aria-label={label}>
+            <TableHead>
+              <TableRow>
+                {headers.map((header) => {
+                  const { key, ...props } = getHeaderProps({ header });
+                  return (
+                    <TableHeader key={key} {...props}>
+                      {header.key === "remove" ? <span className="cds--visually-hidden">Actions</span> : header.header}
+                    </TableHeader>
+                  );
+                })}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {tableRows.map((tableRow) => {
+                const { key, ...props } = getRowProps({ row: tableRow });
+                const content = row(Number(tableRow.id));
+                return (
+                  <Fragment key={key}>
+                    <TableRow {...props}>
+                      {content.cells.map((cell, i) => (
+                        <TableCell key={columns[i].key}>{cell}</TableCell>
+                      ))}
+                    </TableRow>
+                    {content.extra && (
+                      <TableRow>
+                        <TableCell colSpan={columns.length}>{content.extra}</TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </DataTable>
   );
 }
 
-function FieldRow({
+const FIELD_COLUMNS: GridColumn[] = [
+  { key: "label", header: "Field" },
+  { key: "name", header: "Name" },
+  { key: "type", header: "Type" },
+  { key: "options", header: "Options" },
+  { key: "required", header: "Required" },
+  { key: "unique", header: "Unique" },
+  { key: "remove", header: "Remove" },
+];
+
+function fieldRow({
   field,
   referenceOptions,
   onChange,
@@ -161,23 +205,29 @@ function FieldRow({
   canRemove: boolean;
   /** Already saved with records depending on it: name, type and target stay fixed and it cannot be removed. */
   locked?: boolean;
-}) {
+}): GridRowContent {
   // The name follows the label until someone edits it by hand, or once the field exists.
   const autoName = !locked && field.name === toFieldName(field.label);
-  return (
-    <div className="grid grid-cols-2 items-center gap-2 border-t border-separator px-5 py-3 md:grid-cols-[1.2fr_1fr_1fr_1.4fr_auto_auto]">
-      <CellInput label="Field label" value={field.label} onChange={(label) => onChange({ ...field, label, name: autoName ? toFieldName(label) : field.name })} />
-      <CellInput label="Field name" value={field.name} onChange={(name) => onChange({ ...field, name })} mono isDisabled={locked} />
-      <CellSelect
-        label="Field type"
-        value={field.type}
-        options={FIELD_TYPES}
-        isDisabled={locked}
-        onChange={(type) =>
-          onChange({ ...field, type: type as FieldType, enumValues: type === "enum" ? field.enumValues ?? [] : undefined, reference: type === "reference" ? field.reference : undefined })
-        }
-      />
-      <div className="min-w-0">
+  return {
+    cells: [
+      <div className={styles.control}>
+        <CellInput label="Field label" value={field.label} onChange={(label) => onChange({ ...field, label, name: autoName ? toFieldName(label) : field.name })} />
+      </div>,
+      <div className={styles.control}>
+        <CellInput label="Field name" value={field.name} onChange={(name) => onChange({ ...field, name })} mono isDisabled={locked} />
+      </div>,
+      <div className={styles.control}>
+        <CellSelect
+          label="Field type"
+          value={field.type}
+          options={FIELD_TYPES}
+          isDisabled={locked}
+          onChange={(type) =>
+            onChange({ ...field, type: type as FieldType, enumValues: type === "enum" ? field.enumValues ?? [] : undefined, reference: type === "reference" ? field.reference : undefined })
+          }
+        />
+      </div>,
+      <div className={styles.controlWide}>
         {field.type === "enum" ? (
           <CellInput
             label="Choices, comma separated"
@@ -188,16 +238,14 @@ function FieldRow({
         ) : field.type === "reference" ? (
           <CellSelect label="Refers to" value={field.reference ?? ""} options={referenceOptions} onChange={(reference) => onChange({ ...field, reference })} isDisabled={locked} />
         ) : (
-          <span className="text-xs text-muted">—</span>
+          <span className={shared.helper}>-</span>
         )}
-      </div>
-      <div className="flex gap-3">
-        <Flag label="Required" isSelected={!!field.required} onChange={(required) => onChange({ ...field, required })} />
-        <Flag label="Unique" isSelected={!!field.unique} onChange={(unique) => onChange({ ...field, unique })} />
-      </div>
-      <RemoveButton label={locked ? "Saved fields cannot be removed" : `Remove ${field.label || "field"}`} onPress={onRemove} isDisabled={!canRemove || locked} />
-    </div>
-  );
+      </div>,
+      <CellToggle label={`Required: ${field.label || "field"}`} isSelected={!!field.required} onChange={(required) => onChange({ ...field, required })} />,
+      <CellToggle label={`Unique: ${field.label || "field"}`} isSelected={!!field.unique} onChange={(unique) => onChange({ ...field, unique })} />,
+      <RemoveButton label={locked ? "Saved fields cannot be removed" : `Remove ${field.label || "field"}`} onPress={onRemove} isDisabled={!canRemove || locked} />,
+    ],
+  };
 }
 
 function EntityEditor({
@@ -227,7 +275,7 @@ function EntityEditor({
       }
       flush
     >
-      <div className="grid gap-4 px-5 pt-1 pb-5 md:grid-cols-[1fr_1fr_2fr]">
+      <div className={styles.entityMeta}>
         <TextInput label="Label" value={entity.label} onChange={(label) => onChange({ ...entity, label, name: autoName ? toEntityName(label) : entity.name })} />
         <TextInput
           label="Name"
@@ -238,32 +286,28 @@ function EntityEditor({
         />
         <TextInput label="Description" value={entity.description} onChange={(description) => onChange({ ...entity, description })} />
       </div>
-      <div className="hidden grid-cols-[1.2fr_1fr_1fr_1.4fr_auto_auto] gap-2 border-t border-separator px-5 py-2 text-xs text-muted md:grid">
-        <span>Field</span>
-        <span>Name</span>
-        <span>Type</span>
-        <span>Options</span>
-        <span className="w-[150px]">Rules</span>
-        <span className="w-8" />
-      </div>
-      {entity.fields.map((field, i) => (
-        <FieldRow
-          key={i}
-          field={field}
-          referenceOptions={referenceOptions}
-          onChange={(f) => setField(i, f)}
-          onRemove={() => onChange({ ...entity, fields: entity.fields.filter((_, j) => j !== i) })}
-          canRemove={entity.fields.length > 1}
-          locked={savedFields?.some((f) => f.name === field.name)}
-        />
-      ))}
-      <div className="border-t border-separator px-5 py-3">
+      <EditableGrid
+        label={`Fields of ${entity.label || "entity"}`}
+        columns={FIELD_COLUMNS}
+        count={entity.fields.length}
+        row={(i) =>
+          fieldRow({
+            field: entity.fields[i],
+            referenceOptions,
+            onChange: (f) => setField(i, f),
+            onRemove: () => onChange({ ...entity, fields: entity.fields.filter((_, j) => j !== i) }),
+            canRemove: entity.fields.length > 1,
+            locked: savedFields?.some((f) => f.name === entity.fields[i].name),
+          })
+        }
+      />
+      <div className={styles.entityFooter}>
         <Button
           size="sm"
           kind="ghost"
+          renderIcon={Add}
           onClick={() => onChange({ ...entity, fields: [...entity.fields, { name: `field${entity.fields.length + 1}`, label: `Field ${entity.fields.length + 1}`, type: "string" }] })}
         >
-          <Add className="size-3.5" aria-hidden />
           Add field
         </Button>
       </div>
@@ -282,10 +326,10 @@ function ScanSettings({ page, entity, onChange }: { page: PlannedPage; entity?: 
       .flatMap((f) => (f.enumValues ?? []).map((v) => ({ value: `${f.name}=${v}`, label: `Set ${f.label.toLowerCase()} to ${v.replace(/[-_]/g, " ")}` }))),
   ];
   return (
-    <div className="col-span-full grid gap-2 md:grid-cols-[auto_1fr_auto_1fr] md:items-center">
-      <span className="text-xs text-muted">QR code holds</span>
+    <div className={styles.scan}>
+      <span className={styles.scanLabel}>QR code holds</span>
       <CellSelect label="QR code holds" value={scan.matchField} options={matchOptions} onChange={(matchField) => onChange({ ...page, scan: { ...scan, matchField } })} />
-      <span className="text-xs text-muted">When scanned</span>
+      <span className={styles.scanLabel}>When scanned</span>
       <CellSelect
         label="When scanned"
         value={scan.onScan ? `${scan.onScan.field}=${scan.onScan.value}` : NO_ACTION}
@@ -299,7 +343,14 @@ function ScanSettings({ page, entity, onChange }: { page: PlannedPage; entity?: 
   );
 }
 
-function PageRow({
+const PAGE_COLUMNS: GridColumn[] = [
+  { key: "title", header: "Page title" },
+  { key: "kind", header: "Kind" },
+  { key: "entity", header: "Entity" },
+  { key: "remove", header: "Remove" },
+];
+
+function pageRow({
   page,
   entityOptions,
   entities,
@@ -311,34 +362,40 @@ function PageRow({
   entities: PlannedEntity[];
   onChange: (page: PlannedPage) => void;
   onRemove: () => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 items-center gap-2 border-t border-separator px-5 py-3 md:grid-cols-[2fr_1fr_1fr_auto]">
-      <CellInput label="Page title" value={page.title} onChange={(title) => onChange({ ...page, title })} />
-      <CellSelect
-        label="Page kind"
-        value={page.kind}
-        options={PAGE_KINDS}
-        onChange={(kind) => onChange({ ...page, kind: kind as AppPage["kind"], scan: kind === "scan" ? (page.scan ?? { matchField: "id" }) : undefined })}
-      />
-      <CellSelect
-        label="Page entity"
-        value={page.entity ?? ""}
-        options={entityOptions}
-        // A different entity has different fields, so its scan settings start over.
-        onChange={(entity) => onChange({ ...page, entity, scan: page.kind === "scan" ? { matchField: "id" } : undefined })}
-      />
-      <RemoveButton label={`Remove ${page.title || "page"}`} onPress={onRemove} />
-      {page.kind === "scan" && <ScanSettings page={page} entity={entities.find((e) => e.name === page.entity)} onChange={onChange} />}
-    </div>
-  );
+}): GridRowContent {
+  return {
+    cells: [
+      <div className={styles.controlWide}>
+        <CellInput label="Page title" value={page.title} onChange={(title) => onChange({ ...page, title })} />
+      </div>,
+      <div className={styles.control}>
+        <CellSelect
+          label="Page kind"
+          value={page.kind}
+          options={PAGE_KINDS}
+          onChange={(kind) => onChange({ ...page, kind: kind as AppPage["kind"], scan: kind === "scan" ? (page.scan ?? { matchField: "id" }) : undefined })}
+        />
+      </div>,
+      <div className={styles.control}>
+        <CellSelect
+          label="Page entity"
+          value={page.entity ?? ""}
+          options={entityOptions}
+          // A different entity has different fields, so its scan settings start over.
+          onChange={(entity) => onChange({ ...page, entity, scan: page.kind === "scan" ? { matchField: "id" } : undefined })}
+        />
+      </div>,
+      <RemoveButton label={`Remove ${page.title || "page"}`} onPress={onRemove} />,
+    ],
+    extra: page.kind === "scan" ? <ScanSettings page={page} entity={entities.find((e) => e.name === page.entity)} onChange={onChange} /> : undefined,
+  };
 }
 
-function ChipList({ items, mono }: { items: string[]; mono?: boolean }) {
+function ChipList({ items }: { items: string[] }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className={shared.tags}>
       {items.map((item) => (
-        <Tag key={item} size="sm" type="gray" className={mono ? "font-mono" : undefined}>
+        <Tag key={item} size="sm" type="gray">
           {item}
         </Tag>
       ))}
@@ -387,9 +444,9 @@ export function PlanEditor({
   const operations = planOperations(plan.entities.filter((e) => e.name));
 
   return (
-    <div className="grid gap-6">
+    <Stack gap={6}>
       <SectionCard title="Application">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className={styles.appGrid}>
           <TextInput label="Name" required value={plan.name} onChange={(name) => onChange({ ...plan, name })} placeholder="Customer Support" />
           <SelectInput
             label="Owner"
@@ -402,13 +459,15 @@ export function PlanEditor({
             ]}
           />
           {plan.ownerDepartmentId === "__new__" && (
-            <div className="flex items-end gap-2 md:col-span-2">
-              <TextInput
-                label="New department name"
-                value={newDeptName}
-                onChange={setNewDeptName}
-                placeholder="e.g. Engineering"
-              />
+            <div className={`${styles.newDepartment} ${styles.span2}`}>
+              <div className={styles.newDepartmentField}>
+                <TextInput
+                  label="New department name"
+                  value={newDeptName}
+                  onChange={setNewDeptName}
+                  placeholder="e.g. Engineering"
+                />
+              </div>
               <Button
                 kind="primary"
                 disabled={!newDeptName.trim() || createDept.isPending}
@@ -423,7 +482,7 @@ export function PlanEditor({
               </Button>
             </div>
           )}
-          <div className="md:col-span-2">
+          <div className={styles.span2}>
             <TextInput label="Description" multiline rows={2} value={plan.description} onChange={(description) => onChange({ ...plan, description })} />
           </div>
         </div>
@@ -441,8 +500,7 @@ export function PlanEditor({
         />
       ))}
       <div>
-        <Button kind="secondary" onClick={() => onChange({ ...plan, entities: [...plan.entities, newEntity(plan.entities.map((e) => e.name))] })}>
-          <Add className="size-4" aria-hidden />
+        <Button kind="secondary" renderIcon={Add} onClick={() => onChange({ ...plan, entities: [...plan.entities, newEntity(plan.entities.map((e) => e.name))] })}>
           Add entity
         </Button>
       </div>
@@ -454,44 +512,54 @@ export function PlanEditor({
           <Button
             size="sm"
             kind="secondary"
+            renderIcon={Add}
             disabled={entityOptions.length === 0}
             onClick={() => {
               const first = plan.entities[0];
               onChange({ ...plan, pages: [...plan.pages, { title: first ? `${first.label}s` : "", kind: "list", entity: first?.name }] });
             }}
           >
-            <Add className="size-3.5" aria-hidden />
             Add page
           </Button>
         }
         flush
       >
         {plan.pages.length === 0 ? (
-          <p className="border-t border-separator px-5 py-6 text-sm text-muted">No pages yet. Add a list or a form for an entity.</p>
+          <div className={styles.empty}>
+            <NoDataFound message="No pages yet. Add a list or a form for an entity." />
+          </div>
         ) : (
-          plan.pages.map((page, i) => (
-            <PageRow
-              key={i}
-              page={page}
-              entityOptions={entityOptions}
-              entities={plan.entities}
-              onChange={(next) => onChange({ ...plan, pages: plan.pages.map((p, j) => (j === i ? next : p)) })}
-              onRemove={() => onChange({ ...plan, pages: plan.pages.filter((_, j) => j !== i) })}
-            />
-          ))
+          <EditableGrid
+            label="Pages"
+            columns={PAGE_COLUMNS}
+            count={plan.pages.length}
+            row={(i) =>
+              pageRow({
+                page: plan.pages[i],
+                entityOptions,
+                entities: plan.entities,
+                onChange: (next) => onChange({ ...plan, pages: plan.pages.map((p, j) => (j === i ? next : p)) }),
+                onRemove: () => onChange({ ...plan, pages: plan.pages.filter((_, j) => j !== i) }),
+              })
+            }
+          />
         )}
       </SectionCard>
 
-      <div className="grid items-start gap-6 md:grid-cols-2">
-        <SectionCard title="API operations" subtitle="Generated for every entity when the plan is applied.">
-          {operations.length ? <ChipList items={operations} mono /> : <p className="text-sm text-muted">None</p>}
-        </SectionCard>
-        {plan.workflows.length > 0 && (
-          <SectionCard title="Suggested workflows" subtitle="Build these in Flow once the application exists.">
-            <ChipList items={plan.workflows} />
+      <Grid narrow withRowGap>
+        <Column sm={4} md={4} lg={8}>
+          <SectionCard title="API operations" subtitle="Generated for every entity when the plan is applied.">
+            {operations.length ? <ChipList items={operations} /> : <p className={shared.body}>None</p>}
           </SectionCard>
+        </Column>
+        {plan.workflows.length > 0 && (
+          <Column sm={4} md={4} lg={8}>
+            <SectionCard title="Suggested workflows" subtitle="Build these in Flow once the application exists.">
+              <ChipList items={plan.workflows} />
+            </SectionCard>
+          </Column>
         )}
-      </div>
-    </div>
+      </Grid>
+    </Stack>
   );
 }

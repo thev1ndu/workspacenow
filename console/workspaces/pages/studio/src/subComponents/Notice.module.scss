@@ -1,0 +1,7 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.problems {
+  margin-block-start: $spacing-02;
+  padding-inline-start: $spacing-05;
+  list-style: disc;
+}

@@ -5,13 +5,16 @@ import { useListRecords, useSession } from "@workspacenow/api-client";
 import type { Application } from "@workspacenow/types";
 import { NoDataFound } from "@workspacenow/views";
 import { PreviewPageRenderer } from "../subComponents/PreviewPageRenderer";
+import shared from "../shared.module.scss";
+
+import styles from "./ApplicationView.module.scss";
 
 /** Record count shown beside a list page's tab; hidden when the user cannot read the entity. */
 function TabCount({ entityName }: { entityName: string }) {
   const records = useListRecords({ entityName });
   if (records.data === undefined) return null;
   return (
-    <Tag size="sm" type="gray" className="tabular-nums">
+    <Tag size="sm" type="gray" className={shared.numeric}>
       {records.data.total}
     </Tag>
   );
@@ -84,7 +87,7 @@ export function ApplicationView({ app }: { app: Application }) {
 
   return (
     // A single shrinkable column, so wide content scrolls inside its own box instead of widening the page on phones.
-    <div className="grid grid-cols-1 gap-6">
+    <div className={styles.view}>
       {app.lifecycle === "draft" && (
         <InlineNotification
           kind="info"
@@ -107,12 +110,12 @@ export function ApplicationView({ app }: { app: Application }) {
           )
         }
       >
-        <TabList aria-label={`${app.name} pages`} className="max-w-full self-start overflow-x-auto">
+        <TabList aria-label={`${app.name} pages`}>
           {ordered.map((p) => (
             <Tab
               key={p.id}
               ref={bindDrag(p.id)}
-              className={dragId === p.id ? "opacity-50" : "cursor-grab active:cursor-grabbing"}
+              className={dragId === p.id ? styles.dragging : styles.draggable}
             >
               {p.title}
               {p.kind === "list" && p.entity && <TabCount entityName={p.entity} />}
@@ -121,7 +124,7 @@ export function ApplicationView({ app }: { app: Application }) {
         </TabList>
         <TabPanels>
           {app.pages.map((p) => (
-            <TabPanel key={p.id} className="mt-5">
+            <TabPanel key={p.id} className={shared.panel}>
               {p.id === page.id && <PreviewPageRenderer page={p} qrField={app.pages.find((s) => s.kind === "scan" && s.entity === p.entity)?.scan?.matchField} />}
             </TabPanel>
           ))}

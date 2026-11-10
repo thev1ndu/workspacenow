@@ -1,0 +1,51 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.card:global(.cds--tile) {
+  padding: 0;
+  overflow: hidden;
+  background: $layer-01;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-05;
+  padding: $spacing-05;
+  border-block-end: 1px solid $border-subtle-01;
+}
+
+.heading {
+  min-inline-size: 0;
+}
+
+.title {
+  @include type-style('heading-compact-02');
+
+  color: $text-primary;
+}
+
+.subtitle {
+  @include type-style('body-compact-01');
+
+  margin-block-start: $spacing-01;
+  color: $text-secondary;
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.body {
+  padding: $spacing-05;
+}
+
+.flush {
+  padding: 0;
+  overflow-x: auto;
+}

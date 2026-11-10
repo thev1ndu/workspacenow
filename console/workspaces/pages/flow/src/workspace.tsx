@@ -14,7 +14,7 @@ export const flowWorkspace: WorkspaceModule = {
   key: "flow",
   title: "Flow",
   description: "Orchestrate durable workflows, events and human approvals across applications and agents.",
-  icon: <Flow className="size-4" />,
+  icon: <Flow size={16} />,
   basePath: routes.flow.root,
   navigation: [
     { label: "Overview", href: routes.flow.root, end: true },

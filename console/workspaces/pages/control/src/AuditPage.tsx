@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Column, Grid, Stack } from "@carbon/react";
 import { useListAudit, type AuditQuery } from "@workspacenow/api-client";
+import { PageLayout, SectionCard, SelectInput, useDebouncedValue } from "@workspacenow/views";
+
+import { AuditTable } from "./subComponents/AuditTable";
 
 const PAGE_SIZE = 25;
-import { PageLayout, QueryState, SectionCard, SelectInput, TablePager, TextInput, useDebouncedValue } from "@workspacenow/views";
-import { AuditTable } from "./subComponents/AuditTable";
 
 export function AuditPage() {
   const [actorKind, setActorKind] = useState("");
@@ -22,50 +24,61 @@ export function AuditPage() {
 
   return (
     <PageLayout title="Audit log" description="Every governed action from every entry point: who, through what, on what, and whether it was allowed.">
-      <div className="grid gap-5">
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_2fr]">
-          <SelectInput
-            label="Actor"
-            value={actorKind}
-            onChange={setActorKind}
-            placeholder="All actors"
-            options={[
-              { value: "user", label: "People" },
-              { value: "agent", label: "Agents" },
-              { value: "workflow", label: "Workflows" },
-              { value: "system", label: "System" },
-            ]}
-          />
-          <SelectInput
-            label="Outcome"
-            value={outcome}
-            onChange={setOutcome}
-            placeholder="All outcomes"
-            options={[
-              { value: "allowed", label: "Allowed" },
-              { value: "denied", label: "Denied" },
-              { value: "failed", label: "Failed" },
-            ]}
-          />
-          <TextInput label="Search" value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Action, resource, actor or detail" />
-        </div>
+      <Stack gap={5}>
+        <Grid fullWidth condensed>
+          <Column sm={4} md={4} lg={4}>
+            <SelectInput
+              label="Actor"
+              value={actorKind}
+              onChange={(v) => {
+                setActorKind(v);
+                setPage(1);
+              }}
+              placeholder="All actors"
+              options={[
+                { value: "user", label: "People" },
+                { value: "agent", label: "Agents" },
+                { value: "workflow", label: "Workflows" },
+                { value: "system", label: "System" },
+              ]}
+            />
+          </Column>
+          <Column sm={4} md={4} lg={4}>
+            <SelectInput
+              label="Outcome"
+              value={outcome}
+              onChange={(v) => {
+                setOutcome(v);
+                setPage(1);
+              }}
+              placeholder="All outcomes"
+              options={[
+                { value: "allowed", label: "Allowed" },
+                { value: "denied", label: "Denied" },
+                { value: "failed", label: "Failed" },
+              ]}
+            />
+          </Column>
+        </Grid>
         <SectionCard title="Records" subtitle={audit.data ? `${audit.data.total} records` : undefined} flush>
-          <QueryState query={audit}>
-            {(data) => (
-              <>
-                <AuditTable records={data.items} />
-                <TablePager
-                  page={page}
-                  totalPages={Math.max(1, Math.ceil(data.total / PAGE_SIZE))}
-                  total={data.total}
-                  pageSize={PAGE_SIZE}
-                  onPageChange={setPage}
-                />
-              </>
-            )}
-          </QueryState>
+          <AuditTable
+            records={audit.data?.items ?? []}
+            loading={audit.isLoading}
+            error={audit.error}
+            server={{
+              search,
+              onSearchChange: (v) => {
+                setSearch(v);
+                setPage(1);
+              },
+              page,
+              pageSize: PAGE_SIZE,
+              total: audit.data?.total ?? 0,
+              onPageChange: setPage,
+            }}
+          />
         </SectionCard>
-      </div>
+      </Stack>
     </PageLayout>
   );
 }

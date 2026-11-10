@@ -1,9 +1,15 @@
-import { Checkmark } from "@carbon/react/icons";
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { Checkbox } from "@carbon/react";
 
 import { useListRoles } from "@workspacenow/api-client";
+import type { Permission } from "@workspacenow/types";
 import { QueryState, SectionCard } from "@workspacenow/views";
 
+import styles from "../control.module.scss";
+import { ControlTable } from "./ControlTable";
+
+const rowId = (permission: Permission) => permission;
+
+/** Permissions down the side, roles across the top; a checked box means the role holds the permission. */
 export function RoleMatrix() {
   const roles = useListRoles();
   return (
@@ -11,43 +17,35 @@ export function RoleMatrix() {
       <QueryState query={roles}>
         {(data) => {
           const permissions = [...new Set(data.items.flatMap((r) => r.permissions))];
+          const columns = [
+            { key: "permission", header: "Permission", cell: (permission: Permission) => <span className={styles.mono}>{permission}</span> },
+            ...data.items.map((role) => ({
+              key: role.id,
+              header: <span title={role.description}>{role.name}</span>,
+              cell: (permission: Permission) => (
+                <div className={styles.checkbox}>
+                  <Checkbox
+                    id={`matrix-${role.id}-${permission}`}
+                    labelText={`${role.name} holds ${permission}`}
+                    hideLabel
+                    readOnly
+                    checked={role.permissions.includes(permission)}
+                  />
+                </div>
+              ),
+            })),
+          ];
           return (
-            <div>
-              <TableContainer>
-                <Table aria-label="Role permissions" className="min-w-[960px]">
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader id="role" scope="row" className="min-w-48">
-                        Role
-                      </TableHeader>
-                      {permissions.map((p) => (
-                        <TableHeader key={p} id={p} className="px-1 text-center align-bottom">
-                          <span className="inline-block rotate-180 font-mono text-[11px] whitespace-nowrap [writing-mode:vertical-rl]">{p}</span>
-                        </TableHeader>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.items.map((role) => (
-                      <TableRow key={role.id} id={role.id}>
-                        <TableCell>
-                          <span className="text-sm font-medium" title={role.description}>
-                            {role.name}
-                          </span>
-                        </TableCell>
-                        {permissions.map((p) => (
-                          <TableCell key={p} className="px-1 text-center">
-                            {role.permissions.includes(p) ? (
-                              <Checkmark className="mx-auto size-4 text-success" aria-label={`${role.name} holds ${p}`} />
-                            ) : null}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </div>
+            <ControlTable
+              label="Role permissions"
+              rows={permissions}
+              rowId={rowId}
+              columns={columns}
+              emptyMessage="No permissions defined."
+              searchText={(permission) => permission}
+              searchLabel="Search permissions"
+              defaultPageSize={25}
+            />
           );
         }}
       </QueryState>

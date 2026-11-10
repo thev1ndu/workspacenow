@@ -1,10 +1,12 @@
 import { Add, TrashCan } from "@carbon/react/icons";
 import { useId, useState } from "react";
-import { Button, Checkbox, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
+import { Button, Checkbox, ComposedModal, ModalBody, ModalFooter, ModalHeader, Stack } from "@carbon/react";
 
 import { useCreateView, useDeleteView, useListViews, useUpdateView } from "@workspacenow/api-client";
 import type { Entity, FilterOp, SavedView, SavedViewInput } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
+
+import styles from "./ViewBuilderDialog.module.scss";
 
 const OPS: Array<{ value: FilterOp["op"]; label: string }> = [
   { value: "eq", label: "equals" },
@@ -59,51 +61,51 @@ export function ViewBuilderDialog({ entity, onClose }: { entity: Entity; onClose
   return (
     <ComposedModal open onClose={onClose} size="lg">
       <ModalHeader title={`Saved views for ${entity.label}`} closeModal={onClose} />
-      <ModalBody className="grid gap-4">
-        <div className="flex flex-wrap gap-2">
+      <ModalBody>
+        <Stack gap={5}>
+        <div className={styles.chips}>
           {(views.data?.items ?? []).map((v) => (
             <Button key={v.id} size="sm" kind={editing === v ? "secondary" : "tertiary"} onClick={() => startEdit(v)}>
               {v.name}
               {v.shared ? " · shared" : ""}
             </Button>
           ))}
-          <Button size="sm" kind="tertiary" onClick={() => startEdit()} renderIcon={(p) => <Add className="size-3.5" aria-hidden {...p} />}>
+          <Button size="sm" kind="tertiary" onClick={() => startEdit()} renderIcon={Add}>
             New view
           </Button>
         </div>
         {editing !== undefined && (
-          <div className="grid gap-3 border-t border-separator pt-4">
-            <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+          <div className={styles.editor}>
+            <Stack gap={5}>
+            <div className={styles.nameRow}>
               <TextInput label="View name" required value={name} onChange={setName} placeholder="Open orders" />
               <Checkbox
                 id={sharedId}
-                labelText={<span className="text-xs text-muted">Shared</span>}
+                labelText="Shared"
                 checked={shared}
                 onChange={(e) => setShared(e.target.checked)}
               />
             </div>
             {filters.map((f, i) => (
-              <div key={i} className="grid grid-cols-[1fr_140px_1fr_auto] items-center gap-2">
+              <div key={i} className={styles.filter}>
                 <SelectInput label="Field" value={f.field} onChange={(v) => setFilters((p) => p.map((x, j) => (j === i ? { ...x, field: v } : x)))} options={fieldOptions} />
                 <SelectInput label="Op" value={f.op} onChange={(v) => setFilters((p) => p.map((x, j) => (j === i ? { ...x, op: v as FilterOp["op"] } : x)))} options={OPS} />
                 <TextInput label="Value" value={String(f.value ?? "")} onChange={(v) => setFilters((p) => p.map((x, j) => (j === i ? { ...x, value: v } : x)))} />
                 <Button
                   hasIconOnly
-                  size="sm"
                   kind="ghost"
-                  aria-label="Remove filter"
                   iconDescription="Remove filter"
                   onClick={() => setFilters((p) => p.filter((_, j) => j !== i))}
-                  renderIcon={(p) => <TrashCan className="size-4" {...p} />}
+                  renderIcon={TrashCan}
                 />
               </div>
             ))}
             <div>
-              <Button size="sm" kind="ghost" onClick={() => setFilters((p) => [...p, { field: entity.fields[0]?.name ?? "", op: "eq", value: "" }])} renderIcon={(p) => <Add className="size-3.5" aria-hidden {...p} />}>
+              <Button size="sm" kind="ghost" onClick={() => setFilters((p) => [...p, { field: entity.fields[0]?.name ?? "", op: "eq", value: "" }])} renderIcon={Add}>
                 Add filter
               </Button>
             </div>
-            <div className="grid grid-cols-[1fr_140px_140px] items-end gap-3">
+            <div className={styles.sortRow}>
               <SelectInput label="Sort by" value={sortField} onChange={setSortField} options={[{ value: "", label: "None" }, ...fieldOptions]} />
               <SelectInput
                 label="Direction"
@@ -116,7 +118,7 @@ export function ViewBuilderDialog({ entity, onClose }: { entity: Entity; onClose
               />
               <TextInput label="Limit" type="number" value={limit} onChange={setLimit} />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className={styles.actions}>
               {editing !== "new" && (
                 <Button
                   kind="danger"
@@ -129,8 +131,10 @@ export function ViewBuilderDialog({ entity, onClose }: { entity: Entity; onClose
                 Save view
               </Button>
             </div>
+            </Stack>
           </div>
         )}
+        </Stack>
       </ModalBody>
       <ModalFooter>
         <Button kind="tertiary" onClick={onClose}>

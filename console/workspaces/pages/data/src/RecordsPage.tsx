@@ -13,6 +13,8 @@ import { ViewBuilderDialog } from "./subComponents/ViewBuilderDialog";
 import { AskViewDialog } from "./subComponents/AskViewDialog";
 import { RecordsManager } from "./subComponents/RecordsManager";
 
+import styles from "./RecordsPage.module.scss";
+
 const PAGE_SIZE = 15;
 
 export function RecordsPage() {
@@ -29,6 +31,11 @@ export function RecordsPage() {
   const q = useDebouncedValue(search.trim());
   const records = useListRecords({ entityName, q: viewId ? undefined : q || undefined, view: viewId, includeDeleted, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE });
   const views = useListViews({ entityName });
+  // A new search or page key has no data yet; keep showing the previous rows so the toolbar search keeps focus while typing.
+  const [kept, setKept] = useState<{ entityName?: string; data: NonNullable<typeof records.data> }>();
+  if (records.data && kept?.data !== records.data) setKept({ entityName, data: records.data });
+  const listing = records.data ?? (kept && kept.entityName === entityName ? kept.data : undefined);
+  const listingQuery = { data: listing, isLoading: records.isLoading && !listing, error: records.error };
   const { getToken } = useAuthHooks();
   const download = async (format: "json" | "csv") => {
     if (!entityName) return;
@@ -62,7 +69,7 @@ export function RecordsPage() {
             labelText="Entity"
             hideLabel
             aria-label="Entity"
-            className="w-52"
+            className={styles.entitySelect}
             value={entityName ?? ""}
             onChange={(e) => {
               const v = e.target.value;
@@ -79,7 +86,7 @@ export function RecordsPage() {
             labelText="Saved view"
             hideLabel
             aria-label="Saved view"
-            className="w-44"
+            className={styles.viewSelect}
             value={viewId ?? ""}
             onChange={(e) => { setViewId(e.target.value || undefined); setPage(1); }}
           >
@@ -88,17 +95,17 @@ export function RecordsPage() {
               <SelectItem key={v.id} value={v.id} text={v.name} />
             ))}
           </Select>
-          <Button kind="tertiary" onClick={() => download("csv")} disabled={!entity.data} renderIcon={(p) => <Download className="size-4" aria-hidden {...p} />}>
+          <Button kind="tertiary" onClick={() => download("csv")} disabled={!entity.data} renderIcon={Download}>
             Export CSV
           </Button>
-          <Button kind="tertiary" onClick={() => setViewsOpen(true)} disabled={!entity.data} renderIcon={(p) => <List className="size-4" aria-hidden {...p} />}>
+          <Button kind="tertiary" onClick={() => setViewsOpen(true)} disabled={!entity.data} renderIcon={List}>
             Views
           </Button>
-          <Button kind="secondary" onClick={() => setAskOpen(true)} disabled={!entity.data} renderIcon={(p) => <AiGenerate className="size-4" aria-hidden {...p} />}>
+          <Button kind="secondary" onClick={() => setAskOpen(true)} disabled={!entity.data} renderIcon={AiGenerate}>
             Ask
           </Button>
           {!readOnly && (
-            <Button kind="tertiary" onClick={() => setImportOpen(true)} disabled={!entity.data} renderIcon={(p) => <ArrowUp className="size-4" aria-hidden {...p} />}>
+            <Button kind="tertiary" onClick={() => setImportOpen(true)} disabled={!entity.data} renderIcon={ArrowUp}>
               Import
             </Button>
           )}
@@ -106,7 +113,7 @@ export function RecordsPage() {
             {includeDeleted ? "Hide deleted" : "Show deleted"}
           </Button>
           {!readOnly && (
-            <Button kind="primary" onClick={() => setCreating(true)} disabled={!entity.data} renderIcon={(p) => <Add className="size-4" aria-hidden {...p} />}>
+            <Button kind="primary" onClick={() => setCreating(true)} disabled={!entity.data} renderIcon={Add}>
               New record
             </Button>
           )}
@@ -114,7 +121,7 @@ export function RecordsPage() {
       }
     >
       {readOnly && (
-        <div className="mb-4">
+        <div className={styles.notice}>
           <InlineNotification
             kind="info"
             lowContrast
@@ -127,30 +134,35 @@ export function RecordsPage() {
         {missing ? (
           <NoDataFound
             message={entityName ? `The entity "${entityName}" no longer exists. It may have been renamed or deleted.` : "Choose an entity to browse its records."}
-            action={<LinkButton size="sm" variant="secondary" href={routes.data.entities}>Go to entities</LinkButton>}
+            action={
+              <LinkButton size="sm" variant="secondary" href={routes.data.entities}>
+                Go to entities
+              </LinkButton>
+            }
           />
         ) : (
-        <QueryState query={entity}>
-          {(ent) => (
-        <QueryState query={records}>
-          {(data) =>
-            ent ? (
-              <RecordsManager
-                entity={ent}
-                records={data.items}
-                labels={labels}
-                search={search}
-                onSearchChange={(v) => { setSearch(v); setPage(1); }}
-                page={page}
-                total={data.total}
-                pageSize={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            ) : null
-          }
-        </QueryState>
-          )}
-        </QueryState>
+          <QueryState query={entity}>
+            {(ent) => (
+              <QueryState query={listingQuery}>
+                {(data) => (
+                  <RecordsManager
+                    entity={ent}
+                    records={data.items}
+                    labels={labels}
+                    search={search}
+                    onSearchChange={(v) => {
+                      setSearch(v);
+                      setPage(1);
+                    }}
+                    page={page}
+                    total={data.total}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
+                  />
+                )}
+              </QueryState>
+            )}
+          </QueryState>
         )}
       </SectionCard>
       {entity.data && creating && (

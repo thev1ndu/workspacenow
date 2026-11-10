@@ -1,0 +1,54 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.viewfinder {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: $layer-02;
+}
+
+// Muted and inline so mobile browsers play the preview without going full screen.
+.video {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.hidden {
+  display: none;
+}
+
+.reticle {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  aspect-ratio: 1;
+  block-size: 60%;
+  border: 2px solid $border-interactive;
+  pointer-events: none;
+}
+
+.placeholder {
+  @include type-style('body-compact-01');
+
+  position: absolute;
+  inset: 0;
+  display: grid;
+  padding: $spacing-06;
+  color: $text-secondary;
+  text-align: center;
+  place-items: center;
+}
+
+.lookup {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-03;
+}
+
+.lookupField {
+  flex: 1;
+  min-inline-size: 0;
+}

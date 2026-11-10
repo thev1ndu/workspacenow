@@ -9,6 +9,8 @@ import { AppIcon } from "./AppIcon";
 import { ApplicationView } from "./ApplicationView";
 import { PinButton } from "./PinButton";
 
+import styles from "./AppPage.module.scss";
+
 /** Runs an application for its users, outside Studio. Every action goes through governed operations. */
 export function AppPage() {
   const { appId } = useParams();
@@ -21,11 +23,11 @@ export function AppPage() {
     <PageLayout
       title={
         app ? (
-          <span className="flex items-center gap-3">
+          <span className={styles.title}>
             <AppIcon app={app} size="lg" />
-            <span className="min-w-0">
-              <span className="block truncate">{app.name}</span>
-              <span className="mt-1 flex flex-wrap items-center gap-2 text-sm font-normal tracking-normal text-muted">
+            <span className={styles.titleText}>
+              <span className={styles.name}>{app.name}</span>
+              <span className={styles.meta}>
                 {departmentName(app.ownerDepartmentId)} / v{app.version}
                 <StatusChip status={app.lifecycle} />
               </span>
@@ -44,8 +46,7 @@ export function AppPage() {
           <>
             <PinButton app={app} variant="secondary" />
             {canBuild && (
-              <LinkButton size="sm" variant="secondary" href={buildPath(routes.studio.applicationEdit, { appId: app.id })}>
-                <Edit className="size-3.5" aria-hidden />
+              <LinkButton size="sm" variant="secondary" href={buildPath(routes.studio.applicationEdit, { appId: app.id })} renderIcon={Edit}>
                 Edit in Studio
               </LinkButton>
             )}

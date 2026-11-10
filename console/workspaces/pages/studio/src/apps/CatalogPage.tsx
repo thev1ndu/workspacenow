@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Stack } from "@carbon/react";
 import { useListApplications } from "@workspacenow/api-client";
 import { CardGridSkeleton, NoDataFound, PageLayout, QueryState, TextInput } from "@workspacenow/views";
 import { useDepartmentName } from "../subComponents/useDepartmentName";
 import { AppTile } from "./AppTile";
 import { pinnedFirst, usePinnedApplicationIds } from "./PinButton";
+
+import styles from "./CatalogPage.module.scss";
 
 /**
  * The organization's applications as their users see them: one place to find and open an app, without
@@ -18,8 +21,8 @@ export function CatalogPage() {
 
   return (
     <PageLayout title="Applications" description="Every application you can use, in one place.">
-      <div className="grid gap-6">
-        <div className="max-w-sm">
+      <Stack gap={6}>
+        <div className={styles.search}>
           <TextInput label="Search" value={search} onChange={setSearch} placeholder="Name, description or team" />
         </div>
         <QueryState query={applications} skeleton={<CardGridSkeleton count={8} />}>
@@ -30,7 +33,7 @@ export function CatalogPage() {
             if (data.items.length === 0) return <NoDataFound message="No applications yet." />;
             if (apps.length === 0) return <NoDataFound message="No applications match your search." />;
             return (
-              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <ul className={styles.grid}>
                 {apps.map((app) => (
                   <AppTile key={app.id} app={app} meta={departmentName(app.ownerDepartmentId)} />
                 ))}
@@ -38,7 +41,7 @@ export function CatalogPage() {
             );
           }}
         </QueryState>
-      </div>
+      </Stack>
     </PageLayout>
   );
 }

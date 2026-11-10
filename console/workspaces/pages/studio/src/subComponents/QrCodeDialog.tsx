@@ -1,8 +1,10 @@
 import { Download } from "@carbon/react/icons";
 import { useEffect, useState } from "react";
-import { Modal } from "@carbon/react";
+import { CodeSnippet, InlineNotification, Link, Modal, SkeletonPlaceholder } from "@carbon/react";
 
 import QRCode from "qrcode";
+
+import styles from "./QrCodeDialog.module.scss";
 
 /** A record's QR code, as a scan page reads it, ready to show on screen or save and print. */
 export function QrCodeDialog({ title, code, onClose }: { title: string; code: string; onClose: () => void }) {
@@ -22,20 +24,21 @@ export function QrCodeDialog({ title, code, onClose }: { title: string; code: st
 
   return (
     <Modal open passiveModal size="sm" modalHeading={title} onRequestClose={onClose}>
-      <div className="grid justify-items-center gap-3 pb-2">
+      <div className={styles.content}>
         {failed ? (
-          <p className="text-sm text-danger">The QR code could not be drawn.</p>
+          <InlineNotification kind="error" lowContrast hideCloseButton title="The QR code could not be drawn." />
         ) : image ? (
-          <img src={image} alt={`QR code for ${code}`} className="size-60 rounded-xl" />
+          <img src={image} alt={`QR code for ${code}`} className={styles.qr} />
         ) : (
-          <div className="size-60 animate-pulse rounded-xl bg-default" />
+          <SkeletonPlaceholder className={styles.qr} />
         )}
-        <p className="font-mono text-sm">{code}</p>
+        <CodeSnippet type="inline" hideCopyButton>
+          {code}
+        </CodeSnippet>
         {image && (
-          <a href={image} download={`${code}.png`} className="inline-flex items-center gap-1.5 text-sm text-accent no-underline hover:underline">
-            <Download className="size-4" aria-hidden />
+          <Link href={image} download={`${code}.png`} renderIcon={Download}>
             Save image
-          </a>
+          </Link>
         )}
       </div>
     </Modal>

@@ -1,26 +1,19 @@
 <!doctype html>
-<html lang="en" class="cds--white light" data-theme="light">
+<html lang="en" class="cds--white">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="WorkspaceNow: build, connect and operate your organization's applications, agents and workflows." />
     <title>WorkspaceNow</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- Ubuntu sets the WorkspaceNow wordmark; only the weights it uses are loaded. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@500;700&display=swap" rel="stylesheet" />
     <script>
-      // Apply the saved appearance before first paint, so the page never flashes. Mirrors useAppearance.
+      // Apply the saved Carbon theme (white, g10, g90, g100 or system) before first paint, so the page never flashes. Mirrors useCarbonTheme (THEME_STORAGE_KEY).
       (function () {
         try {
-          var mode = localStorage.getItem("workspacenow-theme");
-          var dark = mode === "light" || mode === "dark" ? mode === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-          var theme = dark ? "dark" : "light";
-          var palette = localStorage.getItem("workspacenow-palette");
-          document.documentElement.className = (theme === "dark" ? "cds--g100 dark" : "cds--white light");
-          document.documentElement.dataset.theme = theme;
-          if (palette && palette !== "blue") document.documentElement.dataset.palette = palette;
+          var themes = ["white", "g10", "g90", "g100"];
+          var saved = localStorage.getItem("workspacenow-carbon-theme");
+          var theme = themes.indexOf(saved) >= 0 ? saved : window.matchMedia("(prefers-color-scheme: dark)").matches ? "g100" : "white";
+          document.documentElement.className = "cds--" + theme;
         } catch (e) {}
       })();
     </script>

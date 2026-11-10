@@ -1,22 +1,11 @@
-// Carbon Design System styles (components, grid, themes) + the app's utility layer.
-@use '@carbon/styles';
-@use './utilities.scss';
+// Carbon Design System: components, grid, type and the four themes. IBM Plex is self-hosted
+// from @ibm/plex-sans and @ibm/plex-mono (imported in main.tsx), so Carbon's own @font-face rules
+// (which point at a CDN) are switched off. Carbon's font stacks then apply unchanged.
+@use '@carbon/styles' with (
+  $css--font-face: false
+);
 @use './themes.scss';
-
-:root {
-  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-brand: 'Ubuntu', ui-sans-serif, system-ui, sans-serif;
-}
-
-html,
-body {
-  background-color: var(--cds-background);
-  color: var(--cds-text-primary);
-  font-family: var(--font-sans);
-}
 
 #root {
   min-height: 100vh;
-  background-color: var(--cds-background);
 }

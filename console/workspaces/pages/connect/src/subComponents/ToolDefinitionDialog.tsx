@@ -1,4 +1,4 @@
-import { Modal } from "@carbon/react";
+import { Modal, Stack } from "@carbon/react";
 import type { McpTool } from "@workspacenow/types";
 import { JsonView } from "@workspacenow/views";
 
@@ -27,19 +27,20 @@ export function ToolDefinitionDialog({ tool, onClose }: { tool: McpTool; onClose
       open
       size="lg"
       hasScrollingContent
-      modalHeading={<span className="font-mono">{tool.name}</span>}
+      modalLabel="MCP tool"
+      modalHeading={tool.name}
       onRequestClose={onClose}
       secondaryButtonText="Close"
       onSecondarySubmit={onClose}
     >
-      <div className="grid gap-4">
-        <p className="text-sm text-muted">
+      <Stack gap={5}>
+        <p>
           {tool.source === "workspacenow"
             ? "Generated from an API operation. Calling it runs the same business operation, authorization and audit as the REST endpoint."
             : "Discovered on an external MCP server registered in Connect."}
         </p>
         <JsonView value={definition} />
-      </div>
+      </Stack>
     </Modal>
   );
 }

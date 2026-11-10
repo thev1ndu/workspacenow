@@ -1,25 +1,26 @@
 import { ArrowUpRight, DataBase, Layers, Group } from "@carbon/react/icons";
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { ContainedList, ContainedListItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 
-import { EvilPieChart, type ChartConfig } from "@workspacenow/charts";
+import { DonutChart, isEmptySeries, type ChartTabularData, type DonutChartOptions } from "@workspacenow/charts";
 import { useListApplications, useListConnections, useListEntities } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, Metric, MetricGrid, NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink, MetricGridSkeleton, SectionCardSkeleton, TableSkeleton, DonutSkeleton, DetailSkeleton } from "@workspacenow/views";
+import { SCOPE_LABEL } from "./constants";
 import { ScopeChip } from "./subComponents/ScopeChip";
 
-type ScopeSlice = { scope: string; count: number };
+import common from "./common.module.scss";
+import styles from "./DataOverviewPage.module.scss";
 
-const scopeConfig = {
-  application: { label: "Application-scoped", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } },
-  organization: { label: "Organization-shared", colors: { light: ["var(--success)"], dark: ["var(--success)"] } },
-  external: { label: "External system", colors: { light: ["var(--muted)"], dark: ["var(--muted)"] } },
-} satisfies ChartConfig;
+const DONUT_OPTIONS: DonutChartOptions = {
+  donut: { center: { label: "Entities" } },
+  accessibility: { svgAriaLabel: "Entities by scope" },
+};
 
 export function DataOverviewPage() {
   const entities = useListEntities();
   const connections = useListConnections();
   const { data: apps } = useListApplications();
-  const appName = (id?: string) => apps?.items.find((a) => a.id === id)?.name ?? "—";
+  const appName = (id?: string) => apps?.items.find((a) => a.id === id)?.name ?? "-";
 
   return (
     <PageLayout
@@ -31,26 +32,29 @@ export function DataOverviewPage() {
         </LinkButton>
       }
     >
-      <QueryState query={entities} skeleton={
-        <div className="grid gap-6">
-          <MetricGridSkeleton />
-          <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
-            <SectionCardSkeleton flush>
-              <TableSkeleton />
-            </SectionCardSkeleton>
-            <SectionCardSkeleton>
-              <DonutSkeleton />
-            </SectionCardSkeleton>
-          </div>
-        </div>
-      }>
+      <QueryState
+        query={entities}
+        skeleton={
+          <Stack gap={6}>
+            <MetricGridSkeleton />
+            <div className={styles.split}>
+              <SectionCardSkeleton flush>
+                <TableSkeleton />
+              </SectionCardSkeleton>
+              <SectionCardSkeleton>
+                <DonutSkeleton />
+              </SectionCardSkeleton>
+            </div>
+          </Stack>
+        }
+      >
         {(data) => {
           const count = (scope: string) => data.items.filter((e) => e.scope === scope).length;
-          const slices: ScopeSlice[] = (["application", "organization", "external"] as const)
-            .map((scope) => ({ scope, count: count(scope) }))
-            .filter((s) => s.count > 0);
+          const slices: ChartTabularData = (["application", "organization", "external"] as const)
+            .map((scope) => ({ group: SCOPE_LABEL[scope], value: count(scope) }))
+            .filter((s) => s.value > 0);
           return (
-            <div className="grid gap-6">
+            <Stack gap={6}>
               <MetricGrid columns={4}>
                 <Metric label="Entities" value={data.total} icon={<DataBase />} />
                 <Metric label="Application-scoped" value={count("application")} icon={<Layers />} />
@@ -58,7 +62,7 @@ export function DataOverviewPage() {
                 <Metric label="External" value={count("external")} icon={<ArrowUpRight />} />
               </MetricGrid>
 
-              <div className="grid items-start gap-6 xl:grid-cols-[2fr_1fr]">
+              <div className={styles.split}>
                 <SectionCard
                   title="Entities"
                   actions={
@@ -71,62 +75,65 @@ export function DataOverviewPage() {
                   {data.items.length === 0 ? (
                     <NoDataFound
                       message="No entities yet. Entities are the shared records your applications, agents and workflows use."
-                      action={<LinkButton size="sm" variant="secondary" href={routes.data.entities}>Create an entity</LinkButton>}
+                      action={
+                        <LinkButton size="sm" variant="secondary" href={routes.data.entities}>
+                          Create an entity
+                        </LinkButton>
+                      }
                     />
                   ) : (
-                  <TableContainer aria-label="Entities">
-                    <Table className="min-w-[560px]">
-                      <TableHead>
-                        <TableRow>
-                          <TableHeader>Entity</TableHeader>
-                          <TableHeader>Scope</TableHeader>
-                          <TableHeader>Owner</TableHeader>
-                          <TableHeader className="text-right">Fields</TableHeader>
-                          <TableHeader className="text-right">Records</TableHeader>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {data.items.map((e) => (
-                          <TableRow key={e.id} id={e.id}>
-                            <TableCell>
-                              <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
-                            </TableCell>
-                            <TableCell>
-                              <ScopeChip scope={e.scope} />
-                            </TableCell>
-                            <TableCell className="text-muted">{appName(e.ownerApplicationId)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{e.fields.length}</TableCell>
-                            <TableCell className="text-right">
-                              <LinkButton size="sm" variant="ghost" href={buildPath(routes.data.records, { entityName: e.name })}>
-                                Browse
-                              </LinkButton>
-                            </TableCell>
+                    <TableContainer aria-label="Entities">
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader>Entity</TableHeader>
+                            <TableHeader>Scope</TableHeader>
+                            <TableHeader>Owner</TableHeader>
+                            <TableHeader className={common.numeric}>Fields</TableHeader>
+                            <TableHeader className={common.numeric}>Records</TableHeader>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                          {data.items.map((e) => (
+                            <TableRow key={e.id} id={e.id}>
+                              <TableCell>
+                                <TextLink to={buildPath(routes.data.entity, { entityName: e.name })}>{e.label}</TextLink>
+                              </TableCell>
+                              <TableCell>
+                                <ScopeChip scope={e.scope} />
+                              </TableCell>
+                              <TableCell className={common.muted}>{appName(e.ownerApplicationId)}</TableCell>
+                              <TableCell className={common.numeric}>{e.fields.length}</TableCell>
+                              <TableCell className={common.numeric}>
+                                <LinkButton size="sm" variant="ghost" href={buildPath(routes.data.records, { entityName: e.name })}>
+                                  Browse
+                                </LinkButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   )}
                 </SectionCard>
 
                 <SectionCard title="Entities by scope" subtitle="Who owns the authoritative writes">
-                  {slices.length === 0 ? (
+                  {isEmptySeries(slices) ? (
                     <NoDataFound message="Scopes appear once entities exist." />
                   ) : (
-                  <EvilPieChart config={scopeConfig} data={slices} dataKey="count" nameKey="scope" className="aspect-auto h-56 flex-none">
-                    <EvilPieChart.Pie innerRadius="58%" paddingAngle={2} cornerRadius={4} />
-                    <EvilPieChart.Tooltip />
-                    <EvilPieChart.Legend />
-                  </EvilPieChart>
+                    <DonutChart data={slices} options={DONUT_OPTIONS} />
                   )}
                 </SectionCard>
               </div>
 
-              <QueryState query={connections} skeleton={
+              <QueryState
+                query={connections}
+                skeleton={
                   <SectionCardSkeleton>
                     <DetailSkeleton items={2} columns={1} />
                   </SectionCardSkeleton>
-                }>
+                }
+              >
                 {(conns) => {
                   const unhealthy = conns.items.filter((c) => c.status !== "connected");
                   return (
@@ -140,23 +147,25 @@ export function DataOverviewPage() {
                       }
                     >
                       {unhealthy.length === 0 ? (
-                        <p className="text-sm text-muted">All connections are healthy.</p>
+                        <p className={common.helper}>All connections are healthy.</p>
                       ) : (
-                        <ul className="grid gap-2">
+                        <ContainedList label="Needs attention" kind="on-page">
                           {unhealthy.map((c) => (
-                            <li key={c.id} className="flex items-center gap-2 text-sm">
-                              <StatusChip status={c.status} />
-                              <span className="font-medium">{c.name}</span>
-                              <span className="font-mono text-xs text-muted">{c.host}</span>
-                            </li>
+                            <ContainedListItem key={c.id}>
+                              <div className={common.row}>
+                                <StatusChip status={c.status} />
+                                <span>{c.name}</span>
+                                <span className={common.subtle}>{c.host}</span>
+                              </div>
+                            </ContainedListItem>
                           ))}
-                        </ul>
+                        </ContainedList>
                       )}
                     </SectionCard>
                   );
                 }}
               </QueryState>
-            </div>
+            </Stack>
           );
         }}
       </QueryState>

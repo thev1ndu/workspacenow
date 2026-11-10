@@ -1,128 +1,54 @@
-import { useState, type CSSProperties, type KeyboardEvent } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Breadcrumb, BreadcrumbItem, Content } from "@carbon/react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { workspaces as rawWorkspaces } from "../workspaces";
 import { useT } from "@workspacenow/i18n";
 import { useSession } from "@workspacenow/api-client";
-import { useAppearance } from "@workspacenow/views";
 import { CommandPalette } from "./CommandPalette";
-import { Sidebar } from "./Sidebar";
-import { Sidekick } from "./Sidekick";
-import { Topbar } from "./Topbar";
+import { PreferencesDialog } from "./PreferencesDialog";
+import { Sidebar, activeItem } from "./Sidebar";
+import { Sidekick, SidekickPanel } from "./Sidekick";
+import { LG_QUERY, readFlag, useMediaQuery, writeFlag } from "./shellHooks";
+import { MAIN_ID, Topbar } from "./Topbar";
+import styles from "./Shell.module.scss";
 
 const COLLAPSED_KEY = "workspacenow-sidebar-collapsed";
 const SIDEKICK_KEY = "workspacenow-sidekick-open";
-const WIDTH_KEY = "workspacenow-sidebar-width";
-const COLLAPSED_WIDTH = 56;
-const DEFAULT_WIDTH = 240;
-const MIN_WIDTH = 200;
-const MAX_WIDTH = 400;
-const KEYBOARD_STEP = 16;
 
-const clampWidth = (width: number) => Math.round(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)));
+const cx = (...names: Array<string | false>) => names.filter(Boolean).join(" ");
 
-function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function readWidth(): number {
-  try {
-    const stored = Number(localStorage.getItem(WIDTH_KEY));
-    return stored ? clampWidth(stored) : DEFAULT_WIDTH;
-  } catch {
-    return DEFAULT_WIDTH;
-  }
-}
-
-function writeSetting(key: string, value: boolean | number): void {
-  try {
-    localStorage.setItem(key, String(value));
-  } catch {
-    // The choice still applies for this session.
-  }
-}
-
-/** Drag, arrow-key or double-click (reset) handle on the sidebar's right edge. */
-function SidebarResizeHandle({
-  width,
-  onResize,
-  onResizingChange,
-}: {
-  width: number;
-  onResize: (width: number, commit: boolean) => void;
-  onResizingChange: (resizing: boolean) => void;
-}) {
-  const onKeyDown = (e: KeyboardEvent) => {
-    const next =
-      e.key === "ArrowLeft" ? width - KEYBOARD_STEP : e.key === "ArrowRight" ? width + KEYBOARD_STEP : e.key === "Home" ? MIN_WIDTH : e.key === "End" ? MAX_WIDTH : null;
-    if (next === null) return;
-    e.preventDefault();
-    onResize(next, true);
-  };
-
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize sidebar"
-      aria-valuemin={MIN_WIDTH}
-      aria-valuemax={MAX_WIDTH}
-      aria-valuenow={width}
-      tabIndex={0}
-      className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:transition-colors hover:after:bg-accent focus-visible:after:bg-accent"
-      onPointerDown={(e) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        e.currentTarget.setPointerCapture(e.pointerId);
-        onResizingChange(true);
-      }}
-      // The sidebar is pinned to the viewport's left edge, so the pointer's x is the new width.
-      onPointerMove={(e) => e.currentTarget.hasPointerCapture(e.pointerId) && onResize(e.clientX, false)}
-      onPointerUp={(e) => {
-        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-        e.currentTarget.releasePointerCapture(e.pointerId);
-        onResizingChange(false);
-        onResize(e.clientX, true);
-      }}
-      onLostPointerCapture={() => onResizingChange(false)}
-      onKeyDown={onKeyDown}
-      onDoubleClick={() => onResize(DEFAULT_WIDTH, true)}
-    />
-  );
-}
-
+/** The console: Carbon UI Shell (header, side navigation, content) around the active Workspace's page. */
 export function Layout() {
   const { pathname } = useLocation();
-  // Kept mounted so a "System" appearance follows the operating system while the app is open.
-  useAppearance();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const t = useT();
+  const isLarge = useMediaQuery(LG_QUERY);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+
+  // Large screens keep the navigation showing unless the user collapsed it; smaller ones open it as a drawer.
   const [collapsed, setCollapsed] = useState(() => readFlag(COLLAPSED_KEY));
-  const toggleCollapsed = () =>
-    setCollapsed((c) => {
-      writeSetting(COLLAPSED_KEY, !c);
-      return !c;
-    });
-  const [width, setWidth] = useState(readWidth);
-  const [resizing, setResizing] = useState(false);
-  const resize = (next: number, commit: boolean) => {
-    const clamped = clampWidth(next);
-    setWidth(clamped);
-    if (commit) writeSetting(WIDTH_KEY, clamped);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const navExpanded = isLarge ? !collapsed : drawerOpen;
+  const toggleNav = () => {
+    if (isLarge) {
+      setCollapsed(!collapsed);
+      writeFlag(COLLAPSED_KEY, !collapsed);
+    } else {
+      setDrawerOpen(!drawerOpen);
+    }
   };
+  useEffect(() => setDrawerOpen(false), [pathname]);
+
   // Sidekick works as the user, so it is offered only to users who hold a role.
   const { data: session } = useSession();
   const canUseSidekick = !!session?.roles.length;
   const [sidekickPreferred, setSidekickPreferred] = useState(() => readFlag(SIDEKICK_KEY));
   const sidekickOpen = canUseSidekick && sidekickPreferred;
   const setSidekickOpen = (open: boolean) => {
-    writeSetting(SIDEKICK_KEY, open);
+    writeFlag(SIDEKICK_KEY, open);
     setSidekickPreferred(open);
   };
-  const t = useT();
+
   const workspaces = rawWorkspaces.map((w) => ({
     ...w,
     title: t(w.title),
@@ -130,54 +56,43 @@ export function Layout() {
     navigation: w.navigation.map((n) => ({ ...n, label: t(n.label) })),
   }));
   const active = workspaces.find((w) => pathname === w.basePath || pathname.startsWith(`${w.basePath}/`));
+  const page = active ? activeItem(pathname, active.navigation) : undefined;
 
   return (
-    <div
-      className={`min-h-dvh bg-background ${resizing ? "cursor-col-resize select-none" : ""}`}
-      style={{ "--sidebar-width": `${collapsed ? COLLAPSED_WIDTH : width}px` } as CSSProperties}
-    >
-      {/* Width animates on collapse but follows the pointer directly while dragging. */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden w-(--sidebar-width) border-r border-separator bg-background lg:block ${resizing ? "" : "transition-[width] duration-200"}`}
-      >
-        <Sidebar workspaces={workspaces} active={active} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
-        {!collapsed && <SidebarResizeHandle width={width} onResize={resize} onResizingChange={setResizing} />}
-      </aside>
-
-      {/* Mobile navigation drawer: a fixed panel over a backdrop, closed by clicking it. */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-label="Navigation">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-72 bg-background shadow-lg">
-            <Sidebar workspaces={workspaces} active={active} onNavigate={() => setMenuOpen(false)} />
-          </div>
-        </div>
-      )}
+    <>
+      <Topbar
+        nav={{ expanded: navExpanded, onToggle: toggleNav }}
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenPreferences={() => setPreferencesOpen(true)}
+        sidekick={canUseSidekick ? { open: sidekickOpen, onToggle: () => setSidekickOpen(!sidekickOpen) } : undefined}
+      />
+      <Sidebar workspaces={workspaces} active={active} expanded={navExpanded} fixed={isLarge} onDismiss={() => setDrawerOpen(false)} />
 
       <CommandPalette workspaces={workspaces} isOpen={searchOpen} onOpenChange={setSearchOpen} />
+      {preferencesOpen && <PreferencesDialog onClose={() => setPreferencesOpen(false)} />}
 
       {canUseSidekick && (
-        // Kept mounted while closed so the conversation survives closing and reopening.
-        <aside
-          className={`fixed inset-y-0 right-0 z-40 w-full border-l border-separator bg-background sm:w-[340px] ${sidekickOpen ? "" : "hidden"}`}
-        >
+        <SidekickPanel open={sidekickOpen}>
           <Sidekick onClose={() => setSidekickOpen(false)} />
-        </aside>
+        </SidekickPanel>
       )}
 
-      <div
-        className={`flex min-h-dvh flex-col lg:pl-(--sidebar-width) ${resizing ? "" : "transition-[padding] duration-200"} ${sidekickOpen ? "xl:pr-[340px]" : ""}`}
-      >
-        <Topbar
-          active={active}
-          onOpenMenu={() => setMenuOpen(true)}
-          onOpenSearch={() => setSearchOpen(true)}
-          sidekick={canUseSidekick ? { open: sidekickOpen, onToggle: () => setSidekickOpen(!sidekickOpen) } : undefined}
-        />
-        <main id="main" className="flex-1">
+      <div className={cx(styles.body, navExpanded && styles["body--nav"], sidekickOpen && styles["body--sidekick"])}>
+        <Content id={MAIN_ID} tabIndex={-1} className={styles.content}>
+          {active && (
+            <Breadcrumb noTrailingSlash className={styles.crumbs} aria-label={t("Breadcrumb")}>
+              <BreadcrumbItem>
+                <Link to="/">{t("Home")}</Link>
+              </BreadcrumbItem>
+              <BreadcrumbItem isCurrentPage={!page || !!page.end}>
+                {page && !page.end ? <Link to={active.basePath}>{active.title}</Link> : active.title}
+              </BreadcrumbItem>
+              {page && !page.end && <BreadcrumbItem isCurrentPage>{page.label}</BreadcrumbItem>}
+            </Breadcrumb>
+          )}
           <Outlet />
-        </main>
+        </Content>
       </div>
-    </div>
+    </>
   );
 }

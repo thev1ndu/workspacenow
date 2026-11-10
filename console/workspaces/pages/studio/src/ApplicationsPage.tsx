@@ -7,6 +7,8 @@ import { LinkButton, NoDataFound, PageLayout, QueryState, SectionCard, StatusChi
 import { AppIcon } from "./apps/AppIcon";
 import { PinButton } from "./apps/PinButton";
 import { useDepartmentName } from "./subComponents/useDepartmentName";
+import shared from "./shared.module.scss";
+import styles from "./ApplicationsPage.module.scss";
 
 export function ApplicationsPage() {
   const applications = useListApplications();
@@ -17,8 +19,7 @@ export function ApplicationsPage() {
       title="Applications"
       description="Every application is a versioned blueprint over shared entities, APIs, workflows and agents."
       actions={
-        <LinkButton variant="primary" href={routes.studio.builder}>
-          <Add className="size-4" aria-hidden />
+        <LinkButton variant="primary" href={routes.studio.builder} renderIcon={Add}>
           New application
         </LinkButton>
       }
@@ -30,7 +31,7 @@ export function ApplicationsPage() {
               <NoDataFound message="No applications yet." />
             ) : (
               <TableContainer aria-label="Applications">
-                <Table className="min-w-[860px]">
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableHeader scope="col">Name</TableHeader>
@@ -39,30 +40,30 @@ export function ApplicationsPage() {
                       <TableHeader scope="col">Version</TableHeader>
                       <TableHeader scope="col">Entities</TableHeader>
                       <TableHeader scope="col">Updated</TableHeader>
-                      <TableHeader scope="col" className="w-24">
-                        <span className="sr-only">Actions</span>
+                      <TableHeader scope="col">
+                        <span className="cds--visually-hidden">Actions</span>
                       </TableHeader>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {data.items.map((app) => (
                       <TableRow key={app.id} id={app.id}>
-                        <TableCell className="max-w-sm">
-                          <div className="flex items-center gap-3">
+                        <TableCell>
+                          <div className={styles.name}>
                             <AppIcon app={app} size="sm" />
-                            <div className="min-w-0">
+                            <div>
                               <TextLink to={buildPath(routes.studio.application, { appId: app.id })}>{app.name}</TextLink>
-                              <p className="mt-0.5 text-xs text-muted">{app.description}</p>
+                              <p className={shared.helper}>{app.description}</p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted">{departmentName(app.ownerDepartmentId)}</TableCell>
+                        <TableCell>{departmentName(app.ownerDepartmentId)}</TableCell>
                         <TableCell>
                           <StatusChip status={app.lifecycle} />
                         </TableCell>
-                        <TableCell className="tabular-nums">v{app.version}</TableCell>
+                        <TableCell className={shared.numeric}>v{app.version}</TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
+                          <div className={shared.tags}>
                             {app.entityNames.map((e) => (
                               <Tag key={e} size="sm" type="gray">
                                 {e}
@@ -70,13 +71,11 @@ export function ApplicationsPage() {
                             ))}
                           </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted">{formatRelative(app.updatedAt)}</TableCell>
+                        <TableCell className={shared.nowrap}>{formatRelative(app.updatedAt)}</TableCell>
                         <TableCell>
-                          <div className="flex justify-end gap-1">
+                          <div className={shared.actionsCell}>
                             <PinButton app={app} />
-                            <LinkButton isIconOnly size="sm" variant="ghost" aria-label={`Open ${app.name}`} href={buildPath(routes.app, { appId: app.id })}>
-                              <ArrowUpRight className="size-4" />
-                            </LinkButton>
+                            <LinkButton isIconOnly size="sm" variant="ghost" aria-label={`Open ${app.name}`} href={buildPath(routes.app, { appId: app.id })} renderIcon={ArrowUpRight} />
                           </div>
                         </TableCell>
                       </TableRow>

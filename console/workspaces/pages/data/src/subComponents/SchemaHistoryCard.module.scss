@@ -1,0 +1,30 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: $spacing-05;
+  padding: $spacing-05;
+}
+
+@include breakpoint-up('md') {
+  .compare {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+}
+
+.notice {
+  padding: 0 $spacing-05 $spacing-05;
+}
+
+.diff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+  padding: $spacing-05;
+  border-block-start: 1px solid $border-subtle;
+}

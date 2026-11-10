@@ -1,10 +1,10 @@
 export function formatDateTime(iso?: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function formatRelative(iso?: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 45) return "just now";
   const minutes = Math.round(seconds / 60);
@@ -22,7 +22,7 @@ export function formatNumber(value: number): string {
 
 export function formatCurrency(value: unknown): string {
   const num = Number(value);
-  if (Number.isNaN(num)) return "—";
+  if (Number.isNaN(num)) return "-";
   return `LKR ${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(num)}`;
 }
 
@@ -37,6 +37,6 @@ export function titleCase(value: string): string {
 
 /** "Nov 3, 3:30 PM": for dense tables of recent activity, where the year is noise. */
 export function formatShortDateTime(iso?: string): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }

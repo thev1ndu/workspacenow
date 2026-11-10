@@ -1,0 +1,33 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.aiHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-05;
+}
+
+.aiText {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.aiTitle {
+  @include type-style('heading-compact-01');
+
+  color: $text-primary;
+}
+
+.aiBody {
+  @include type-style('body-compact-01');
+
+  margin-block-start: $spacing-02;
+  color: $text-secondary;
+}
+
+.aiForm {
+  margin-block-start: $spacing-05;
+}

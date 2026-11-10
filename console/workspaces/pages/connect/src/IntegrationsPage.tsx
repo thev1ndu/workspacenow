@@ -1,12 +1,17 @@
 import { View, Edit, Plug, Add } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, InlineNotification, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tag } from "@carbon/react";
+import { Button, CodeSnippet, InlineLoading, InlineNotification, Stack } from "@carbon/react";
 
 import { useCan, useListIntegrations, useListSecrets, useTestIntegration } from "@workspacenow/api-client";
 import type { Integration } from "@workspacenow/types";
-import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TableSkeleton, formatRelative } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, StatusChip, TableSkeleton, formatRelative } from "@workspacenow/views";
 import { IntegrationDialog } from "./subComponents/IntegrationDialog";
+import { PagedTable } from "./subComponents/ResourceTable";
 import { SecretValuesDialog } from "./subComponents/SecretValuesDialog";
+
+import common from "./common.module.scss";
+
+const kindLabel = (kind: string) => kind.charAt(0).toUpperCase() + kind.slice(1).replace(/-/g, " ");
 
 export function IntegrationsPage() {
   const integrations = useListIntegrations();
@@ -22,14 +27,14 @@ export function IntegrationsPage() {
       title="Integrations"
       description="Connections to external systems, with retry and timeout policies. Credentials live in OpenBao; only references are stored here."
       actions={
-        <Button disabled={!canManage} onClick={() => setEditing("new")}>
-          <Add className="size-4" aria-hidden />
+        <Button renderIcon={Add} disabled={!canManage} onClick={() => setEditing("new")}>
           New integration
         </Button>
       }
     >
-      <div className="grid gap-6">
+      <Stack gap={6}>
         <InlineNotification
+          className={common.notice}
           kind="info"
           lowContrast
           hideCloseButton
@@ -37,72 +42,79 @@ export function IntegrationsPage() {
         />
         <SectionCard flush>
           <QueryState query={integrations}>
-            {(data) =>
-              data.items.length === 0 ? (
-                <NoDataFound message="No integrations configured." />
-              ) : (
-                <TableContainer>
-                  <Table aria-label="Integrations" className="min-w-[860px]">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader scope="col">Name</TableHeader>
-                        <TableHeader scope="col">Target and secret</TableHeader>
-                        <TableHeader scope="col">Status</TableHeader>
-                        <TableHeader scope="col">Policy</TableHeader>
-                        <TableHeader scope="col" className="text-right">
-                          Actions
-                        </TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.items.map((i) => (
-                        <TableRow key={i.id} id={i.id}>
-                          <TableCell>
-                            <p className="font-medium">{i.name}</p>
-                            <p className="mt-0.5 text-xs text-muted">
-                              {i.kind.charAt(0).toUpperCase() + i.kind.slice(1).replace(/-/g, " ")} · tested {formatRelative(i.lastTestedAt)}
-                            </p>
-                          </TableCell>
-                          <TableCell className="max-w-[380px]">
-                            <p className="truncate font-mono text-xs" title={i.target}>
-                              {i.target}
-                            </p>
-                            <p className="mt-0.5 truncate font-mono text-xs text-muted">{i.secretRef}</p>
-                          </TableCell>
-                          <TableCell>
-                            <StatusChip status={i.status} />
-                          </TableCell>
-                          <TableCell>
-                            <p>{i.retryPolicy}</p>
-                            <p className="mt-0.5 text-xs text-muted">Timeout {i.timeoutMs.toLocaleString()} ms</p>
-                          </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            <Button
-                              kind="ghost"
-                              size="sm"
-                              hasIconOnly
-                              iconDescription={`Edit ${i.name}`}
-                              renderIcon={() => <Edit className="size-3.5" aria-hidden />}
-                              disabled={!canManage}
-                              onClick={() => setEditing(i)}
-                            />
-                            <Button
-                              kind="ghost"
-                              size="sm"
-                              disabled={test.isPending && test.variables === i.id}
-                              onClick={() => test.mutate(i.id)}
-                            >
-                              <Plug className="size-3.5" aria-hidden />
-                              Test connection
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )
-            }
+            {(data) => (
+              <PagedTable
+                label="Integrations"
+                items={data.items}
+                rowKey={(i) => i.id}
+                emptyMessage="No integrations configured."
+                searchPlaceholder="Search integrations"
+                searchText={(i) => `${i.name} ${i.kind} ${i.target} ${i.secretRef} ${i.status} ${i.retryPolicy}`}
+                columns={[
+                  {
+                    key: "name",
+                    header: "Name",
+                    cell: (i) => (
+                      <Stack gap={1}>
+                        <span>{i.name}</span>
+                        <span className={common.secondary}>
+                          {kindLabel(i.kind)} · tested {formatRelative(i.lastTestedAt)}
+                        </span>
+                      </Stack>
+                    ),
+                  },
+                  {
+                    key: "target",
+                    header: "Target and secret",
+                    cell: (i) => (
+                      <Stack gap={1}>
+                        <span className={`${common.mono} ${common.truncate}`} title={i.target}>
+                          {i.target}
+                        </span>
+                        <span className={`${common.mono} ${common.secondary} ${common.truncate}`}>{i.secretRef}</span>
+                      </Stack>
+                    ),
+                  },
+                  { key: "status", header: "Status", cell: (i) => <StatusChip status={i.status} /> },
+                  {
+                    key: "policy",
+                    header: "Policy",
+                    cell: (i) => (
+                      <Stack gap={1}>
+                        <span>{i.retryPolicy}</span>
+                        <span className={common.secondary}>Timeout {i.timeoutMs.toLocaleString()} ms</span>
+                      </Stack>
+                    ),
+                  },
+                  {
+                    key: "actions",
+                    header: "Actions",
+                    end: true,
+                    nowrap: true,
+                    cell: (i) => (
+                      <span className={common.inline}>
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          hasIconOnly
+                          iconDescription={`Edit ${i.name}`}
+                          renderIcon={Edit}
+                          disabled={!canManage}
+                          onClick={() => setEditing(i)}
+                        />
+                        {test.isPending && test.variables === i.id ? (
+                          <InlineLoading description="Testing connection" />
+                        ) : (
+                          <Button kind="ghost" size="sm" renderIcon={Plug} onClick={() => test.mutate(i.id)}>
+                            Test connection
+                          </Button>
+                        )}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+            )}
           </QueryState>
         </SectionCard>
 
@@ -112,44 +124,40 @@ export function IntegrationsPage() {
           flush
         >
           <QueryState query={secrets} skeleton={<TableSkeleton columns={2} />}>
-            {(data) =>
-              data.items.length === 0 ? (
-                <NoDataFound message="No secrets found in the configured OpenBao mount." />
-              ) : (
-                <TableContainer>
-                  <Table aria-label="OpenBao secrets" className="min-w-[520px]">
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader scope="col">Reference</TableHeader>
-                        <TableHeader scope="col" className="text-right">
-                          {" "}
-                        </TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.items.map((p) => (
-                        <TableRow key={p} id={p}>
-                          <TableCell>
-                            <Tag size="sm" type="gray" className="font-mono text-xs">
-                              {p}
-                            </Tag>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button kind="ghost" size="sm" disabled={!canReadSecrets} onClick={() => setViewingSecret(p)}>
-                              <View className="size-3.5" aria-hidden />
-                              View values
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )
-            }
+            {(data) => (
+              <PagedTable
+                label="OpenBao secrets"
+                items={data.items}
+                rowKey={(p) => p}
+                emptyMessage="No secrets found in the configured OpenBao mount."
+                searchPlaceholder="Search secrets"
+                searchText={(p) => p}
+                columns={[
+                  {
+                    key: "reference",
+                    header: "Reference",
+                    cell: (p) => (
+                      <CodeSnippet type="inline" feedback="Copied">
+                        {p}
+                      </CodeSnippet>
+                    ),
+                  },
+                  {
+                    key: "actions",
+                    header: "Actions",
+                    end: true,
+                    cell: (p) => (
+                      <Button kind="ghost" size="sm" renderIcon={View} disabled={!canReadSecrets} onClick={() => setViewingSecret(p)}>
+                        View values
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
+            )}
           </QueryState>
         </SectionCard>
-      </div>
+      </Stack>
 
       {editing && <IntegrationDialog onClose={() => setEditing(undefined)} integration={editing === "new" ? undefined : editing} />}
       {viewingSecret && <SecretValuesDialog path={viewingSecret} onClose={() => setViewingSecret(undefined)} />}

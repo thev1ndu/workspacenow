@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal } from "@carbon/react";
+import { Modal, Stack } from "@carbon/react";
 import { useRegisterMcpServer } from "@workspacenow/api-client";
 import type { McpServer } from "@workspacenow/types";
 import { SelectInput, TextInput } from "@workspacenow/views";
@@ -26,7 +26,7 @@ export function RegisterMcpServerDialog({ onClose }: { onClose: () => void }) {
       secondaryButtonText="Cancel"
       onSecondarySubmit={onClose}
     >
-      <div className="grid gap-4">
+      <Stack gap={5}>
         <TextInput label="Name" required value={name} onChange={setName} placeholder="Weather service" />
         <TextInput label="Server URL" required value={url} onChange={setUrl} error={url.length > 8 ? urlError : undefined} />
         <SelectInput
@@ -40,7 +40,7 @@ export function RegisterMcpServerDialog({ onClose }: { onClose: () => void }) {
             { value: "none", label: "None" },
           ]}
         />
-      </div>
+      </Stack>
     </Modal>
   );
 }

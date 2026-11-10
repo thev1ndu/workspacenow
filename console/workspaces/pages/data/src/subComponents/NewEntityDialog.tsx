@@ -1,6 +1,6 @@
 import { Add, TrashCan } from "@carbon/react/icons";
 import { useId, useState } from "react";
-import { Button, Checkbox, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
+import { Button, Checkbox, Heading, Modal, Stack } from "@carbon/react";
 
 import { useNavigate } from "react-router-dom";
 import { useCreateEntity, useListApplications, useListEntities } from "@workspacenow/api-client";
@@ -8,6 +8,8 @@ import { buildPath, routes, type EntityField, type EntityScope, type FieldType }
 import { SelectInput, TextInput } from "@workspacenow/views";
 import { ErrorAlert } from "./RecordForm";
 import { FIELD_TYPES } from "../constants";
+
+import styles from "./NewEntityDialog.module.scss";
 
 interface FieldRow {
   name: string;
@@ -46,8 +48,8 @@ export function FieldRowEditor({
   onRemove?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-separator p-4">
-      <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+    <div className={styles.fieldRow}>
+      <div className={styles.main}>
         <TextInput label="Name" required value={row.name} onChange={(name) => onChange({ ...row, name })} placeholder="camelCase" />
         <TextInput label="Label" value={row.label} onChange={(label) => onChange({ ...row, label })} />
         <SelectInput
@@ -57,29 +59,18 @@ export function FieldRowEditor({
           onChange={(type) => onChange({ ...row, type: type as FieldType })}
           options={FIELD_TYPES.map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
         />
-        {onRemove ? (
-          <Button
-            hasIconOnly
-            kind="ghost"
-            aria-label="Remove field"
-            iconDescription="Remove field"
-            onClick={onRemove}
-            renderIcon={(p) => <TrashCan className="size-4" {...p} />}
-          />
-        ) : (
-          <span />
-        )}
+        {onRemove ? <Button hasIconOnly kind="ghost" iconDescription="Remove field" onClick={onRemove} renderIcon={TrashCan} /> : <span />}
       </div>
-      <div className="mt-3 flex flex-wrap items-end gap-4">
+      <div className={styles.flags}>
         <FlagCheckbox label="Required" isSelected={row.required} onChange={(required) => onChange({ ...row, required })} />
         <FlagCheckbox label="Unique" isSelected={row.unique} onChange={(unique) => onChange({ ...row, unique })} />
         {row.type === "enum" && (
-          <div className="min-w-52 flex-1">
+          <div className={styles.extra}>
             <TextInput label="Values" value={row.enumValues} onChange={(enumValues) => onChange({ ...row, enumValues })} placeholder="open, closed" />
           </div>
         )}
         {row.type === "reference" && (
-          <div className="min-w-52 flex-1">
+          <div className={styles.extra}>
             <SelectInput
               label="Target entity"
               required
@@ -97,13 +88,7 @@ export function FieldRowEditor({
 function FlagCheckbox({ label, isSelected, onChange }: { label: string; isSelected: boolean; onChange: (value: boolean) => void }) {
   const id = useId();
   return (
-    <Checkbox
-      id={id}
-      labelText={<span className="text-sm">{label}</span>}
-      checked={isSelected}
-      onChange={(e) => onChange(e.target.checked)}
-      className="pb-2"
-    />
+    <Checkbox id={id} labelText={label} checked={isSelected} onChange={(e) => onChange(e.target.checked)} />
   );
 }
 
@@ -143,10 +128,18 @@ export function NewEntityDialog({ open, onClose }: { open: boolean; onClose: () 
     );
 
   return (
-    <ComposedModal open={open} onClose={onClose} size="lg">
-      <ModalHeader title="New entity" closeModal={onClose} />
-      <ModalBody className="grid gap-4" hasScrollingContent>
-        <div className="grid gap-4 sm:grid-cols-2">
+    <Modal
+      open={open}
+      size="lg"
+      modalHeading="New entity"
+      primaryButtonText="Create entity"
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={!name || !!nameError || !rowsValid || createEntity.isPending}
+      onRequestClose={onClose}
+      onRequestSubmit={submit}
+    >
+      <Stack gap={5}>
+        <div className={styles.pair}>
           <TextInput label="Name" required value={name} onChange={setName} error={nameError} placeholder="Warehouse" />
           <TextInput label="Label" value={label} onChange={setLabel} placeholder="Warehouse" />
           <SelectInput
@@ -168,9 +161,9 @@ export function NewEntityDialog({ open, onClose }: { open: boolean; onClose: () 
           />
         </div>
         <TextInput label="Description" value={description} onChange={setDescription} multiline rows={2} />
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Fields</h3>
-          <Button size="sm" kind="secondary" onClick={() => setRows((prev) => [...prev, emptyRow()])} renderIcon={(p) => <Add className="size-3.5" aria-hidden {...p} />}>
+        <div className={styles.fieldsHeader}>
+          <Heading className={styles.sectionTitle}>Fields</Heading>
+          <Button size="sm" kind="secondary" onClick={() => setRows((prev) => [...prev, emptyRow()])} renderIcon={Add}>
             Add field
           </Button>
         </div>
@@ -184,15 +177,7 @@ export function NewEntityDialog({ open, onClose }: { open: boolean; onClose: () 
           />
         ))}
         {!!createEntity.error && <ErrorAlert error={createEntity.error} />}
-      </ModalBody>
-      <ModalFooter>
-        <Button kind="tertiary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button kind="primary" disabled={!name || !!nameError || !rowsValid || createEntity.isPending} onClick={submit}>
-          Create entity
-        </Button>
-      </ModalFooter>
-    </ComposedModal>
+      </Stack>
+    </Modal>
   );
 }

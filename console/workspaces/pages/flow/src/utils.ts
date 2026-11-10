@@ -12,7 +12,7 @@ export function describeTrigger(trigger: WorkflowTrigger): string {
 }
 
 export function formatDuration(start?: string, end?: string): string {
-  if (!start) return "—";
+  if (!start) return "-";
   const ms = (end ? new Date(end).getTime() : Date.now()) - new Date(start).getTime();
   if (ms < 1000) return `${ms} ms`;
   const seconds = Math.round(ms / 1000);

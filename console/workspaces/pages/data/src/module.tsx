@@ -24,7 +24,7 @@ export const dataWorkspace: WorkspaceModule = {
   key: "data",
   title: "Data",
   description: "Define business entities, their relationships and access, and work with their records.",
-  icon: <DataBase className="size-4" />,
+  icon: <DataBase size={16} />,
   basePath: routes.data.root,
   navigation: [
     { label: "Overview", href: routes.data.root, end: true },

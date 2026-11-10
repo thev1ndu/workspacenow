@@ -7,7 +7,9 @@ import { StatusChip } from "@workspacenow/views";
 import { TriggerLabel } from "./TriggerLabel";
 import type { FlowNode, StepNodeData, TriggerNodeData } from "./graphModel";
 
-export const STEP_KINDS: Array<{ kind: WorkflowStepKind; label: string; hint: string; icon: ComponentType<{ className?: string }> }> = [
+import styles from "./FlowNodes.module.scss";
+
+export const STEP_KINDS: Array<{ kind: WorkflowStepKind; label: string; hint: string; icon: ComponentType<{ size?: number }> }> = [
   { kind: "agent", label: "Agent", hint: "An AI agent works the task", icon: Bot },
   { kind: "approval", label: "Approval", hint: "A person approves or rejects", icon: User },
   { kind: "operation", label: "Operation", hint: "Run a business operation", icon: Settings },
@@ -38,39 +40,30 @@ export function stepSummary(step: WorkflowStep): string {
   }
 }
 
-const STATUS_RING: Partial<Record<StepStatus, string>> = {
-  completed: "border-success",
-  running: "border-accent",
-  waiting: "border-warning",
-  failed: "border-danger",
-  skipped: "border-separator opacity-50",
+const STATUS_CLASS: Partial<Record<StepStatus, string>> = {
+  completed: styles.completed,
+  running: styles.running,
+  waiting: styles.waiting,
+  failed: styles.failed,
+  skipped: styles.skipped,
 };
 
-const handleClass = "!size-2.5 !border-2 !border-surface !bg-muted";
-
 function Shell({ selected, status, children }: { selected: boolean; status?: StepStatus; children: ReactNode }) {
-  return (
-    <div
-      className={`w-60 rounded-xl border bg-surface px-3.5 py-3 shadow-sm transition-colors ${
-        selected ? "border-accent ring-2 ring-accent/30" : status ? (STATUS_RING[status] ?? "border-separator") : "border-separator"
-      }`}
-    >
-      {children}
-    </div>
-  );
+  const classes = [styles.node, selected ? styles.selected : status ? STATUS_CLASS[status] : undefined].filter(Boolean).join(" ");
+  return <div className={classes}>{children}</div>;
 }
 
 function TriggerNode({ data, selected }: NodeProps<FlowNode & { data: TriggerNodeData }>) {
   return (
     <Shell selected={selected}>
-      <div className="flex items-center gap-2 text-xs font-medium text-muted">
-        <Flash className="size-3.5" aria-hidden />
+      <div className={styles.kind}>
+        <Flash size={16} aria-hidden />
         Trigger
       </div>
-      <div className="mt-1 text-foreground">
+      <div className={styles.trigger}>
         <TriggerLabel trigger={data.trigger} showIcon={false} />
       </div>
-      <Handle type="source" position={Position.Bottom} id="next" className={handleClass} />
+      <Handle type="source" position={Position.Bottom} id="next" className={styles.handle} />
     </Shell>
   );
 }
@@ -80,29 +73,29 @@ function StepNode({ data, selected }: NodeProps<FlowNode & { data: StepNodeData 
   const { icon: Icon, label } = KIND[step.kind];
   return (
     <Shell selected={selected} status={status}>
-      <Handle type="target" position={Position.Top} className={handleClass} />
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-xs font-medium text-muted">
-          <Icon className="size-3.5" />
+      <Handle type="target" position={Position.Top} className={styles.handle} />
+      <div className={styles.head}>
+        <span className={styles.kind}>
+          <Icon size={16} />
           {label}
         </span>
         {status && <StatusChip status={status} />}
       </div>
-      <p className="mt-1 truncate text-sm font-semibold text-foreground">{step.name || "Unnamed step"}</p>
-      <p className="mt-0.5 truncate text-xs text-muted">{stepSummary(step)}</p>
+      <p className={styles.name}>{step.name || "Unnamed step"}</p>
+      <p className={styles.summary}>{stepSummary(step)}</p>
       {step.kind === "condition" ? (
         <>
-          <Handle type="source" position={Position.Bottom} id="then" style={{ left: "28%" }} className={`${handleClass} !bg-success`} />
-          <Handle type="source" position={Position.Bottom} id="otherwise" style={{ left: "72%" }} className={`${handleClass} !bg-danger`} />
-          <div className="mt-2 flex justify-between px-6 text-[10px] font-medium text-muted" aria-hidden>
+          <Handle type="source" position={Position.Bottom} id="then" style={{ left: "28%" }} className={`${styles.handle} ${styles.handleYes}`} />
+          <Handle type="source" position={Position.Bottom} id="otherwise" style={{ left: "72%" }} className={`${styles.handle} ${styles.handleNo}`} />
+          <div className={styles.branches} aria-hidden>
             <span>Yes</span>
             <span>No</span>
           </div>
         </>
       ) : (
-        <Handle type="source" position={Position.Bottom} id="next" className={handleClass} />
+        <Handle type="source" position={Position.Bottom} id="next" className={styles.handle} />
       )}
-      {step.kind === "approval" && <Handle type="source" position={Position.Right} id="onReject" className={`${handleClass} !bg-danger`} />}
+      {step.kind === "approval" && <Handle type="source" position={Position.Right} id="onReject" className={`${styles.handle} ${styles.handleNo}`} />}
     </Shell>
   );
 }

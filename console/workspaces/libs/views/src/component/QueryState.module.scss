@@ -1,0 +1,11 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.error {
+  padding: $spacing-05;
+
+  // Carbon caps inline notifications at a fixed width; here they fill their card.
+  :global(.cds--inline-notification) {
+    max-inline-size: 100%;
+    margin: 0;
+  }
+}

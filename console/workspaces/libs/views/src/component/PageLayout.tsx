@@ -1,11 +1,13 @@
 import { ArrowLeft } from "@carbon/react/icons";
 import { useEffect, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { SkeletonText } from "@carbon/react";
+import { Link as RouterLink } from "react-router-dom";
+import { Column, Grid, Heading, Link, Section, SkeletonText } from "@carbon/react";
 
 import { globalConfig } from "@workspacenow/types";
 import { Loading } from "./QueryState";
 import { PageSkeleton } from "./Skeletons";
+
+import styles from "./PageLayout.module.scss";
 
 export interface PageLayoutProps {
   title: ReactNode;
@@ -19,7 +21,7 @@ export interface PageLayoutProps {
   children: ReactNode;
 }
 
-/** Page shell: optional back link, title, description and actions over the page's content. */
+/** Page shell in Carbon's page-header pattern: optional back link, heading, description and actions over the page's content. */
 export function PageLayout({ title, documentTitle, description, backHref, backLabel, actions, isLoading, children }: PageLayoutProps) {
   const tabTitle = documentTitle ?? (typeof title === "string" ? title : undefined);
   useEffect(() => {
@@ -27,38 +29,42 @@ export function PageLayout({ title, documentTitle, description, backHref, backLa
   }, [tabTitle]);
 
   return (
-    <div className="w-full px-6 py-8 lg:px-10">
-      <header className="mb-8">
-        {backHref && (
-          <Link to={backHref} className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted no-underline hover:text-foreground">
-            <ArrowLeft className="size-3.5" aria-hidden />
-            {backLabel ?? "Back"}
-          </Link>
-        )}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-48 flex-1">
-            {isLoading ? (
-              <div className="grid gap-2.5 py-1">
-                <SkeletonText heading width="224px" />
-                <SkeletonText width="320px" />
-              </div>
-            ) : (
-              <>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground text-balance">{title}</h1>
-                {description && <div className="mt-1.5 text-sm text-muted">{description}</div>}
-              </>
-            )}
+    <Grid fullWidth className={styles.page}>
+      <Column sm={4} md={8} lg={16}>
+        <header className={styles.header}>
+          {backHref && (
+            <Link as={RouterLink} to={backHref} size="md" className={styles.back}>
+              <ArrowLeft size={16} aria-hidden />
+              {backLabel ?? "Back"}
+            </Link>
+          )}
+          <div className={styles.bar}>
+            <div className={styles.titles}>
+              {isLoading ? (
+                <div className={styles.skeletonTitle}>
+                  <SkeletonText heading width="14rem" />
+                  <SkeletonText width="20rem" />
+                </div>
+              ) : (
+                <>
+                  <Heading className={styles.title}>{title}</Heading>
+                  {description && <div className={styles.description}>{description}</div>}
+                </>
+              )}
+            </div>
+            {actions && <div className={styles.actions}>{actions}</div>}
           </div>
-          {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-        </div>
-      </header>
-      {isLoading ? (
-        <Loading>
-          <PageSkeleton />
-        </Loading>
-      ) : (
-        children
-      )}
-    </div>
+        </header>
+        <Section>
+          {isLoading ? (
+            <Loading>
+              <PageSkeleton />
+            </Loading>
+          ) : (
+            children
+          )}
+        </Section>
+      </Column>
+    </Grid>
   );
 }

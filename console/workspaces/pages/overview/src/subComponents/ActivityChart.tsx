@@ -1,33 +1,29 @@
-import { EvilBarChart, type ChartConfig } from "@workspacenow/charts";
+import { ScaleTypes, StackedBarChart, isEmptySeries, type StackedBarChartOptions } from "@workspacenow/charts";
 import { useActivity } from "@workspacenow/api-client";
-import { QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
+import { ChartSkeleton, NoDataFound, QueryState, SectionCard } from "@workspacenow/views";
 
-const config = {
-  apiCalls: { label: "API and app calls", colors: { light: ["var(--accent)"], dark: ["var(--accent)"] } },
-  agentToolCalls: { label: "Agent tool calls", colors: { light: ["var(--success)"], dark: ["var(--success)"] } },
-  workflowSteps: { label: "Workflow steps", colors: { light: ["var(--warning)"], dark: ["var(--warning)"] } },
-} satisfies ChartConfig;
-
-const dayLabel = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const options: StackedBarChartOptions = {
+  axes: {
+    bottom: { mapsTo: "date", scaleType: ScaleTypes.TIME },
+    left: { mapsTo: "value", stacked: true },
+  },
+};
 
 /** Governed operations per day, split by the entry point family that made them. */
 export function ActivityChart() {
   const activity = useActivity({ days: 14 });
   return (
     <SectionCard title="Platform activity" subtitle="Governed operations per day, last 14 days">
-      <QueryState query={activity} skeleton={<ChartSkeleton className="h-64" />}>
-        {(data) => (
-          <EvilBarChart config={config} data={data.items} className="aspect-auto h-64 flex-none" stackType="stacked" barRadius={3}>
-            <EvilBarChart.Grid vertical={false} />
-            <EvilBarChart.XAxis dataKey="date" tickFormatter={dayLabel} />
-            <EvilBarChart.YAxis width={36} />
-            <EvilBarChart.Tooltip />
-            <EvilBarChart.Legend align="left" variant="rounded-square" isClickable />
-            <EvilBarChart.Bar dataKey="apiCalls" />
-            <EvilBarChart.Bar dataKey="agentToolCalls" />
-            <EvilBarChart.Bar dataKey="workflowSteps" />
-          </EvilBarChart>
-        )}
+      <QueryState query={activity} skeleton={<ChartSkeleton />}>
+        {(data) => {
+          const series = data.items.flatMap((p) => [
+            { group: "API and app calls", date: p.date, value: p.apiCalls },
+            { group: "Agent tool calls", date: p.date, value: p.agentToolCalls },
+            { group: "Workflow steps", date: p.date, value: p.workflowSteps },
+          ]);
+          if (isEmptySeries(series)) return <NoDataFound message="No governed operations in the last 14 days." />;
+          return <StackedBarChart data={series} options={options} title="Platform activity" />;
+        }}
       </QueryState>
     </SectionCard>
   );

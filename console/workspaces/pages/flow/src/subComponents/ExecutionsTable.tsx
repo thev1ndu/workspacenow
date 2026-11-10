@@ -1,58 +1,74 @@
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { useListWorkflows } from "@workspacenow/api-client";
 import { buildPath, routes, type WorkflowExecution } from "@workspacenow/types";
-import { NoDataFound, StatusChip, TextLink, formatRelative } from "@workspacenow/views";
+import { StatusChip, TextLink, formatRelative } from "@workspacenow/views";
 import { formatDuration, workflowName } from "../utils";
+import { PagedTable, type PagedTableColumn } from "./PagedTable";
 
-export function ExecutionsTable({ executions, hideWorkflow }: { executions: WorkflowExecution[]; hideWorkflow?: boolean }) {
+import styles from "../Flow.module.scss";
+
+export interface ExecutionsTableProps {
+  executions: WorkflowExecution[];
+  hideWorkflow?: boolean;
+  /** Search toolbar; default true. */
+  searchable?: boolean;
+  /** Pager; default true. Turn off for a short, fixed excerpt. */
+  paginate?: boolean;
+}
+
+export function ExecutionsTable({ executions, hideWorkflow, searchable = true, paginate = true }: ExecutionsTableProps) {
   const { data: workflows } = useListWorkflows();
-  if (executions.length === 0) return <NoDataFound message="No executions yet." />;
+  const name = (e: WorkflowExecution) => workflowName(workflows?.items, e.workflowId);
+
+  const columns: PagedTableColumn<WorkflowExecution>[] = [
+    {
+      key: "execution",
+      header: "Execution",
+      nowrap: true,
+      render: (e) => (
+        <span className={styles.mono}>
+          <TextLink to={buildPath(routes.flow.execution, { executionId: e.id })}>{e.id}</TextLink>
+        </span>
+      ),
+    },
+    ...(hideWorkflow
+      ? []
+      : [
+          {
+            key: "workflow",
+            header: "Workflow",
+            render: (e: WorkflowExecution) => <TextLink to={buildPath(routes.flow.workflow, { workflowId: e.workflowId })}>{name(e)}</TextLink>,
+          },
+        ]),
+    { key: "status", header: "Status", render: (e) => <StatusChip status={e.status} /> },
+    {
+      key: "trace",
+      header: "Trace",
+      nowrap: true,
+      render: (e) => (
+        <span className={styles.mono}>
+          <TextLink to={buildPath(routes.control.trace, { traceId: e.traceId })}>{e.traceId}</TextLink>
+        </span>
+      ),
+    },
+    { key: "started", header: "Started", nowrap: true, render: (e) => formatRelative(e.startedAt) },
+    {
+      key: "duration",
+      header: "Duration",
+      nowrap: true,
+      render: (e) => (e.status === "waiting" || e.status === "running" ? "In progress" : formatDuration(e.startedAt, e.endedAt)),
+    },
+  ];
+
   return (
-    <TableContainer aria-label="Workflow executions">
-      <Table className="min-w-[640px]">
-        <TableHead>
-          <TableRow>
-            <TableHeader>Execution</TableHeader>
-            {!hideWorkflow && <TableHeader>Workflow</TableHeader>}
-            <TableHeader>Status</TableHeader>
-            <TableHeader>Trace</TableHeader>
-            <TableHeader>Started</TableHeader>
-            <TableHeader>Duration</TableHeader>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {executions.map((execution) => (
-            <TableRow key={execution.id} id={execution.id}>
-              <TableCell>
-                <span className="font-mono text-[13px]">
-                  <TextLink to={buildPath(routes.flow.execution, { executionId: execution.id })}>{execution.id}</TextLink>
-                </span>
-              </TableCell>
-              {!hideWorkflow && (
-                <TableCell>
-                  <TextLink to={buildPath(routes.flow.workflow, { workflowId: execution.workflowId })}>
-                    {workflowName(workflows?.items, execution.workflowId)}
-                  </TextLink>
-                </TableCell>
-              )}
-              <TableCell>
-                <StatusChip status={execution.status} />
-              </TableCell>
-              <TableCell>
-                <span className="font-mono text-[13px]">
-                  <TextLink to={buildPath(routes.control.trace, { traceId: execution.traceId })}>{execution.traceId}</TextLink>
-                </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-muted">{formatRelative(execution.startedAt)}</TableCell>
-              <TableCell className="whitespace-nowrap tabular-nums">
-                {execution.status === "waiting" || execution.status === "running"
-                  ? "In progress"
-                  : formatDuration(execution.startedAt, execution.endedAt)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <PagedTable
+      label="Workflow executions"
+      items={executions}
+      columns={columns}
+      searchText={(e) => `${e.id} ${name(e)} ${e.status} ${e.traceId}`}
+      searchPlaceholder="Search executions"
+      emptyMessage="No executions yet."
+      searchable={searchable}
+      paginate={paginate}
+    />
   );
 }

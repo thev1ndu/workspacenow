@@ -24,6 +24,7 @@ export function PinButton({ app, variant = "ghost" }: { app: Pick<Application, "
   return (
     <Button
       hasIconOnly
+      renderIcon={pinned ? PinFilled : Pin}
       iconDescription={pinned ? "Unpin" : "Pin to Home"}
       size="sm"
       kind={variant}
@@ -31,8 +32,6 @@ export function PinButton({ app, variant = "ghost" }: { app: Pick<Application, "
       aria-pressed={pinned}
       disabled={setPinned.isPending}
       onClick={() => setPinned.mutate({ appId: app.id, name: app.name, pinned: !pinned })}
-    >
-      {pinned ? <PinFilled className="size-4 text-accent" /> : <Pin className="size-4" />}
-    </Button>
+    />
   );
 }

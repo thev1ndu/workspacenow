@@ -1,0 +1,95 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+@use '@carbon/styles/scss/utilities/z-index' as *;
+
+// A square count on a header action, in Carbon's error support colour.
+.badge {
+  @include type-style('label-01');
+
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $support-error;
+  color: $text-on-color;
+  inset-block-start: $spacing-02;
+  inset-inline-end: $spacing-02;
+  min-inline-size: $spacing-05;
+  padding-inline: $spacing-01;
+  pointer-events: none;
+}
+
+// Panels opened from the header sit above the docked Sidekick.
+.panel {
+  z-index: z('header') + 1;
+}
+
+.panel:global(.cds--header-panel--expanded) {
+  inline-size: 24rem;
+  max-inline-size: 100vw;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-04 $spacing-05;
+}
+
+.panelTitle {
+  @include type-style('heading-compact-01');
+
+  color: $text-primary;
+}
+
+.account {
+  display: grid;
+  padding: $spacing-05;
+  border-block-end: 1px solid $border-subtle;
+  color: $text-primary;
+}
+
+.accountName {
+  @include type-style('heading-compact-01');
+}
+
+.accountRole {
+  @include type-style('body-compact-01');
+
+  color: $text-secondary;
+}
+
+.itemTitle {
+  @include type-style('body-compact-01');
+
+  color: $text-primary;
+}
+
+.itemMeta {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.itemSummary {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.list {
+  max-block-size: calc(100dvh - 12rem);
+  overflow-y: auto;
+}
+
+.empty {
+  @include type-style('body-compact-01');
+
+  color: $text-secondary;
+  padding: $spacing-05;
+}

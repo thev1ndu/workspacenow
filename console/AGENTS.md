@@ -1,6 +1,6 @@
 # WorkspaceNow console — agent guide
 
-React 19 + TypeScript, pnpm workspaces, Vite, TanStack Query, IBM Carbon (@carbon/react) with a small app utility layer on Carbon theme variables, EvilCharts on Recharts. Packages are scoped `@workspacenow/*`
+React 19 + TypeScript, pnpm workspaces, Vite, TanStack Query, IBM Carbon Design System only: `@carbon/react` components, `@carbon/react/icons`, Carbon Charts (`@carbon/charts-react`, wrapped by `@workspacenow/charts`), Carbon themes (white, g10, g90, g100) and self-hosted IBM Plex. Packages are scoped `@workspacenow/*`
 and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package build step.
 
 ## File map
@@ -12,7 +12,7 @@ and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package 
 | Domain types + routes | `workspaces/libs/types/src` (`domain.ts`, `routes.ts` — use `routes` + `buildPath`, never hand-written paths) |
 | API transport | `workspaces/libs/api-client/src/apis/<area>.ts` (pure fetch, takes `getToken`) + `hooks/<area>.ts` (`useApiQuery`/`useApiMutation`) |
 | Shared UI | `workspaces/libs/views/src/component` (`PageLayout`, `SectionCard`, `QueryState`, `TablePager`, `Metric`/`MetricGrid`, `TextInput`/`SelectInput`, …) |
-| Demo backend (whole contract, 34 tests) | `workspaces/libs/mock-server/src` |
+| Demo backend (whole contract and its authorization rules) | `workspaces/libs/mock-server/src` |
 | App shell / workspace registration | `workspaces/core-ui/src/workspaces.tsx` |
 
 ## Golden path: add or change a page/endpoint
@@ -25,18 +25,19 @@ and ship TypeScript source (`main: ./src/index.ts`), so there is no per-package 
 
 ## Rules
 
-- UI comes only from `@carbon/react` (plus the `@workspacenow/views` primitives), charts from `@workspacenow/charts`, icons from `@carbon/react/icons`. Follow `docs/UI-GUIDE.md`.
+- UI comes only from `@carbon/react` (plus the `@workspacenow/views` primitives), charts from `@workspacenow/charts` (Carbon Charts, long-format data, `isEmptySeries` empty state), icons from `@carbon/react/icons`. Lay out with Carbon `Grid`/`Column`, `Stack`, `Layer` and `Tile`; there are no utility classes. When Carbon has no prop for a detail, add a co-located `*.module.scss` that uses only Carbon tokens (`@carbon/styles/scss/{spacing,type,theme}`): no hard-coded colors, no rounded corners.
+- Theme comes from `useCarbonTheme()` in `@workspacenow/views`; never add custom palettes.
 - API calls follow the two-file pattern above. Never call the transport from a component.
 - Mutations refresh every query on settle: platform writes fan out through events, workflows and audit.
 - Forms are manual `useState`; server state is TanStack Query; there is no global store.
 - Every business write goes through `Platform.invoke` in `libs/mock-server`, which authorizes, runs, audits and then publishes events. Do not add a path that bypasses it.
 - Each Workspace package exports a `WorkspaceModule` (`libs/views/src/component/WorkspaceModule.ts`) with routes relative to its base path; `core-ui/src/workspaces.tsx` registers them.
-- IDs in table cells that must not wrap (run ids, trace ids) get `whitespace-nowrap font-mono text-xs`.
+- IDs in table cells that must not wrap (run ids, trace ids) use a module class with `white-space: nowrap` and `@include type-style('code-01')`.
 - Real OIDC login is not wired yet — the persona picker is demo-only; do not build on it.
 
 ## Testing
 
-- `pnpm --filter @workspacenow/mock-server test` — vitest, 34 contract tests in `platform.test.ts`; extend it when the mock changes.
+- `pnpm --filter @workspacenow/mock-server test` — vitest contract tests in `platform.test.ts` and `authorization.test.ts`; extend it when the mock changes.
 - No coverage instrumentation yet (no vitest coverage provider installed); typecheck + eslint + mock tests are the gates.
 - Run one: `pnpm --filter @workspacenow/mock-server test -t <name>`.
 

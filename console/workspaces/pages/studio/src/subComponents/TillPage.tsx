@@ -1,11 +1,13 @@
-import { Subtract, Add, Printer, TrashCan } from "@carbon/react/icons";
+import { Subtract, Add, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, InlineNotification, Modal } from "@carbon/react";
+import { Button, ClickableTile, Column, ContentSwitcher, Grid, InlineNotification, Modal, Stack, Switch, Tag } from "@carbon/react";
 
 import { useInvokeBusinessOperation, useListRecords } from "@workspacenow/api-client";
 import type { EntityRecord, OperationResult } from "@workspacenow/types";
 import { NoDataFound, QueryState, SectionCard, SelectInput, TextInput, errorMessage, formatCurrency, CardGridSkeleton } from "@workspacenow/views";
 import { Receipt, printReceipt, type ReceiptLine } from "./Receipt";
+
+import styles from "./TillPage.module.scss";
 
 const STORE_KEY = "workspacenow-till-store";
 const STORES = ["Colombo City", "Kandy", "Galle"];
@@ -48,15 +50,10 @@ function ReceiptDialog({ result, onClose }: { result: CheckoutResult; onClose: (
       onRequestClose={onClose}
       secondaryButtonText="New sale"
       onSecondarySubmit={onClose}
-      primaryButtonText={
-        <>
-          <Printer className="size-4" aria-hidden />
-          Print receipt
-        </>
-      }
+      primaryButtonText="Print receipt"
       onRequestSubmit={() => printReceipt(result.sale, result.lines)}
     >
-      <div className="grid gap-4">
+      <Stack gap={5}>
         {result.lowStock.length > 0 && (
           <InlineNotification
             kind="warning"
@@ -65,12 +62,12 @@ function ReceiptDialog({ result, onClose }: { result: CheckoutResult; onClose: (
             title={`${result.lowStock.join(", ")} reached the reorder level; the low-stock replenishment workflow has started.`}
           />
         )}
-        <div className="flex justify-center overflow-x-auto rounded-xl bg-default p-4">
-          <div className="shadow-md">
+        <div className={styles.paper}>
+          <div className={styles.receipt}>
             <Receipt sale={result.sale} lines={result.lines} />
           </div>
         </div>
-      </div>
+      </Stack>
     </Modal>
   );
 }
@@ -138,151 +135,157 @@ export function TillPage() {
   const term = search.trim().toLowerCase();
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <SectionCard
-        title="Products"
-        subtitle="Tap a product to add it to the cart"
-        actions={
-          <div className="w-48">
-            <SelectInput label="Store" value={store} onChange={changeStore} options={STORES.map((s) => ({ value: s, label: s }))} />
-          </div>
-        }
-      >
-        <div className="grid gap-4">
-          <TextInput label="Search" value={search} onChange={setSearch} placeholder="Name or SKU" />
-          <QueryState query={products} skeleton={<CardGridSkeleton count={6} className="sm:grid-cols-2 xl:grid-cols-3" />}>
-            {(data) => {
-              const shown = data.items.filter((p) => !term || String(p.values.name).toLowerCase().includes(term) || String(p.values.sku).toLowerCase().includes(term));
-              if (shown.length === 0) return <NoDataFound message="No products match." />;
-              return (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {shown.map((p) => {
-                    const available = onHand(p.id);
-                    const inCart = cart[p.id] ?? 0;
-                    const left = (available ?? 0) - inCart;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        disabled={left <= 0}
-                        onClick={() => setQuantity(p.id, (current) => current + 1)}
-                        className="relative grid gap-1 rounded-xl border border-separator bg-surface p-4 text-left transition-colors hover:border-accent focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-separator"
-                      >
-                        {inCart > 0 && (
-                          <span className="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground tabular-nums">
-                            {inCart}
-                          </span>
-                        )}
-                        <span className="pr-8 text-sm font-medium">{String(p.values.name)}</span>
-                        <span className="font-mono text-xs text-muted">{String(p.values.sku)}</span>
-                        <span className="mt-1 text-sm font-semibold tabular-nums">{formatCurrency(price(p))}</span>
-                        <span className="text-xs text-muted">
-                          {available === undefined ? "Not stocked at this store" : left <= 0 ? "No more in stock" : `${left} in stock`}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            }}
-          </QueryState>
-        </div>
-      </SectionCard>
+    <>
+      <Grid narrow withRowGap>
+        <Column sm={4} md={8} lg={10}>
+          <SectionCard
+            title="Products"
+            subtitle="Tap a product to add it to the cart"
+            actions={
+              <div className={styles.store}>
+                <SelectInput label="Store" value={store} onChange={changeStore} options={STORES.map((s) => ({ value: s, label: s }))} />
+              </div>
+            }
+          >
+            <Stack gap={5}>
+              <TextInput label="Search" value={search} onChange={setSearch} placeholder="Name or SKU" />
+              <QueryState query={products} skeleton={<CardGridSkeleton count={6} columns={3} />}>
+                {(data) => {
+                  const shown = data.items.filter((p) => !term || String(p.values.name).toLowerCase().includes(term) || String(p.values.sku).toLowerCase().includes(term));
+                  if (shown.length === 0) return <NoDataFound message="No products match." />;
+                  return (
+                    <div className={styles.products}>
+                      {shown.map((p) => {
+                        const available = onHand(p.id);
+                        const inCart = cart[p.id] ?? 0;
+                        const left = (available ?? 0) - inCart;
+                        return (
+                          <ClickableTile
+                            key={p.id}
+                            role="button"
+                            aria-disabled={left <= 0}
+                            disabled={left <= 0}
+                            onClick={() => setQuantity(p.id, (current) => current + 1)}
+                            className={styles.product}
+                          >
+                            {inCart > 0 && (
+                              <Tag size="sm" type="blue" className={styles.badge}>
+                                {inCart}
+                              </Tag>
+                            )}
+                            <span className={styles.productName}>{String(p.values.name)}</span>
+                            <span className={styles.sku}>{String(p.values.sku)}</span>
+                            <span className={styles.price}>{formatCurrency(price(p))}</span>
+                            <span className={styles.stock}>
+                              {available === undefined ? "Not stocked at this store" : left <= 0 ? "No more in stock" : `${left} in stock`}
+                            </span>
+                          </ClickableTile>
+                        );
+                      })}
+                    </div>
+                  );
+                }}
+              </QueryState>
+            </Stack>
+          </SectionCard>
+        </Column>
 
-      <SectionCard title="Cart" subtitle={store} flush>
-        {lines.length === 0 ? (
-          <p className="border-t border-separator px-5 py-6 text-sm text-muted">The cart is empty.</p>
-        ) : (
-          <ul className="border-t border-separator">
-            {lines.map(({ product, quantity }) => (
-              <li key={product.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-separator px-5 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{String(product.values.name)}</p>
-                  <p className="text-xs text-muted tabular-nums">{formatCurrency(price(product))} each</p>
+        <Column sm={4} md={8} lg={6}>
+          <SectionCard title="Cart" subtitle={store} flush>
+            {lines.length === 0 ? (
+              <p className={styles.empty}>The cart is empty.</p>
+            ) : (
+              <ul className={styles.lines}>
+                {lines.map(({ product, quantity }) => (
+                  <li key={product.id} className={styles.line}>
+                    <div>
+                      <p className={styles.lineName}>{String(product.values.name)}</p>
+                      <p className={styles.lineEach}>{formatCurrency(price(product))} each</p>
+                    </div>
+                    <p className={styles.lineTotal}>{formatCurrency(price(product) * quantity)}</p>
+                    <div className={styles.stepper}>
+                      <Button
+                        hasIconOnly
+                        renderIcon={Subtract}
+                        iconDescription={`One fewer ${String(product.values.name)}`}
+                        size="sm"
+                        kind="secondary"
+                        aria-label={`One fewer ${String(product.values.name)}`}
+                        onClick={() => setQuantity(product.id, (current) => current - 1)}
+                      />
+                      <span className={styles.qty} aria-label="Quantity">
+                        {quantity}
+                      </span>
+                      <Button
+                        hasIconOnly
+                        renderIcon={Add}
+                        iconDescription={`One more ${String(product.values.name)}`}
+                        size="sm"
+                        kind="secondary"
+                        aria-label={`One more ${String(product.values.name)}`}
+                        disabled={quantity >= (onHand(product.id) ?? 0)}
+                        onClick={() => setQuantity(product.id, (current) => current + 1)}
+                      />
+                      <Button
+                        hasIconOnly
+                        renderIcon={TrashCan}
+                        iconDescription={`Remove ${String(product.values.name)}`}
+                        size="sm"
+                        kind="ghost"
+                        className={styles.remove}
+                        aria-label={`Remove ${String(product.values.name)}`}
+                        onClick={() => setQuantity(product.id, 0)}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className={styles.checkout}>
+              <Stack gap={5}>
+                <div className={styles.total}>
+                  <span className={styles.totalLabel}>Total</span>
+                  <span className={styles.totalValue}>{formatCurrency(total)}</span>
                 </div>
-                <p className="text-sm font-semibold tabular-nums">{formatCurrency(price(product) * quantity)}</p>
-                <div className="col-span-2 flex items-center gap-1">
-                  <Button
-                    hasIconOnly
-                    iconDescription={`One fewer ${String(product.values.name)}`}
-                    size="sm"
-                    kind="secondary"
-                    aria-label={`One fewer ${String(product.values.name)}`}
-                    onClick={() => setQuantity(product.id, (current) => current - 1)}
-                  >
-                    <Subtract className="size-3.5" />
-                  </Button>
-                  <span className="w-8 text-center text-sm tabular-nums" aria-label="Quantity">
-                    {quantity}
-                  </span>
-                  <Button
-                    hasIconOnly
-                    iconDescription={`One more ${String(product.values.name)}`}
-                    size="sm"
-                    kind="secondary"
-                    aria-label={`One more ${String(product.values.name)}`}
-                    disabled={quantity >= (onHand(product.id) ?? 0)}
-                    onClick={() => setQuantity(product.id, (current) => current + 1)}
-                  >
-                    <Add className="size-3.5" />
-                  </Button>
-                  <Button
-                    hasIconOnly
-                    iconDescription={`Remove ${String(product.values.name)}`}
-                    size="sm"
-                    kind="ghost"
-                    className="ml-auto"
-                    aria-label={`Remove ${String(product.values.name)}`}
-                    onClick={() => setQuantity(product.id, 0)}
-                  >
-                    <TrashCan className="size-4" />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="grid gap-4 px-5 py-4">
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm text-muted">Total</span>
-            <span className="text-2xl font-semibold tracking-tight tabular-nums">{formatCurrency(total)}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Payment method">
-            {(["cash", "card"] as const).map((m) => (
-              <Button key={m} aria-pressed={method === m} kind={method === m ? "primary" : "secondary"} onClick={() => setMethod(m)}>
-                {m === "cash" ? "Cash" : "Card"}
-              </Button>
-            ))}
-          </div>
-          {method === "cash" && (
-            <div className="grid gap-2">
-              <TextInput label="Cash tendered (LKR)" type="number" value={tendered} onChange={setTendered} />
-              {total > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {quickCash(total).map((v) => (
-                    <Button key={v} size="sm" kind="tertiary" onClick={() => setTendered(String(v))}>
-                      {v === total ? "Exact" : formatCurrency(v)}
-                    </Button>
-                  ))}
-                </div>
-              )}
-              {tendered !== "" && (
-                <p className={`text-sm tabular-nums ${change < 0 ? "text-danger" : "text-muted"}`}>
-                  {change < 0 ? `${formatCurrency(-change)} short` : `Change ${formatCurrency(change)}`}
-                </p>
-              )}
+                <ContentSwitcher
+                  size="md"
+                  selectedIndex={method === "cash" ? 0 : 1}
+                  onChange={({ name }) => setMethod(name === "card" ? "card" : "cash")}
+                >
+                  <Switch name="cash" text="Cash" />
+                  <Switch name="card" text="Card" />
+                </ContentSwitcher>
+                {method === "cash" && (
+                  <Stack gap={3}>
+                    <TextInput label="Cash tendered (LKR)" type="number" value={tendered} onChange={setTendered} />
+                    {total > 0 && (
+                      <div className={styles.quickCash}>
+                        {quickCash(total).map((v) => (
+                          <Button key={v} size="sm" kind="tertiary" onClick={() => setTendered(String(v))}>
+                            {v === total ? "Exact" : formatCurrency(v)}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                    {tendered !== "" && (
+                      <p className={`${styles.change} ${change < 0 ? styles.short : ""}`}>
+                        {change < 0 ? `${formatCurrency(-change)} short` : `Change ${formatCurrency(change)}`}
+                      </p>
+                    )}
+                  </Stack>
+                )}
+                {!!checkout.error && (
+                  <InlineNotification kind="error" lowContrast hideCloseButton title={errorMessage(checkout.error)} />
+                )}
+                <Button size="lg" className={styles.charge} disabled={!canCharge || checkout.isPending} onClick={charge}>
+                  Charge {formatCurrency(total)}
+                </Button>
+              </Stack>
             </div>
-          )}
-          {!!checkout.error && (
-            <InlineNotification kind="error" lowContrast hideCloseButton title={errorMessage(checkout.error)} />
-          )}
-          <Button size="lg" className="w-full" disabled={!canCharge || checkout.isPending} onClick={charge}>
-            Charge {formatCurrency(total)}
-          </Button>
-        </div>
-      </SectionCard>
-
+          </SectionCard>
+        </Column>
+      </Grid>
       {result && <ReceiptDialog result={result} onClose={reset} />}
-    </div>
+    </>
   );
 }

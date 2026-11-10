@@ -1,24 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Background, Controls, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import "../flow.css";
 import type { StepStatus, WorkflowDefinition } from "@workspacenow/types";
+import { useCarbonTheme } from "@workspacenow/views";
 import { nodeTypes } from "./FlowNodes";
 import { toGraph } from "./graphModel";
 
-/**
- * The console's light or dark mode, kept current. React Flow marks its canvas with this class, and
- * The workflow canvas reads theme colours from Carbon variables, so it follows the active theme.
- */
+import styles from "./WorkflowCanvas.module.scss";
+
+/** The canvas colour mode, following the active Carbon theme (g90 and g100 are dark). */
 export function useCanvasColorMode(): "light" | "dark" {
-  const read = (): "light" | "dark" => (document.documentElement.classList.contains("dark") ? "dark" : "light");
-  const [mode, setMode] = useState(read);
-  useEffect(() => {
-    const observer = new MutationObserver(() => setMode(read()));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
-  return mode;
+  return useCarbonTheme().isDark ? "dark" : "light";
 }
 
 /** A workflow drawn as its flow, read-only; with `statuses`, each step shows how a run went and the path it took glows. */
@@ -26,7 +18,7 @@ export function WorkflowGraph({ definition, statuses, height = 460 }: { definiti
   const { nodes, edges } = useMemo(() => toGraph(definition, statuses), [definition, statuses]);
   const colorMode = useCanvasColorMode();
   return (
-    <div className="workflow-canvas overflow-hidden rounded-xl border border-separator" style={{ height }}>
+    <div className={styles.canvas} style={{ height }}>
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}

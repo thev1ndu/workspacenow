@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, InlineNotification, Modal, Tag } from "@carbon/react";
+import { Checkbox, CheckboxGroup, Modal, Stack, Tag } from "@carbon/react";
 import { useCan, useListRoles, useUpdateUserRoles, type UserWithRoles } from "@workspacenow/api-client";
 import { QueryState, TableSkeleton } from "@workspacenow/views";
+
+import styles from "../control.module.scss";
+import { ManageNotice } from "./ManageNotice";
 
 interface Props {
   user: UserWithRoles | null;
@@ -26,65 +29,47 @@ export function UserRolesEditor({ user, onClose }: Props) {
     <Modal
       open={user !== null}
       onRequestClose={onClose}
+      onRequestSubmit={() => user && update.mutate({ userId: user.id, roleIds: selected }, { onSuccess: onClose })}
       modalHeading={`Roles for ${user?.name ?? ""}`}
-      size="lg"
+      primaryButtonText="Save roles"
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={!user || !dirty || update.isPending}
+      size="md"
       hasScrollingContent
-      passiveModal
     >
-      <div className="grid gap-4">
-        {!canManage && (
-          <InlineNotification kind="info" lowContrast hideCloseButton>
-            Saving needs <code className="font-mono text-xs">control.manage</code>. You can still try; the platform will deny and audit it.
-          </InlineNotification>
-        )}
+      <Stack gap={5}>
+        {!canManage && <ManageNotice />}
         {user && (
-          <p className="text-xs text-muted">
-            Groups from the IdP already grant:{" "}
+          <div className={styles.tags}>
+            <span className={styles.caption}>Groups from the IdP already grant:</span>
             {user.roles.length ? (
               user.roles.map((r) => (
-                <Tag key={r} size="sm" type="gray" className="mr-1">
+                <Tag key={r} size="sm" type="gray">
                   {r}
                 </Tag>
               ))
             ) : (
-              "none"
+              <span className={styles.caption}>none</span>
             )}
-          </p>
+          </div>
         )}
         <QueryState query={roles} skeleton={<TableSkeleton rows={5} columns={1} />}>
           {(roleList) => (
-            <ul className="grid gap-2">
+            <CheckboxGroup legendText="Roles assigned directly">
               {roleList.items.map((r) => (
-                <li key={r.id}>
-                  <Checkbox
-                    id={`user-role-${r.id}`}
-                    checked={selected.includes(r.id)}
-                    onChange={() => toggle(r.id)}
-                    labelText={
-                      <>
-                        <span className="font-medium">{r.name}</span>
-                        <span className="block text-xs text-muted">{r.description}</span>
-                      </>
-                    }
-                  />
-                </li>
+                <Checkbox
+                  key={r.id}
+                  id={`user-role-${r.id}`}
+                  checked={selected.includes(r.id)}
+                  onChange={() => toggle(r.id)}
+                  labelText={r.name}
+                  helperText={r.description}
+                />
               ))}
-            </ul>
+            </CheckboxGroup>
           )}
         </QueryState>
-      </div>
-      <div className="flex justify-end gap-2 pt-6">
-        <Button kind="ghost" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          kind="primary"
-          disabled={!user || !dirty || update.isPending}
-          onClick={() => user && update.mutate({ userId: user.id, roleIds: selected }, { onSuccess: onClose })}
-        >
-          Save roles
-        </Button>
-      </div>
+      </Stack>
     </Modal>
   );
 }

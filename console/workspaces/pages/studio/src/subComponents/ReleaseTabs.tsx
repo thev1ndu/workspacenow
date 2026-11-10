@@ -1,10 +1,13 @@
 import { Locked, Add, Rocket } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, Modal, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
+import { Button, Modal, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow, Tile } from "@carbon/react";
 
 import { useCreateDeployment, useCreateRelease, useListDeployments, useListEnvironments, useListReleases } from "@workspacenow/api-client";
 import type { Application, EnvironmentKey } from "@workspacenow/types";
 import { NoDataFound, QueryState, SectionCard, StatusChip, TextInput, formatDateTime, formatRelative, CardGridSkeleton } from "@workspacenow/views";
+import shared from "../shared.module.scss";
+
+import styles from "./ReleaseTabs.module.scss";
 
 export function ReleasesTab({ app }: { app: Application }) {
   const releases = useListReleases({ appId: app.id });
@@ -17,8 +20,7 @@ export function ReleasesTab({ app }: { app: Application }) {
       title="Releases"
       subtitle="Releases are immutable snapshots of the blueprint."
       actions={
-        <Button size="sm" kind="secondary" onClick={() => setOpen(true)}>
-          <Add className="size-3.5" aria-hidden />
+        <Button size="sm" kind="secondary" renderIcon={Add} onClick={() => setOpen(true)}>
           Create release
         </Button>
       }
@@ -30,7 +32,7 @@ export function ReleasesTab({ app }: { app: Application }) {
             <NoDataFound message="No releases yet. Create one to deploy this application." />
           ) : (
             <TableContainer aria-label="Releases">
-              <Table className="min-w-[640px]">
+              <Table>
                 <TableHead>
                   <TableRow>
                     <TableHeader scope="col">Version</TableHeader>
@@ -42,10 +44,10 @@ export function ReleasesTab({ app }: { app: Application }) {
                 <TableBody>
                   {data.items.map((r) => (
                     <TableRow key={r.id} id={r.id}>
-                      <TableCell className="font-medium tabular-nums">v{r.version}</TableCell>
-                      <TableCell className={r.notes ? "" : "text-muted"}>{r.notes || "—"}</TableCell>
+                      <TableCell className={shared.numeric}>v{r.version}</TableCell>
+                      <TableCell>{r.notes || "-"}</TableCell>
                       <TableCell>{r.createdBy}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted">{formatDateTime(r.createdAt)}</TableCell>
+                      <TableCell className={shared.nowrap}>{formatDateTime(r.createdAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -94,43 +96,42 @@ export function DeploymentsTab({ app }: { app: Application }) {
   const active = (env: EnvironmentKey) => deployments.data?.items.find((d) => d.environment === env && d.status === "active");
 
   return (
-    <div className="grid gap-6">
-      <QueryState query={environments} skeleton={<CardGridSkeleton count={3} className="md:grid-cols-3" />}>
+    <Stack gap={6}>
+      <QueryState query={environments} skeleton={<CardGridSkeleton count={3} columns={3} />}>
         {(envs) => (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className={styles.envGrid}>
             {ORDER.map((key, i) => {
               const env = envs.items.find((e) => e.key === key);
               const current = active(key);
               const source = i === 0 ? latest?.version : active(ORDER[i - 1])?.version;
               const upToDate = !!current && current.version === source;
               return (
-                <div key={key} className="flex h-full flex-col gap-0 rounded-xl border border-separator bg-surface p-5">
-                  <div className="flex items-center gap-2">
-                    <h3 className="flex-1 text-sm font-semibold">{env?.name ?? key}</h3>
+                <Tile key={key} className={styles.env}>
+                  <div className={styles.envHead}>
+                    <h3 className={styles.envName}>{env?.name ?? key}</h3>
                     {env?.requiresApproval && (
                       <span title="Requires deployment.promote (Release Manager)">
-                        <Locked className="size-4 text-muted" aria-label="Promotion requires approval" />
+                        <Locked size={16} className={styles.lock} aria-label="Promotion requires approval" />
                       </span>
                     )}
                   </div>
-                  {/* flex-1 absorbs uneven description heights so Running and the action line up across the row. */}
-                  <p className="mt-1 flex-1 text-sm text-muted">{env?.description}</p>
-                  <div className="mt-4 mb-4">
-                    <p className="text-xs text-muted">Running</p>
-                    <p className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums">{current ? `v${current.version}` : "—"}</p>
+                  <p className={styles.envDescription}>{env?.description}</p>
+                  <div className={styles.running}>
+                    <p className={styles.runningLabel}>Running</p>
+                    <p className={styles.version}>{current ? `v${current.version}` : "-"}</p>
                     {current && (
-                      <p className="mt-0.5 text-xs text-muted">
+                      <p className={styles.by}>
                         by {current.deployedBy}, {formatRelative(current.deployedAt)}
                       </p>
                     )}
                   </div>
                   <Button
-                    className="w-full"
+                    className={styles.deploy}
+                    renderIcon={Rocket}
                     kind={upToDate ? "secondary" : "primary"}
                     disabled={!source || upToDate || (deploy.isPending && deploy.variables?.environment === key)}
                     onClick={() => source && deploy.mutate({ applicationId: app.id, environment: key, version: source })}
                   >
-                    <Rocket className="size-4" aria-hidden />
                     {!source
                       ? i === 0
                         ? "Create a release first"
@@ -141,7 +142,7 @@ export function DeploymentsTab({ app }: { app: Application }) {
                           ? `Deploy v${source}`
                           : `Promote v${source}`}
                   </Button>
-                </div>
+                </Tile>
               );
             })}
           </div>
@@ -154,7 +155,7 @@ export function DeploymentsTab({ app }: { app: Application }) {
               <NoDataFound message="Never deployed." />
             ) : (
               <TableContainer aria-label="Deployment history">
-                <Table className="min-w-[640px]">
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableHeader scope="col">Environment</TableHeader>
@@ -167,13 +168,13 @@ export function DeploymentsTab({ app }: { app: Application }) {
                   <TableBody>
                     {data.items.map((d) => (
                       <TableRow key={d.id} id={d.id}>
-                        <TableCell className="capitalize">{d.environment}</TableCell>
-                        <TableCell className="tabular-nums">v{d.version}</TableCell>
+                        <TableCell className={styles.capitalize}>{d.environment}</TableCell>
+                        <TableCell className={shared.numeric}>v{d.version}</TableCell>
                         <TableCell>
                           <StatusChip status={d.status} />
                         </TableCell>
                         <TableCell>{d.deployedBy}</TableCell>
-                        <TableCell className="whitespace-nowrap text-muted">{formatDateTime(d.deployedAt)}</TableCell>
+                        <TableCell className={shared.nowrap}>{formatDateTime(d.deployedAt)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -183,6 +184,6 @@ export function DeploymentsTab({ app }: { app: Application }) {
           }
         </QueryState>
       </SectionCard>
-    </div>
+    </Stack>
   );
 }

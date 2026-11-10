@@ -1,0 +1,65 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+// Shared layout and type helpers for the Connect pages, built from Carbon tokens only.
+
+.mono {
+  @include type-style('code-01');
+
+  overflow-wrap: anywhere;
+}
+
+.secondary {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.label {
+  @include type-style('heading-compact-01');
+
+  color: $text-primary;
+}
+
+.error {
+  @include type-style('body-compact-01');
+
+  color: $text-error;
+}
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-03;
+  white-space: nowrap;
+}
+
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-02;
+}
+
+.truncate {
+  display: block;
+  max-inline-size: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.notice:global(.cds--inline-notification) {
+  max-inline-size: 100%;
+}
+
+.list {
+  margin: 0;
+  padding-inline-start: $spacing-05;
+  list-style: disc;
+  color: $text-error;
+}

@@ -1,0 +1,13 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.entitySelect {
+  inline-size: 13rem;
+}
+
+.viewSelect {
+  inline-size: 11rem;
+}
+
+.notice {
+  margin-block-end: $spacing-05;
+}

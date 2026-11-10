@@ -1,0 +1,96 @@
+@use '@carbon/styles/scss/breakpoint' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $spacing-05;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@include breakpoint-up('md') {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@include breakpoint-up('xlg') {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.card:global(.cds--tile) {
+  position: relative;
+  display: flex;
+  block-size: 100%;
+  flex-direction: column;
+  gap: $spacing-04;
+  background: $layer-02;
+  transition: background-color 110ms;
+
+  &:hover {
+    background: $layer-hover-02;
+  }
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-03;
+}
+
+.pin {
+  position: relative;
+  z-index: 1;
+}
+
+.body {
+  min-inline-size: 0;
+  flex: 1;
+}
+
+// The link's overlay makes the whole tile open the app; the pin button sits above it.
+.link {
+  @include type-style('heading-compact-01');
+
+  text-decoration: none;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+  }
+}
+
+.description {
+  @include type-style('body-compact-01');
+
+  display: -webkit-box;
+  margin-block-start: $spacing-02;
+  overflow: hidden;
+  color: $text-secondary;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.foot {
+  @include type-style('helper-text-01');
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-03;
+  color: $text-secondary;
+}
+
+.meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

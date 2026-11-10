@@ -36,7 +36,6 @@ export function TextInput({
     return (
       <TextArea
         id={id}
-        className="w-full"
         labelText={labelText}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -45,14 +44,13 @@ export function TextInput({
         rows={rows ?? 3}
         invalid={!!error}
         invalidText={error}
-        helperText={error ? undefined : typeof helperText === "string" ? helperText : undefined}
+        helperText={error ? undefined : helperText}
       />
     );
   }
   return (
     <CarbonTextInput
       id={id}
-      className="w-full"
       labelText={labelText}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -61,7 +59,7 @@ export function TextInput({
       disabled={disabled}
       invalid={!!error}
       invalidText={error}
-      helperText={error ? undefined : typeof helperText === "string" ? helperText : undefined}
+      helperText={error ? undefined : helperText}
     />
   );
 }
@@ -92,18 +90,15 @@ export function SelectInput({
   return (
     <Select
       id={id}
-      className="w-full"
       labelText={required ? `${label} *` : label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       invalid={!!error}
       invalidText={error}
-      helperText={error ? undefined : typeof helperText === "string" ? helperText : undefined}
+      helperText={error ? undefined : helperText}
     >
-      {placeholder && (
-        <SelectItem value="" text={placeholder} />
-      )}
+      {placeholder && <SelectItem value="" text={placeholder} />}
       {options.map((option) => (
         <SelectItem key={option.value} value={option.value} text={option.label} />
       ))}

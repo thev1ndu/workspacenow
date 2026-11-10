@@ -1,14 +1,31 @@
-import { Archive } from "@carbon/react/icons";
 import type { ReactNode } from "react";
 
+import styles from "./NoDataFound.module.scss";
 
-/** Empty state: an icon, a message and an optional action. */
-export function NoDataFound({ message, action, icon }: { message: string; action?: ReactNode; icon?: ReactNode }) {
+export interface NoDataFoundProps {
+  /** The helper text; with no `title` it is the only line. */
+  message: string;
+  /** Heading above the message, as in Carbon's empty-state pattern. */
+  title?: string;
+  action?: ReactNode;
+  /** Optional Carbon icon element shown above the heading. */
+  icon?: ReactNode;
+}
+
+/** Empty state in Carbon's pattern: a heading, helper text and an optional action. */
+export function NoDataFound({ message, title, action, icon }: NoDataFoundProps) {
   return (
-    <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-      <div className="text-muted [&_svg]:size-6">{icon ?? <Archive />}</div>
-      <p className="text-sm text-muted">{message}</p>
-      {action}
+    <div className={styles.empty}>
+      {icon && <div className={styles.icon}>{icon}</div>}
+      {title ? (
+        <>
+          <p className={styles.title}>{title}</p>
+          <p className={styles.message}>{message}</p>
+        </>
+      ) : (
+        <p className={styles.title}>{message}</p>
+      )}
+      {action && <div className={styles.action}>{action}</div>}
     </div>
   );
 }

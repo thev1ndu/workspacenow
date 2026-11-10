@@ -1,7 +1,6 @@
 import { Grid, Add, QrCode, ShoppingCart } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, IconButton, InlineNotification } from "@carbon/react";
-import { Close } from "@carbon/react/icons";
+import { Button, InlineNotification, Stack } from "@carbon/react";
 
 import { useCreateRecord, useGetEntity, useListRecords } from "@workspacenow/api-client";
 import type { AppPage, EntityRecord } from "@workspacenow/types";
@@ -36,32 +35,27 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
         if (page.kind === "form") {
           return (
             <SectionCard title={page.title} subtitle={`Creates a ${e.label.toLowerCase()} through ${e.name}.create`}>
-              {saved && (
-                <div className="mb-4 flex items-start gap-2">
-                  <InlineNotification kind="success" lowContrast hideCloseButton title={`Saved ${saved}.`} className="flex-1" />
-                  <IconButton kind="ghost" label="Dismiss" aria-label="Dismiss" onClick={() => setSaved(null)}>
-                    <Close size={16} aria-hidden />
-                  </IconButton>
-                </div>
-              )}
-              <RecordForm
-                key={formKey}
-                entity={e}
-                isPending={createRecord.isPending}
-                error={createRecord.error}
-                submitLabel={`Create ${e.label.toLowerCase()}`}
-                onSubmit={(values) =>
-                  createRecord.mutate(
-                    { entityName: e.name, values },
-                    {
-                      onSuccess: (record) => {
-                        setSaved(record.id);
-                        setFormKey((k) => k + 1);
+              <Stack gap={5}>
+                {saved && <InlineNotification key={saved} kind="success" lowContrast title={`Saved ${saved}.`} onCloseButtonClick={() => setSaved(null)} />}
+                <RecordForm
+                  key={formKey}
+                  entity={e}
+                  isPending={createRecord.isPending}
+                  error={createRecord.error}
+                  submitLabel={`Create ${e.label.toLowerCase()}`}
+                  onSubmit={(values) =>
+                    createRecord.mutate(
+                      { entityName: e.name, values },
+                      {
+                        onSuccess: (record) => {
+                          setSaved(record.id);
+                          setFormKey((k) => k + 1);
+                        },
                       },
-                    },
-                  )
-                }
-              />
+                    )
+                  }
+                />
+              </Stack>
             </SectionCard>
           );
         }
@@ -72,7 +66,7 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
         if (page.kind === "dashboard") {
           return (
             <MetricGrid columns={3}>
-              <Metric label={`${e.label} records`} value={records.data?.total ?? "—"} icon={<Grid />} />
+              <Metric label={`${e.label} records`} value={records.data?.total ?? "-"} icon={<Grid />} />
             </MetricGrid>
           );
         }
@@ -81,8 +75,7 @@ export function PreviewPageRenderer({ page, qrField }: { page: AppPage; qrField?
             title={page.title}
             actions={
               !readOnly && (
-                <Button size="sm" onClick={() => setCreating(true)}>
-                  <Add className="size-3.5" aria-hidden />
+                <Button size="sm" renderIcon={Add} onClick={() => setCreating(true)}>
                   New {e.label.toLowerCase()}
                 </Button>
               )

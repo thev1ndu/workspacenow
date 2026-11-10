@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import styles from "./DetailList.module.scss";
+
 export interface DetailItem {
   label: string;
   value: ReactNode;
@@ -7,22 +9,21 @@ export interface DetailItem {
   fullWidth?: boolean;
 }
 
-// Columns grow to their content and share any shortfall, so a long URL is not squeezed to the width of a count.
-const COLUMNS: Record<number, string> = {
-  1: "sm:grid-cols-1",
-  2: "sm:grid-cols-[repeat(2,minmax(0,max-content))]",
-  3: "sm:grid-cols-[repeat(3,minmax(0,max-content))]",
-  4: "sm:grid-cols-[repeat(4,minmax(0,max-content))]",
-};
+const COLUMNS: Record<number, string> = { 1: "", 2: styles.cols2, 3: styles.cols3, 4: styles.cols4 };
+
+/** Grid classes for `columns` columns, shared with DetailSkeleton. */
+export function detailColumns(columns: number): string {
+  return [styles.list, COLUMNS[columns] ?? COLUMNS[2]].filter(Boolean).join(" ");
+}
 
 /** Read-only label/value pairs, as on a resource's overview. */
 export function DetailList({ items, columns = 1 }: { items: DetailItem[]; columns?: number }) {
   return (
-    <dl className={`grid grid-cols-1 gap-x-12 gap-y-4 ${COLUMNS[columns] ?? COLUMNS[2]}`}>
+    <dl className={detailColumns(columns)}>
       {items.map((item) => (
-        <div key={item.label} className={`min-w-0 ${item.fullWidth ? "col-span-full" : ""}`}>
-          <dt className="text-xs text-muted">{item.label}</dt>
-          <dd className="mt-1 text-sm break-words text-foreground">{item.value ?? "—"}</dd>
+        <div key={item.label} className={[styles.item, item.fullWidth ? styles.full : ""].filter(Boolean).join(" ")}>
+          <dt className={styles.label}>{item.label}</dt>
+          <dd className={styles.value}>{item.value ?? "-"}</dd>
         </div>
       ))}
     </dl>

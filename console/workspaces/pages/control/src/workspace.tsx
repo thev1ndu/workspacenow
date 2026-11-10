@@ -17,7 +17,7 @@ export const controlWorkspace: WorkspaceModule = {
   key: "control",
   title: "Control",
   description: "Govern identity, access, environments, deployments, audit and health across the installation.",
-  icon: <Security className="size-4" />,
+  icon: <Security size={16} />,
   basePath: routes.control.root,
   navigation: [
     { label: "Overview", href: routes.control.root, end: true },

@@ -1,0 +1,8 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: $spacing-05;
+  min-inline-size: 0;
+}

@@ -1,0 +1,230 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+@use '@carbon/styles/scss/utilities/z-index' as *;
+
+// Docked Sidekick: a Carbon header panel widened for conversation and kept mounted while closed.
+.dock:global(.cds--header-panel) {
+  // Below the header, so the notification and account panels open over it.
+  z-index: z('header') - 1;
+  background-color: $layer;
+  color: $text-primary;
+  overflow: hidden;
+}
+
+.dock:global(.cds--header-panel--expanded) {
+  inline-size: 21.25rem;
+  max-inline-size: 100vw;
+  overflow: hidden;
+}
+
+.dockBody {
+  block-size: 100%;
+  inline-size: 21.25rem;
+  max-inline-size: 100vw;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  border-block-end: 1px solid $border-subtle;
+  block-size: $spacing-09;
+  gap: $spacing-03;
+  padding-inline-start: $spacing-05;
+}
+
+.headerIcon {
+  fill: $icon-primary;
+  flex-shrink: 0;
+}
+
+.title {
+  @include type-style('heading-compact-02');
+
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleScope {
+  color: $text-secondary;
+  font-weight: 400;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-05;
+}
+
+.welcome {
+  display: grid;
+  gap: $spacing-05;
+}
+
+.hello {
+  @include type-style('heading-03');
+}
+
+.hint {
+  @include type-style('body-compact-01');
+
+  color: $text-secondary;
+  margin-block-start: $spacing-02;
+}
+
+.suggestions {
+  display: grid;
+  gap: $spacing-03;
+}
+
+// Carbon buttons keep one line; suggestions are sentences, so let them wrap.
+.suggestion:global(.cds--btn) {
+  block-size: auto;
+  inline-size: 100%;
+  max-inline-size: none;
+  min-block-size: $spacing-09;
+  white-space: normal;
+}
+
+.turns {
+  display: grid;
+  gap: $spacing-06;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.turn {
+  display: grid;
+  gap: $spacing-04;
+}
+
+.prompt {
+  @include type-style('body-compact-01');
+
+  background-color: $layer-accent;
+  justify-self: end;
+  max-inline-size: 85%;
+  padding: $spacing-03 $spacing-05;
+}
+
+.reply {
+  display: grid;
+  gap: $spacing-04;
+}
+
+.calls {
+  display: grid;
+  border: 1px solid $border-subtle;
+  gap: $spacing-03;
+  list-style: none;
+  margin: 0;
+  padding: $spacing-04 $spacing-05;
+}
+
+.call {
+  @include type-style('helper-text-01');
+
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-03;
+}
+
+.callIcon {
+  flex-shrink: 0;
+}
+
+.callAllowed {
+  fill: $support-success;
+}
+
+.callDenied {
+  fill: $support-error;
+}
+
+.callTool {
+  @include type-style('body-compact-01');
+
+  color: $text-primary;
+}
+
+.callReason {
+  display: block;
+  color: $text-secondary;
+}
+
+.error {
+  @include type-style('body-compact-01');
+
+  color: $text-error;
+}
+
+.markdown {
+  @include type-style('body-01');
+
+  color: $text-primary;
+  overflow-wrap: anywhere;
+}
+
+.markdown p {
+  margin-block: 0 $spacing-04;
+}
+
+.markdown ul,
+.markdown ol {
+  margin-block: 0 $spacing-04;
+  padding-inline-start: $spacing-06;
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown code {
+  @include type-style('code-01');
+
+  background-color: $layer-accent;
+  padding-inline: $spacing-02;
+}
+
+.markdown pre {
+  background-color: $layer-accent;
+  margin-block: 0 $spacing-04;
+  overflow-x: auto;
+  padding: $spacing-04;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown a {
+  color: $link-primary;
+}
+
+.form {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  border-block-start: 1px solid $border-subtle;
+  gap: $spacing-03;
+  padding: $spacing-05;
+}
+
+.formInput {
+  flex: 1;
+}

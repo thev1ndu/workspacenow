@@ -1,22 +1,17 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { Tile } from "@carbon/react";
 
-const COLUMNS: Record<number, string> = {
-  2: "grid-cols-2",
-  3: "grid-cols-1 sm:grid-cols-3",
-  4: "grid-cols-2 md:grid-cols-4",
-  5: "grid-cols-2 md:grid-cols-3 xl:grid-cols-5",
-  6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
-};
+import styles from "./Metric.module.scss";
+
+const COLUMNS: Record<number, string> = { 2: "", 3: styles.cols3, 4: styles.cols4, 5: styles.cols5, 6: styles.cols6 };
 
 /** Grid class for a KPI row of `columns` tiles. */
 export function metricGridColumns(columns: number): string {
-  return `grid gap-4 ${COLUMNS[columns] ?? COLUMNS[4]}`;
+  return [styles.grid, COLUMNS[columns] ?? COLUMNS[4]].filter(Boolean).join(" ");
 }
 
-/**
- * Headline numbers as a responsive grid of individual KPI tiles (not one divided strip).
- */
+/** Headline numbers as a responsive grid of individual KPI tiles (not one divided strip). */
 export function MetricGrid({ columns, children }: { columns: number; children: ReactNode }) {
   return <div className={metricGridColumns(columns)}>{children}</div>;
 }
@@ -28,27 +23,30 @@ export function MetricGrid({ columns, children }: { columns: number; children: R
 export function Metric({ label, value, icon, hint, href }: { label: string; value: ReactNode; icon?: ReactNode; hint?: ReactNode; href?: string }) {
   const body = (
     <>
-      <div className="flex items-center gap-1.5 text-xs text-muted [&_svg]:size-3.5 [&_svg]:shrink-0">
+      <div className={styles.label}>
         {icon}
-        <span className="truncate">{label}</span>
+        <span className={styles.labelText}>{label}</span>
       </div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums text-foreground">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted">{hint}</div>}
+      <div className={styles.value}>{value}</div>
+      {hint && <div className={styles.hint}>{hint}</div>}
     </>
   );
-  const tile = "rounded-xl border border-separator bg-surface";
-  if (href) {
-    // The router does not scroll to in-page sections, so a "#id" target stays a plain anchor.
-    const link = href.startsWith("#") ? (
-      <a href={href} className="block min-w-0 px-4 py-3.5 no-underline">
-        {body}
-      </a>
-    ) : (
-      <Link to={href} className="block min-w-0 px-4 py-3.5 no-underline">
-        {body}
-      </Link>
+  if (!href) {
+    return (
+      <Tile className={styles.tile}>
+        <div className={styles.tileBody}>{body}</div>
+      </Tile>
     );
-    return <div className={`${tile} overflow-hidden transition-colors hover:bg-surface-secondary`}>{link}</div>;
   }
-  return <div className={`${tile} px-4 py-3.5`}>{body}</div>;
+  // The router does not scroll to in-page sections, so a "#id" target stays a plain anchor.
+  const link = href.startsWith("#") ? (
+    <a href={href} className={`${styles.tileBody} ${styles.link}`}>
+      {body}
+    </a>
+  ) : (
+    <Link to={href} className={`${styles.tileBody} ${styles.link}`}>
+      {body}
+    </Link>
+  );
+  return <Tile className={`${styles.tile} ${styles.clickable}`}>{link}</Tile>;
 }

@@ -1,6 +1,8 @@
-import { Button, Modal } from "@carbon/react";
+import { Button, CodeSnippet, Modal, StructuredListBody, StructuredListCell, StructuredListHead, StructuredListRow, StructuredListWrapper } from "@carbon/react";
 import { useReadSecret } from "@workspacenow/api-client";
 import { errorMessage } from "@workspacenow/views";
+
+import common from "../common.module.scss";
 
 /** Shows one OpenBao secret's values to a control.manage user; the platform never stores or logs them. */
 export function SecretValuesDialog({ path, onClose }: { path: string; onClose: () => void }) {
@@ -9,8 +11,10 @@ export function SecretValuesDialog({ path, onClose }: { path: string; onClose: (
     <Modal
       open
       size="md"
-      modalHeading={<span className="break-all font-mono text-sm">{path}</span>}
+      modalLabel="OpenBao secret"
+      modalHeading={path}
       onRequestClose={onClose}
+      passiveModal={false}
       secondaryButtonText="Close"
       onSecondarySubmit={onClose}
     >
@@ -19,17 +23,33 @@ export function SecretValuesDialog({ path, onClose }: { path: string; onClose: (
           Reveal values
         </Button>
       ) : read.error ? (
-        <p className="text-sm text-danger">{errorMessage(read.error)}</p>
+        <p className={common.error}>{errorMessage(read.error)}</p>
       ) : (
         read.data && (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-            {Object.entries(read.data.values).map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="font-mono text-xs text-muted">{k}</dt>
-                <dd className="break-all font-mono text-xs">{v}</dd>
-              </div>
-            ))}
-          </dl>
+          <StructuredListWrapper isCondensed aria-label="Secret values">
+            <StructuredListHead>
+              <StructuredListRow head>
+                <StructuredListCell head>Key</StructuredListCell>
+                <StructuredListCell head>Value</StructuredListCell>
+              </StructuredListRow>
+            </StructuredListHead>
+            <StructuredListBody>
+              {Object.entries(read.data.values).map(([k, v]) => (
+                <StructuredListRow key={k}>
+                  <StructuredListCell>
+                    <CodeSnippet type="inline" feedback="Copied">
+                      {k}
+                    </CodeSnippet>
+                  </StructuredListCell>
+                  <StructuredListCell>
+                    <CodeSnippet type="inline" feedback="Copied">
+                      {v}
+                    </CodeSnippet>
+                  </StructuredListCell>
+                </StructuredListRow>
+              ))}
+            </StructuredListBody>
+          </StructuredListWrapper>
         )
       )}
     </Modal>

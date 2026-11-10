@@ -1,0 +1,5 @@
+@use '@carbon/styles/scss/spacing' as *;
+
+.grid {
+  row-gap: $spacing-05;
+}

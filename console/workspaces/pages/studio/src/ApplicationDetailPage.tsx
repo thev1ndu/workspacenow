@@ -7,6 +7,7 @@ import { buildPath, routes } from "@workspacenow/types";
 import { LinkButton, PageLayout, QueryState } from "@workspacenow/views";
 import { AppApisTab, AppDataTab, AppOverviewTab, AppWorkflowsTab } from "./subComponents/ApplicationTabs";
 import { PinButton } from "./apps/PinButton";
+import shared from "./shared.module.scss";
 import { DeploymentsTab, ReleasesTab } from "./subComponents/ReleaseTabs";
 import { BuilderTools } from "./subComponents/BuilderTools";
 
@@ -29,13 +30,11 @@ export function ApplicationDetailPage() {
           <>
             <PinButton app={application.data} variant="secondary" />
             {canBuild && (
-              <LinkButton variant="secondary" href={buildPath(routes.studio.applicationEdit, { appId: application.data.id })}>
-                <Edit className="size-4" aria-hidden />
+              <LinkButton variant="secondary" href={buildPath(routes.studio.applicationEdit, { appId: application.data.id })} renderIcon={Edit}>
                 Edit
               </LinkButton>
             )}
-            <LinkButton variant="primary" href={buildPath(routes.app, { appId: application.data.id })}>
-              <ArrowUpRight className="size-4" aria-hidden />
+            <LinkButton variant="primary" href={buildPath(routes.app, { appId: application.data.id })} renderIcon={ArrowUpRight}>
               Open app
             </LinkButton>
           </>
@@ -45,31 +44,31 @@ export function ApplicationDetailPage() {
       <QueryState query={application}>
         {(app) => (
           <Tabs defaultSelectedIndex={0}>
-            <TabList aria-label="Application sections" className="mb-6 overflow-x-auto">
+            <TabList aria-label="Application sections">
               {TABS.map((t) => (
                 <Tab key={t}>{t}</Tab>
               ))}
             </TabList>
             <TabPanels>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <AppOverviewTab app={app} />
               </TabPanel>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <BuilderTools app={app} />
               </TabPanel>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <AppDataTab app={app} />
               </TabPanel>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <AppApisTab app={app} />
               </TabPanel>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <AppWorkflowsTab app={app} />
               </TabPanel>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <ReleasesTab app={app} />
               </TabPanel>
-              <TabPanel className="mt-0">
+              <TabPanel className={shared.panel}>
                 <DeploymentsTab app={app} />
               </TabPanel>
             </TabPanels>

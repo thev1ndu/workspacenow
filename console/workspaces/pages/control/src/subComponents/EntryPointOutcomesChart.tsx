@@ -1,12 +1,15 @@
-import { EvilBarChart, type ChartConfig } from "@workspacenow/charts";
+import { ScaleTypes, StackedBarChart, isEmptySeries, type ChartTabularData, type StackedBarChartOptions } from "@workspacenow/charts";
 import { useEntryPointBreakdown } from "@workspacenow/api-client";
-import { QueryState, SectionCard, ChartSkeleton } from "@workspacenow/views";
+import { ChartSkeleton, NoDataFound, QueryState, SectionCard } from "@workspacenow/views";
 
-const outcomeConfig = {
-  allowed: { label: "Allowed", colors: { light: ["var(--success)"], dark: ["var(--success)"] } },
-  denied: { label: "Denied", colors: { light: ["var(--danger)"], dark: ["var(--danger)"] } },
-  failed: { label: "Failed", colors: { light: ["var(--warning)"], dark: ["var(--warning)"] } },
-} satisfies ChartConfig;
+const OPTIONS: StackedBarChartOptions = {
+  resizable: true,
+  accessibility: { svgAriaLabel: "Audited actions by entry point and outcome" },
+  axes: {
+    bottom: { mapsTo: "key", scaleType: ScaleTypes.LABELS },
+    left: { mapsTo: "value", stacked: true },
+  },
+};
 
 /** Every audited action, stacked by outcome, for each interface it came through. */
 export function EntryPointOutcomesChart() {
@@ -14,18 +17,15 @@ export function EntryPointOutcomesChart() {
   return (
     <SectionCard title="Outcomes by entry point" subtitle="Every audited action, by the interface it came through">
       <QueryState query={breakdown} skeleton={<ChartSkeleton />}>
-        {(data) => (
-          <EvilBarChart config={outcomeConfig} data={data.items} className="aspect-auto h-56 flex-none" stackType="stacked" barRadius={3}>
-            <EvilBarChart.Grid vertical={false} />
-            <EvilBarChart.XAxis dataKey="entryPoint" />
-            <EvilBarChart.YAxis width={36} />
-            <EvilBarChart.Tooltip />
-            <EvilBarChart.Legend align="left" isClickable />
-            <EvilBarChart.Bar dataKey="allowed" />
-            <EvilBarChart.Bar dataKey="denied" />
-            <EvilBarChart.Bar dataKey="failed" />
-          </EvilBarChart>
-        )}
+        {(data) => {
+          const points: ChartTabularData = data.items.flatMap((item) => [
+            { group: "Allowed", key: item.entryPoint, value: item.allowed },
+            { group: "Denied", key: item.entryPoint, value: item.denied },
+            { group: "Failed", key: item.entryPoint, value: item.failed },
+          ]);
+          if (isEmptySeries(points)) return <NoDataFound message="No audited actions yet." />;
+          return <StackedBarChart data={points} options={OPTIONS} />;
+        }}
       </QueryState>
     </SectionCard>
   );

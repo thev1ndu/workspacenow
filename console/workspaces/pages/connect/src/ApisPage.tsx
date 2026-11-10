@@ -1,7 +1,9 @@
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableHeader, TableRow } from "@carbon/react";
 import { useListApiOperations, useListApis, useListApplications } from "@workspacenow/api-client";
 import { buildPath, routes } from "@workspacenow/types";
-import { NoDataFound, PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
+import { PageLayout, QueryState, SectionCard, StatusChip, TextLink } from "@workspacenow/views";
+import { PagedTable } from "./subComponents/ResourceTable";
+
+import common from "./common.module.scss";
 
 export function ApisPage() {
   const apis = useListApis();
@@ -15,44 +17,24 @@ export function ApisPage() {
     <PageLayout title="APIs" description="Versioned REST APIs. Each operation maps to one governed business operation.">
       <SectionCard flush>
         <QueryState query={apis}>
-          {(data) =>
-            data.items.length === 0 ? (
-              <NoDataFound message="No APIs yet. Studio generates one for every application." />
-            ) : (
-              <TableContainer>
-                <Table aria-label="APIs" className="min-w-[720px]">
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader scope="col">Name</TableHeader>
-                      <TableHeader scope="col">Base path</TableHeader>
-                      <TableHeader scope="col">Application</TableHeader>
-                      <TableHeader scope="col">Version</TableHeader>
-                      <TableHeader scope="col">Lifecycle</TableHeader>
-                      <TableHeader scope="col" className="text-right">
-                        Operations
-                      </TableHeader>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {data.items.map((api) => (
-                      <TableRow key={api.id} id={api.id}>
-                        <TableCell>
-                          <TextLink to={buildPath(routes.connect.api, { apiId: api.id })}>{api.name}</TextLink>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{api.basePath}</TableCell>
-                        <TableCell>{appName(api.applicationId)}</TableCell>
-                        <TableCell className="tabular-nums">{api.version}</TableCell>
-                        <TableCell>
-                          <StatusChip status={api.lifecycle} />
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{opCount(api.id)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )
-          }
+          {(data) => (
+            <PagedTable
+              label="APIs"
+              items={data.items}
+              rowKey={(api) => api.id}
+              emptyMessage="No APIs yet. Studio generates one for every application."
+              searchPlaceholder="Search APIs"
+              searchText={(api) => `${api.name} ${api.basePath} ${appName(api.applicationId)} ${api.version} ${api.lifecycle}`}
+              columns={[
+                { key: "name", header: "Name", cell: (api) => <TextLink to={buildPath(routes.connect.api, { apiId: api.id })}>{api.name}</TextLink> },
+                { key: "basePath", header: "Base path", cell: (api) => <span className={common.mono}>{api.basePath}</span> },
+                { key: "application", header: "Application", cell: (api) => appName(api.applicationId) },
+                { key: "version", header: "Version", cell: (api) => <span className={common.numeric}>{api.version}</span> },
+                { key: "lifecycle", header: "Lifecycle", cell: (api) => <StatusChip status={api.lifecycle} /> },
+                { key: "operations", header: "Operations", end: true, cell: (api) => <span className={common.numeric}>{opCount(api.id)}</span> },
+              ]}
+            />
+          )}
         </QueryState>
       </SectionCard>
     </PageLayout>

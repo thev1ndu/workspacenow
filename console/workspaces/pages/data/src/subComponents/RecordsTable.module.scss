@@ -1,0 +1,59 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.clickable {
+  cursor: pointer;
+}
+
+.id {
+  @include type-style('code-01');
+
+  color: $text-secondary;
+  white-space: nowrap;
+}
+
+.cell {
+  white-space: nowrap;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.updated {
+  color: $text-secondary;
+  text-align: end;
+  white-space: nowrap;
+}
+
+// Cells stay on one line; long text truncates with the full value on hover.
+.truncate {
+  display: block;
+  max-inline-size: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  color: $text-secondary;
+}
+
+.menuItem {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-03;
+
+  svg {
+    flex-shrink: 0;
+    fill: currentcolor;
+  }
+}
+
+.actions {
+  inline-size: 1px;
+  white-space: nowrap;
+}

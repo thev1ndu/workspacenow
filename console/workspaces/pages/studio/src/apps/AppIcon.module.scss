@@ -1,0 +1,33 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+.icon {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 1px solid $border-subtle-01;
+  background: $layer-02;
+}
+
+.xs {
+  inline-size: $spacing-06;
+  block-size: $spacing-06;
+  padding: $spacing-01;
+}
+
+.sm {
+  inline-size: $spacing-07;
+  block-size: $spacing-07;
+  padding: $spacing-02;
+}
+
+.md {
+  inline-size: $spacing-08;
+  block-size: $spacing-08;
+  padding: $spacing-02;
+}
+
+.lg {
+  inline-size: $spacing-09;
+  block-size: $spacing-09;
+  padding: $spacing-03;
+}

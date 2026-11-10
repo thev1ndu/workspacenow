@@ -13,7 +13,7 @@ export const aiWorkspace: WorkspaceModule = {
   key: "ai",
   title: "AI",
   description: "Build, test and govern AI agents that act through MCP tools with their own identities.",
-  icon: <Bot className="size-4" />,
+  icon: <Bot size={16} />,
   basePath: routes.ai.root,
   navigation: [
     { label: "Overview", href: routes.ai.root, end: true },

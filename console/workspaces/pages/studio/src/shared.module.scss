@@ -1,0 +1,62 @@
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+@use '@carbon/styles/scss/theme' as *;
+
+// Small building blocks reused across the studio pages, expressed with Carbon tokens.
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-02;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.right {
+  text-align: end;
+}
+
+.muted {
+  color: $text-secondary;
+}
+
+.helper {
+  @include type-style('helper-text-01');
+
+  color: $text-secondary;
+}
+
+.body {
+  @include type-style('body-compact-01');
+
+  color: $text-secondary;
+}
+
+.mono {
+  @include type-style('code-01');
+}
+
+.actionsCell {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-02;
+}
+
+// Tab panels sit flush with the page content instead of Carbon's default inset.
+.panel:global(.cds--tab-content) {
+  padding-inline: 0;
+}

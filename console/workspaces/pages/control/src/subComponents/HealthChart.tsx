@@ -1,12 +1,19 @@
-import { EvilPieChart, type ChartConfig } from "@workspacenow/charts";
+import { Alignments, DonutChart, isEmptySeries, type ChartTabularData, type DonutChartOptions } from "@workspacenow/charts";
 import { useListHealth } from "@workspacenow/api-client";
-import { QueryState, SectionCard, DonutSkeleton } from "@workspacenow/views";
+import { DonutSkeleton, NoDataFound, QueryState, SectionCard } from "@workspacenow/views";
 
-const healthConfig = {
-  healthy: { label: "Healthy", colors: { light: ["var(--success)"], dark: ["var(--success)"] } },
-  degraded: { label: "Degraded", colors: { light: ["var(--warning)"], dark: ["var(--warning)"] } },
-  down: { label: "Down", colors: { light: ["var(--danger)"], dark: ["var(--danger)"] } },
-} satisfies ChartConfig;
+const STATUSES = [
+  { status: "healthy", group: "Healthy" },
+  { status: "degraded", group: "Degraded" },
+  { status: "down", group: "Down" },
+] as const;
+
+const OPTIONS: DonutChartOptions = {
+  resizable: true,
+  accessibility: { svgAriaLabel: "Resources by current health status" },
+  donut: { alignment: Alignments.CENTER, center: { label: "Resources" } },
+  legend: { alignment: Alignments.CENTER },
+};
 
 /** Resources by current health status, as a donut. */
 export function HealthChart() {
@@ -15,16 +22,12 @@ export function HealthChart() {
     <SectionCard title="Health" subtitle="Resources by current status">
       <QueryState query={health} skeleton={<DonutSkeleton />}>
         {(data) => {
-          const slices = (["healthy", "degraded", "down"] as const)
-            .map((status) => ({ status, count: data.items.filter((s) => s.status === status).length }))
-            .filter((slice) => slice.count > 0);
-          return (
-            <EvilPieChart config={healthConfig} data={slices} dataKey="count" nameKey="status" className="aspect-auto h-56 flex-none">
-              <EvilPieChart.Pie innerRadius="55%" />
-              <EvilPieChart.Tooltip />
-              <EvilPieChart.Legend />
-            </EvilPieChart>
-          );
+          const slices: ChartTabularData = STATUSES.map(({ status, group }) => ({
+            group,
+            value: data.items.filter((s) => s.status === status).length,
+          })).filter((slice) => slice.value > 0);
+          if (isEmptySeries(slices)) return <NoDataFound message="No health signals yet." />;
+          return <DonutChart data={slices} options={OPTIONS} />;
         }}
       </QueryState>
     </SectionCard>

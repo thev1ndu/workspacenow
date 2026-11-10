@@ -1,13 +1,16 @@
 import { Checkmark, Edit, AiGenerate, Close } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, Tab, TabList, TabPanel, TabPanels, Tabs, Tag } from "@carbon/react";
+import { Button, Stack, Tab, TabList, TabPanel, TabPanels, Tabs } from "@carbon/react";
 
 import { useNavigate } from "react-router-dom";
 import { useApplyApplicationPlan, useCan, useListEntities, usePlanApplication } from "@workspacenow/api-client";
 import { buildPath, routes, validatePlan, type ApplicationPlan } from "@workspacenow/types";
 import { PageLayout, SectionCard, TextInput, errorMessage } from "@workspacenow/views";
-import { Notice } from "./subComponents/Notice";
+import { Notice, ProblemNotice } from "./subComponents/Notice";
+import { PlanBanner } from "./subComponents/PlanBanner";
 import { PlanEditor, blankPlan } from "./subComponents/PlanEditor";
+import shared from "./shared.module.scss";
+import styles from "./BuilderPage.module.scss";
 
 const EXAMPLES = [
   {
@@ -37,29 +40,23 @@ export function BuilderPage() {
       backHref={routes.studio.applications}
       backLabel="Applications"
     >
-      <div className="grid gap-6">
+      <Stack gap={6}>
         {!canBuild && (
           <Notice>Building applications needs studio.manage. Switch to Sahan Gunawardena (Application Developer) or Amaya Perera.</Notice>
         )}
         {!plan && (
           <Tabs>
-            <TabList aria-label="How to start" className="self-start">
-              <Tab>
-                <AiGenerate className="size-4" aria-hidden />
-                Generate with AI
-              </Tab>
-              <Tab>
-                <Edit className="size-4" aria-hidden />
-                Design it yourself
-              </Tab>
+            <TabList aria-label="How to start">
+              <Tab renderIcon={AiGenerate}>Generate with AI</Tab>
+              <Tab renderIcon={Edit}>Design it yourself</Tab>
             </TabList>
             <TabPanels>
-              <TabPanel className="mt-5">
+              <TabPanel className={shared.panel}>
                 <SectionCard title="Describe the application" subtitle="Plain language works best: who uses it, what they track, and what needs approval.">
-                  <div className="grid gap-4">
+                  <Stack gap={5}>
                     <TextInput label="What should it do?" value={prompt} onChange={setPrompt} multiline rows={3} placeholder="Build an application that…" />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted">Start from an example</span>
+                    <div className={styles.examples}>
+                      <span className={styles.examplesLabel}>Start from an example</span>
                       {EXAMPLES.map((example) => (
                         <Button key={example.label} size="sm" kind="tertiary" onClick={() => setPrompt(example.prompt)}>
                           {example.label}
@@ -75,13 +72,12 @@ export function BuilderPage() {
                         {planApplication.isPending ? "Planning…" : "Generate plan"}
                       </Button>
                     </div>
-                  </div>
+                  </Stack>
                 </SectionCard>
               </TabPanel>
-              <TabPanel className="mt-5">
+              <TabPanel className={shared.panel}>
                 <SectionCard title="Design it yourself" subtitle="Define the entities, fields and pages in the visual editor. The platform generates the CRUD API for you.">
-                  <Button disabled={!canBuild} onClick={() => setPlan(blankPlan())}>
-                    <Edit className="size-4" aria-hidden />
+                  <Button disabled={!canBuild} renderIcon={Edit} onClick={() => setPlan(blankPlan())}>
                     Open the editor
                   </Button>
                 </SectionCard>
@@ -92,49 +88,36 @@ export function BuilderPage() {
 
         {plan && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface-secondary px-5 py-4">
-              <div className="grid min-w-0 flex-1 gap-1">
-                <div className="flex items-center gap-2">
-                  <Tag size="sm" type="gray">
-                    {plan.prompt ? "AI draft" : "Manual design"}
-                  </Tag>
-                  <span className="text-sm font-medium">{plan.name || "Untitled application"}</span>
-                </div>
-                <p className="text-sm text-muted">
-                  {plan.prompt ? "Drafted by the Application Architect. Edit anything below; " : ""}Creating it adds a draft application, its entities and a
-                  CRUD API.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button kind="tertiary" onClick={() => setPlan(null)}>
-                  <Close className="size-4" aria-hidden />
-                  Discard
-                </Button>
-                <Button
-                  disabled={problems.length > 0 || !canBuild || applyPlan.isPending}
-                  onClick={() => applyPlan.mutate(plan, { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) })}
-                >
-                  <Checkmark className="size-4" aria-hidden />
-                  {plan.prompt ? "Approve and create" : "Create application"}
-                </Button>
-              </div>
-            </div>
-            {problems.length > 0 && (
-              <Notice>
-                <span className="font-medium">Fix these before creating:</span>
-                <ul className="mt-1 list-disc pl-5">
-                  {problems.slice(0, 6).map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                  {problems.length > 6 && <li>and {problems.length - 6} more</li>}
-                </ul>
-              </Notice>
-            )}
+            <PlanBanner
+              badge={plan.prompt ? "AI draft" : "Manual design"}
+              name={plan.name}
+              description={
+                <>
+                  {plan.prompt ? "Drafted by the Application Architect. Edit anything below; " : ""}Creating it adds a draft application, its entities and a CRUD
+                  API.
+                </>
+              }
+              actions={
+                <>
+                  <Button kind="tertiary" renderIcon={Close} onClick={() => setPlan(null)}>
+                    Discard
+                  </Button>
+                  <Button
+                    renderIcon={Checkmark}
+                    disabled={problems.length > 0 || !canBuild || applyPlan.isPending}
+                    onClick={() => applyPlan.mutate(plan, { onSuccess: (app) => navigate(buildPath(routes.studio.application, { appId: app.id })) })}
+                  >
+                    {plan.prompt ? "Approve and create" : "Create application"}
+                  </Button>
+                </>
+              }
+            />
+            <ProblemNotice heading="Fix these before creating:" problems={problems} />
             {!!applyPlan.error && <Notice status="danger">{errorMessage(applyPlan.error)}</Notice>}
             <PlanEditor plan={plan} onChange={setPlan} existingEntities={existingEntities} />
           </>
         )}
-      </div>
+      </Stack>
     </PageLayout>
   );
 }

@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { ToastNotification } from "@carbon/react";
 
+import styles from "./Toaster.module.scss";
+
 export type Severity = "success" | "error" | "info" | "warning";
 
 const KINDS: Record<Severity, "success" | "error" | "info" | "warning"> = {
@@ -45,9 +47,9 @@ function subscribe(listener: () => void) {
 export function Toaster() {
   const items = useSyncExternalStore(subscribe, () => toasts);
   return (
-    <div style={{ position: "fixed", bottom: "1rem", right: "1rem", zIndex: 9999, display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: "24rem" }}>
+    <div className={styles.stack} aria-live="polite">
       {items.map((t) => (
-        <ToastNotification key={t.id} kind={KINDS[t.severity]} lowContrast title={t.message} onClose={() => dismiss(t.id)} timeout={6000} />
+        <ToastNotification key={t.id} kind={KINDS[t.severity]} lowContrast title={t.message} onClose={() => dismiss(t.id)} />
       ))}
     </div>
   );

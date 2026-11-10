@@ -1,12 +1,14 @@
 import { View, Edit, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
-import { Button, ComposedModal, ModalBody, ModalFooter, ModalHeader } from "@carbon/react";
+import { Modal } from "@carbon/react";
 
 import { useDeleteRecord, useUpdateRecord } from "@workspacenow/api-client";
 import type { Entity, EntityRecord } from "@workspacenow/types";
-import { DetailList, TablePager, TextInput, formatDateTime, formatRelative, usePagedSearch } from "@workspacenow/views";
+import { DetailList, TablePager, formatDateTime, formatRelative, usePagedSearch } from "@workspacenow/views";
 import { RecordFormDialog, recordLabel } from "./RecordForm";
 import { RecordsTable, formatFieldValue, type RecordAction } from "./RecordsTable";
+
+import common from "../common.module.scss";
 
 /** Read-only details for records owned by an external system, which cannot be edited here. */
 function RecordViewDialog({
@@ -21,59 +23,56 @@ function RecordViewDialog({
   onClose: () => void;
 }) {
   return (
-    <ComposedModal open onClose={onClose} size="md">
-      <ModalHeader title={recordLabel(record)} closeModal={onClose}>
-        <p className="font-mono text-xs text-muted">
-          {entity.label} {record.id}
-        </p>
-      </ModalHeader>
-      <ModalBody hasScrollingContent>
-        <DetailList
-          items={[
-            ...entity.fields.map((f) => ({
-              label: f.label,
-              value: formatFieldValue(f, record.values[f.name], labels),
-              fullWidth: f.type === "text",
-            })),
-            { label: "Created", value: `${formatDateTime(record.createdAt)} by ${record.createdBy}` },
-            { label: "Updated", value: formatRelative(record.updatedAt) },
-          ]}
-        />
-      </ModalBody>
-    </ComposedModal>
+    <Modal open passiveModal size="md" modalLabel={`${entity.label} ${record.id}`} modalHeading={recordLabel(record)} onRequestClose={onClose}>
+      <DetailList
+        items={[
+          ...entity.fields.map((f) => ({
+            label: f.label,
+            value: formatFieldValue(f, record.values[f.name], labels),
+            fullWidth: f.type === "text",
+          })),
+          { label: "Created", value: `${formatDateTime(record.createdAt)} by ${record.createdBy}` },
+          { label: "Updated", value: formatRelative(record.updatedAt) },
+        ]}
+      />
+    </Modal>
   );
 }
 
 function ConfirmDelete({
   entity,
-  record,
+  records,
   isPending,
   onCancel,
   onConfirm,
 }: {
   entity: Entity;
-  record: EntityRecord;
+  records: EntityRecord[];
   isPending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const [first] = records;
+  const many = records.length > 1;
   return (
-    <ComposedModal open onClose={onCancel} size="sm">
-      <ModalHeader title={`Delete ${recordLabel(record)}?`} closeModal={onCancel} />
-      <ModalBody>
-        <p className="text-sm text-muted">
-          This permanently removes {entity.label.toLowerCase()} {record.id}. It is refused while other records or a pending approval still use it.
-        </p>
-      </ModalBody>
-      <ModalFooter>
-        <Button kind="tertiary" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button kind="danger" disabled={isPending} onClick={onConfirm}>
-          Delete
-        </Button>
-      </ModalFooter>
-    </ComposedModal>
+    <Modal
+      open
+      danger
+      size="sm"
+      modalLabel={entity.label}
+      modalHeading={many ? `Delete ${records.length} ${entity.label.toLowerCase()} records?` : `Delete ${recordLabel(first)}?`}
+      primaryButtonText="Delete"
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={isPending}
+      onRequestClose={onCancel}
+      onRequestSubmit={onConfirm}
+    >
+      <p className={common.helper}>
+        {many
+          ? `This permanently removes ${records.length} ${entity.label.toLowerCase()} records. Each is refused while other records or a pending approval still use it.`
+          : `This permanently removes ${entity.label.toLowerCase()} ${first.id}. It is refused while other records or a pending approval still use it.`}
+      </p>
+    </Modal>
   );
 }
 
@@ -122,8 +121,7 @@ export function RecordsManager({
   const deleteRecord = useDeleteRecord();
   const [viewing, setViewing] = useState<EntityRecord | null>(null);
   const [editing, setEditing] = useState<EntityRecord | null>(null);
-  const [deleting, setDeleting] = useState<EntityRecord | null>(null);
-
+  const [deleting, setDeleting] = useState<EntityRecord[]>([]);
 
   const actions = (record: EntityRecord): RecordAction[] =>
     readOnly
@@ -131,17 +129,32 @@ export function RecordsManager({
       : [
           { id: "edit", label: "Edit", icon: <Edit />, onAction: () => setEditing(record) },
           ...(extraActions?.(record) ?? []),
-          { id: "delete", label: "Delete", icon: <TrashCan />, danger: true, onAction: () => setDeleting(record) },
+          { id: "delete", label: "Delete", icon: <TrashCan />, danger: true, onAction: () => setDeleting([record]) },
         ];
+
+  const confirmDelete = async () => {
+    // Each delete settles on its own, so one refused record does not stop the rest.
+    for (const record of deleting) {
+      try {
+        await deleteRecord.mutateAsync({ entityName: entity.name, recordId: record.id });
+      } catch {
+        // The failure is reported as a notification by the mutation.
+      }
+    }
+    setDeleting([]);
+  };
 
   return (
     <>
-      <div className="border-b border-separator px-5 py-3">
-        <div className="max-w-sm">
-          <TextInput label="Search records" value={shownSearch} onChange={onSearch} placeholder="Id, values or label" />
-        </div>
-      </div>
-      <RecordsTable entity={entity} records={shown} labels={labels} onOpen={readOnly ? setViewing : setEditing} actions={actions} />
+      <RecordsTable
+        entity={entity}
+        records={shown}
+        labels={labels}
+        onOpen={readOnly ? setViewing : setEditing}
+        actions={actions}
+        search={{ value: shownSearch, onChange: onSearch }}
+        onBatchDelete={readOnly ? undefined : setDeleting}
+      />
       <TablePager page={pg} totalPages={Math.max(1, Math.ceil(totalN / ps))} total={totalN} pageSize={ps} onPageChange={onPg} />
 
       {viewing && <RecordViewDialog entity={entity} record={viewing} labels={labels} onClose={() => setViewing(null)} />}
@@ -161,19 +174,8 @@ export function RecordsManager({
         />
       )}
 
-      {deleting && (
-        <ConfirmDelete
-          entity={entity}
-          record={deleting}
-          isPending={deleteRecord.isPending}
-          onCancel={() => setDeleting(null)}
-          onConfirm={() =>
-            deleteRecord.mutate(
-              { entityName: entity.name, recordId: deleting.id },
-              { onSuccess: () => setDeleting(null), onError: () => setDeleting(null) },
-            )
-          }
-        />
+      {deleting.length > 0 && (
+        <ConfirmDelete entity={entity} records={deleting} isPending={deleteRecord.isPending} onCancel={() => setDeleting([])} onConfirm={() => void confirmDelete()} />
       )}
     </>
   );

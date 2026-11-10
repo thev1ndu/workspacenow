@@ -18,6 +18,7 @@ var builtinAgents = []AgentDoc{
 		Instructions: "You help staff get work done from anywhere in the console. Answer questions and carry out requests with the tools you have. " +
 			"You act as the user: if they are not allowed to do something, say so and point them to who can.",
 		ActsAsCaller: true, Status: "active", MaxToolCallsPerRun: 20, Version: 1,
+		Permissions: []string{"*"}, // acts as the signed-in user; the intersection keeps only what the user holds
 	},
 	{
 		ID: "agent-application-architect", Name: "Application Architect", Kind: "platform", Model: "mistral-large-latest",

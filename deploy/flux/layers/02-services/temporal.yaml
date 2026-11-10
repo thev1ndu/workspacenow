@@ -1,0 +1,45 @@
+# Temporal: durable workflows on the wsn-db databases created in layer 01.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: temporal
+  namespace: temporal
+spec:
+  interval: 5m
+  timeout: 15m
+  chart:
+    spec:
+      chart: temporal
+      version: "0.x"
+      sourceRef: { kind: HelmRepository, name: temporal, namespace: flux-system }
+  values:
+    cassandra: { enabled: false }
+    mysql: { enabled: false }
+    postgresql: { enabled: true }
+    elasticsearch: { enabled: false }
+    prometheus: { enabled: false }
+    grafana: { enabled: false }
+    server:
+      # server image >= 1.30 uses built-in sprig templating; the dockerize mount is ignored by it
+      setConfigFilePath: true
+      configMapsToMount: "sprig"
+      config:
+        persistence:
+          default:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal
+              user: temporal
+              existingSecret: temporal-db
+          visibility:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: wsn-db-rw.workspacenow.svc
+              port: 5432
+              database: temporal_visibility
+              user: temporal
+              existingSecret: temporal-db

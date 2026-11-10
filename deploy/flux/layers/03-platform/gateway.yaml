@@ -1,0 +1,90 @@
+# kgateway Gateway with one ${cluster_issuer} TLS certificate per hostname under ${domain}.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: workspacenow
+  namespace: workspacenow
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - { name: http, protocol: HTTP, port: 80, allowedRoutes: { namespaces: { from: Same } } }
+    - name: https-console
+      protocol: HTTPS
+      port: 443
+      hostname: ${domain}
+      tls: { mode: Terminate, certificateRefs: [{ name: tls-console }] }
+      allowedRoutes: { namespaces: { from: Same } }
+    - name: https-api
+      protocol: HTTPS
+      port: 443
+      hostname: api.${domain}
+      tls: { mode: Terminate, certificateRefs: [{ name: tls-api }] }
+      allowedRoutes: { namespaces: { from: Same } }
+    - name: https-ai
+      protocol: HTTPS
+      port: 443
+      hostname: ai.${domain}
+      tls: { mode: Terminate, certificateRefs: [{ name: tls-ai }] }
+      allowedRoutes: { namespaces: { from: Same } }
+    - name: https-obs
+      protocol: HTTPS
+      port: 443
+      hostname: obs.${domain}
+      tls: { mode: Terminate, certificateRefs: [{ name: tls-obs }] }
+      allowedRoutes: { namespaces: { from: Same } }
+    - name: https-registry
+      protocol: HTTPS
+      port: 443
+      hostname: registry.${domain}
+      tls: { mode: Terminate, certificateRefs: [{ name: tls-registry }] }
+      allowedRoutes: { namespaces: { from: Same } }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-console
+  namespace: workspacenow
+spec:
+  secretName: tls-console
+  dnsNames: ["${domain}"]
+  issuerRef: { name: "${cluster_issuer}", kind: ClusterIssuer }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-api
+  namespace: workspacenow
+spec:
+  secretName: tls-api
+  dnsNames: ["api.${domain}"]
+  issuerRef: { name: "${cluster_issuer}", kind: ClusterIssuer }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-ai
+  namespace: workspacenow
+spec:
+  secretName: tls-ai
+  dnsNames: ["ai.${domain}"]
+  issuerRef: { name: "${cluster_issuer}", kind: ClusterIssuer }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-obs
+  namespace: workspacenow
+spec:
+  secretName: tls-obs
+  dnsNames: ["obs.${domain}"]
+  issuerRef: { name: "${cluster_issuer}", kind: ClusterIssuer }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-registry
+  namespace: workspacenow
+spec:
+  secretName: tls-registry
+  dnsNames: ["registry.${domain}"]
+  issuerRef: { name: "${cluster_issuer}", kind: ClusterIssuer }

@@ -1,0 +1,26 @@
+# wsn-db, the platform and Temporal databases; never pruned so removing it from git keeps the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: wsn-db
+  namespace: workspacenow
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }
+spec:
+  instances: 3
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: workspacenow
+      owner: workspacenow
+      postInitSQL:
+        - CREATE ROLE temporal LOGIN CREATEDB
+        - CREATE DATABASE temporal OWNER temporal
+        - CREATE DATABASE temporal_visibility OWNER temporal
+  managed:
+    roles:
+      - name: temporal
+        ensure: present
+        login: true
+        passwordSecret:
+          name: temporal-db-login

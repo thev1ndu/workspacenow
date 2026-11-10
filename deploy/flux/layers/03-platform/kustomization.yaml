@@ -1,0 +1,8 @@
+# Layer 03: ingress and images: the kgateway Gateway + TLS certs, the in-cluster registry, kaniko builds.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gateway.yaml
+  - registry.yaml
+  - builds.yaml
+  - host-aliases.yaml

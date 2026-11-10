@@ -118,7 +118,7 @@ How to test:
 | Business operations | `/business-operations`, `/business-operations/invoke` | Checkout at Kandy with more oil than stocked: 409 and no stock change (all or nothing); a valid checkout returns a receipt `KDY-T0001` |
 | Connect | `/apis`, `/api-operations`, MCP exposure, invoke, `/mcp/tools`, `/mcp/servers`, `/integrations`, integration test | Expose an operation twice under one tool name: 409; invoke an operation more than its rate limit in a minute: 429; test an integration whose host does not exist: `failing` with the reason in its audit record |
 | Studio | applications, plan (needs AI), apply, edit, releases, deployments, pins | Apply a plan, release it (1.0.0, blueprint in object storage under `releases/`), deploy to staging before development: 409; production as Sahan works, as a store manager 403 |
-- E2E (runs in CI on every commit): the `e2e` job boots `deploy/compose` with `--profile app` and runs `deploy/e2e/smoke.sh`; locally: `make up && bash deploy/e2e/smoke.sh`. On a CI failure: `docker compose -f deploy/compose/docker-compose.yml --profile app logs --tail=200`.
+- E2E (runs in CI on every commit): the `e2e` job boots `deploy/compose` with `--profile app` and runs `e2e/smoke.sh`; locally: `make up && bash e2e/smoke.sh`. On a CI failure: `docker compose -f deploy/compose/docker-compose.yml --profile app logs --tail=200`.
 | Live updates | `/events/stream` | Open the console on two browsers, check out a sale in one, the other updates without reload; `curl -N -H "Authorization: Bearer demo.u-amaya" localhost:8080/api/v1/events/stream` prints events |
 | Event relay | `-relay` role | After any write, `outbox.published_at` is set and the NATS stream `WSN_EVENTS` has the message (`nats stream info WSN_EVENTS`) |
 
@@ -177,15 +177,14 @@ How to test: `pnpm typecheck && pnpm lint && pnpm --filter @workspacenow/mock-se
 |---|---|
 | CI: Go, Python, console, Flux render, path filtered | written, not run |
 | Images from per-component Dockerfiles (multi-stage, non-root) to `ghcr.io/thev1ndu`, built with docker buildx | written, not run |
-| Flux: controllers, configs, apps per environment, image automation for dev | written, renders |
+| Flux: one cluster, numbered layers `00-foundation`…`04-apps`, values in `cluster/cluster-vars.yaml`, in-cluster kaniko builds | written, renders; CI checks every `${var}` is defined |
 | Console image from its Dockerfile (unprivileged nginx, uid 101, port 8080) | yes, not run |
-| Real hostnames and Gateway names in the overlays | placeholders (`workspacenow.example.com`, `gateway-system/gateway`) |
-| OpenBao roles and secrets for a real cluster | documented in `deploy/flux/README.md`, not done |
+| OpenBao roles and secrets | roles created by the `openbao-config` Job (layer 01); real values via `deploy/flux/scripts/openbao-seed.sh` |
 
 How to test:
 - Locally: `docker build -t wsn-service --build-arg VERSION=dev wsn-service`, same for `wsn-ai-service` and `console` (each has a multi-stage `Dockerfile`; runtime images run as non-root).
-- Manifests: `kubectl kustomize deploy/flux/apps/dev` (and the other layers) renders.
-- Cluster: on a kind or k3d cluster with Gateway API, `flux bootstrap ... --path=deploy/flux/clusters/dev`, then `flux get kustomizations` shows all three ready and the console loads at the dev hostname.
+- Manifests: `for d in deploy/flux/cluster deploy/flux/layers/*/; do kubectl kustomize "$d" >/dev/null; done` renders.
+- Cluster: on a kind or k3d cluster with Gateway API, `flux bootstrap ... --path=deploy/flux/cluster`, then `flux get kustomizations` shows `00-foundation`…`04-apps` ready and the console loads at `${domain}`.
 
 ## Suggested order
 

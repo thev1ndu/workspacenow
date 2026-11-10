@@ -1,0 +1,19 @@
+# The only file to edit per cluster: every layer substitutes these as ${name}; secrets live in OpenBao.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-vars
+  namespace: flux-system
+data:
+  # Base domain: console at it, api./ai./obs./registry. under it. One wildcard DNS record covers all.
+  domain: workspace.twotakeone.com
+  # Gateway load-balancer IP (metallb pool) that *.domain points at.
+  gateway_ip: 169.58.222.25
+  # cert-manager ClusterIssuer that issues the gateway TLS certs (must already exist).
+  cluster_issuer: letsencrypt-dns
+  # Source the in-cluster kaniko builds compile and the tag they push and the apps pull.
+  git_repo: github.com/thev1ndu/workspacenow.git
+  git_branch: main
+  image_tag: dev
+  # Console branding.
+  org_name: WorkspaceNow North

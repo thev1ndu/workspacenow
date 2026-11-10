@@ -1,0 +1,19 @@
+# Layer 04: the WorkspaceNow apps, built in-cluster by layer 03 and pulled from registry.${domain}.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: workspacenow
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: workspacenow
+resources:
+  - wsn-service.yaml
+  - wsn-ai-service.yaml
+  - wsn-observer.yaml
+  - console.yaml
+  - network.yaml
+  - backup-cronjob.yaml
+images:
+  - { name: wsn-service, newName: "registry.${domain}/wsn-service", newTag: "${image_tag}" }
+  - { name: wsn-ai-service, newName: "registry.${domain}/wsn-ai-service", newTag: "${image_tag}" }
+  - { name: wsn-observer, newName: "registry.${domain}/wsn-observer", newTag: "${image_tag}" }
+  - { name: console, newName: "registry.${domain}/console", newTag: "${image_tag}" }

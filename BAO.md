@@ -2,7 +2,7 @@
 
 All deployment secrets live in OpenBao (KV v2, mount `secret/`), never in git. external-secrets
 syncs them into Kubernetes Secrets via the `ClusterSecretStore openbao`
-(`deploy/flux/infrastructure/configs/configs.yaml`).
+(`deploy/flux/layers/01-secrets-data/`).
 
 ## Secret map
 
@@ -80,7 +80,7 @@ kubectl -n workspacenow get secret wsn-secrets -o jsonpath='{.data.WSN_LOCAL_ADM
 ```sh
 OPENBAO_ROOT_TOKEN=root MISTRAL_API_KEY=... AI_SERVICE_TOKEN=... OBSERVER_TOKEN=... \
   RUN_GRANT_PRIVATE_KEY=... OBJECT_STORAGE_ACCESS_KEY=... OBJECT_STORAGE_SECRET_KEY=... \
-  TEMPORAL_DB_PASSWORD=... ./deploy/flux/platform/openbao-seed.sh
+  TEMPORAL_DB_PASSWORD=... ./deploy/flux/scripts/openbao-seed.sh
 ```
 
 ## Roles (Kubernetes auth, created by the openbao-config Job)

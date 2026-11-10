@@ -1,0 +1,10 @@
+# Layer 00: namespaces, chart sources, operators and the kgateway controller (CRDs the next layers need).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespaces.yaml
+  - helmrepositories.yaml
+  - operators.yaml
+  - kgateway-crds.yaml
+  - kgateway.yaml
+  - metallb.yaml

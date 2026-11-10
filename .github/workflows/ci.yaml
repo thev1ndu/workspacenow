@@ -35,7 +35,7 @@ jobs:
             observer: ['wsn-observer/**']
             ai: ['wsn-ai-service/**']
             console: ['console/**']
-            deploy: ['deploy/**']
+            deploy: ['deploy/**', 'e2e/**']
       - name: All components changed on non-PR events
         if: github.event_name != 'pull_request'
         id: all
@@ -166,7 +166,7 @@ jobs:
             exit 1
           }
       - name: Run e2e smoke
-        run: bash deploy/e2e/smoke.sh
+        run: bash e2e/smoke.sh
       - name: Dump logs on failure
         if: failure()
         run: |
@@ -183,10 +183,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: fluxcd/flux2/action@v2.10.0
-      - name: Render every Flux overlay
+      - name: Render the cluster entry point and every Flux layer
         run: |
-          for dir in deploy/flux/infrastructure/controllers deploy/flux/infrastructure/configs deploy/flux/apps/dev deploy/flux/apps/staging deploy/flux/apps/prod; do
+          vars=$(sed -n 's/^  \([a-z_]*\): .*/\1/p' deploy/flux/cluster/cluster-vars.yaml)
+          for dir in deploy/flux/cluster deploy/flux/layers/*/; do
             echo "::group::$dir"
-            kubectl kustomize "$dir" > /dev/null
+            out=$(kubectl kustomize "$dir")
+            # every ${var} a layer uses must be defined in cluster-vars.yaml (openbao-config opts out of substitution)
+            for v in $(echo "$out" | grep -o '\${[a-z_]*}' | tr -d '${}' | sort -u); do
+              echo "$vars" | grep -qx "$v" || { echo "::error::$dir uses \${$v}, not defined in deploy/flux/cluster/cluster-vars.yaml"; exit 1; }
+            done
             echo "::endgroup::"
           done

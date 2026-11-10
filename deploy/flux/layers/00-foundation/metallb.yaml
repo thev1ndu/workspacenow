@@ -1,0 +1,16 @@
+# Gateway load-balancer IP (metallb is preinstalled on the cluster); the gateway gets ${gateway_ip}.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: workspacenow-pool
+  namespace: metallb-system
+spec:
+  addresses: ["${gateway_ip}/32"]
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: workspacenow-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools: ["workspacenow-pool"]

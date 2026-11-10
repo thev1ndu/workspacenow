@@ -1,0 +1,80 @@
+# Runtime settings the console reads before React mounts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: console
+data:
+  config.js: |
+    window.__RUNTIME_CONFIG__ = {
+      organizationName: "${org_name}",
+      installationName: "${org_name}",
+      version: "${image_tag}",
+      mockLatencyMs: 0,
+      apiBaseUrl: "https://api.${domain}",
+      authMode: "local",
+    };
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: console }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: console }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: console
+          image: console
+          imagePullPolicy: Always
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: PORT, value: "8080" }
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js
+            - name: tmp
+              mountPath: /tmp
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-log
+              mountPath: /var/log/nginx
+          readinessProbe:
+            httpGet: { path: /, port: http }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+      volumes:
+        - name: config
+          configMap: { name: console }
+        - name: tmp
+          emptyDir: {}
+        - name: nginx-conf
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: nginx-log
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: console
+spec:
+  selector: { app.kubernetes.io/name: console }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

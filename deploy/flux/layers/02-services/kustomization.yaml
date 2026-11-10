@@ -1,0 +1,8 @@
+# Layer 02: the stateful services the apps talk to: NATS, Valkey, RustFS, Temporal (on wsn-db).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - nats.yaml
+  - valkey.yaml
+  - rustfs.yaml
+  - temporal.yaml

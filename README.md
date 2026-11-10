@@ -118,7 +118,7 @@ The demo organization "Northwind Retail" seeds on first boot. In demo mode the c
 | `make down` | Stop the stack (named volumes are kept) |
 | `make clean` | Stop the stack and delete its volumes (postgres data, rustfs, nats, temporal, observer) |
 
-CI runs the same stack plus a smoke suite on every commit — `make up`'s compose profile `app`, then the smoke script in `deploy/e2e/` — so `make up` is exactly what CI verifies.
+CI runs the same stack plus a smoke suite on every commit (`make up`'s compose profile `app`, then the smoke script in `e2e/`), so `make up` is exactly what CI verifies.
 
 ### Configuration (`.env`)
 
@@ -140,39 +140,26 @@ The compose stack mounts a ready-made console runtime config (`deploy/compose/co
 
 ### Deploy on Kubernetes (Flux GitOps)
 
-The `deploy/flux/` tree applies three layers in order, each waiting for the previous to be ready:
+`deploy/flux/` deploys the whole platform to one cluster in numbered layers, each waiting for the previous one:
 
 | Layer | Path | Contents |
 |---|---|---|
-| `infra-controllers` | `deploy/flux/infrastructure/controllers` | CloudNativePG, External Secrets, OpenBao, NATS (JetStream), Valkey, Temporal |
-| `infra-configs` | `deploy/flux/infrastructure/configs` | The `wsn-db` Postgres cluster, the OpenBao `ClusterSecretStore`, `ExternalSecret`s, the RustFS object-storage deployment |
-| `workspacenow` | `deploy/flux/apps/<env>` | wsn-service (API, relay, worker, migration job), wsn-ai-service, the console, `HTTPRoute`s and NetworkPolicies |
+| `00-foundation` | `deploy/flux/layers/00-foundation` | Namespaces, Helm repositories, CloudNativePG / External Secrets / OpenBao operators, kgateway, metallb pool |
+| `01-secrets-data` | `deploy/flux/layers/01-secrets-data` | OpenBao setup, `ClusterSecretStore`, `ExternalSecret`s, the `wsn-db` Postgres cluster |
+| `02-services` | `deploy/flux/layers/02-services` | NATS (JetStream), Valkey, RustFS, Temporal |
+| `03-platform` | `deploy/flux/layers/03-platform` | Gateway + TLS certs, in-cluster registry, kaniko image builds |
+| `04-apps` | `deploy/flux/layers/04-apps` | wsn-service (API, relay, worker, migration job, backup), wsn-ai-service, wsn-observer, the console, `HTTPRoute`s and NetworkPolicies |
 
-`deploy/flux/apps/base` holds the manifests; `apps/dev`, `apps/staging` and `apps/prod` patch replicas, image tags, hostnames and runtime config. Dev follows `main` through Flux image automation; staging and production pin release tags.
-
-Bootstrap a cluster:
+The cluster-specific values (domain, gateway IP, cert issuer, git source, image tag, branding) live in one file, `deploy/flux/cluster/cluster-vars.yaml`, substituted into every layer. Bootstrap:
 
 ```sh
-flux bootstrap github --owner=thev1ndu --repository=workspacenow --branch=main --path=deploy/flux/clusters/dev
+flux bootstrap github --owner=thev1ndu --repository=workspacenow --branch=main --path=deploy/flux/cluster
 ```
 
-Before the apps can start, put these secrets in OpenBao (KV v2 at `secret/`), synced into Kubernetes by External Secrets:
-
-| Path | Keys |
-|---|---|
-| `workspacenow/mistral` | `apiKey` |
-| `workspacenow/ai-service` | `token` |
-| `workspacenow/observer` | `token` (optional shared bearer for the observer APIs) |
-| `workspacenow/run-grant` | `privateKey` (base64 Ed25519 seed for agent run grants) |
-| `workspacenow/object-storage` | `accessKey`, `secretKey` |
-| `workspacenow/temporal-db` | `password` |
-
-OpenBao needs Kubernetes auth roles named `external-secrets` (read `secret/data/workspacenow/*`) and `wsn-service` (read the paths integrations reference). Overlay hostnames (`workspacenow.example.com`) and the Gateway name (`gateway-system/gateway`) are placeholders — replace them per environment.
-
-Check the manifests render locally:
+Then seed the secrets into OpenBao with `deploy/flux/scripts/openbao-seed.sh`. The full walkthrough (DNS, secrets, sign-in, migrating from the old layout) is in `deploy/flux/README.md`. Check the manifests render locally:
 
 ```sh
-for d in infrastructure/controllers infrastructure/configs apps/dev apps/staging apps/prod; do kubectl kustomize deploy/flux/$d > /dev/null && echo "ok $d"; done
+for d in deploy/flux/cluster deploy/flux/layers/*/; do kubectl kustomize "$d" > /dev/null && echo "ok $d"; done
 ```
 
 ## Architecture
@@ -299,7 +286,7 @@ Transport only via the `libs/api-client` apis+hooks, routes via `routes`/`buildP
 
 ## Documentation map
 
-The `docs/` directory holds the living documentation: `CONTEXT.md` (the full domain glossary, summarized in Concepts above), `APIs.md` (narrative API guide), `FEATURES.md` (feature inventory with per-item status), `ROADMAP.md` (current state and what's next), `TODO.md` (task list with manual test steps), `COVERAGE.md` (per-package test coverage numbers). The deployment guides live in `deploy/`: `deploy/compose/` (local stack, HA overlay, console runtime config), `deploy/flux/` (GitOps per environment), `deploy/e2e/` (the smoke suite CI runs). Each component directory has its own `AGENTS.md` with the component-specific rules and checklists.
+The `docs/` directory holds the living documentation: `CONTEXT.md` (the full domain glossary, summarized in Concepts above), `APIs.md` (narrative API guide), `FEATURES.md` (feature inventory with per-item status), `ROADMAP.md` (current state and what's next), `TODO.md` (task list with manual test steps), `COVERAGE.md` (per-package test coverage numbers). The deployment guides live in `deploy/`: `deploy/compose/` (local stack, HA overlay, console runtime config), `deploy/flux/` (GitOps, numbered layers for one cluster); the smoke suite CI runs is in `e2e/`. Each component directory has its own `AGENTS.md` with the component-specific rules and checklists.
 
 ## Status and roadmap
 

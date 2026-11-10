@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wsn-ai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: wsn-ai-service }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: wsn-ai-service }
+    spec:
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: ai
+          image: wsn-ai-service
+          imagePullPolicy: Always
+          ports:
+            - { name: http, containerPort: 8090 }
+          env:
+            - { name: PORT, value: "8090" }
+            - { name: PLATFORM_INTERNAL_URL, value: http://wsn-service:8081 }
+            - { name: PLATFORM_API_URL, value: http://wsn-service:8080 }
+            - { name: DEFAULT_MODEL, value: mistral-medium-latest }
+            - { name: PLANNER_MODEL, value: mistral-large-latest }
+            - name: MISTRAL_API_KEY
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: MISTRAL_API_KEY } }
+            - name: AI_SERVICE_TOKEN
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: AI_SERVICE_TOKEN } }
+            - { name: WSN_OBSERVER_URL, value: http://wsn-observer:9098 }
+            - name: WSN_OBSERVER_TOKEN
+              valueFrom: { secretKeyRef: { name: wsn-secrets, key: OBSERVER_TOKEN } }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 768Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wsn-ai-service
+spec:
+  selector: { app.kubernetes.io/name: wsn-ai-service }
+  ports:
+    - { name: http, port: 8090, targetPort: http }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: wsn-ai-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: wsn-ai-service }

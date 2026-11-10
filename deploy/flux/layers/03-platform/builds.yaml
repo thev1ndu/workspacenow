@@ -1,0 +1,96 @@
+# One kaniko Job per component builds ${git_repo}@${git_branch} into registry.${domain}/<component>:${image_tag}.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: build-wsn-service
+  namespace: workspacenow
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      hostAliases:
+        - { ip: "${gateway_ip}", hostnames: ["registry.${domain}"] }
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - --dockerfile=Dockerfile
+            - --context-sub-path=wsn-service
+            - --context=git://${git_repo}#refs/heads/${git_branch}
+            - --destination=registry.${domain}/wsn-service:${image_tag}
+            - --snapshot-mode=redo
+            - --verbosity=info
+          resources: { requests: { cpu: 500m, memory: 1Gi } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: build-wsn-ai-service
+  namespace: workspacenow
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      hostAliases:
+        - { ip: "${gateway_ip}", hostnames: ["registry.${domain}"] }
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - --dockerfile=Dockerfile
+            - --context-sub-path=wsn-ai-service
+            - --context=git://${git_repo}#refs/heads/${git_branch}
+            - --destination=registry.${domain}/wsn-ai-service:${image_tag}
+            - --snapshot-mode=redo
+            - --verbosity=info
+          resources: { requests: { cpu: 500m, memory: 1Gi } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: build-wsn-observer
+  namespace: workspacenow
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      hostAliases:
+        - { ip: "${gateway_ip}", hostnames: ["registry.${domain}"] }
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - --dockerfile=Dockerfile
+            - --context-sub-path=wsn-observer
+            - --context=git://${git_repo}#refs/heads/${git_branch}
+            - --destination=registry.${domain}/wsn-observer:${image_tag}
+            - --snapshot-mode=redo
+            - --verbosity=info
+          resources: { requests: { cpu: 500m, memory: 1Gi } }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: build-console
+  namespace: workspacenow
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      hostAliases:
+        - { ip: "${gateway_ip}", hostnames: ["registry.${domain}"] }
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - --dockerfile=Dockerfile
+            - --context-sub-path=console
+            - --context=git://${git_repo}#refs/heads/${git_branch}
+            - --destination=registry.${domain}/console:${image_tag}
+            - --snapshot-mode=redo
+            - --verbosity=info
+          resources: { requests: { cpu: 1, memory: 2Gi } }

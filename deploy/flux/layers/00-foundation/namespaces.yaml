@@ -1,0 +1,36 @@
+# Every namespace WorkspaceNow uses. Never pruned: removing one from git must not delete what runs in it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workspacenow
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-system
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openbao
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: temporal
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kgateway-system
+  annotations: { kustomize.toolkit.fluxcd.io/prune: disabled }

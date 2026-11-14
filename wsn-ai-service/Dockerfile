@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-slim-bookworm AS build
+FROM python:3.15-slim-bookworm AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN python -m venv /opt/venv
 ENV PATH=/opt/venv/bin:$PATH
@@ -9,7 +9,7 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install .
 
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.title="wsn-ai-service" \

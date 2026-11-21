@@ -14,7 +14,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@tanstack/react-query": "5.105.3",
+    "@tanstack/react-query": "5.108.0",
     "@workspacenow/auth": "workspace:*",
     "@workspacenow/mock-server": "workspace:*",
     "@workspacenow/types": "workspace:*",
@@ -25,11 +25,11 @@
   },
   "devDependencies": {
     "typescript": "6.0.3",
-    "vite": "8.3.5",
+    "vite": "8.3.8",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/node": "26.6.6",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "@workspacenow/eslint-config": "workspace:*"
   }
 }

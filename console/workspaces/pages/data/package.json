@@ -18,7 +18,7 @@
   "dependencies": {
     "@carbon/react": "1.120.0",
     "@carbon/styles": "1.119.0",
-    "@tanstack/react-query": "5.105.3",
+    "@tanstack/react-query": "5.108.0",
     "@workspacenow/api-client": "workspace:*",
     "@workspacenow/auth": "workspace:*",
     "@workspacenow/charts": "workspace:*",
@@ -35,9 +35,9 @@
     "@types/react-dom": "19.3.0",
     "@vitest/coverage-v8": "^5.1.0",
     "@workspacenow/eslint-config": "workspace:*",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "typescript": "6.0.3",
-    "vite": "8.3.5",
+    "vite": "8.3.8",
     "vitest": "5.1.0"
   }
 }

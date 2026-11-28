@@ -14,21 +14,21 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@carbon/react": "1.120.0",
-    "@carbon/styles": "1.119.0",
-    "@tanstack/react-query": "5.105.3",
+    "@carbon/react": "1.121.0",
+    "@carbon/styles": "1.120.0",
+    "@tanstack/react-query": "5.108.4",
     "@workspacenow/types": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-router-dom": "7.18.5"
+    "react-router-dom": "7.18.7"
   },
   "devDependencies": {
-    "@types/node": "26.6.6",
-    "@types/react": "19.3.0",
+    "@types/node": "26.6.7",
+    "@types/react": "19.3.1",
     "@types/react-dom": "19.3.0",
     "@workspacenow/eslint-config": "workspace:*",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "typescript": "6.0.3",
-    "vite": "8.3.5"
+    "vite": "8.3.8"
   }
 }

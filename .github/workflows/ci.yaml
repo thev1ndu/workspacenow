@@ -182,7 +182,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: fluxcd/flux2/action@v2.10.0
+      - uses: fluxcd/flux2/action@v2.10.1
       - name: Render the cluster entry point and every Flux layer
         run: |
           vars=$(sed -n 's/^  \([a-z_]*\): .*/\1/p' deploy/flux/cluster/cluster-vars.yaml)
